@@ -7,15 +7,15 @@ import argparse
 from pathlib import Path
 from pdf2image import convert_from_path
 
-from config_Sugar1969 import PDF_PATH, PAGE_IMAGES_DIR, PDF_DPI
+from config import get_config, PAGE_IMAGES_DIR, PDF_DPI
 
 
 def convert_pdf_to_images(
-    pdf_path: Path = PDF_PATH,
+    pdf_path: Path | None = None,
     output_dir: Path = PAGE_IMAGES_DIR,
     first_page: int | None = None,
     last_page: int | None = None,
-    dpi: int = PDF_DPI,
+    dpi: int | None = None,
 ) -> list[Path]:
     """
     Convert PDF pages to PNG images.
@@ -30,6 +30,11 @@ def convert_pdf_to_images(
     Returns:
         List of paths to generated image files.
     """
+    if pdf_path is None:
+        pdf_path = get_config()["pdf_path"]
+    if dpi is None:
+        dpi = PDF_DPI
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"📄 Converting PDF pages to images at {dpi} DPI...")
@@ -92,17 +97,21 @@ def get_existing_images(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert Sugar PDF pages to images")
-    parser.add_argument("--pdf", type=str, default=str(PDF_PATH), help="Path to PDF")
+    parser.add_argument("--year", type=str, required=True, choices=["1969", "1974"], help="Year of the paper")
+    parser.add_argument("--pdf", type=str, default=None, help="Path to PDF")
     parser.add_argument("--pages", type=int, nargs=2, metavar=("START", "END"),
                         help="Page range (1-indexed, inclusive)")
-    parser.add_argument("--dpi", type=int, default=PDF_DPI, help=f"Image DPI (default: {PDF_DPI})")
+    parser.add_argument("--dpi", type=int, default=None, help="Image DPI (default: config value)")
     args = parser.parse_args()
+
+    from config import set_year
+    set_year(args.year)
 
     first_page = args.pages[0] if args.pages else None
     last_page = args.pages[1] if args.pages else None
 
     convert_pdf_to_images(
-        pdf_path=Path(args.pdf),
+        pdf_path=Path(args.pdf) if args.pdf else None,
         first_page=first_page,
         last_page=last_page,
         dpi=args.dpi,

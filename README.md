@@ -74,25 +74,25 @@ Or pass as CLI flag: `--model gemini-2.5-pro`
 source venv/bin/activate
 
 # Full pipeline (all pages):
-python extract_table_Sugar1974.py
+python extract_table.py --year 1974
 
 # Specific page range:
-python extract_table_Sugar1974.py --pages 3 39
+python extract_table.py --year 1974 --pages 3 39
 
 # Single page (for testing):
-python extract_table_Sugar1974.py --single-page 5
+python extract_table.py --year 1974 --single-page 5
 
 # Use gemini-2.5-pro:
-python extract_table_Sugar1974.py --pages 3 39 --model gemini-2.5-pro
+python extract_table.py --year 1974 --pages 3 39 --model gemini-2.5-pro
 
 # Reuse existing page images (skip PDF conversion):
-python extract_table_Sugar1974.py --skip-images --model gemini-2.5-pro
+python extract_table.py --year 1974 --skip-images --model gemini-2.5-pro
 
 # Lower DPI for faster processing:
-python extract_table_Sugar1974.py --dpi 200 --pages 3 39
+python extract_table.py --year 1974 --dpi 200 --pages 3 39
 
 # Dry run (show config, no processing):
-python extract_table_Sugar1974.py --dry-run --pages 3 39
+python extract_table.py --year 1974 --dry-run --pages 3 39
 
 # Convert PDF to images only:
 python pdf_to_images.py --pages 3 39
@@ -205,18 +205,12 @@ The pipeline catches 429 (rate limit) errors from the Gemini API. If you hit quo
 
 ```
 Table Extraction/
-├── extract_table_Sugar1974.py     # CLI entry point for Table 1 of Sugar 1974
-├── config_Sugar1974.py            # Configuration & env loading
-├── pdf_to_images_Sugar1974.py     # PDF → PNG conversion
-├── extraction_prompt_Sugar1974.py # Gemini extraction prompt (v3)
-├── tools_Sugar1974.py             # Validation (Edlen, selection rules, NIST)
-├── graph_Sugar1974.py             # LangGraph pipeline (v3)
-├── extract_table_Sugar1969.py     # CLI entry point for Table 1 of Sugar 1969
-├── config_Sugar1969.py            # Configuration & env loading
-├── pdf_to_images_Sugar1969.py     # PDF → PNG conversion
-├── extraction_prompt_Sugar1969.py # Gemini extraction prompt (v1)
-├── tools_Sugar1969.py             # Validation (Edlen, selection rules, NIST) (v1)
-├── graph_Sugar1969.py             # LangGraph pipeline (v1)
+├── extract_table.py               # CLI entry point
+├── config.py                      # Configurations
+├── pdf_to_images.py               # PDF → PNG conversion
+├── extraction_prompt.py           # Gemini prompt
+├── tools.py                       # Validation tools
+├── graph.py                       # LangGraph pipeline
 ├── requirements.txt               # Python dependencies
 ├── .env.example                   # API key template
 ├── .env                           # Your API key (create from template)

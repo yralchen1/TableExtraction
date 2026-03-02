@@ -24,14 +24,15 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config import (
-    GOOGLE_API_KEY, GEMINI_MODEL, PDF_DPI,
-    PDF_PATH, PAGE_IMAGES_DIR, OUTPUT_DIR,
-    NIST_RITZ_TOLERANCE_CM1,
+    get_config, GOOGLE_API_KEY, GEMINI_MODEL, PDF_DPI,
+    PAGE_IMAGES_DIR, OUTPUT_DIR,
 )
-from pdf_to_images_Sugar1974 import convert_pdf_to_images, get_existing_images
-from extraction_prompt_Sugar1974 import SYSTEM_PROMPT, USER_PROMPT
-from tools_Sugar1974 import (
+from pdf_to_images import convert_pdf_to_images, get_existing_images
+from extraction_prompt import get_system_prompt, USER_PROMPT
+from tools import (
     validate_full_row,
+    wavenumber_from_vac_wavelength,
+    wavelength_vac_from_wavenumber,
     wavenumber_from_air_wavelength,
     wavelength_air_from_wavenumber,
 )
@@ -242,7 +243,7 @@ def extract_tables_node(state: PipelineState) -> dict:
             image_data_uri = f"data:image/png;base64,{image_b64}"
 
             messages = [
-                SystemMessage(content=SYSTEM_PROMPT),
+                SystemMessage(content=get_system_prompt()),
                 HumanMessage(content=[
                     {"type": "text", "text": USER_PROMPT},
                     {"type": "image_url", "image_url": image_data_uri},
@@ -447,8 +448,8 @@ def _pass2_missing_wavelength(page_rows: list[dict], stats: dict, page: str):
     """
     Handle rows with wavenumber but no wavelength.
 
-    1. Compute air wavelength from wavenumber.
-    2. Find closest wavelength match on same page (|dwl| ≤ 0.001).
+    1. Compute vacuum wavelength from wavenumber.
+    2. Find closest wavelength match on same page (|dwl| ≤ 0.005).
     3. If target fields are free → merge; otherwise → flag.
     """
     for row in page_rows:
@@ -462,7 +463,10 @@ def _pass2_missing_wavelength(page_rows: list[dict], stats: dict, page: str):
         if _is_empty(wl) and not _is_empty(wn):
             try:
                 wn_val = float(wn)
-                computed_wl = wavelength_air_from_wavenumber(wn_val)
+                if get_config()["wavelength_type"] == "air":
+                    computed_wl = wavelength_air_from_wavenumber(wn_val)
+                else:
+                    computed_wl = wavelength_vac_from_wavenumber(wn_val)
             except (ValueError, TypeError, ZeroDivisionError):
                 continue
 
@@ -483,10 +487,10 @@ def _pass2_missing_wavelength(page_rows: list[dict], stats: dict, page: str):
                 except (ValueError, TypeError):
                     continue
 
-            if best_target is None or best_diff > 0.001:
+            if best_target is None or best_diff > 0.005:
                 row["_structure_note"] = (
                     f"Missing wavelength: computed λ={computed_wl:.3f} from σ={wn}, "
-                    f"no matching row on {page} within 0.001 Å"
+                    f"no matching row on {page} within 0.005 Å"
                 )
                 stats["merge_fail_distant"] += 1
                 continue
@@ -529,8 +533,8 @@ def _pass3_missing_wavenumber(page_rows: list[dict], stats: dict, page: str):
     """
     Handle rows with wavelength but no wavenumber.
 
-    1. Compute vacuum wavenumber from air wavelength.
-    2. Find closest wavenumber match on same page (|dwn| ≤ 0.01).
+    1. Compute vacuum wavenumber from vacuum wavelength.
+    2. Find closest wavenumber match on same page (|dwn| ≤ 0.2).
     3. If target fields are free → merge; otherwise → flag.
     """
     for row in page_rows:
@@ -544,7 +548,10 @@ def _pass3_missing_wavenumber(page_rows: list[dict], stats: dict, page: str):
         if not _is_empty(wl) and _is_empty(wn):
             try:
                 wl_val = float(wl)
-                computed_wn = wavenumber_from_air_wavelength(wl_val)
+                if get_config()["wavelength_type"] == "air":
+                    computed_wn = wavenumber_from_air_wavelength(wl_val)
+                else:
+                    computed_wn = wavenumber_from_vac_wavelength(wl_val)
             except (ValueError, TypeError, ZeroDivisionError):
                 continue
 
@@ -565,10 +572,10 @@ def _pass3_missing_wavenumber(page_rows: list[dict], stats: dict, page: str):
                 except (ValueError, TypeError):
                     continue
 
-            if best_target is None or best_diff > 0.01:
+            if best_target is None or best_diff > 0.2:
                 row["_structure_note"] = (
                     f"Missing wavenumber: computed σ={computed_wn:.2f} from λ={wl}, "
-                    f"no matching row on {page} within 0.01 cm⁻¹"
+                    f"no matching row on {page} within 0.2 cm⁻¹"
                 )
                 stats["merge_fail_distant"] += 1
                 continue
@@ -717,7 +724,7 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
 
     Returns (moves_made, flags_made) counts.
     """
-    from tools_Sugar1974 import validate_wavelength_wavenumber
+    from tools import validate_wavelength_wavenumber
 
     total_moved = 0
     total_flagged = 0
@@ -771,7 +778,7 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                 except (ValueError, TypeError):
                     continue
 
-            if best_match_idx is None or best_diff > NIST_RITZ_TOLERANCE_CM1:
+            if best_match_idx is None or best_diff > get_config()["nist_ritz_tolerance_cm1"]:
                 continue
 
             # If best match is current row, classification is in the right place
@@ -830,7 +837,7 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                         target_row["wl_wn_status"] = wl_check["status"]
                         target_row["wl_wn_note"] = wl_check.get("note", "")
 
-                    if best_diff <= NIST_RITZ_TOLERANCE_CM1:
+                    if best_diff <= get_config()["nist_ritz_tolerance_cm1"]:
                         target_row["nist_status"] = "OK"
                     move_note = f"[iter {iteration}] Classification moved from misaligned row (Ritz σ={ritz_wn:.2f}, Δ={best_diff:.4f})"
                     existing = target_row.get("nist_note", "")
@@ -918,7 +925,7 @@ def fix_misalignment_node(state: PipelineState) -> dict:
                 obs_diff = abs(float(obs_wn) - ritz_wn)
             except (ValueError, TypeError):
                 continue
-            if obs_diff > NIST_RITZ_TOLERANCE_CM1:
+            if obs_diff > get_config()["nist_ritz_tolerance_cm1"]:
                 # Still misaligned after all iterations
                 # Find where it should be
                 best_idx = None
@@ -934,7 +941,7 @@ def fix_misalignment_node(state: PipelineState) -> dict:
                             best_idx = cand_idx
                     except (ValueError, TypeError):
                         continue
-                if best_idx is not None and best_diff <= NIST_RITZ_TOLERANCE_CM1 and best_idx != idx:
+                if best_idx is not None and best_diff <= get_config()["nist_ritz_tolerance_cm1"] and best_idx != idx:
                     target = final_rows[best_idx]
                     flag = (f"Misalignment unresolved: Ritz σ={ritz_wn:.2f} matches row with "
                             f"σ_obs={float(target.get('wavenumber', 0)):.2f} (Δ={best_diff:.4f}), "
@@ -1040,7 +1047,7 @@ def compile_output_node(state: PipelineState) -> dict:
     # df = df.reset_index(drop=True)
 
     # ── Save CSV with ="5/2" formatting for J columns ──
-    csv_path = OUTPUT_DIR / "Pr_III_Table1_extracted.csv"
+    csv_path = OUTPUT_DIR / get_config()["csv_name"]
     df_csv = df.copy()
     for j_col in ["Lower J", "Upper J"]:
         df_csv[j_col] = df_csv[j_col].apply(
@@ -1050,10 +1057,11 @@ def compile_output_node(state: PipelineState) -> dict:
     print(f"   ✅ CSV saved: {csv_path}")
 
     # ── Save Excel ──
-    excel_path = OUTPUT_DIR / "Pr_III_Table1_extracted.xlsx"
+    excel_path = OUTPUT_DIR / get_config()["excel_name"]
+    sheet_name = get_config()["excel_sheet_name"]
     with pd.ExcelWriter(str(excel_path), engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Table 1")
-        ws = writer.sheets["Table 1"]
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+        ws = writer.sheets[sheet_name]
         for col_idx, col_name in enumerate(df.columns, 1):
             max_len = max(
                 len(str(col_name)),
@@ -1105,15 +1113,22 @@ def run_pipeline(
     pdf_path: str | None = None,
     first_page: int | None = None,
     last_page: int | None = None,
-    dpi: int = PDF_DPI,
-    model_name: str = GEMINI_MODEL,
+    dpi: int | None = None,
+    model_name: str | None = None,
     skip_images: bool = False,
 ) -> dict:
     """Run the complete extraction pipeline."""
     pipeline = build_pipeline()
 
+    if pdf_path is None:
+        pdf_path = str(get_config()["pdf_path"])
+    if dpi is None:
+        dpi = PDF_DPI
+    if model_name is None:
+        model_name = GEMINI_MODEL
+
     initial_state: PipelineState = {
-        "pdf_path": pdf_path or str(PDF_PATH),
+        "pdf_path": pdf_path,
         "first_page": first_page,
         "last_page": last_page,
         "dpi": dpi,

@@ -18,7 +18,7 @@ from functools import lru_cache
 
 import openpyxl
 
-from config_Sugar1974 import NIST_ASD_PATH, WAVENUMBER_TOLERANCE_CM1, NIST_RITZ_TOLERANCE_CM1
+from config import get_config
 
 
 # ──────────────────────────────────────────────
@@ -64,6 +64,22 @@ def wavenumber_from_air_wavelength(wavelength_air_angstrom: float) -> float:
     lambda_vac_angstrom = wavelength_air_to_vacuum(wavelength_air_angstrom)
     lambda_vac_cm = lambda_vac_angstrom * 1e-8
     return 1.0 / lambda_vac_cm
+
+
+def wavenumber_from_vac_wavelength(wavelength_vac_angstrom: float) -> float:
+    """Compute vacuum wavenumber (cm⁻¹) from vacuum wavelength (Å)."""
+    if wavelength_vac_angstrom <= 0:
+        raise ValueError(f"Wavelength must be positive, got {wavelength_vac_angstrom}")
+    return 1.0e8 / wavelength_vac_angstrom
+
+
+def wavelength_vac_from_wavenumber(sigma_cm1: float) -> float:
+    """
+    Compute vacuum wavelength (Å) from vacuum wavenumber (cm⁻¹).
+    """
+    if sigma_cm1 <= 0:
+        raise ValueError(f"Wavenumber must be positive, got {sigma_cm1}")
+    return 1.0e8 / sigma_cm1
 
 
 def wavelength_air_from_wavenumber(sigma_cm1: float) -> float:
@@ -130,14 +146,21 @@ def _try_swap_adjacent_digits(value_str: str, compute_target, target: float, tol
 def validate_wavelength_wavenumber(
     wavelength: float,
     wavenumber: float,
-    tolerance: float = WAVENUMBER_TOLERANCE_CM1,
+    tolerance: float = None,
 ) -> dict:
     """
     Validate that wavelength and wavenumber are consistent via Edlen's formula.
     If they disagree, attempt typo correction on each value.
     """
+    if tolerance is None:
+        tolerance = get_config()["wavenumber_tolerance_cm1"]
+
     try:
-        computed_sigma = wavenumber_from_air_wavelength(wavelength)
+        wl_type = get_config()["wavelength_type"]
+        if wl_type == "air":
+            computed_sigma = wavenumber_from_air_wavelength(wavelength)
+        else:
+            computed_sigma = wavenumber_from_vac_wavelength(wavelength)
     except (ZeroDivisionError, ValueError):
         return {
             "status": "ERROR",
@@ -164,9 +187,11 @@ def validate_wavelength_wavenumber(
     wl_str = f"{wavelength:.3f}"
     wn_str = f"{wavenumber:.2f}"
 
+    compute_fn = wavenumber_from_air_wavelength if get_config()["wavelength_type"] == "air" else wavenumber_from_vac_wavelength
+
     # Try fixing wavelength (single digit)
     fixed_wl = _try_single_digit_typo(
-        wl_str, wavenumber_from_air_wavelength, wavenumber, tolerance,
+        wl_str, compute_fn, wavenumber, tolerance,
     )
     if fixed_wl:
         return {
@@ -180,7 +205,7 @@ def validate_wavelength_wavenumber(
 
     # Try fixing wavelength (swap adjacent digits)
     fixed_wl = _try_swap_adjacent_digits(
-        wl_str, wavenumber_from_air_wavelength, wavenumber, tolerance,
+        wl_str, compute_fn, wavenumber, tolerance,
     )
     if fixed_wl:
         return {
@@ -319,7 +344,7 @@ def _load_nist_levels(nist_path: str | None = None) -> dict:
         - by_int: {int_part → [(parity, J, level_float), ...]}
         - all_levels: [(int_part, parity, J, level_float), ...]
     """
-    path = Path(nist_path) if nist_path else NIST_ASD_PATH
+    path = Path(nist_path) if nist_path else get_config()["nist_asd_path"]
     wb = openpyxl.load_workbook(str(path), read_only=True)
     ws = wb.active
 
@@ -560,7 +585,7 @@ def validate_nist_levels(
     upper_parity: str | None,
     upper_j: str | None,
     observed_wavenumber: float,
-    tolerance: float = NIST_RITZ_TOLERANCE_CM1,
+    tolerance: float = None,
 ) -> dict:
     """
     Validate a spectral line's classification against NIST ASD levels.
@@ -576,6 +601,9 @@ def validate_nist_levels(
         corrected_upper_parity, corrected_upper_j, ritz_wavenumber, ritz_difference,
         status, note
     """
+    if tolerance is None:
+        tolerance = get_config()["nist_ritz_tolerance_cm1"]
+
     # Unclassified line
     if lower_level_int is None or upper_level_int is None:
         return {
