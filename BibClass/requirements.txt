@@ -1,8 +1,0 @@
-# Requirements for PDF Processing Script with LangChain + Google Gemini
-langchain>=0.1.0
-langchain-google-genai>=1.0.0
-pypdf>=6.7.1
-python-dotenv>=1.0.0
-langchain-core~=1.2.13
-python-docx>=1.1.0
-openpyxl>=3.1.2
