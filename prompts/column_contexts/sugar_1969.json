@@ -1,0 +1,10 @@
+{
+    "paper_era": "1969",
+    "wavelength_header": "$\\lambda_{vac}$ (Å)",
+    "wavenumber_header": "$\\sigma$ (cm⁻¹)",
+    "wn_decimal": "1 decimal place",
+    "wl_examples": "\"2103.455\", \"2064.736\"",
+    "wn_examples": "\"49286.4\", \"50298.3\"",
+    "intensity_chars": "- h = hazy\n- w = wide  \n- cl = measurement affected by a close neighboring line\n- bl = a blend of two or more lines\n- *r = strongest peak of a hyperfine pattern shaded to the red (toward longer wavelengths)\n- *v = strongest peak of a hyperfine pattern shaded to the violet (toward shorter wavelengths)",
+    "json_example": "[\n  {\n    \"wavelength\": 2036.415,\n    \"intensity\": 20,\n    \"line_character\": \"cl\",\n    \"wavenumber\": 49105.9,\n    \"lower_level_int\": 19872,\n    \"lower_parity\": \"e\",\n    \"lower_j\": \"7/2\",\n    \"upper_level_int\": 68978,\n    \"upper_parity\": \"o\",\n    \"upper_j\": \"5/2\"\n  },\n  {\n    \"wavelength\": 2036.103,\n    \"intensity\": 1,\n    \"line_character\": \"\",\n    \"wavenumber\": 49113.4,\n    \"lower_level_int\": null,\n    \"lower_parity\": null,\n    \"lower_j\": null,\n    \"upper_level_int\": null,\n    \"upper_parity\": null,\n    \"upper_j\": null\n  }\n]"
+}

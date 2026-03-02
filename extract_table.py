@@ -6,11 +6,11 @@ Extracts tables from the Sugar Pr III PDF using Gemini multimodal vision,
 validates against Edlen's formula and NIST ASD, and outputs CSV/Excel.
 
 Usage:
-    python extract_table.py --year 1969                           # Process 1969 paper, all pages
-    python extract_table.py --year 1974 --pages 4 36              # Process 1974 paper, pages 4–36
-    python extract_table.py --year 1969 --single-page 5           # Process page 5 only
-    python extract_table.py --year 1974 --skip-images             # Skip PDF→image conversion
-    python extract_table.py --year 1969 --model gemini-2.5-pro    # Use specific model
+    python extract_table.py                           # Process all pages
+    python extract_table.py --pages 4 36              # Process pages 4–36
+    python extract_table.py --single-page 5           # Process page 5 only
+    python extract_table.py --skip-images             # Skip PDF→image conversion
+    python extract_table.py --model gemini-2.5-pro    # Use specific model
 """
 
 import argparse
@@ -18,8 +18,8 @@ import sys
 import os
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-from config import validate_api_key, set_year, get_config, GEMINI_MODEL, PDF_DPI
-from graph import run_pipeline
+from config import validate_api_key, get_config, GEMINI_MODEL, PDF_DPI
+from graph import run_extraction_pipeline
 
 
 def main():
@@ -28,19 +28,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python extract_table.py --year 1969 --pages 4 36              Process pages 4 through 36 of 1969 paper
-  python extract_table.py --year 1974 --single-page 5           Process only page 5 (for testing)
-  python extract_table.py --year 1969 --skip-images             Reuse existing page images
-  python extract_table.py --year 1969 --model gemini-2.5-pro    Use a different Gemini model
-  python extract_table.py --year 1974 --dpi 200                 Lower DPI for faster processing
-  python extract_table.py --year 1969 --dry-run                 Show config without processing
+  python extract_table.py --pages 4 36              Process pages 4 through 36
+  python extract_table.py --single-page 5           Process only page 5
+  python extract_table.py --skip-images             Reuse existing page images
+  python extract_table.py --model gemini-2.5-pro    Use a different Gemini model
+  python extract_table.py --dpi 200                 Lower DPI for faster processing
+  python extract_table.py --dry-run                 Show config without processing
         """,
     )
 
-    parser.add_argument(
-        "--year", type=str, required=True, choices=["1969", "1974"],
-        help="Year of the Sugar paper to process (1969 or 1974).",
-    )
     parser.add_argument(
         "--pages", type=int, nargs=2, metavar=("START", "END"),
         help="Page range to process (1-indexed, inclusive). Default: all pages.",
@@ -72,8 +68,6 @@ Examples:
 
     args = parser.parse_args()
 
-    # Set the year globally so config handles it automatically
-    set_year(args.year)
     cfg = get_config()
 
     # Resolve page range
@@ -91,7 +85,7 @@ Examples:
 
     # Dry run (no API key needed)
     if args.dry_run:
-        print(f"🔍 Dry Run — Configuration for Year {args.year}:")
+        print(f"🔍 Dry Run — Configuration:")
         print(f"   PDF:       {actual_pdf}")
         print(f"   Model:     {args.model}")
         print(f"   Pages:     {first_page or 'first'} – {last_page or 'last'}")
@@ -100,13 +94,15 @@ Examples:
         print(f"   CSV Out:   {cfg['csv_name']}")
         print(f"   Excel Out: {cfg['excel_name']}")
         print(f"   Wavelength:{cfg['wavelength_type']}")
+        print(f"   Pub Year:  {cfg['publication_year']}")
+        print(f"   Air/Vac:   {cfg['air_vac_conversion_method']}")
         sys.exit(0)
 
     # Validate API key (needed for actual processing)
     validate_api_key()
 
-    # Run the pipeline
-    result = run_pipeline(
+    # Run the extraction pipeline
+    result = run_extraction_pipeline(
         pdf_path=actual_pdf,
         first_page=first_page,
         last_page=last_page,

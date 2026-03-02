@@ -1,12 +1,12 @@
 """
-Configuration for the Pr III Table Extraction Pipeline.
+Configuration for the Table Extraction Pipeline.
 Loads settings from .env file and provides defaults.
 """
 
 import os
 import sys
+import datetime
 from pathlib import Path
-from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -36,41 +36,39 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 # --- PDF Conversion ---
 PDF_DPI = int(os.getenv("PDF_DPI", "600"))
 
-# --- Year-Specific Configs ---
-CONFIG_1969 = {
-    "pdf_path": BASE_DIR / "jresv73An3p333_A1b_TableX.pdf",
-    "nist_asd_path": BASE_DIR / "Pr3_lev_ASD512.xlsx",
-    "wavenumber_tolerance_cm1": 0.2,
-    "nist_ritz_tolerance_cm1": 1.5,
-    "wavelength_type": "vac",
-    "csv_name": "Pr_III_TableX_extracted.csv",
-    "excel_name": "Pr_III_TableX_extracted.xlsx",
-    "excel_sheet_name": "Table X",
-}
+# --- Table Config ---
+PDF_PATH = Path(os.getenv("PDF_PATH", str(BASE_DIR / "jresv73An3p333_A1b_TableX.pdf")))
+REF_LEVELS_PATH = Path(os.getenv("REF_LEVELS_PATH", str(BASE_DIR / "Pr3_lev_ASD512.xlsx")))
 
-CONFIG_1974 = {
-    "pdf_path": BASE_DIR / "jresv78An5p555_A1b.pdf",
-    "nist_asd_path": BASE_DIR / "Pr3_lev_ASD512.xlsx",
-    "wavenumber_tolerance_cm1": 0.01,
-    "nist_ritz_tolerance_cm1": 1.5,
-    "wavelength_type": "air",
-    "csv_name": "Pr_III_Table1_extracted.csv",
-    "excel_name": "Pr_III_Table1_extracted.xlsx",
-    "excel_sheet_name": "Table 1",
-}
+WAVENUMBER_TOLERANCE_CM1 = float(os.getenv("WAVENUMBER_TOLERANCE_CM1", "0.2"))
+REF_RITZ_TOLERANCE_CM1 = float(os.getenv("REF_RITZ_TOLERANCE_CM1", "1.5"))
+WAVELENGTH_TYPE = os.getenv("WAVELENGTH_TYPE", "vac")
 
-CONFIGS = {
-    "1969": CONFIG_1969,
-    "1974": CONFIG_1974,
-}
+LAYOUT_PROMPT_PATH = Path(os.getenv("LAYOUT_PROMPT_PATH", str(BASE_DIR / "prompts/layout_definitions/split_two_columns.txt")))
+COLUMN_CONTEXT_PATH = Path(os.getenv("COLUMN_CONTEXT_PATH", str(BASE_DIR / "prompts/column_contexts/sugar_1969.json")))
 
-_current_year = "1969"
+CSV_NAME = os.getenv("CSV_NAME", "Table_extracted.csv")
+EXCEL_NAME = os.getenv("EXCEL_NAME", "Table_extracted.xlsx")
+EXCEL_SHEET_NAME = os.getenv("EXCEL_SHEET_NAME", "Table 1")
 
-def set_year(year: str):
-    global _current_year
-    if str(year) not in CONFIGS:
-        raise ValueError(f"Invalid year: {year}. Must be '1969' or '1974'.")
-    _current_year = str(year)
+# --- New Options ---
+AIR_VAC_CONVERSION_METHOD = os.getenv("AIR_VAC_CONVERSION_METHOD", "Edlen1966")
+current_year = datetime.datetime.now().year
+PUBLICATION_YEAR = int(os.getenv("PUBLICATION_YEAR", str(current_year)))
 
-def get_config() -> Dict[str, Any]:
-    return CONFIGS[_current_year]
+def get_config() -> dict:
+    """Returns the configuration as a dictionary."""
+    return {
+        "pdf_path": PDF_PATH,
+        "ref_levels_path": REF_LEVELS_PATH,
+        "wavenumber_tolerance_cm1": WAVENUMBER_TOLERANCE_CM1,
+        "ref_ritz_tolerance_cm1": REF_RITZ_TOLERANCE_CM1,
+        "wavelength_type": WAVELENGTH_TYPE,
+        "csv_name": CSV_NAME,
+        "excel_name": EXCEL_NAME,
+        "excel_sheet_name": EXCEL_SHEET_NAME,
+        "air_vac_conversion_method": AIR_VAC_CONVERSION_METHOD,
+        "publication_year": PUBLICATION_YEAR,
+        "layout_prompt_path": LAYOUT_PROMPT_PATH,
+        "column_context_path": COLUMN_CONTEXT_PATH,
+    }

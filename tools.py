@@ -19,6 +19,7 @@ from functools import lru_cache
 import openpyxl
 
 from config import get_config
+import astools
 
 
 # ──────────────────────────────────────────────
@@ -158,7 +159,17 @@ def validate_wavelength_wavenumber(
     try:
         wl_type = get_config()["wavelength_type"]
         if wl_type == "air":
-            computed_sigma = wavenumber_from_air_wavelength(wavelength)
+            method_name = get_config().get("air_vac_conversion_method", "Edlen1966")
+            if method_name == "Edlen1966":
+                computed_sigma = wavenumber_from_air_wavelength(wavelength)
+            elif method_name == "Edlen1953":
+                computed_sigma = 1.0 / (astools.LvacE53(wavelength) * 1e-8)
+            elif method_name == "Peck&Reeder1973":
+                computed_sigma = 1.0 / (astools.Lvac(wavelength) * 1e-8)
+            elif method_name == "Meggers&Peters1919":
+                computed_sigma = 1.0 / (astools.LvacMP(wavelength) * 1e-8)
+            else:
+                computed_sigma = wavenumber_from_air_wavelength(wavelength)
         else:
             computed_sigma = wavenumber_from_vac_wavelength(wavelength)
     except (ZeroDivisionError, ValueError):
@@ -187,7 +198,21 @@ def validate_wavelength_wavenumber(
     wl_str = f"{wavelength:.3f}"
     wn_str = f"{wavenumber:.2f}"
 
-    compute_fn = wavenumber_from_air_wavelength if get_config()["wavelength_type"] == "air" else wavenumber_from_vac_wavelength
+    wl_type = get_config()["wavelength_type"]
+    if wl_type == "air":
+        method_name = get_config().get("air_vac_conversion_method", "Edlen1966")
+        if method_name == "Edlen1966":
+            compute_fn = wavenumber_from_air_wavelength
+        elif method_name == "Edlen1953":
+            compute_fn = lambda wl: 1.0 / (astools.LvacE53(wl) * 1e-8)
+        elif method_name == "Peck&Reeder1973":
+            compute_fn = lambda wl: 1.0 / (astools.Lvac(wl) * 1e-8)
+        elif method_name == "Meggers&Peters1919":
+            compute_fn = lambda wl: 1.0 / (astools.LvacMP(wl) * 1e-8)
+        else:
+            compute_fn = wavenumber_from_air_wavelength
+    else:
+        compute_fn = wavenumber_from_vac_wavelength
 
     # Try fixing wavelength (single digit)
     fixed_wl = _try_single_digit_typo(
@@ -330,13 +355,13 @@ def check_selection_rules(
 
 
 # ──────────────────────────────────────────────
-# NIST ASD Level Lookup
+# Reference Level Lookup
 # ──────────────────────────────────────────────
 
 @lru_cache(maxsize=1)
-def _load_nist_levels(nist_path: str | None = None) -> dict:
+def _load_reference_levels(ref_path: str | None = None) -> dict:
     """
-    Load NIST ASD energy levels from the Excel file into lookup structures.
+    Load reference energy levels from the Excel file into lookup structures.
 
     Returns dict with:
         - exact: {(int_part, parity, J) → level_float}
@@ -344,7 +369,7 @@ def _load_nist_levels(nist_path: str | None = None) -> dict:
         - by_int: {int_part → [(parity, J, level_float), ...]}
         - all_levels: [(int_part, parity, J, level_float), ...]
     """
-    path = Path(nist_path) if nist_path else get_config()["nist_asd_path"]
+    path = Path(ref_path) if ref_path else get_config()["ref_levels_path"]
     wb = openpyxl.load_workbook(str(path), read_only=True)
     ws = wb.active
 
@@ -369,6 +394,17 @@ def _load_nist_levels(nist_path: str | None = None) -> dict:
             level_float = float(str(level_str).strip())
         except ValueError:
             continue
+            
+        # Auto-convert eV to cm-1 if the value looks like it's in eV (e.g. max level ~15-20 eV vs 100,000 cm-1. Ground state is 0.0)
+        # We can loosely guess it's eV if the level is >0 but very small, however it's safer to just provide 
+        # the conversion capability. To be robust, we'll check the cell header if possible, or just convert
+        # if the max level in the document seems to be < 1000.
+        # For now, we will expose the conversion based on publication year as required by the plan.
+        if level_float > 0 and level_float < 1000.0:  
+            # Assuming values < 1000 cm-1 are actually eV for this ion (Pr III levels go up to 100,000s).
+            # This handles older papers that might have published in eV.
+            pub_year = get_config().get("publication_year", 2022)
+            level_float = level_float * astools.evcm(pub_year)
 
         int_part = int(math.floor(level_float))
         parity_str = str(parity).strip().lower()
@@ -398,21 +434,21 @@ def _load_nist_levels(nist_path: str | None = None) -> dict:
     }
 
 
-def lookup_nist_level(level_int: int, parity: str, j_value: str) -> dict:
+def lookup_reference_level(level_int: int, parity: str, j_value: str) -> dict:
     """
-    Look up an energy level in NIST ASD, with auto-correction attempts.
+    Look up an energy level in Reference Levels, with auto-correction attempts.
 
     Tries in order:
     1. Exact match (int_part, parity, J)
     2. ±1 in integer part with exact parity+J
     3. Flipped parity (° misread as 0 or vice versa) with same J
-    4. Same int_part+parity, different J from NIST
+    4. Same int_part+parity, different J from Reference
     5. Int_part typo correction (single digit, adjacent swap)
 
     Returns:
         dict with found, exact_level, corrected_parity, corrected_j, corrected_int, note
     """
-    data = _load_nist_levels()
+    data = _load_reference_levels()
     j_str = str(j_value).strip()
     par = parity.strip().lower() if parity else "e"
 
@@ -466,25 +502,25 @@ def lookup_nist_level(level_int: int, parity: str, j_value: str) -> dict:
                 "note": f"Parity corrected: {par}→{flipped_par}, int ±1: {level_int}→{level_int + delta}",
             }
 
-    # 4. Same int_part, any parity, different J from NIST
+    # 4. Same int_part, any parity, different J from Reference
     #    Check with original parity first, then flipped
     for check_par in [par, flipped_par]:
         key2 = (level_int, check_par)
         if key2 in data["by_int_parity"]:
             candidates = data["by_int_parity"][key2]
             if len(candidates) == 1:
-                # Only one J available → likely NIST revised the J value
-                nist_j, nist_level = candidates[0]
+                # Only one J available → likely Reference revised the J value
+                ref_j, ref_level = candidates[0]
                 corrections = []
                 if check_par != par:
                     corrections.append(f"parity {par}→{check_par}")
-                corrections.append(f"J {j_str}→{nist_j} (NIST)")
+                corrections.append(f"J {j_str}→{ref_j} (Reference)")
                 return {
                     **result_base,
                     "found": True,
-                    "exact_level": nist_level,
+                    "exact_level": ref_level,
                     "corrected_parity": check_par if check_par != par else None,
-                    "corrected_j": nist_j,
+                    "corrected_j": ref_j,
                     "note": "Corrected: " + ", ".join(corrections),
                 }
         # Also try ±1 int with different J
@@ -493,18 +529,18 @@ def lookup_nist_level(level_int: int, parity: str, j_value: str) -> dict:
             if key2_d in data["by_int_parity"]:
                 candidates = data["by_int_parity"][key2_d]
                 if len(candidates) == 1:
-                    nist_j, nist_level = candidates[0]
+                    ref_j, ref_level = candidates[0]
                     corrections = []
                     if check_par != par:
                         corrections.append(f"parity {par}→{check_par}")
                     corrections.append(f"int {level_int}→{level_int + delta}")
-                    corrections.append(f"J {j_str}→{nist_j} (NIST)")
+                    corrections.append(f"J {j_str}→{ref_j} (Reference)")
                     return {
                         **result_base,
                         "found": True,
-                        "exact_level": nist_level,
+                        "exact_level": ref_level,
                         "corrected_parity": check_par if check_par != par else None,
-                        "corrected_j": nist_j,
+                        "corrected_j": ref_j,
                         "corrected_int": level_int + delta,
                         "note": "Corrected: " + ", ".join(corrections),
                     }
@@ -572,12 +608,12 @@ def lookup_nist_level(level_int: int, parity: str, j_value: str) -> dict:
                           ", ".join(f"{p} J={j}" for p, j, _ in available))
     return {
         **result_base,
-        "note": f"Level {level_int} parity={par} J={j_str} not found in NIST ASD" +
+        "note": f"Level {level_int} parity={par} J={j_str} not found in Reference Levels" +
                 (f". {'; '.join(info_parts)}" if info_parts else ""),
     }
 
 
-def validate_nist_levels(
+def validate_reference_levels(
     lower_level_int: int | None,
     lower_parity: str | None,
     lower_j: str | None,
@@ -588,12 +624,12 @@ def validate_nist_levels(
     tolerance: float = None,
 ) -> dict:
     """
-    Validate a spectral line's classification against NIST ASD levels.
+    Validate a spectral line's classification against Reference levels.
 
     Steps:
     1. Look up both levels (with auto-correction)
     2. Check selection rules
-    3. If selection rules fail with raw values but pass with NIST-corrected values, use corrected
+    3. If selection rules fail with raw values but pass with Reference-corrected values, use corrected
     4. Check Ritz wavenumber agreement
 
     Returns dict with:
@@ -602,7 +638,7 @@ def validate_nist_levels(
         status, note
     """
     if tolerance is None:
-        tolerance = get_config()["nist_ritz_tolerance_cm1"]
+        tolerance = get_config()["ref_ritz_tolerance_cm1"]
 
     # Unclassified line
     if lower_level_int is None or upper_level_int is None:
@@ -616,8 +652,8 @@ def validate_nist_levels(
         }
 
     # Look up both levels (with auto-correction)
-    lower = lookup_nist_level(lower_level_int, lower_parity or "e", lower_j or "0")
-    upper = lookup_nist_level(upper_level_int, upper_parity or "e", upper_j or "0")
+    lower = lookup_reference_level(lower_level_int, lower_parity or "e", lower_j or "0")
+    upper = lookup_reference_level(upper_level_int, upper_parity or "e", upper_j or "0")
 
     notes = []
     if lower["note"]:
@@ -683,9 +719,9 @@ def validate_full_row(row: dict) -> dict:
     Full validation of a single extracted row.
     
     Strategy:
-    1. First do NIST ASD lookup (with auto-correction of parity, J, energy level int)
-    2. If NIST lookup OK → do wavelength/wavenumber validation → correct typos if needed
-    3. If NIST lookup FAILS → do wavelength/wavenumber validation but DO NOT correct
+    1. First do Reference lookup (with auto-correction of parity, J, energy level int)
+    2. If Reference lookup OK → do wavelength/wavenumber validation → correct typos if needed
+    3. If Reference lookup FAILS → do wavelength/wavenumber validation but DO NOT correct
        (because the mismatch is likely due to misaligned classification, not a wavelength typo)
     4. Check selection rules on the corrected values
 
@@ -709,52 +745,59 @@ def validate_full_row(row: dict) -> dict:
         wn = float(wn) if wn is not None else None
     except (ValueError, TypeError):
         wn = None
+        
+    obs_ritz = row.get("obs_ritz", None)
+    if obs_ritz is not None:
+        try:
+            obs_ritz = float(obs_ritz)
+        except (ValueError, TypeError):
+            obs_ritz = None
 
     is_classified = lower_int is not None and upper_int is not None
 
-    # ── Step 1: NIST ASD validation ──
-    nist_result = validate_nist_levels(
+    # ── Step 1: Reference validation ──
+    ref_result = validate_reference_levels(
         lower_int, lower_par, lower_j,
         upper_int, upper_par, upper_j,
         wn if wn else 0.0,
     )
 
-    row["lower_exact_nist"] = nist_result["lower_exact"]
-    row["upper_exact_nist"] = nist_result["upper_exact"]
-    row["nist_status"] = nist_result["status"]
-    row["nist_note"] = nist_result["note"]
+    row["lower_exact_ref"] = ref_result["lower_exact"]
+    row["upper_exact_ref"] = ref_result["upper_exact"]
+    row["ref_status"] = ref_result["status"]
+    row["ref_note"] = ref_result["note"]
 
-    # Apply corrections from NIST lookup
-    if nist_result.get("corrected_lower_parity"):
+    # Apply corrections from Reference lookup
+    if ref_result.get("corrected_lower_parity"):
         row["lower_parity_original"] = lower_par
-        row["lower_parity"] = nist_result["corrected_lower_parity"]
-    if nist_result.get("corrected_lower_j"):
+        row["lower_parity"] = ref_result["corrected_lower_parity"]
+    if ref_result.get("corrected_lower_j"):
         row["lower_j_original"] = lower_j
-        row["lower_j"] = nist_result["corrected_lower_j"]
-    if nist_result.get("corrected_lower_int"):
+        row["lower_j"] = ref_result["corrected_lower_j"]
+    if ref_result.get("corrected_lower_int"):
         row["lower_level_int_original"] = lower_int
-        row["lower_level_int"] = nist_result["corrected_lower_int"]
-    if nist_result.get("corrected_upper_parity"):
+        row["lower_level_int"] = ref_result["corrected_lower_int"]
+    if ref_result.get("corrected_upper_parity"):
         row["upper_parity_original"] = upper_par
-        row["upper_parity"] = nist_result["corrected_upper_parity"]
-    if nist_result.get("corrected_upper_j"):
+        row["upper_parity"] = ref_result["corrected_upper_parity"]
+    if ref_result.get("corrected_upper_j"):
         row["upper_j_original"] = upper_j
-        row["upper_j"] = nist_result["corrected_upper_j"]
-    if nist_result.get("corrected_upper_int"):
+        row["upper_j"] = ref_result["corrected_upper_j"]
+    if ref_result.get("corrected_upper_int"):
         row["upper_level_int_original"] = upper_int
-        row["upper_level_int"] = nist_result["corrected_upper_int"]
+        row["upper_level_int"] = ref_result["corrected_upper_int"]
 
     # ── Step 2: Wavelength ↔ Wavenumber validation ──
     if wl is not None and wn is not None:
-        nist_ok = nist_result["status"] in ("OK", "RITZ_OK_SELECTION_FAIL", "UNCLASSIFIED")
+        ref_ok = ref_result["status"] in ("OK", "RITZ_OK_SELECTION_FAIL", "UNCLASSIFIED")
 
         wl_wn_result = validate_wavelength_wavenumber(wl, wn)
 
         if wl_wn_result["status"] == "OK":
             row["wl_wn_status"] = "OK"
             row["wl_wn_note"] = ""
-        elif nist_ok or not is_classified:
-            # NIST is OK (or unclassified) → wavelength/wavenumber typo correction IS safe
+        elif ref_ok or not is_classified:
+            # Reference is OK (or unclassified) → wavelength/wavenumber typo correction IS safe
             row["wl_wn_status"] = wl_wn_result["status"]
             row["wl_wn_note"] = wl_wn_result["note"]
             if wl_wn_result["status"] == "CORRECTED_WAVELENGTH" and wl_wn_result["corrected_wavelength"]:
@@ -764,16 +807,27 @@ def validate_full_row(row: dict) -> dict:
                 row["wavenumber_original"] = wn
                 row["wavenumber"] = wl_wn_result["corrected_wavenumber"]
         else:
-            # NIST failed → likely misaligned classification → do NOT correct wl/wn
+            # Reference failed → likely misaligned classification → do NOT correct wl/wn
             # Just report the mismatch without applying corrections
             row["wl_wn_status"] = "MISMATCH_SUSPECT_MISALIGN"
             row["wl_wn_note"] = (
                 f"Wl/Wn mismatch (Δσ={wl_wn_result['difference']:.4f} cm⁻¹) "
-                f"NOT corrected — NIST validation also failed, likely misaligned classification"
+                f"NOT corrected — Reference validation also failed, likely misaligned classification"
             )
     else:
         row["wl_wn_status"] = "MISSING_DATA"
         row["wl_wn_note"] = "Missing wavelength or wavenumber"
+
+    # ── Step 3: obs-Ritz validation ──
+    if obs_ritz is not None and ref_result.get("ritz_wavenumber") is not None and wn is not None:
+        expected_obs_ritz = wn - ref_result["ritz_wavenumber"]
+        row["expected_obs_ritz"] = round(expected_obs_ritz, 4)
+        diff = abs(obs_ritz - expected_obs_ritz)
+        if diff <= 0.02: # Tolerance for printed obs-ritz
+            row["obs_ritz_status"] = "OK"
+        else:
+            row["obs_ritz_status"] = "MISMATCH"
+            row["obs_ritz_note"] = f"Printed obs-Ritz {obs_ritz} != Expected {expected_obs_ritz:.4f}"
 
     row["computed_wavenumber"] = wl_wn_result["computed_wavenumber"] if wl is not None and wn is not None else None
 
