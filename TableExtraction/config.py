@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Paths ---
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__)
 PAGE_IMAGES_DIR = BASE_DIR / "page_images"
 OUTPUT_DIR = BASE_DIR / "output"
 
@@ -38,7 +38,8 @@ PDF_DPI = int(os.getenv("PDF_DPI", "600"))
 
 # --- Table Config ---
 PDF_PATH = Path(os.getenv("PDF_PATH", str(BASE_DIR / "jresv73An3p333_A1b_TableX.pdf")))
-REF_LEVELS_PATH = Path(os.getenv("REF_LEVELS_PATH", str(BASE_DIR / "Pr3_lev_ASD512.xlsx")))
+REF_LEVELS_PATH = Path(os.getenv("REF_LEVELS_PATH", str(BASE_DIR / "Pr3_lev_Wyart_1999.xlsm")))
+REF_LEVELS_WS_NAME = "Wyart2000"
 
 WAVENUMBER_TOLERANCE_CM1 = float(os.getenv("WAVENUMBER_TOLERANCE_CM1", "0.2"))
 REF_RITZ_TOLERANCE_CM1 = float(os.getenv("REF_RITZ_TOLERANCE_CM1", "1.5"))
@@ -61,6 +62,7 @@ def get_config() -> dict:
     return {
         "pdf_path": PDF_PATH,
         "ref_levels_path": REF_LEVELS_PATH,
+        "ref_levels_ws_name": REF_LEVELS_WS_NAME,
         "wavenumber_tolerance_cm1": WAVENUMBER_TOLERANCE_CM1,
         "ref_ritz_tolerance_cm1": REF_RITZ_TOLERANCE_CM1,
         "wavelength_type": WAVELENGTH_TYPE,
