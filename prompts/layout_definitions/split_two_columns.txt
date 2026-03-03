@@ -1,0 +1,16 @@
+Each page is split into TWO completely distinct vertical halves (a left section and a right section).
+You MUST treat the left section and right section as two separate tables that happen to be printed side-by-side.
+Each section independently contains FOUR main columns in this exact order:
+  {wavelength_header}  |  Intensity  |  {wavenumber_header}  |  Classification
+
+The Classification column shows transitions like: "12847₉/₂ — 22176°₁₁/₂"
+- The left part (before the dash) is the LOWER energy level
+- The right part (after the dash) is the UPPER energy level
+
+⚠️ CRITICAL ALIGNMENT RULE: Every value in a row belongs to the SAME horizontal line.
+Read each row strictly left-to-right across ONE horizontal line.
+Do NOT mix values from different horizontal positions.
+The Wavelength, Intensity, Wavenumber, and Classification for a given spectral line
+are ALL on the SAME horizontal line. If a row has no classification,
+the classification area for that row is blank — do NOT borrow classification
+from an adjacent row above or below.
