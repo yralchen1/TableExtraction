@@ -1,5 +1,5 @@
 {
-    "paper_era": "1969",
+    "paper_year": "1969",
     "wavelength_header": "$\\lambda_{vac}$ (Å)",
     "wavenumber_header": "$\\sigma$ (cm⁻¹)",
     "wn_decimal": "1 decimal place",

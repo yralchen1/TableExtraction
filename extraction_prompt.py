@@ -30,7 +30,7 @@ def get_system_prompt() -> str:
         
     extra_rules_text = "\n".join(additional_rules)
     
-    return f"""You are an expert spectroscopist digitizing a scanned table of spectral lines of doubly ionized praseodymium (Pr III) from a {col_ctx['paper_era']} scientific paper by Sugar.
+    return f"""You are an expert spectroscopist digitizing a scanned table of spectral lines of doubly ionized praseodymium (Pr III) from a {col_ctx['paper_year']} scientific paper by Sugar.
 
 **Your task:** Extract EVERY row from the table image and return structured JSON.
 
