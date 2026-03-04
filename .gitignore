@@ -1,16 +1,40 @@
-# ========================================
-# Python
-# ========================================
+# PyCharm / IntelliJ files
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Python specific
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# VS Code
+.vscode/
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
 
 # Virtual environments
 venv/
 .venv/
 env/
 .env
+
+# System files
+.DS_Store
+Thumbs.db
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS resource fork artifacts
+__MACOSX/
 
 # Distribution / packaging
 build/
@@ -40,36 +64,6 @@ coverage.xml
 .ipynb_checkpoints/
 
 # ========================================
-# IDE / Editors
-# ========================================
-# PyCharm / IntelliJ
-.idea/
-*.iws
-*.iml
-*.ipr
-
-# VS Code
-.vscode/
-
-# Vim / Neovim
-*.swp
-*.swo
-*~
-
-# ========================================
-# OS generated files
-# ========================================
-.DS_Store
-.DS_Store?
-._*
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# macOS resource fork artifacts
-__MACOSX/
-
-# ========================================
 # Project-specific
 # ========================================
 # Output files (generated extraction results)
@@ -80,8 +74,6 @@ output/
 ~$*.xlsm
 ~$*.csv
 
-# PDF source files (large binaries)
-*.pdf
-
 # Gemini agent config
 .gemini/
+
