@@ -1,0 +1,18 @@
+# PyCharm / IntelliJ files
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# System files
+.DS_Store
+Thumbs.db

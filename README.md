@@ -1,15 +1,28 @@
-# Pr III Table Extraction Pipeline (v3)
+# TableExtraction
 
-Extract **Table 1** from the scanned Sugar Pr III paper ([jresv78An5p555_A1b.pdf](https://doi.org/10.6028/jres.078A.032)) using **Google Gemini** multimodal vision via a **LangChain/LangGraph** pipeline.
+An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-The pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and NIST ASD energy levels, corrects page-level misalignments, and outputs a 14-column Excel/CSV sorted by wavelength (descending).
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.010) & [1974](https://doi.org/10.6028/jres.078A.032)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
+
+---
+
+## Features
+
+- **Multimodal OCR** — Extracts structured data from scanned two-column table layouts using Gemini vision models
+- **Physics-aware validation** — Validates air↔vacuum wavelength/wavenumber via Edlén's 1966 formula
+- **NIST ASD cross-reference** — Looks up energy levels against NIST Atomic Spectra Database with auto-correction for typos, parity flips, and J-value mismatches
+- **Selection rule checks** — Enforces E1 transition rules (parity change, ΔJ ≤ 1)
+- **Misalignment correction** — Detects and fixes OCR-induced row shifts using Ritz wavenumber matching
+- **Doubly-classified line handling** — Merges split/ditto rows from multiply-classified spectral lines
+- **Robust JSON parsing** — 6-step fallback parser for malformed LLM output
+- **Configurable** — Year-specific prompts, column contexts, layout definitions, and environment-driven settings
 
 ---
 
 ## Prerequisites
 
 - **Python 3.10+**
-- **poppler** (for PDF→image conversion):
+- **poppler** (for PDF → image conversion):
   ```bash
   # macOS
   brew install poppler
@@ -25,93 +38,99 @@ The pipeline converts PDF pages to images, sends them to Gemini for OCR/extracti
 
 ## Setup
 
-### 1. Create & activate a virtual environment
+### 1. Clone the repository
 
 ```bash
-cd "/Users/themanaspandey/Documents/Table Extraction"
+git clone https://github.com/yourusername/TableExtraction.git
+cd TableExtraction/TableExtraction
+```
+
+### 2. Create & activate a virtual environment
+
+```bash
 python3 -m venv venv
-source venv/bin/activate        # macOS/Linux
+source venv/bin/activate        # macOS / Linux
 # venv\Scripts\activate         # Windows
 ```
 
-### 2. Install dependencies
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure your API key
+### 4. Configure your API key
 
 ```bash
 cp .env.example .env
-nano .env    # add your Gemini API key
 ```
 
-Your `.env` file should contain:
+Edit `.env` and add your Gemini API key:
 ```
-GOOGLE_API_KEY=AIza...your_key_here
+GOOGLE_API_KEY=your_api_key_here
 ```
 
-### 4. (Optional) Choose a Gemini model
+### 5. (Optional) Choose a Gemini model
 
 Edit `.env`:
 ```
 GEMINI_MODEL=gemini-2.5-pro            # Best accuracy, higher cost / stricter quota
-# GEMINI_MODEL=gemini-2.5-flash        # Default: fast and cheap
+# GEMINI_MODEL=gemini-2.5-flash        # Fast and cheap
 # GEMINI_MODEL=gemini-2.0-flash        # Alternative
 # GEMINI_MODEL=gemini-3-flash-preview  # High accuracy, moderate cost
 ```
 
-Or pass as CLI flag: `--model gemini-2.5-pro`
+Or pass as a CLI flag: `--model gemini-2.5-pro`
 
-> **Note:** `gemini-2.5-pro` produces significantly better table alignment than `gemini-2.5-flash`, especially for the two-column layout. The flash model tends to misalign classification columns across rows.
+> **Note:** `gemini-2.5-pro` produces significantly better table alignment than the flash models, especially for two-column layouts.
 
 ---
 
 ## Usage
 
 ```bash
-source venv/bin/activate
-
 # Full pipeline (all pages):
-python extract_table.py --year 1974
+python extract_table.py
 
 # Specific page range:
-python extract_table.py --year 1974 --pages 3 39
+python extract_table.py --pages 3 39
 
 # Single page (for testing):
-python extract_table.py --year 1974 --single-page 5
+python extract_table.py --single-page 5
 
-# Use gemini-2.5-pro:
-python extract_table.py --year 1974 --pages 3 39 --model gemini-2.5-pro
+# Use a specific model:
+python extract_table.py --pages 3 39 --model gemini-2.5-pro
 
 # Reuse existing page images (skip PDF conversion):
-python extract_table.py --year 1974 --skip-images --model gemini-2.5-pro
+python extract_table.py --skip-images --model gemini-2.5-pro
 
 # Lower DPI for faster processing:
-python extract_table.py --year 1974 --dpi 200 --pages 3 39
+python extract_table.py --dpi 200 --pages 3 39
 
 # Dry run (show config, no processing):
-python extract_table.py --year 1974 --dry-run --pages 3 39
+python extract_table.py --dry-run --pages 3 39
 
 # Convert PDF to images only:
-python pdf_to_images.py --pages 3 39
+python pdf_to_images.py --year 1974 --pages 3 39
+
+# Validate a previously extracted raw table:
+python validate_extracted_table.py --input output/raw_extracted_table.xlsx
 ```
 
 ---
 
 ## Output
 
-Results in `output/`:
+Results are saved to `output/`:
 
 | File | Description |
 |------|-------------|
-| `Pr_III_Table1_extracted.csv` | CSV with all 14 columns |
-| `Pr_III_Table1_extracted.xlsx` | Excel with auto-sized columns |
+| `*_extracted.csv` | CSV with all output columns |
+| `*_extracted.xlsx` | Excel with auto-sized columns |
 
-> **CSV J-values:** Half-integer J values (e.g., `5/2`) are written as `="5/2"` in CSV to prevent Excel from misinterpreting them as dates or fractions. The Excel file stores them natively as text.
+> **CSV J-values:** Half-integer J values (e.g., `5/2`) are written as `="5/2"` in CSV to prevent Excel from misinterpreting them as dates. The Excel file stores them natively as text.
 
-### 14 Output Columns
+### Output Columns
 
 | # | Column | Description |
 |---|--------|-------------|
@@ -132,94 +151,73 @@ Results in `output/`:
 
 ---
 
-## Validation Pipeline (v3)
+## Validation Pipeline
 
 ### Validation Order
 
-The pipeline validates each row in a specific order to avoid incorrect corrections:
+Each row is validated in a specific order to avoid incorrect corrections:
 
-1. **NIST ASD lookup first** — looks up both levels with auto-correction
-2. **Selection rule checks** — parity change + ΔJ ≤ 1 — **only when BOTH levels are found** (v3 fix)
-3. **Wavelength/wavenumber check** — only corrects if NIST confirmed OK
-4. **Page-level misalignment correction** (v3) — relocates misplaced classifications
+1. **NIST ASD lookup** — Looks up both energy levels with auto-correction
+2. **Selection rule checks** — Parity change + ΔJ ≤ 1 (only when both levels are found)
+3. **Wavelength/wavenumber check** — Only corrects if NIST lookup passed
+4. **Page-level misalignment correction** — Relocates misplaced classifications
 
-> **Key insight:** If the NIST lookup fails (levels not found or Ritz mismatch), the row's classification is likely misaligned by OCR, meaning the wavelength/wavenumber is probably correct as-is. The pipeline marks it as "suspect misalignment" without modifying the wavelength, then attempts to fix the misalignment in step 4.
+> **Key insight:** If the NIST lookup fails, the classification is likely misaligned by OCR, so the wavelength/wavenumber is probably correct as-is. The pipeline flags "suspect misalignment" without modifying values, then attempts a Ritz-based fix.
 
-### 1. NIST ASD Auto-Correction
+### NIST ASD Auto-Correction
 
 When a level isn't found exactly, the pipeline tries (in order):
-- **±1 in integer part** with exact parity + J
-- **Flip parity** (`e` ↔ `o`) — catches ° misread as digit 0
-- **Different J from NIST** — for levels where NIST revised the J value
-- **Single-digit typo** in the integer part
-- **Adjacent-digit swap** in the integer part
+- ±1 in integer part with exact parity + J
+- Flip parity (`e` ↔ `o`) — catches ° misread as digit 0
+- Different J from NIST — for levels where NIST revised the J value
+- Single-digit typo in the integer part
+- Adjacent-digit swap in the integer part
 
-### 2. Selection Rules (E1 Transitions)
+### Selection Rules (E1 Transitions)
 
-- **Parity must change**: lower and upper levels must have different parity
-- **ΔJ ≤ 1**: `|J_upper - J_lower| ≤ 1`
-- **Only checked when BOTH levels found in NIST** (v3 fix — previously could fire with one corrected + one missing level, producing false positives)
+- **Parity must change:** lower and upper levels must have different parity
+- **ΔJ ≤ 1:** `|J_upper - J_lower| ≤ 1`
+- Only checked when **both** levels are found in NIST
 
-If selection rules fail after correction, the line is flagged `RITZ_OK_SELECTION_FAIL`.
+### Wavelength ↔ Wavenumber (Edlén's 1966 Formula)
 
-### 3. Wavelength ↔ Wavenumber (Edlen's 1966 Formula)
+Converts air wavelength to vacuum wavenumber using Edlén's formula. On mismatch:
+- **NIST OK** → tries typo correction (single digit, adjacent swap)
+- **NIST failed** → marks as "suspect misalignment" — no correction applied
 
-Converts air wavelength to vacuum wavenumber using Edlen's formula. If mismatch detected:
-- **NIST OK** → tries typo correction (single digit, adjacent swap) — correction is safe
-- **NIST failed** → marks as "suspect misalignment" — NO correction applied
+### Page-Level Misalignment Correction
 
-### 4. Page-Level Misalignment Correction (v3)
-
-When a page has **> 2 error rows** (NIST failures or Ritz mismatches), the pipeline hypothesizes that OCR shifted some classifications to wrong rows (typically shifted upward by 1–10 rows).
-
-For each error row with NIST-confirmed levels:
+When a page has **> 2 error rows**, the pipeline hypothesizes OCR shifted some classifications to wrong rows. For each error row with NIST-confirmed levels:
 1. Compute **Ritz wavenumber** = upper_exact − lower_exact
-2. Search all rows on the **same page** for the one whose observed wavenumber is closest
-3. If that row is **unclassified** → move the classification there ✅
-4. If that row is **already classified** → flag as unresolvable ❌
-
-After relocation, the target row's wavelength/wavenumber is re-validated.
-
-### 5. Robust JSON Parsing
-
-Handles malformed LLM output with 6-step fallback:
-1. Direct parse
-2. Strip markdown code fences
-3. Fix trailing commas
-4. Fix unquoted property names
-5. Extract JSON array from surrounding text
-6. Parse individual `{...}` objects
-
-On total parse failure, saves raw response to `page_images/{page}_raw_response.txt` for debugging.
-
-### 6. Rate-Limit Handling
-
-The pipeline catches 429 (rate limit) errors from the Gemini API. If you hit quota limits:
-- Wait for the retry period shown in the error message
-- Consider using `gemini-3-flash-preview` (much better OCR than with gemini-2.5-flash)
-- Process fewer pages at a time with `--single-page` or `--pages`
+2. Search same page for the row whose observed wavenumber is closest
+3. If the target row is unclassified → relocate the classification ✅
+4. If already classified → flag as unresolvable ❌
 
 ---
 
 ## Project Structure
 
 ```
-Table Extraction/
-├── extract_table.py               # CLI entry point
-├── config.py                      # Configurations
-├── pdf_to_images.py               # PDF → PNG conversion
-├── extraction_prompt.py           # Gemini prompt
-├── tools.py                       # Validation tools
-├── graph.py                       # LangGraph pipeline
-├── requirements.txt               # Python dependencies
-├── .env.example                   # API key template
-├── .env                           # Your API key (create from template)
-├── jresv78An5p555_A1b.pdf         # Source PDF for Sugar 1974
-├── jresv73An3p333_A1b.pdf         # Complete PDF for Sugar 1969
-├── jresv73An3p333_A1b_TableX.pdf  # Source PDF for Table X of Sugar 1969
-├── Pr3_lev_ASD512.xlsx            # NIST ASD reference data
-├── page_images/                   # Generated page images
-└── output/                        # CSV/Excel output
+TableExtraction/
+├── README.md                              ← this file
+├── .env.example                           # API key template
+├── .gitignore
+├── astools.py                             # Atomic spectroscopy tools (ASTools library)
+├── test_astools.py                        # Unit tests for ASTools
+├── prompts/
+│   ├── column_contexts/                   # Year-specific column definitions (JSON)
+│   └── layout_definitions/                # Table layout prompt templates
+├── output/                                # CSV/Excel output
+└── TableExtraction/                       # Core pipeline
+    ├── config.py                          # Configuration (env-driven)
+    ├── extract_table.py                   # CLI entry point (extraction)
+    ├── validate_extracted_table.py        # CLI entry point (validation only)
+    ├── extract_page_direct.py             # Quick single-page raw OCR
+    ├── extraction_prompt.py               # Gemini prompt builder
+    ├── graph.py                           # LangGraph pipeline (nodes & state)
+    ├── tools.py                           # Validation tools (Edlén, NIST, selection rules)
+    ├── pdf_to_images.py                   # PDF → PNG conversion
+    └── requirements.txt                   # Python dependencies
 ```
 
 ---
@@ -244,3 +242,35 @@ Table Extraction/
 ```
 
 Built with [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph`.
+
+---
+
+## ASTools Library
+
+The repository includes `astools.py` — a Python translation of the VBA module `ASTools.bas` for atomic spectroscopy computations:
+
+- **Physical constants** across CODATA vintages (1932–2022)
+- **Refractive index of air** (Edlén 1953/1966, Peck & Reeder 1972, Meggers & Peters 1919, Barrell 1951, Ciddor 1996)
+- **Air↔vacuum wavelength conversions** using multiple formulations
+- **Water vapor pressure** calculations (Stone-Zimmerman, Buck, Saul & Wagner)
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `langchain-google-genai` | Gemini API integration |
+| `langchain-core` | LangChain core |
+| `langgraph` | Pipeline orchestration |
+| `pdf2image` | PDF → PNG conversion |
+| `Pillow` | Image handling |
+| `openpyxl` | Excel I/O |
+| `python-dotenv` | Environment config |
+| `pandas` | Data manipulation |
+
+---
+
+## License
+
+This project is for academic and research purposes.

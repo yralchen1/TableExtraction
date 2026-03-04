@@ -58,6 +58,7 @@ class PipelineState(TypedDict):
     errors: list[str]
     output_csv: str
     output_excel: str
+    raw_xlsx_path: str
 
 
 # ──────────────────────────────────────────────
@@ -619,20 +620,20 @@ def _pass3_missing_wavenumber(page_rows: list[dict], stats: dict, page: str):
 def validate_rows_node(state: PipelineState) -> dict:
     """
     Run full validation on each row:
-    1. NIST ASD lookup (with parity/J/int auto-correction)
+    1. Reference lookup (with parity/J/int auto-correction)
     2. Selection rule checks (only when both levels found)
-    3. Wavelength↔wavenumber validation (only correct if NIST is OK)
+    3. Wavelength↔wavenumber validation (only correct if Reference is OK)
     """
     all_rows = state.get("all_rows", [])
     if not all_rows:
         return {"final_rows": [], "errors": ["No rows to validate"]}
 
-    print(f"\n🔬 Validating {len(all_rows)} rows (NIST + selection rules + wavelength)...")
+    print(f"\n🔬 Validating {len(all_rows)} rows (Reference + selection rules + wavelength)...")
 
     final_rows = []
     stats = {
-        "nist_ok": 0, "nist_ok_sel_fail": 0, "nist_not_found": 0,
-        "nist_ritz_mismatch": 0, "unclassified": 0,
+        "ref_ok": 0, "ref_ok_sel_fail": 0, "ref_not_found": 0,
+        "ref_ritz_mismatch": 0, "unclassified": 0,
         "wl_ok": 0, "wl_corrected": 0, "wl_error": 0, "wl_suspect": 0,
         "parity_corrected": 0, "j_corrected": 0, "int_corrected": 0,
     }
@@ -648,18 +649,18 @@ def validate_rows_node(state: PipelineState) -> dict:
 
         validated = validate_full_row(row)
 
-        nist_status = validated.get("nist_status", "")
+        ref_status = validated.get("ref_status", "")
         wl_status = validated.get("wl_wn_status", "")
 
-        if nist_status == "OK":
-            stats["nist_ok"] += 1
-        elif nist_status == "RITZ_OK_SELECTION_FAIL":
-            stats["nist_ok_sel_fail"] += 1
-        elif nist_status == "LEVEL_NOT_FOUND":
-            stats["nist_not_found"] += 1
-        elif nist_status == "RITZ_MISMATCH":
-            stats["nist_ritz_mismatch"] += 1
-        elif nist_status == "UNCLASSIFIED":
+        if ref_status == "OK":
+            stats["ref_ok"] += 1
+        elif ref_status == "RITZ_OK_SELECTION_FAIL":
+            stats["ref_ok_sel_fail"] += 1
+        elif ref_status == "LEVEL_NOT_FOUND":
+            stats["ref_not_found"] += 1
+        elif ref_status == "RITZ_MISMATCH":
+            stats["ref_ritz_mismatch"] += 1
+        elif ref_status == "UNCLASSIFIED":
             stats["unclassified"] += 1
 
         if wl_status == "OK":
@@ -680,11 +681,11 @@ def validate_rows_node(state: PipelineState) -> dict:
 
         final_rows.append(validated)
 
-    print(f"\n   ── NIST ASD Validation ──")
-    print(f"   ✅ OK: {stats['nist_ok']}")
-    print(f"   ⚠️  Ritz OK but selection rule fail: {stats['nist_ok_sel_fail']}")
-    print(f"   ❌ Level not found: {stats['nist_not_found']}")
-    print(f"   ❌ Ritz mismatch: {stats['nist_ritz_mismatch']}")
+    print(f"\n   ── Ref-confirmedation ──")
+    print(f"   ✅ OK: {stats['ref_ok']}")
+    print(f"   ⚠️  Ritz OK but selection rule fail: {stats['ref_ok_sel_fail']}")
+    print(f"   ❌ Level not found: {stats['ref_not_found']}")
+    print(f"   ❌ Ritz mismatch: {stats['ref_ritz_mismatch']}")
     print(f"   ➖ Unclassified: {stats['unclassified']}")
 
     print(f"\n   ── Auto-Corrections Applied ──")
@@ -694,7 +695,7 @@ def validate_rows_node(state: PipelineState) -> dict:
 
     print(f"\n   ── Wavelength/Wavenumber ──")
     print(f"   ✅ OK: {stats['wl_ok']}")
-    print(f"   🔧 Corrected (NIST-confirmed): {stats['wl_corrected']}")
+    print(f"   🔧 Corrected (Reference-confirmed): {stats['wl_corrected']}")
     print(f"   🟡 Suspect misalignment (not corrected): {stats['wl_suspect']}")
     print(f"   ❌ Error: {stats['wl_error']}")
 
@@ -717,7 +718,7 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
     """
     Single pass of misalignment correction across all pages.
 
-    For EVERY classified row with known NIST levels, find the row on the
+    For EVERY classified row with known reference levels, find the row on the
     same page (within ±10 positions) whose observed wavenumber is closest
     to the Ritz wavenumber. If the closest is a different row and is
     unclassified, move the classification there.
@@ -732,14 +733,14 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
     SEARCH_WINDOW = 10  # Look ±10 rows from current position
 
     for page, indices in sorted(pages.items()):
-        # Build list of ALL classified rows with known NIST levels
+        # Build list of ALL classified rows with known reference levels
         ritz_candidates = []
         for pos, idx in enumerate(indices):
             row = final_rows[idx]
             if not _row_has_classification(row):
                 continue
-            lower_exact = row.get("lower_exact_nist")
-            upper_exact = row.get("upper_exact_nist")
+            lower_exact = row.get("lower_exact_ref")
+            upper_exact = row.get("upper_exact_ref")
             if lower_exact is None or upper_exact is None:
                 continue
             ritz_wn = upper_exact - lower_exact
@@ -778,7 +779,7 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                 except (ValueError, TypeError):
                     continue
 
-            if best_match_idx is None or best_diff > get_config()["nist_ritz_tolerance_cm1"]:
+            if best_match_idx is None or best_diff > get_config()["ref_ritz_tolerance_cm1"]:
                 continue
 
             # If best match is current row, classification is in the right place
@@ -790,8 +791,8 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
             # Check if target row already has the EXACT SAME classification
             is_exact_duplicate = False
             if _row_has_classification(target_row):
-                if (target_row.get("lower_exact_nist") == err_row.get("lower_exact_nist") and
-                    target_row.get("upper_exact_nist") == err_row.get("upper_exact_nist")):
+                if (target_row.get("lower_exact_ref") == err_row.get("lower_exact_ref") and
+                    target_row.get("upper_exact_ref") == err_row.get("upper_exact_ref")):
                     is_exact_duplicate = True
 
             if _row_is_unclassified(target_row) or is_exact_duplicate:
@@ -802,11 +803,11 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                     # Clear classification from error row
                     for field in ["lower_level_int", "lower_parity", "lower_j",
                                   "upper_level_int", "upper_parity", "upper_j",
-                                  "lower_exact_nist", "upper_exact_nist"]:
+                                  "lower_exact_ref", "upper_exact_ref"]:
                         err_row[field] = None
-                    err_row["nist_status"] = "UNCLASSIFIED"
-                    err_note = err_row.get("nist_note", "")
-                    err_row["nist_note"] = f"{err_note}; {move_note}" if err_note else move_note
+                    err_row["ref_status"] = "UNCLASSIFIED"
+                    err_note = err_row.get("ref_note", "")
+                    err_row["ref_note"] = f"{err_note}; {move_note}" if err_note else move_note
                     err_row["wl_wn_status"] = "OK"
                     err_row["wl_wn_note"] = ""
 
@@ -819,8 +820,8 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                     classification_fields = [
                         "lower_level_int", "lower_parity", "lower_j",
                         "upper_level_int", "upper_parity", "upper_j",
-                        "lower_exact_nist", "upper_exact_nist",
-                        "nist_status",
+                        "lower_exact_ref", "upper_exact_ref",
+                        "ref_status",
                         "lower_parity_original", "upper_parity_original",
                         "lower_j_original", "upper_j_original",
                         "lower_level_int_original", "upper_level_int_original",
@@ -837,21 +838,21 @@ def _run_one_misalignment_pass(final_rows, pages, iteration):
                         target_row["wl_wn_status"] = wl_check["status"]
                         target_row["wl_wn_note"] = wl_check.get("note", "")
 
-                    if best_diff <= get_config()["nist_ritz_tolerance_cm1"]:
-                        target_row["nist_status"] = "OK"
+                    if best_diff <= get_config()["ref_ritz_tolerance_cm1"]:
+                        target_row["ref_status"] = "OK"
                     move_note = f"[iter {iteration}] Classification moved from misaligned row (Ritz σ={ritz_wn:.2f}, Δ={best_diff:.4f})"
-                    existing = target_row.get("nist_note", "")
-                    target_row["nist_note"] = f"{existing}; {move_note}" if existing else move_note
+                    existing = target_row.get("ref_note", "")
+                    target_row["ref_note"] = f"{existing}; {move_note}" if existing else move_note
 
                     # Clear classification from error row
                     for field in ["lower_level_int", "lower_parity", "lower_j",
                                   "upper_level_int", "upper_parity", "upper_j",
-                                  "lower_exact_nist", "upper_exact_nist"]:
+                                  "lower_exact_ref", "upper_exact_ref"]:
                         err_row[field] = None
-                    err_row["nist_status"] = "UNCLASSIFIED"
-                    err_note = err_row.get("nist_note", "")
+                    err_row["ref_status"] = "UNCLASSIFIED"
+                    err_note = err_row.get("ref_note", "")
                     clear_note = f"[iter {iteration}] Classification moved to row with σ={float(target_row.get('wavenumber', 0)):.2f}"
-                    err_row["nist_note"] = f"{err_note}; {clear_note}" if err_note else clear_note
+                    err_row["ref_note"] = f"{err_note}; {clear_note}" if err_note else clear_note
                     err_row["wl_wn_status"] = "OK"
                     err_row["wl_wn_note"] = ""
 
@@ -913,8 +914,8 @@ def fix_misalignment_node(state: PipelineState) -> dict:
             row = final_rows[idx]
             if not _row_has_classification(row):
                 continue
-            lower_exact = row.get("lower_exact_nist")
-            upper_exact = row.get("upper_exact_nist")
+            lower_exact = row.get("lower_exact_ref")
+            upper_exact = row.get("upper_exact_ref")
             if lower_exact is None or upper_exact is None:
                 continue
             ritz_wn = upper_exact - lower_exact
@@ -925,7 +926,7 @@ def fix_misalignment_node(state: PipelineState) -> dict:
                 obs_diff = abs(float(obs_wn) - ritz_wn)
             except (ValueError, TypeError):
                 continue
-            if obs_diff > get_config()["nist_ritz_tolerance_cm1"]:
+            if obs_diff > get_config()["ref_ritz_tolerance_cm1"]:
                 # Still misaligned after all iterations
                 # Find where it should be
                 best_idx = None
@@ -941,15 +942,15 @@ def fix_misalignment_node(state: PipelineState) -> dict:
                             best_idx = cand_idx
                     except (ValueError, TypeError):
                         continue
-                if best_idx is not None and best_diff <= get_config()["nist_ritz_tolerance_cm1"] and best_idx != idx:
+                if best_idx is not None and best_diff <= get_config()["ref_ritz_tolerance_cm1"] and best_idx != idx:
                     target = final_rows[best_idx]
                     flag = (f"Misalignment unresolved: Ritz σ={ritz_wn:.2f} matches row with "
                             f"σ_obs={float(target.get('wavenumber', 0)):.2f} (Δ={best_diff:.4f}), "
                             f"but target is classified — needs manual review")
-                    existing = row.get("nist_note", "")
+                    existing = row.get("ref_note", "")
                     # Don't duplicate flags
                     if "Misalignment unresolved" not in existing:
-                        row["nist_note"] = f"{existing}; {flag}" if existing else flag
+                        row["ref_note"] = f"{existing}; {flag}" if existing else flag
                     remaining_flagged += 1
 
     print(f"\n   ── Misalignment Summary ──")
@@ -986,10 +987,10 @@ def compile_output_node(state: PipelineState) -> dict:
         if wl_note:
             notes.append(wl_note)
 
-        # NIST notes
-        nist_note = row.get("nist_note", "")
-        if nist_note:
-            notes.append(nist_note)
+        # Reference notes
+        ref_note = row.get("ref_note", "")
+        if ref_note:
+            notes.append(ref_note)
 
         # Correction tracking
         corrections = []
@@ -1031,8 +1032,8 @@ def compile_output_node(state: PipelineState) -> dict:
             "Upper Level Int": row.get("upper_level_int"),
             "Upper Parity": row.get("upper_parity"),
             "Upper J": row.get("upper_j"),
-            "Lower Level NIST (cm⁻¹)": row.get("lower_exact_nist"),
-            "Upper Level NIST (cm⁻¹)": row.get("upper_exact_nist"),
+            "Lower Level Reference (cm⁻¹)": row.get("lower_exact_ref"),
+            "Upper Level Reference (cm⁻¹)": row.get("upper_exact_ref"),
             "Page": page_num,
             "Notes": "; ".join(notes) if notes else "",
         }
@@ -1084,24 +1085,209 @@ def compile_output_node(state: PipelineState) -> dict:
 
 
 # ──────────────────────────────────────────────
-# Build the Graph
+# Node 6 & 7: IO operations for split pipelines
 # ──────────────────────────────────────────────
 
-def build_pipeline() -> StateGraph:
-    """Build and compile the LangGraph pipeline."""
+def save_raw_xlsx_node(state: PipelineState) -> dict:
+    """Save the raw OCR extraction (after structural fixing) to an intermediate Excel file."""
+    all_rows = state.get("all_rows", [])
+    if not all_rows:
+        return {"errors": ["No rows to output"]}
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    raw_excel_path = OUTPUT_DIR / f"raw_extracted_{get_config()['excel_name']}"
+    
+    df = pd.DataFrame(all_rows)
+    # Prepend apostrophe to float-like strings to force Excel to treat them as text
+    # and preserve trailing zeros.
+    for col in ["wavelength", "wavenumber", "wavelength_original", "wavenumber_original"]:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: f"'{x}" if pd.notna(x) and str(x).strip() != "" else x
+            )
+
+    df.to_excel(str(raw_excel_path), index=False)
+    
+    print(f"\n   ✅ Raw Excel saved: {raw_excel_path}")
+    return {"raw_xlsx_path": str(raw_excel_path)}
+
+
+def load_raw_xlsx_node(state: PipelineState) -> dict:
+    """Load the intermediate raw excel file back into state."""
+    raw_xlsx_path = state.get("raw_xlsx_path")
+    if not raw_xlsx_path or not Path(raw_xlsx_path).exists():
+        return {"errors": [f"Raw file not found: {raw_xlsx_path}"]}
+    
+    print(f"\n📁 Loading raw Excel file: {raw_xlsx_path}")
+    df = pd.read_excel(raw_xlsx_path, dtype=str)
+    
+    # Strip leading apostrophes that were added to preserve trailing zeros
+    for col in df.columns:
+        df[col] = df[col].apply(lambda x: x.lstrip("'") if isinstance(x, str) else x)
+        
+    # Convert string 'None' and nan back to proper Python None
+    df = df.replace('None', None).where(pd.notnull(df), None)
+    
+    all_rows = df.to_dict('records')
+    return {"all_rows": all_rows}
+
+
+def compile_output_node(state: PipelineState) -> dict:
+    """Sort rows by wavelength (descending) and write CSV + Excel."""
+    final_rows = state.get("final_rows", [])
+    if not final_rows:
+        return {"errors": ["No rows to output"]}
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"\n📁 Compiling final output for {len(final_rows)} rows...")
+
+    output_records = []
+    for row in final_rows:
+        notes = []
+
+        # Structure notes (from fix_row_structure)
+        struct_note = row.get("_structure_note", "")
+        if struct_note:
+            notes.append(struct_note)
+
+        # Wavelength/wavenumber notes
+        wl_note = row.get("wl_wn_note", "")
+        if wl_note:
+            notes.append(wl_note)
+
+        # Reference notes
+        ref_note = row.get("ref_note", "")
+        if ref_note:
+            notes.append(ref_note)
+
+        # Correction tracking
+        corrections = []
+        if row.get("wavelength_original"):
+            corrections.append(f"λ_orig={row['wavelength_original']}")
+        if row.get("wavenumber_original"):
+            corrections.append(f"σ_orig={row['wavenumber_original']}")
+        if row.get("lower_parity_original"):
+            corrections.append(f"lower_par_orig={row['lower_parity_original']}")
+        if row.get("upper_parity_original"):
+            corrections.append(f"upper_par_orig={row['upper_parity_original']}")
+        if row.get("lower_j_original"):
+            corrections.append(f"lower_J_orig={row['lower_j_original']}")
+        if row.get("upper_j_original"):
+            corrections.append(f"upper_J_orig={row['upper_j_original']}")
+        if row.get("lower_level_int_original"):
+            corrections.append(f"lower_int_orig={row['lower_level_int_original']}")
+        if row.get("upper_level_int_original"):
+            corrections.append(f"upper_int_orig={row['upper_level_int_original']}")
+        if corrections:
+            notes.append("Corrections: " + ", ".join(corrections))
+
+        # Page number
+        source_page = row.get("_source_page", "")
+        page_num = ""
+        if source_page:
+            match = re.search(r'(\d+)', source_page)
+            if match:
+                page_num = int(match.group(1))
+
+        record = {
+            "Wavelength (Å)": row.get("wavelength"),
+            "Intensity": row.get("intensity"),
+            "Line Character": row.get("line_character", ""),
+            "Wavenumber (cm⁻¹)": row.get("wavenumber"),
+            "Lower Level Int": row.get("lower_level_int"),
+            "Lower Parity": row.get("lower_parity"),
+            "Lower J": row.get("lower_j"),
+            "Upper Level Int": row.get("upper_level_int"),
+            "Upper Parity": row.get("upper_parity"),
+            "Upper J": row.get("upper_j"),
+            "Lower Level Reference (cm⁻¹)": row.get("lower_exact_ref"),
+            "Upper Level Reference (cm⁻¹)": row.get("upper_exact_ref"),
+            "Page": page_num,
+            "Notes": "; ".join(notes) if notes else "",
+        }
+        output_records.append(record)
+
+    df = pd.DataFrame(output_records)
+
+    # ── Save CSV with ="5/2" formatting for J columns ──
+    csv_path = OUTPUT_DIR / get_config()["csv_name"]
+    df_csv = df.copy()
+    for j_col in ["Lower J", "Upper J"]:
+        df_csv[j_col] = df_csv[j_col].apply(
+            lambda v: f'="{v}"' if pd.notna(v) and v != "" and "/" in str(v) else v
+        )
+    df_csv.to_csv(str(csv_path), index=False, encoding="utf-8-sig")
+    print(f"   ✅ CSV saved: {csv_path}")
+
+    # ── Save Excel ──
+    excel_path = OUTPUT_DIR / get_config()["excel_name"]
+    sheet_name = get_config()["excel_sheet_name"]
+    
+    # Prepend apostrophe to float-like strings to preserve trailing zeros in Excel view
+    df_excel = df.copy()
+    for col in ["Wavelength (Å)", "Wavenumber (cm⁻¹)"]:
+        if col in df_excel.columns:
+            df_excel[col] = df_excel[col].apply(
+                lambda x: f"'{x}" if pd.notna(x) and str(x).strip() != "" else x
+            )
+            
+    with pd.ExcelWriter(str(excel_path), engine="openpyxl") as writer:
+        df_excel.to_excel(writer, index=False, sheet_name=sheet_name)
+        ws = writer.sheets[sheet_name]
+        for col_idx, col_name in enumerate(df_excel.columns, 1):
+            max_len = max(
+                len(str(col_name)),
+                df_excel[col_name].astype(str).str.len().max() if len(df_excel) > 0 else 0,
+            )
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 60)
+
+    print(f"   ✅ Excel saved: {excel_path}")
+
+    total = len(df)
+    classified = df["Lower Level Int"].notna().sum()
+    notes_count = (df["Notes"] != "").sum()
+    print(f"\n📊 Summary:")
+    print(f"   Total rows: {total}")
+    print(f"   Classified: {classified}")
+    print(f"   Unclassified: {total - classified}")
+    print(f"   Rows with notes/warnings: {notes_count}")
+
+    return {"output_csv": str(csv_path), "output_excel": str(excel_path)}
+
+
+# ──────────────────────────────────────────────
+# Build the Graphs
+# ──────────────────────────────────────────────
+
+def build_extraction_pipeline() -> StateGraph:
+    """Build and compile the LLM extraction pipeline."""
     workflow = StateGraph(PipelineState)
 
     workflow.add_node("convert_pdf", convert_pdf_node)
     workflow.add_node("extract_tables", extract_tables_node)
     workflow.add_node("fix_row_structure", fix_row_structure_node)
-    workflow.add_node("validate_rows", validate_rows_node)
-    workflow.add_node("fix_misalignment", fix_misalignment_node)
-    workflow.add_node("compile_output", compile_output_node)
+    workflow.add_node("save_raw_xlsx", save_raw_xlsx_node)
 
     workflow.add_edge(START, "convert_pdf")
     workflow.add_edge("convert_pdf", "extract_tables")
     workflow.add_edge("extract_tables", "fix_row_structure")
-    workflow.add_edge("fix_row_structure", "validate_rows")
+    workflow.add_edge("fix_row_structure", "save_raw_xlsx")
+    workflow.add_edge("save_raw_xlsx", END)
+
+    return workflow.compile()
+
+
+def build_validation_pipeline() -> StateGraph:
+    """Build and compile the Validation pipeline."""
+    workflow = StateGraph(PipelineState)
+
+    workflow.add_node("load_raw_xlsx", load_raw_xlsx_node)
+    workflow.add_node("validate_rows", validate_rows_node)
+    workflow.add_node("fix_misalignment", fix_misalignment_node)
+    workflow.add_node("compile_output", compile_output_node)
+
+    workflow.add_edge(START, "load_raw_xlsx")
+    workflow.add_edge("load_raw_xlsx", "validate_rows")
     workflow.add_edge("validate_rows", "fix_misalignment")
     workflow.add_edge("fix_misalignment", "compile_output")
     workflow.add_edge("compile_output", END)
@@ -1109,7 +1295,7 @@ def build_pipeline() -> StateGraph:
     return workflow.compile()
 
 
-def run_pipeline(
+def run_extraction_pipeline(
     pdf_path: str | None = None,
     first_page: int | None = None,
     last_page: int | None = None,
@@ -1117,8 +1303,8 @@ def run_pipeline(
     model_name: str | None = None,
     skip_images: bool = False,
 ) -> dict:
-    """Run the complete extraction pipeline."""
-    pipeline = build_pipeline()
+    """Run the extraction pipeline."""
+    pipeline = build_extraction_pipeline()
 
     if pdf_path is None:
         pdf_path = str(get_config()["pdf_path"])
@@ -1141,10 +1327,11 @@ def run_pipeline(
         "errors": [],
         "output_csv": "",
         "output_excel": "",
+        "raw_xlsx_path": "",
     }
 
     print("=" * 60)
-    print("  Pr III Table Extraction Pipeline (v4)")
+    print("  Table Extraction Phase Pipeline")
     print("=" * 60)
     print(f"  Model: {model_name}")
     print(f"  Pages: {first_page or 'first'} – {last_page or 'last'}")
@@ -1155,7 +1342,50 @@ def run_pipeline(
     result = pipeline.invoke(initial_state)
 
     print("\n" + "=" * 60)
-    print("  Pipeline Complete!")
+    print("  Extraction Phase Complete!")
+    print("=" * 60)
+    if result.get("raw_xlsx_path"):
+        print(f"  Raw Excel: {result['raw_xlsx_path']}")
+    if result.get("errors"):
+        print(f"  ⚠️  Errors: {len(result['errors'])}")
+        for err in result["errors"][:10]:
+            print(f"     • {err}")
+    print("=" * 60)
+
+    return result
+
+
+def run_validation_pipeline(raw_xlsx_path: str) -> dict:
+    """Run the validation pipeline on a raw extraction excel."""
+    pipeline = build_validation_pipeline()
+
+    initial_state: PipelineState = {
+        "pdf_path": "",
+        "first_page": None,
+        "last_page": None,
+        "dpi": PDF_DPI,
+        "model_name": GEMINI_MODEL,
+        "skip_images": True,
+        "page_images": [],
+        "raw_extractions": [],
+        "all_rows": [],
+        "final_rows": [],
+        "errors": [],
+        "output_csv": "",
+        "output_excel": "",
+        "raw_xlsx_path": raw_xlsx_path,
+    }
+
+    print("=" * 60)
+    print("  Table Validation Phase Pipeline")
+    print("=" * 60)
+    print(f"  Raw Input: {raw_xlsx_path}")
+    print("=" * 60)
+
+    result = pipeline.invoke(initial_state)
+
+    print("\n" + "=" * 60)
+    print("  Validation Phase Complete!")
     print("=" * 60)
     if result.get("output_csv"):
         print(f"  CSV:   {result['output_csv']}")
