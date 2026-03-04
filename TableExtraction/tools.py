@@ -358,8 +358,8 @@ def check_selection_rules(
 # Reference Level Lookup
 # ──────────────────────────────────────────────
 
-@lru_cache(maxsize=1)
-def _load_reference_levels(ref_path: str | None = None) -> dict:
+@lru_cache(maxsize=8)
+def _load_reference_levels(ref_path: str | None = None, ref_ws_name: str | None = None) -> dict:
     """
     Load reference energy levels from the Excel file into lookup structures.
 
@@ -370,8 +370,17 @@ def _load_reference_levels(ref_path: str | None = None) -> dict:
         - all_levels: [(int_part, parity, J, level_float), ...]
     """
     path = Path(ref_path) if ref_path else get_config()["ref_levels_path"]
+    ws_name = ref_ws_name or get_config().get("ref_levels_ws_name")
+
     wb = openpyxl.load_workbook(str(path), read_only=True)
-    ws = wb.active
+    # Prefer explicit worksheet name if provided; fall back to active with a warning
+    if ws_name and ws_name in wb.sheetnames:
+        ws = wb[ws_name]
+    else:
+        # If ws_name was provided but not found, warn (print) and use active
+        if ref_ws_name and ws_name not in wb.sheetnames:
+            print(f"⚠️ Warning: worksheet '{ref_ws_name}' not found in {path}. Using active sheet '{wb.active.title}' instead.")
+        ws = wb.active
 
     exact = {}
     by_int_parity = {}
@@ -379,9 +388,9 @@ def _load_reference_levels(ref_path: str | None = None) -> dict:
     all_levels = []
 
     for row in ws.iter_rows(min_row=2, values_only=True):
-        j_value = row[2]
-        parity = row[4]
-        level_str = row[5]
+        j_value = row[10]
+        parity = row[8]
+        level_str = row[12]
 
         if j_value is None or level_str is None or parity is None:
             continue
@@ -400,7 +409,7 @@ def _load_reference_levels(ref_path: str | None = None) -> dict:
         # the conversion capability. To be robust, we'll check the cell header if possible, or just convert
         # if the max level in the document seems to be < 1000.
         # For now, we will expose the conversion based on publication year as required by the plan.
-        if level_float > 0 and level_float < 1000.0:  
+        if 0 < level_float < 1000.0:
             # Assuming values < 1000 cm-1 are actually eV for this ion (Pr III levels go up to 100,000s).
             # This handles older papers that might have published in eV.
             pub_year = get_config().get("publication_year", 2022)
@@ -434,7 +443,7 @@ def _load_reference_levels(ref_path: str | None = None) -> dict:
     }
 
 
-def lookup_reference_level(level_int: int, parity: str, j_value: str) -> dict:
+def lookup_reference_level(level_int: int, parity: str, j_value: str, ref_path: str | None = None, ref_ws_name: str | None = None) -> dict:
     """
     Look up an energy level in Reference Levels, with auto-correction attempts.
 
@@ -448,7 +457,7 @@ def lookup_reference_level(level_int: int, parity: str, j_value: str) -> dict:
     Returns:
         dict with found, exact_level, corrected_parity, corrected_j, corrected_int, note
     """
-    data = _load_reference_levels()
+    data = _load_reference_levels(ref_path, ref_ws_name)
     j_str = str(j_value).strip()
     par = parity.strip().lower() if parity else "e"
 
@@ -622,6 +631,8 @@ def validate_reference_levels(
     upper_j: str | None,
     observed_wavenumber: float,
     tolerance: float = None,
+    ref_path: str | None = None,
+    ref_ws_name: str | None = None,
 ) -> dict:
     """
     Validate a spectral line's classification against Reference levels.
@@ -652,8 +663,8 @@ def validate_reference_levels(
         }
 
     # Look up both levels (with auto-correction)
-    lower = lookup_reference_level(lower_level_int, lower_parity or "e", lower_j or "0")
-    upper = lookup_reference_level(upper_level_int, upper_parity or "e", upper_j or "0")
+    lower = lookup_reference_level(lower_level_int, lower_parity or "e", lower_j or "0", ref_path=ref_path, ref_ws_name=ref_ws_name)
+    upper = lookup_reference_level(upper_level_int, upper_parity or "e", upper_j or "0", ref_path=ref_path, ref_ws_name=ref_ws_name)
 
     notes = []
     if lower["note"]:
@@ -714,7 +725,7 @@ def validate_reference_levels(
     return result
 
 
-def validate_full_row(row: dict) -> dict:
+def validate_full_row(row: dict, ref_path: str | None = None, ref_ws_name: str | None = None) -> dict:
     """
     Full validation of a single extracted row.
     
@@ -760,6 +771,8 @@ def validate_full_row(row: dict) -> dict:
         lower_int, lower_par, lower_j,
         upper_int, upper_par, upper_j,
         wn if wn else 0.0,
+        ref_path=ref_path,
+        ref_ws_name=ref_ws_name,
     )
 
     row["lower_exact_ref"] = ref_result["lower_exact"]
