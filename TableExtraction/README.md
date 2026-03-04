@@ -28,7 +28,7 @@ The pipeline converts PDF pages to images, sends them to Gemini for OCR/extracti
 ### 1. Create & activate a virtual environment
 
 ```bash
-cd "/Users/themanaspandey/Documents/Table Extraction"
+cd TableExtraction
 python3 -m venv venv
 source venv/bin/activate        # macOS/Linux
 # venv\Scripts\activate         # Windows
