@@ -547,13 +547,18 @@ def resolve_conflicts(transition_assignments: dict):
 
 
 def build_output(observed_lines: list) -> pd.DataFrame:
-    """Build the output DataFrame from observed lines and their assignments."""
+    """Build the output DataFrame from observed lines and their assignments.
+
+    Numeric columns (calc_intens, CF, dif_wn_O-C) are stored as actual floats
+    with NaN for missing values, so they appear as numbers in Excel/CSV.
+    """
     print("  Building output...")
+    import numpy as np
     output_rows = []
 
     for obs_line in observed_lines:
         if not obs_line.assigned_transitions:
-            # Unassigned line
+            # Unassigned line — transition-related fields are NaN/empty
             output_rows.append({
                 'wn_obs': obs_line.wavenumber,
                 'unc_wn_obs': obs_line.wn_uncertainty,
@@ -561,9 +566,9 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                 'char': obs_line.line_character,
                 'low_id': '',
                 'upp_id': '',
-                'calc_intens': '',
-                'CF': '',
-                'dif_wn_O-C': '',
+                'calc_intens': np.nan,
+                'CF': np.nan,
+                'dif_wn_O-C': np.nan,
                 'grade': ''
             })
         else:
@@ -571,15 +576,10 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                 calc_wn = tr.calculated_wavenumber
                 wn_diff = obs_line.wavenumber - calc_wn
 
-                calc_intens_str = ''
-                if tr.calc_intensity is not None:
-                    calc_intens_str = f"{tr.calc_intensity:.2f}"
-
-                cf_str = ''
-                if tr.CF is not None:
-                    cf_str = f"{tr.CF:.3f}"
-
-                dif_str = f"{wn_diff:.3f}"
+                # Round to the specified precision, keep as float
+                calc_intens_val = round(tr.calc_intensity, 2) if tr.calc_intensity is not None else np.nan
+                cf_val = round(tr.CF, 3) if tr.CF is not None else np.nan
+                dif_val = round(wn_diff, 3)
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
@@ -588,27 +588,59 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                     'char': obs_line.line_character,
                     'low_id': tr.lower_level.level_id,
                     'upp_id': tr.upper_level.level_id,
-                    'calc_intens': calc_intens_str,
-                    'CF': cf_str,
-                    'dif_wn_O-C': dif_str,
+                    'calc_intens': calc_intens_val,
+                    'CF': cf_val,
+                    'dif_wn_O-C': dif_val,
                     'grade': tr.grade if tr.grade else ''
                 })
 
     df = pd.DataFrame(output_rows)
 
-    # Sort by grade (ascending alphanumeric; empty grades go last)
+    # Sort: decreasing wavenumber, then increasing grade for ties
     df['_sort_grade'] = df['grade'].apply(lambda g: g if g else 'ZZZZZ')
-    df = df.sort_values('_sort_grade').drop(columns=['_sort_grade']).reset_index(drop=True)
+    df = df.sort_values(
+        by=['wn_obs', '_sort_grade'],
+        ascending=[False, True]
+    ).drop(columns=['_sort_grade']).reset_index(drop=True)
 
     return df
 
 
 def write_output(df: pd.DataFrame):
-    """Write the output DataFrame to Excel and CSV files."""
+    """Write the output DataFrame to Excel and CSV files.
+
+    Excel output gets number formatting for precision display.
+    """
+    # --- Excel ---
     print(f"  Writing output to {OUTPUT_FILE}...")
     df.to_excel(OUTPUT_FILE, index=False, engine='openpyxl')
+
+    # Apply number formats for display precision in Excel
+    wb = openpyxl.load_workbook(OUTPUT_FILE)
+    ws = wb.active
+    # Map column names to Excel number formats
+    col_formats = {
+        'calc_intens': '0.00',
+        'CF': '0.000',
+        'dif_wn_O-C': '0.000',
+    }
+    # Find column indices from header row
+    header = {cell.value: cell.column for cell in ws[1]}
+    for col_name, fmt in col_formats.items():
+        if col_name in header:
+            col_idx = header[col_name]
+            for row in ws.iter_rows(min_row=2, min_col=col_idx,
+                                     max_col=col_idx):
+                for cell in row:
+                    if cell.value is not None:
+                        cell.number_format = fmt
+    wb.save(OUTPUT_FILE)
+    wb.close()
+
+    # --- CSV ---
     print(f"  Writing output to {OUTPUT_CSV}...")
     df.to_csv(OUTPUT_CSV, index=False)
+
     print(f"  Output written: {len(df)} rows.")
 
 
