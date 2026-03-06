@@ -27,7 +27,7 @@ class Transition:
     calc_intensity: float     # On the same scale as observed intensities in lines (>=0); Should be None for transitions without known theoretical intensity
     CF: float                 # Cancellation factor in theoretical calculation of intensities (>=0); Should be None for transitions without known theoretical intensity
     assigned_to: SpectralLine # Can be None, default None
-    grade: string             # Can be None, default None
+    grade: str            # Can be None, default None
 
     @property
     def calculated_wavenumber(self) -> float:
