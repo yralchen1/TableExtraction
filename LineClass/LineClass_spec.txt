@@ -1,0 +1,242 @@
+Draft specs for the classify_lines.py code
+
+I need to write a code to classify a list of spectral lines. 
+The "Line" is a spectral line with properties like wavenumber, its uncertainty, intensity (these are all non-negative floating-point numbers), 
+line character (a string with characters encoding certain observed features), and pointers to two objects called energy levels. 
+Each "line" can be assigned to zero, one, or many pairs of energy levels. 
+Drafts of the definitions of the SpectralLine, EnergyLevel, and Transition objects are given in the models.py file.
+
+There is a list of known energy levels in an Excel table 
+(the file ExtractTable/Pr3_lev_Wyart_1999.xlsm) with many properties for each level, the most important of which is energy 
+(also, the J quantum number and parity). Energies are counted from the ground level, which has exactly zero energy by definition, 
+and are non-negative floating-point numbers. J values are specified either as strings representing fractions (an odd positive integer divided by 2) 
+or a non-negative integer number. They should be stored as strings in the property named 'J_str'. To make computations faster, the
+corresponding numberical values of J must also be stored in the property named J_num (a floating-point number) upon initialization. 
+In one spectrum, all J values are either integers or half-integers; there is never a mix of integers and half-integers in one spectrum.
+For this spectrum, the energies to use are in the worksheet "Wyart2000" of ExtractTable/Pr3_lev_Wyart_1999.xlsm, in column 13 (in Excel's R1C1 notation)
+entitiled "E_adopt". 
+The parity can be either "o" for odd or "e" for even; it is stored in column 14 (in Excel's counting starting with 1), entitled "par_ASD", in the same worksheet.
+The J_str value is in column 11 (in Excel's counting starting with 1), entitled "J_adopt", in the same worksheet.
+The level_id property is stored in column 23 (in Excel's counting starting with 1), entitled "ASD_id", in the same worksheet.
+The list of known energy levels should be created by reading the level properties from the above Excel file, initializing the EnergyLevel objects with these 
+properties, and appending these new objects to the list. The codes will have to lookup these objects in the list. This can be done by using the level_id property. 
+This lookup should be made efficient (fast). Perhaps, a better alternative is to store the level objects in an array or list and use their sequential 
+index for subsequent referencing.
+All other columns of the input levels list not mentioned above should be ignored. The list of all levels read from the input file should be named known_levels.
+
+Note on Excel files: the worksheets I am working with often contain many tens or hundreds of columns, so the default Excel's "A1" cell numbering style 
+is unacceptable; when writing output files, make them use the "R1C1" style if possible.
+
+Lines are produced by so-called transitions between two levels, one of which is the lower and the other is the upper level of a transition. 
+The wavenumber of a transition equals exactly the difference of the energies of the upper and lower levels. 
+The wavenumber of an observed line should match the transition's wavenumber within some tolerance depending on the line's uncertainty. 
+The code I want to write should go through the list of all lines and try to find all possible transitions that are within that tolerance. 
+There are selection rules depending on J and parity of any two levels, which define whether the transition is possible or not.
+
+The input file containing the list of observed spectral lines is "Pr3_lines.xlsx" having one worksheet named "Sheet1".
+The column names and Excel's column-counting numbers are given below for each property of the SpectralLine object:
+- wavenumber     : own     : 1
+- wn_uncertainty : unc_own : 2
+- intensity      : Icor    : 3
+- line_character : Ch.     : 4
+- lower level_id : id1     : 5
+- upper level_id : id2     : 6
+The rest of the columns should be ignored upon reading this input file.
+
+About half of all lines have one or more energy-level assignments. These assignments (called classifications) were made by J. Sugar in 1969 and in 1974, 
+when only a limited number of energy levels were known. Since then, J.-F. Wyart has found many more energy levels by locating transitions from/to them 
+in Sugar's line lists. He also revised some of the energy levels previosly found by Sugar. The extended and revised list of energy levels produced by Wyart 
+is used here as an input file (ExtractTable/Pr3_lev_Wyart_1999.xlsm). However, Wyart's line classifications were never published and are lost. 
+The primary objective of this classify_lines.py code is to find the lines that can possibly be assigned to his new energy levels (those that are present in his 
+levels list but have no observed lines assigned to them in Sugar's line list.
+The secondary objective is to find if any of the lines classified by Sugar (as listed in the file Pr3_lines.xlsx) could be better explained as transitions 
+between other levels.
+
+After reading the levels list, the second step of the main code should be creating the list of observed spectral lines by reading the file Pr3_lines.xlsx.
+For each spectral line having both lower level_id (id1) and upper level_id (id2) non-empty, create a new Transition object with lower_level and upper_level 
+pointers fetched from the levels list and add this new transition to the possible_transitions list of this line. The assigned_to property of this Transition 
+should be set to point to this SpectralLine. A separate list of assigned transitions, all_assigned_transitions, should be maintained with the purpose of future 
+checking that no new Transition is assigned to the same SpectralLine as any of the already assigned transitions. All line classifications given in the input file 
+have already been checked to be unique. This checking will have to be done for all new classifications.
+
+The lines having multiple energy-level assignments are marked with "**" in the line_character string (which may also contain other characters in addition to that).
+However, the correct way to recognize multiply-assigned lines is by looking at the wavelengths. If the wavelength seen in the input file is exactly equal to the 
+wavelength of the last previously read line (stored in a prevLine object), it is the same line. In this case, do not add a new SpectralLine object to the list of 
+all spectral lines; instead, append the new Transition to the list of assigned_transitions of prevLine. 
+
+The list of all spectral line objects read from the input file should be named observed_lines.
+
+The third input file to be read by the code is the list of calculated transitions from the file Pr3_tp_Dream.xlsm. This file contains the calculated line intensities 
+on the same scale as those of observed lines. This list contains only a small selection from the list of all possible transitions. It is a result of a 
+theoretical calculation retrieved from the database named DREAM; hence the file name. The main results of that calculation are the weighted transition probability,
+gA, and the so-called cancellation factor, CF, which serves as a measure of accuracy of gA, for each listed transition. The calculated line intensities,
+Icalc, are proportional to gA and have been derived from it by a simplified modeling of the plasma that emitted the spectral lines observed by Sugar. 
+The accuracy of Icalc is largely defined by that of gA, although it is somewhat worsened by crudeness of the plasma modeling. The main indicator of accuracy is 
+the following: if CF < 0.1, the Icalc value is uncertain to a factor of 1000 (can be greater or smaller by up to this factor); otherwise, Icalc is accurate to 
+a factor of 2.5 on average (but can be wrong by up to a factor of 25, either greater or smaller).
+While reading the file Pr3_tp_Dream.xlsm, the code should fetch the calculated transition properties from the worksheet "trans" of the file Pr3_tp_Dream.xlsm
+and insert Transition objects into the list named calculated_transitions. 
+The column names and Excel's column-counting numbers are given below for each quantity to be read, which correspond to properties of a Transition object, 
+but not always directly (in the format - <quantity_name> : <column_name> : <column_number>):
+- id1            : id1_W99 : 15
+- id2            : id2_W99 : 16
+- calc_intensity : Icalc   : 45
+- CF             : CF      : 10
+When creating the Transition objects, the needed lower_level and upper_level objects that are properties of Transition must be looked up in the list of energy 
+levels by using the id1 and id2 string values. Note that, although all level IDs can in principle be read as floating-point numbers, they must be read and written 
+as strings. The property assigned_to should be assigned by looking up in the list of all_assigned_transitions. If a transition is not found in that list, 
+assigned_to should be set to None.
+
+The next step of the main code should be creating a sorted list of all possible transitions between all known levels satisfying the seletion rules. Only thansitions 
+with the calculated wavenumber between 9327 and 121665 (cm^{-1}) must be included in this list (to cover the range of observed wavenumbers). The expected number 
+of possible transitions in this list is a few hundred thousands. The list should be named all_possible_transitions.
+
+Selection rules (the numerical values of the lower and upper levels are denoted here as J_lo and J_up):
+- |J_up - J_lo| <= 1;
+- Transition between J_up == 0 and J_lo == 0 is forbidden.
+
+For each level (lev_lo) in known_levels, the code should consider all other levels (lev_up) with lev_up.energy > lev.energy and check if their energy difference 
+falls in the required range (9327 to 121665). If outside this range, proceed to the next upper level. Otherwise, check the selection rules for a possible transition 
+between lev_up and the lower level lev_lo. If the selection rules are not satisfied, proceed to the next lev_up. Otherwise, create a new Transition object and set 
+its properties:
+- lower_level must be set to lev_lo; upper_level must be set to lev_up;
+- lookup this transition in calculated_transitions by using the level_id properties of lev_lo and lev_up. If no transition between levels with these IDs is found in 
+calculated_transitions, set calc_intensity, CF, and assigned_to to None; otherwise, set them to the calc_intensity, CF, and assigned_to values of the transition 
+found in calculated_transitions. 
+
+Sort the all_possible_transitions list in the order of increasing wavenumbers.
+
+The next and most time-consuming action of the main code should be cycling through the observed_lines list, comparing it with all_possible_transitions, 
+selecting those transitions that can be assigned to each observed line, and grading all these assignments. 
+The algorithm to use for each observed line (obs_line) is approximately this:
+    Select all transitions from all_possible_transitions having |obs_line.wavenumber - t.calculated_wavenumber| <= 4.5*obs_line.wn_uncertainty.
+    This is the set of transitions that can possibly be assigned to obs_line. Call it this_line_possible_transitions.
+    If there are none (this_line_possible_transitions is empty):
+        If obs_line.assigned_transitions is not None: 
+            for each tr in assigned_transitions:
+                tr.grade = "X"
+        proceed to the next observed line
+    else:
+        for each t in this_line_possible_transitions:
+            # Consider assigning this transition t as a possible classification of obs_line. Assign t.grade according to the following scheme:
+            if |obs_line.wavenumber - t.calculated_wavenumber| <= 1.0 * obs_line.wn_uncertainty:
+                if t.CF is None:
+                    t.grade = "A6"
+                else:
+                    intensity_ratio = t.calc_intensity/obs_line.intensity
+                    if t.CF < 0.1: # The calculated intensity is almost meaningless
+                        if 0.1 <= intensity_ratio <= 10:
+                            t.grade = "A4"
+                        else:
+                            t.grade = "A5"
+                    else: # Compare the observed and calculated intensities
+                        if 0.5 <= intensity_ratio <= 2:
+                            t.grade = "A1"
+                        else:
+                            if 0.1 <= intensity_ratio <= 10:
+                                t.grade = "A2"
+                            else:
+                                t.grade = "A3"
+            else:
+                if |obs_line.wavenumber - t.calculated_wavenumber| <= 2.0 * obs_line.wn_uncertainty:
+                    if t.CF is None:
+                        t.grade = "B6"
+                    else:
+                        intensity_ratio = t.calc_intensity/obs_line.intensity
+                        if t.CF < 0.1: # The calculated intensity is almost meaningless
+                            if 0.1 <= intensity_ratio <= 10:
+                                t.grade = "B4"
+                            else:
+                                t.grade = "B5"
+                        else: # Compare the observed and calculated intensities
+                            if 0.5 <= intensity_ratio <= 2:
+                                t.grade = "B1"
+                            else:
+                                if 0.1 <= intensity_ratio <= 10:
+                                    t.grade = "B2"
+                                else:
+                                    t.grade = "B3"
+                else:
+                    if |obs_line.wavenumber - t.calculated_wavenumber| <= 3.0 * obs_line.wn_uncertainty:
+                        if t.CF is None:
+                            t.grade = "C6"
+                        else:
+                            intensity_ratio = t.calc_intensity/obs_line.intensity
+                            if t.CF < 0.1: # The calculated intensity is almost meaningless
+                                if 0.1 <= intensity_ratio <= 10:
+                                    t.grade = "C4"
+                                else:
+                                    t.grade = "C5"
+                            else: # Compare the observed and calculated intensities
+                                if 0.5 <= intensity_ratio <= 2:
+                                    t.grade = "C1"
+                                else:
+                                    if 0.1 <= intensity_ratio <= 10:
+                                        t.grade = "C2"
+                                    else:
+                                        t.grade = "C3"
+                    else:
+                        if t.CF is None:
+                            t.grade = "D6"
+                        else:
+                            intensity_ratio = t.calc_intensity/obs_line.intensity
+                            if t.CF < 0.1: # The calculated intensity is almost meaningless
+                                if 0.1 <= intensity_ratio <= 10:
+                                    t.grade = "D4"
+                                else:
+                                    t.grade = "D5"
+                            else: # Compare the observed and calculated intensities
+                                if 0.5 <= intensity_ratio <= 2:
+                                    t.grade = "D1"
+                                else:
+                                    if 0.1 <= intensity_ratio <= 10:
+                                        t.grade = "D2"
+                                    else:
+                                        t.grade = "D3"
+
+            # Now look through the list of transitions already assigned to obs_line
+						t_assigned = False
+				    for each assigned_transition in obs_line.transitions:
+                # The function same_transitions(t1,t2) should be created.
+				        # It must return True if (t1.lower_level.level_id == t2.lower_level.level_id) and (t1.upper_level.level_id == t2.upper_level.level_id)
+				        if same_transitions(t, assigned_transition):
+				            t_assigned = True
+				            t.assigned_to = obs_line
+				            assigned_transition.grade = t.grade
+				            break  # Exit the loop
+				    if not t_assigned:
+				        t.grade = t.grade + 'N'  # Tag this transition as newly assigned
+				        t.assigned_to = obs_line
+				        append(obs_line.assigned_transitions, t)
+
+Consider possibilities to make the above algorithm more efficient (faster). Memory is not a problem, so lookup hashes could be created.
+Also, this draft does not take into account the possibility that a transition t may have already been assigned to another observed line.
+This must be taken into account, and the conflicting assignments must be resolved to ensure that no transition is assigned to more than one observed line.
+The assignment that has the lowest grade (in alphanumerical order) should be retained and tagged with "C" appended to its grade.
+For example, if two observed lines compete for the same transition assignment, the one having grade "A1" should be preferred over the one having grade "A2" or "B1".
+Letters "N" and "C" should be disregarded in this comparison. If both assignments have the same grade, except for possible "N" and "C" tags:
+    If one of them has "N" but the other does not, retain the one without "N" (that is, preserve the original assignment), but make sure its grade is tagged with "C"
+    (conflicting assignment).
+    Otherwise, retain the assignment resulting in the closest match of the calculated and observed wavenumber. Also, make sure its grade is tagged with "C".
+
+The final action of the code is output.
+Create a list of output lines from the list of observed lines in the following way:
+For each observed line, create a list of output line objects having the following content that combines some properites of the observed line
+with properties of each transition from its assigned_transitions list:
+- observed wavenumber (same as the one of the observed line); name it "wn_obs"
+- observed wavenumber uncertainty (same as wn_uncertainty of the observed line); name it "unc_wn_obs"
+- observed intensity (same as the one of the observed line); name it "obs_intens"
+- line_character (same as the one of the observed line); name it "char"
+- lower level_id; name it "low_id"
+- upper level_id; name it "upp_id"
+- calculated intensity (empty string if None, otherwise a string with a number formatted with two decimal places after the point); name it "calc_intens"
+- CF (empty string if None, otherwise a string with a number formatted with three decimal places after the point); name it "CF"
+- wavenumber difference (observed - calculated), formatted with three decimal places after the point; name it "dif_wn_O-C"
+- grade (name it "grade")
+
+Sort this list in the order of increasing grade ("A1" should be at the top, then "A2", "B1", etc.) and append each of them to the list of output lines.
+
+If an observed line does not have any transitions assigned to it, create a similar object with the same structure, having all transition-related fields blank
+(low_id, upp_id, calc_intens, CF, dif_wn_O-C, grade) and apppend it to the list of output lines.
+
+Create a pandas dataframe object from this list of output lines and write it to a new Excel file named "line_classifications.xlsx".

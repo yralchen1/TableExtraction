@@ -77,3 +77,4 @@ output/
 # Gemini agent config
 .gemini/
 
+implementation_plan.md
