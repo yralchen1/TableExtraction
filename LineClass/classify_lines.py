@@ -57,11 +57,11 @@ def same_transitions(t1: Transition, t2: Transition) -> bool:
 
 
 def grade_base(grade_str: str) -> str:
-    """Strip suffix letters N, C, R from a grade for comparison purposes."""
+    """Strip suffix letters N, F, R from a grade for comparison purposes."""
     if grade_str is None:
         return ''
     base = grade_str
-    for suffix in ('N', 'C', 'R'):
+    for suffix in ('N', 'F', 'R'):
         base = base.replace(suffix, '')
     return base
 
@@ -265,7 +265,16 @@ def read_dream_transitions(levels_dict: dict, assigned_index: dict) -> dict:
 
         # Look up if this transition is already assigned to an observed line
         assigned_tr = assigned_index.get((id1_val, id2_val))
-        assigned_to = assigned_tr.assigned_to if assigned_tr is not None else None
+        assigned_to = None
+        if assigned_tr is not None:
+            assigned_to = assigned_tr.assigned_to
+            for tr in assigned_to.assigned_transitions:
+                if same_transitions(tr, assigned_tr):
+                    # Update CF and calc_intensity in the assigned_to SpectralLine object,
+                    # for the transition that matches this calculated transition
+                    tr.calc_intensity = calc_intensity
+                    tr.CF = cf
+                    break
 
         calc_trans_index[(id1_val, id2_val)] = {
             'calc_intensity': calc_intensity,
@@ -297,12 +306,13 @@ def generate_all_possible_transitions(levels_list: list,
     print("Step 4: Generating all possible transitions...")
     all_possible = []
     n_levels = len(levels_list)
+    levels_list = sorted(levels_list, key=lambda l: l.energy)  # sort by energy for efficiency
 
     for i in range(n_levels):
         lev_lo = levels_list[i]
-        for j in range(n_levels):
+        for j in range(i+1, n_levels):
             lev_up = levels_list[j]
-            if lev_up.energy <= lev_lo.energy:
+            if lev_up.parity == lev_lo.parity:
                 continue
 
             wn = lev_up.energy - lev_lo.energy
@@ -313,7 +323,7 @@ def generate_all_possible_transitions(levels_list: list,
 
             # Selection rules
             delta_j = abs(lev_up.J_val - lev_lo.J_val)
-            if delta_j > 1.0:
+            if delta_j > 1.5:  # Allowing for some numerical imprecision in J values
                 continue
             if lev_up.J_val == 0.0 and lev_lo.J_val == 0.0:
                 continue
@@ -536,7 +546,7 @@ def resolve_conflicts(transition_assignments: dict):
         suffixes = ''
         if winner_tr.grade and 'N' in winner_tr.grade:
             suffixes += 'N'
-        suffixes += 'C'  # Conflicting assignment
+        suffixes += 'F'  # Conflicting assignment
         if original_moved:
             suffixes += 'R'  # Revised from original
         winner_tr.grade = base + suffixes
