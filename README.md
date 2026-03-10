@@ -2,7 +2,7 @@
 
 An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.010) & [1974](https://doi.org/10.6028/jres.078A.032)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
 
 ---
 
