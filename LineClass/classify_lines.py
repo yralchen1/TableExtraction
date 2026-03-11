@@ -416,7 +416,6 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list):
 
     # Build a list of wavenumbers for binary search
     all_wn = [t.calculated_wavenumber for t in all_possible_transitions]
-    n_trans = len(all_possible_transitions)
 
     # Track all assignments: (lower_id, upper_id) -> [(transition, line, wn_diff)]
     transition_assignments = {}

@@ -2,18 +2,18 @@
 
 An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.010) & [1974](https://doi.org/10.6028/jres.078A.032)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
 
 ---
 
 ## Features
 
-- **Multimodal OCR** — Extracts structured data from scanned two-column table layouts using Gemini vision models
+- **Multimodal OCR** — Extracts structured data from scanned two-column table layouts using Gemini vision models (Pro & Flash)
 - **Physics-aware validation** — Validates air↔vacuum wavelength/wavenumber via Edlén's 1966 formula
 - **NIST ASD cross-reference** — Looks up energy levels against NIST Atomic Spectra Database with auto-correction for typos, parity flips, and J-value mismatches
 - **Selection rule checks** — Enforces E1 transition rules (parity change, ΔJ ≤ 1)
 - **Misalignment correction** — Detects and fixes OCR-induced row shifts using Ritz wavenumber matching
-- **Doubly-classified line handling** — Merges split/ditto rows from multiply-classified spectral lines
+- **Line Classification** — Automated matching of observed lines to energy levels with multi-tier grading (A1-D6)
 - **Robust JSON parsing** — 6-step fallback parser for malformed LLM output
 - **Configurable** — Year-specific prompts, column contexts, layout definitions, and environment-driven settings
 
@@ -115,6 +115,11 @@ python pdf_to_images.py --year 1974 --pages 3 39
 
 # Validate a previously extracted raw table:
 python validate_extracted_table.py --input output/raw_extracted_table.xlsx
+
+# --- Spectral Line Classification ---
+
+# Run the full classification pipeline:
+python LineClass/classify_lines.py
 ```
 
 ---
@@ -208,16 +213,22 @@ TableExtraction/
 │   ├── column_contexts/                   # Year-specific column definitions (JSON)
 │   └── layout_definitions/                # Table layout prompt templates
 ├── output/                                # CSV/Excel output
-└── TableExtraction/                       # Core pipeline
-    ├── config.py                          # Configuration (env-driven)
-    ├── extract_table.py                   # CLI entry point (extraction)
-    ├── validate_extracted_table.py        # CLI entry point (validation only)
-    ├── extract_page_direct.py             # Quick single-page raw OCR
-    ├── extraction_prompt.py               # Gemini prompt builder
-    ├── graph.py                           # LangGraph pipeline (nodes & state)
-    ├── tools.py                           # Validation tools (Edlén, NIST, selection rules)
-    ├── pdf_to_images.py                   # PDF → PNG conversion
-    └── requirements.txt                   # Python dependencies
+├── TableExtraction/                       # Core extraction pipeline
+│   ├── config.py                          # Configuration (env-driven)
+│   ├── extract_table.py                   # CLI entry point (extraction)
+│   ├── validate_extracted_table.py        # CLI entry point (validation only)
+│   ├── extract_page_direct.py             # Quick single-page raw OCR
+│   ├── extraction_prompt.py               # Gemini prompt builder
+│   ├── graph.py                           # LangGraph pipeline (nodes & state)
+│   ├── tools.py                           # Validation tools (Edlén, NIST, selection rules)
+│   ├── pdf_to_images.py                   # PDF → PNG conversion
+│   └── requirements.txt                   # Python dependencies
+└── LineClass/                             # Spectral Line Classification
+    ├── classify_lines.py                  # CLI entry point (classification)
+    ├── models.py                          # Data models (EnergyLevel, SpectralLine, Transition)
+    ├── Pr3_lines.xlsx                     # Observed lines input
+    ├── Pr3_tp_Dream.xlsm                  # DREAM calculated transitions
+    └── line_classifications.xlsx          # Classification output
 ```
 
 ---
@@ -242,6 +253,40 @@ TableExtraction/
 ```
 
 Built with [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph`.
+
+---
+
+## Line Classification Pipeline (`LineClass`)
+
+This module classifies observed spectral lines by matching them against all possible transitions between known energy levels.
+
+### 6-Step Workflow
+
+1.  **Read Energy Levels** — Loads data from `Pr3_lev_Wyart_1999.xlsm`
+2.  **Read Observed Lines** — Loads data from `Pr3_lines.xlsx`
+3.  **Read Theoretical Transitions** — Loads DREAM calculated intensities/CFs from `Pr3_tp_Dream.xlsm`
+4.  **Generate Transitions** — Calculates all possible transitions satisfying selection rules (ΔJ ≤ 1, parity change)
+5.  **Match & Grade** — Matches observed lines to transitions and assigns a grade (A1 to D6) based on wavenumber residual and intensity consistency
+6.  **Resolve Conflicts** — Handles transitions assigned to multiple lines, selecting the best match and tagging revisions
+
+### Grading Scheme
+
+Matches are graded on two dimensions:
+
+-   **Tier (Wavenumber Agreement):**
+    -   `A`: Wavenumber residual ≤ 1.0σ (uncertainty)
+    -   `B`: Wavenumber residual ≤ 2.0σ
+    -   `C`: Wavenumber residual ≤ 3.0σ
+    -   `D`: Wavenumber residual > 3.0σ
+-   **Subgrade (Intensity Consistency):**
+    -   `1` to `3`: Good to poor agreement with DREAM calculated intensity (CF ≥ 0.1)
+    -   `4` to `5`: Agreement with low-CF transitions
+    -   `6`: No theoretical intensity available
+
+**Suffixes:**
+-   `N`: Newly assigned (not in original source)
+-   `F`: Conflicting assignment (multiple lines match one transition)
+-   `R`: Revised (original classification was moved to a better row)
 
 ---
 
