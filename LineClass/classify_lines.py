@@ -8,18 +8,19 @@ output a sorted classification table to Excel.
 
 Steps:
   1. Read energy levels from Pr3_lev_Wyart_1999.xlsm
-  2. Read observed spectral lines from Pr3_lines.xlsx
-  3. Read DREAM calculated transitions from Pr3_tp_Dream.xlsm
+  2. Read calculated transitions from Icalc.xlsx
+  3. Read observed spectral lines from Pr3_lines.xlsx
   4. Generate all possible transitions satisfying selection rules
   5. Match observed lines to possible transitions & grade
   6. Resolve conflicts & write output
 """
 
 import os
+import math
 import bisect
 import pandas as pd
 import openpyxl
-from models import EnergyLevel, SpectralLine, Transition
+from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 
 # ---------------------------------------------------------------------------
 # Paths (relative to this script's directory)
@@ -27,7 +28,7 @@ from models import EnergyLevel, SpectralLine, Transition
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LEVELS_FILE = os.path.join(SCRIPT_DIR, '..', 'TableExtraction', 'Pr3_lev_Wyart_1999.xlsm')
 LINES_FILE = os.path.join(SCRIPT_DIR, 'Pr3_lines.xlsx')
-DREAM_FILE = os.path.join(SCRIPT_DIR, 'Pr3_tp_Dream.xlsm')
+ICALC_FILE = os.path.join(SCRIPT_DIR, 'Icalc.xlsx')
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, 'line_classifications.xlsx')
 OUTPUT_CSV = os.path.join(SCRIPT_DIR, 'line_classifications.csv')
 
@@ -56,14 +57,6 @@ def same_transitions(t1: Transition, t2: Transition) -> bool:
             t1.upper_level.level_id == t2.upper_level.level_id)
 
 
-def grade_base(grade_str: str) -> str:
-    """Strip suffix letters N, F, R from a grade for comparison purposes."""
-    if grade_str is None:
-        return ''
-    base = grade_str
-    for suffix in ('N', 'F', 'R'):
-        base = base.replace(suffix, '')
-    return base
 
 
 def to_str_id(val) -> str:
@@ -82,7 +75,7 @@ def to_str_id(val) -> str:
 # ===========================================================================
 # STEP 1: Read energy levels
 # ===========================================================================
-def read_energy_levels() -> (dict, list):
+def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
     """Read energy levels from the Wyart2000 worksheet.
 
     Returns:
@@ -138,29 +131,78 @@ def read_energy_levels() -> (dict, list):
 
 
 # ===========================================================================
-# STEP 2: Read observed spectral lines
+# STEP 2: Read calculated transitions
 # ===========================================================================
-def read_observed_lines(levels_dict: dict):
+def read_transitions(levels_dict: dict) -> dict:
+    """Read calculated transitions from Icalc.xlsx.
+
+    Returns:
+        calc_trans_index: dict keyed by (lower_id, upper_id) -> dict with
+                          keys 'calc_intensity', 'u_calc', 'assigned_to'
+    """
+    print("Step 2: Reading calculated transitions...")
+    wb = openpyxl.load_workbook(ICALC_FILE, read_only=True, data_only=True)
+    ws = wb['Sheet1']
+
+    calc_trans_index = {}
+
+    for row in ws.iter_rows(min_row=2):  # skip header
+        # Col 1: id1_W99 (idx 0), Col 2: id2_W99 (idx 1),
+        # Col 5: u%gA (idx 4), Col 6: Icalc (idx 5)
+        id1_val = to_str_id(row[0].value)
+        id2_val = to_str_id(row[1].value)
+
+        if not id1_val or not id2_val:
+            continue
+
+        if id1_val not in levels_dict or id2_val not in levels_dict:
+            continue
+
+        ua_pcnt_val = row[4].value
+        icalc_val = row[5].value
+
+        u_calc = None
+        if ua_pcnt_val is not None:
+            try:
+                u_calc = math.log(float(ua_pcnt_val) / 100.0 + 1.0)
+            except (ValueError, TypeError):
+                pass
+
+        calc_intensity = None
+        if icalc_val is not None:
+            try:
+                calc_intensity = float(icalc_val)
+            except (ValueError, TypeError):
+                pass
+
+        calc_trans_index[(id1_val, id2_val)] = {
+            'calc_intensity': calc_intensity,
+            'u_calc': u_calc,
+            'assigned_to': None
+        }
+
+    wb.close()
+    print(f"  Read {len(calc_trans_index)} calculated transitions.")
+    return calc_trans_index
+
+
+# ===========================================================================
+# STEP 3: Read observed spectral lines
+# ===========================================================================
+def read_observed_lines(levels_dict: dict, calc_trans_index: dict):
     """Read observed spectral lines from Pr3_lines.xlsx.
 
     Returns:
         observed_lines: list of SpectralLine objects
-        all_assigned_transitions: list of Transition objects (Sugar's classifications)
-        assigned_index: dict keyed by (lower_id, upper_id) -> Transition
     """
-    print("Step 2: Reading observed spectral lines...")
+    print("Step 3: Reading observed spectral lines...")
     wb = openpyxl.load_workbook(LINES_FILE, read_only=True, data_only=True)
     ws = wb['Sheet1']
 
     observed_lines = []
-    all_assigned_transitions = []
-    assigned_index = {}  # (lower_id, upper_id) -> Transition
-
     prev_line = None
 
     for row in ws.iter_rows(min_row=2):  # skip header
-        # own (col 1, idx 0), unc_own (col 2, idx 1), Icor (col 3, idx 2),
-        # Ch. (col 4, idx 3), id1 (col 5, idx 4), id2 (col 6, idx 5)
         wn_val = row[0].value       # wavenumber
         unc_val = row[1].value      # wn_uncertainty
         intens_val = row[2].value   # intensity
@@ -181,13 +223,9 @@ def read_observed_lines(levels_dict: dict):
         id1_val = to_str_id(row[4].value)  # lower level_id
         id2_val = to_str_id(row[5].value)  # upper level_id
 
-        # Check if this is a continuation of the previous line
-        # (same wavenumber = multiply-assigned line)
         if prev_line is not None and wavenumber == prev_line.wavenumber:
-            # Same line, additional classification
             current_line = prev_line
         else:
-            # New spectral line
             current_line = SpectralLine(
                 wavenumber=wavenumber,
                 wn_uncertainty=uncertainty,
@@ -197,94 +235,26 @@ def read_observed_lines(levels_dict: dict):
             observed_lines.append(current_line)
             prev_line = current_line
 
-        # If both level IDs are present, create a Transition (Sugar's classification)
         if id1_val and id2_val:
             lower = levels_dict.get(id1_val)
             upper = levels_dict.get(id2_val)
             if lower is not None and upper is not None:
+                calc_data = calc_trans_index.get((id1_val, id2_val))
                 tr = Transition(
                     lower_level=lower,
                     upper_level=upper,
+                    calc_intensity=calc_data['calc_intensity'] if calc_data else None,
+                    u_calc=calc_data['u_calc'] if calc_data else None,
                     assigned_to=current_line
                 )
                 current_line.assigned_transitions.append(tr)
-                all_assigned_transitions.append(tr)
-                assigned_index[(id1_val, id2_val)] = tr
+                current_line.original_assignments.append(tr)
+                if calc_data:
+                    calc_data['assigned_to'] = current_line
 
     wb.close()
-    print(f"  Read {len(observed_lines)} observed lines with "
-          f"{len(all_assigned_transitions)} existing classifications.")
-    return observed_lines, all_assigned_transitions, assigned_index
-
-
-# ===========================================================================
-# STEP 3: Read DREAM calculated transitions
-# ===========================================================================
-def read_dream_transitions(levels_dict: dict, assigned_index: dict) -> dict:
-    """Read DREAM calculated transitions from Pr3_tp_Dream.xlsm.
-
-    Returns:
-        calc_trans_index: dict keyed by (lower_id, upper_id) -> dict with
-                          keys 'calc_intensity', 'CF', 'assigned_to'
-    """
-    print("Step 3: Reading DREAM calculated transitions...")
-    wb = openpyxl.load_workbook(DREAM_FILE, read_only=True, data_only=True)
-    ws = wb['trans']
-
-    calc_trans_index = {}
-
-    for row in ws.iter_rows(min_row=2):  # skip header
-        # id1_W99 (col 15, idx 14), id2_W99 (col 16, idx 15),
-        # CF (col 10, idx 9), Icalc (col 45, idx 44)
-        id1_val = to_str_id(row[14].value)  # id1_W99
-        id2_val = to_str_id(row[15].value)  # id2_W99
-
-        if not id1_val or not id2_val:
-            continue
-
-        # Check that these levels exist in our levels list
-        if id1_val not in levels_dict or id2_val not in levels_dict:
-            continue
-
-        cf_val = row[9].value     # CF (col 10)
-        icalc_val = row[44].value  # Icalc (col 45)
-
-        cf = None
-        if cf_val is not None:
-            try:
-                cf = float(cf_val)
-            except (ValueError, TypeError):
-                pass
-
-        calc_intensity = None
-        if icalc_val is not None:
-            try:
-                calc_intensity = float(icalc_val)
-            except (ValueError, TypeError):
-                pass
-
-        # Look up if this transition is already assigned to an observed line
-        assigned_tr = assigned_index.get((id1_val, id2_val))
-        assigned_to = None
-        if assigned_tr is not None:
-            assigned_to = assigned_tr.assigned_to
-            for tr in assigned_to.assigned_transitions:
-                if same_transitions(tr, assigned_tr):
-                    # Update CF and calc_intensity in the assigned_to SpectralLine object,
-                    # for the transition that matches this calculated transition
-                    tr.calc_intensity = calc_intensity
-                    tr.CF = cf
-                    break
-
-        calc_trans_index[(id1_val, id2_val)] = {
-            'calc_intensity': calc_intensity,
-            'CF': cf,
-            'assigned_to': assigned_to
-        }
-
-    wb.close()
-    print(f"  Read {len(calc_trans_index)} DREAM calculated transitions.")
-    return calc_trans_index
+    print(f"  Read {len(observed_lines)} observed lines.")
+    return observed_lines
 
 
 # ===========================================================================
@@ -337,7 +307,7 @@ def generate_all_possible_transitions(levels_list: list,
                     lower_level=lev_lo,
                     upper_level=lev_up,
                     calc_intensity=calc_data['calc_intensity'],
-                    CF=calc_data['CF'],
+                    u_calc=calc_data['u_calc'],
                     assigned_to=calc_data['assigned_to']
                 )
             else:
@@ -357,48 +327,62 @@ def generate_all_possible_transitions(levels_list: list,
 # ===========================================================================
 # STEP 5: Match observed lines & grade assignments
 # ===========================================================================
-def compute_grade(wn_diff_abs: float, uncertainty: float,
-                  calc_intensity: float, obs_intensity: float,
-                  cf: float) -> str:
-    """Compute the grade for a transition assignment.
+def assign_grades(line: SpectralLine, transitions: list):
+    """Implement new 2D grading scheme based on WN residual and intensity consistency."""
+    ln2 = math.log(2)
+    ln5 = math.log(5)
 
-    wn_diff_abs: |obs_wavenumber - calc_wavenumber|
-    uncertainty: obs_line.wn_uncertainty
-    calc_intensity: from DREAM (can be None)
-    obs_intensity: observed intensity
-    cf: cancellation factor (can be None)
-    """
-    # Determine tier
-    if wn_diff_abs <= 1.0 * uncertainty:
-        tier = 'A'
-    elif wn_diff_abs <= 2.0 * uncertainty:
-        tier = 'B'
-    elif wn_diff_abs <= 3.0 * uncertainty:
-        tier = 'C'
-    else:
-        tier = 'D'
-
-    # Determine subgrade
-    if cf is None or calc_intensity is None:
-        subgrade = '6'
-    else:
-        intensity_ratio = calc_intensity / obs_intensity if obs_intensity != 0 else float('inf')
-        if cf < 0.1:
-            # Calculated intensity is almost meaningless
-            if 0.1 <= intensity_ratio <= 10:
-                subgrade = '4'
-            else:
-                subgrade = '5'
+    if abs(line.wavenumber - 33177.0) < 1e-1:
+        pass
+    for tr in transitions:
+        wn_diff_abs = abs(line.wavenumber - tr.calculated_wavenumber)
+        # Tier (Wavenumber Agreement)
+        if wn_diff_abs <= 2.0 * line.wn_uncertainty:
+            tier = '2'
+        elif wn_diff_abs <= 3.0 * line.wn_uncertainty:
+            tier = '3'
+        elif wn_diff_abs <= 4.0 * line.wn_uncertainty:
+            tier = '4'
         else:
-            # Compare observed and calculated intensities
-            if 0.5 <= intensity_ratio <= 2:
-                subgrade = '1'
-            elif 0.1 <= intensity_ratio <= 10:
-                subgrade = '2'
-            else:
-                subgrade = '3'
+            tier = '5'
 
-    return tier + subgrade
+        # Subgrade (Intensity Consistency)
+        if tr.calc_intensity is None or tr.u_calc is None:
+            subgrade = 'G'
+        else:
+            ln_u_I_calc = tr.u_calc
+            ln_I_ratio = abs(math.log(tr.calc_intensity / line.intensity)) if line.intensity > 0 else float('inf')
+            diff = ln_I_ratio - ln_u_I_calc
+
+            if diff <= 0 and ln_u_I_calc <= ln2:
+                subgrade = 'A'
+            elif diff <= ln2 and ln_u_I_calc <= ln5:
+                subgrade = 'B'
+            elif ln2 < diff <= ln5 and ln2 < ln_u_I_calc <= ln5:
+                subgrade = 'C'
+            elif diff <= ln5 < ln_u_I_calc:
+                subgrade = 'D'
+            elif diff > ln5 and ln_u_I_calc > ln5:
+                subgrade = 'E'
+            else:
+                subgrade = 'G' # Fallback
+
+        tr.grade = tier + subgrade
+
+        # Handle UNASSIGNED removal and notes
+        if UNASSIGNED in line.assigned_transitions:
+            line.assigned_transitions.remove(UNASSIGNED)
+
+        # Set initial notes
+        notes = ""
+        is_original = False
+        for orig in line.original_assignments:
+            if same_transitions(tr, orig):
+                is_original = True
+                break
+        if not is_original:
+            notes += 'N'
+        tr.notes = notes
 
 
 def match_and_grade(observed_lines: list, all_possible_transitions: list):
@@ -421,73 +405,48 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list):
     transition_assignments = {}
 
     for line_idx, obs_line in enumerate(observed_lines):
-        if (line_idx + 1) % 1000 == 0:
-            print(f"  Processing line {line_idx + 1}/{len(observed_lines)}...")
+        # if (line_idx + 1) % 1000 == 0:
+        #     print(f"  Processing line {line_idx + 1}/{len(observed_lines)}...")
 
-        tolerance = 4.5 * obs_line.wn_uncertainty
+        tolerance = 5.5 * obs_line.wn_uncertainty
         wn_lo = obs_line.wavenumber - tolerance
         wn_hi = obs_line.wavenumber + tolerance
 
-        # Binary search for transitions in range
         idx_lo = bisect.bisect_left(all_wn, wn_lo)
         idx_hi = bisect.bisect_right(all_wn, wn_hi)
 
-        this_line_possible = all_possible_transitions[idx_lo:idx_hi]
-
-        if not this_line_possible:
-            # No possible transitions found
-            if obs_line.assigned_transitions:
-                for tr in obs_line.assigned_transitions:
-                    tr.grade = 'X'
-            continue
-
-        for t in this_line_possible:
-            wn_diff = obs_line.wavenumber - t.calculated_wavenumber
-            wn_diff_abs = abs(wn_diff)
-
-            # Only consider transitions within tolerance (should be guaranteed by search)
-            if wn_diff_abs > tolerance:
-                continue
-
-            grade = compute_grade(
-                wn_diff_abs, obs_line.wn_uncertainty,
-                t.calc_intensity, obs_line.intensity, t.CF
-            )
-
-            # Check if this transition is already assigned to this line
-            t_assigned = False
-            for assigned_tr in obs_line.assigned_transitions:
-                if same_transitions(t, assigned_tr):
-                    t_assigned = True
-                    assigned_tr.grade = grade
-                    # Record for conflict resolution
-                    key = (t.lower_level.level_id, t.upper_level.level_id)
-                    if key not in transition_assignments:
-                        transition_assignments[key] = []
-                    transition_assignments[key].append(
-                        (assigned_tr, obs_line, wn_diff_abs)
+        matches = []
+        for t in all_possible_transitions[idx_lo:idx_hi]:
+            wn_diff_abs = abs(obs_line.wavenumber - t.calculated_wavenumber)
+            if wn_diff_abs <= tolerance:
+                # Reuse or create transition
+                existing = None
+                for otr in obs_line.assigned_transitions:
+                    if same_transitions(t, otr):
+                        existing = otr
+                        break
+                
+                if existing:
+                    target_tr = existing
+                else:
+                    target_tr = Transition(
+                        lower_level=t.lower_level,
+                        upper_level=t.upper_level,
+                        calc_intensity=t.calc_intensity,
+                        u_calc=t.u_calc,
+                        assigned_to=obs_line
                     )
-                    break
+                    obs_line.assigned_transitions.append(target_tr)
+                
+                matches.append(target_tr)
 
-            if not t_assigned:
-                # New assignment — create a copy of the transition for this line
-                new_tr = Transition(
-                    lower_level=t.lower_level,
-                    upper_level=t.upper_level,
-                    calc_intensity=t.calc_intensity,
-                    CF=t.CF,
-                    assigned_to=obs_line,
-                    grade=grade + 'N'  # Tag as newly assigned
-                )
-                obs_line.assigned_transitions.append(new_tr)
-
-                # Record for conflict resolution
-                key = (t.lower_level.level_id, t.upper_level.level_id)
+        if matches:
+            assign_grades(obs_line, matches)
+            for m in matches:
+                key = (m.lower_level.level_id, m.upper_level.level_id)
                 if key not in transition_assignments:
                     transition_assignments[key] = []
-                transition_assignments[key].append(
-                    (new_tr, obs_line, wn_diff_abs)
-                )
+                transition_assignments[key].append((m, obs_line, abs(obs_line.wavenumber - m.calculated_wavenumber)))
 
     print(f"  Matching complete.")
     return transition_assignments
@@ -496,63 +455,88 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list):
 # ===========================================================================
 # STEP 6: Conflict resolution, "R" tagging, and output
 # ===========================================================================
+# def resolve_conflicts(observed_lines: list, transition_assignments: dict):
 def resolve_conflicts(transition_assignments: dict):
-    """Resolve conflicts where a transition is assigned to Multiple lines.
-
-    Rules:
-    - Compare base grades (ignore N, C, R suffixes); keep the better one.
-    - If equal: prefer non-N (original) over N (new).
-    - If still equal: prefer smaller wn residual.
-    - Winner gets "C" appended (conflicting).
-    - If an original (non-N) classification is moved from its original line
-      to a different one, append "R" (revised) to the winner's grade.
-    """
+    """Resolve conflicts and tag 'R' (Revised) notes."""
     print("Step 6: Resolving conflicts...")
-    conflict_count = 0
-
+    
+    # 1. Selection for multiple lines pointing to one transition
+    max_num_assignments = 0
+    num_conflicts = 0
     for key, assignments in transition_assignments.items():
-        if len(assignments) <= 1:
-            continue
+        if key == ('059003.000150', '059003.000249'):
+            pass
+        if len(assignments) > max_num_assignments:
+            max_num_assignments = len(assignments)
+        if len(assignments) <= 1: continue
 
-        # Sort by: base grade (ascending), then prefer non-N, then by wn residual
+        num_conflicts += 1
+
+        # if len(assignments) == 3:
+        #     print("3-way conflict for transition", key, "candidates:",
+        #           [(a[0].grade, a[1].wavenumber, a[2]) for a in assignments])
+
+        # conflict-local absolute scale
+        sigmas = []
+        for _t, line, _wn_diff_abs in assignments:
+            s = getattr(line, "wn_uncertainty", None)
+            if s and s > 0:
+                sigmas.append(s)
+
+        # Fallback if something is missing/bad
+        sigma0 = min(sigmas) if sigmas else 1e-6
+
+        def conflict_score(t, lin, wn_diff_abs, sigma0_local):
+            sigma = getattr(lin, "wn_uncertainty", None)
+            if not sigma or sigma <= 0:
+                sigma = sigma0_local  # best available fallback within this conflict
+
+            z = wn_diff_abs / sigma
+
+            Iobs = getattr(lin, "intensity", None)
+            Icalc = getattr(t, "calc_intensity", None)
+            u_Icalc = getattr(t, "u_calc", None)
+
+            if Iobs and Iobs > 0 and Icalc and Icalc > 0:
+                int_err = max(abs(math.log(Icalc / Iobs)) - u_Icalc, 0.0)
+            else:
+                int_err = 0.0
+
+            is_new = 1 if ('N' in (t.notes or "")) else 0
+            orig_penalty = 0.5 * is_new
+
+            abs_term = (wn_diff_abs / sigma0_local) ** 2
+            weight_abs_term = 0.04    # Adjust, if analysis of results indicates so
+            weight_int = 0.6          # Adjust, if analysis of results indicates so
+            return (z * z) + weight_abs_term * abs_term + weight_int * (int_err * int_err) + orig_penalty
+
         def sort_key(item):
-            tr, line, wn_diff = item
-            base = grade_base(tr.grade)
-            is_new = 1 if (tr.grade and 'N' in tr.grade) else 0
-            return (base, is_new, wn_diff)
+            t, lin, wn_diff_abs = item
+            return conflict_score(t, lin, wn_diff_abs, sigma0)
 
         assignments.sort(key=sort_key)
-
-        # The winner is the first one (best grade)
-        winner_tr, winner_line, winner_diff = assignments[0]
-        losers = assignments[1:]
+        winner_tr, winner_line, _ = assignments[0]
+        if winner_tr.lower_level.level_id == '059003.000150' and winner_tr.upper_level.level_id == '059003.000249':
+            pass
+        winner_tr.notes += 'F'
 
         # Check if any original (non-N) classification is being moved
         # (i.e., an original classification loses to a different line)
         original_moved = False
-        for tr, line, diff in losers:
-            if tr.grade and 'N' not in tr.grade:
-                # This is an original Sugar classification being displaced
+        for tr, line, _ in assignments[1:]:
+            if 'N' not in tr.notes:
                 original_moved = True
 
-        # Remove the losing transitions from their lines
-        for tr, line, diff in losers:
+        if original_moved:
+            winner_tr.notes += 'R'
+
+        for tr, line, _ in assignments[1:]:
             if tr in line.assigned_transitions:
                 line.assigned_transitions.remove(tr)
+                if line.original_assignments and not line.assigned_transitions:
+                    line.assigned_transitions.append(UNASSIGNED)
 
-        # Tag the winner
-        base = grade_base(winner_tr.grade)
-        suffixes = ''
-        if winner_tr.grade and 'N' in winner_tr.grade:
-            suffixes += 'N'
-        suffixes += 'F'  # Conflicting assignment
-        if original_moved:
-            suffixes += 'R'  # Revised from original
-        winner_tr.grade = base + suffixes
-
-        conflict_count += 1
-
-    print(f"  Resolved {conflict_count} conflicts.")
+    return max_num_assignments, num_conflicts
 
 
 def build_output(observed_lines: list) -> pd.DataFrame:
@@ -567,7 +551,6 @@ def build_output(observed_lines: list) -> pd.DataFrame:
 
     for obs_line in observed_lines:
         if not obs_line.assigned_transitions:
-            # Unassigned line — transition-related fields are NaN/empty
             output_rows.append({
                 'wn_obs': obs_line.wavenumber,
                 'unc_wn_obs': obs_line.wn_uncertainty,
@@ -576,31 +559,53 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                 'low_id': '',
                 'upp_id': '',
                 'calc_intens': np.nan,
-                'CF': np.nan,
+                'u_calc': np.nan,
                 'dif_wn_O-C': np.nan,
-                'grade': ''
+                'grade': '',
+                'notes': '',
+                'low_E': np.nan,
+                'upp_E': np.nan,
+                'rwn': np.nan
             })
         else:
             for tr in obs_line.assigned_transitions:
+                if tr is UNASSIGNED:
+                    output_rows.append({
+                        'wn_obs': obs_line.wavenumber,
+                        'unc_wn_obs': obs_line.wn_uncertainty,
+                        'obs_intens': obs_line.intensity,
+                        'char': obs_line.line_character,
+                        'low_id': '',
+                        'upp_id': '',
+                        'calc_intens': np.nan,
+                        'u_calc': np.nan,
+                        'dif_wn_O-C': np.nan,
+                        'grade': '',
+                        'notes': tr.notes,
+                        'low_E': np.nan,
+                        'upp_E': np.nan,
+                        'rwn': np.nan
+                    })
+                    continue
+
                 calc_wn = tr.calculated_wavenumber
                 wn_diff = obs_line.wavenumber - calc_wn
-
-                # Round to the specified precision, keep as float
-                calc_intens_val = round(tr.calc_intensity, 2) if tr.calc_intensity is not None else np.nan
-                cf_val = round(tr.CF, 3) if tr.CF is not None else np.nan
-                dif_val = round(wn_diff, 3)
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
                     'unc_wn_obs': obs_line.wn_uncertainty,
                     'obs_intens': obs_line.intensity,
                     'char': obs_line.line_character,
-                    'low_id': tr.lower_level.level_id,
-                    'upp_id': tr.upper_level.level_id,
-                    'calc_intens': calc_intens_val,
-                    'CF': cf_val,
-                    'dif_wn_O-C': dif_val,
-                    'grade': tr.grade if tr.grade else ''
+                    'low_id': tr.lower_level.level_id if tr.lower_level else '',
+                    'upp_id': tr.upper_level.level_id if tr.upper_level else '',
+                    'calc_intens': tr.calc_intensity,
+                    'u_calc': tr.u_calc,
+                    'dif_wn_O-C': wn_diff,
+                    'grade': tr.grade if tr.grade else '',
+                    'notes': tr.notes,
+                    'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
+                    'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
+                    'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan
                 })
 
     df = pd.DataFrame(output_rows)
@@ -629,9 +634,15 @@ def write_output(df: pd.DataFrame):
     ws = wb.active
     # Map column names to Excel number formats
     col_formats = {
-        'calc_intens': '0.00',
-        'CF': '0.000',
+        'wn_obs':  '0.000',
+        'unc_wn_obs': '0.000',
+        'obs_intens': '0.000',
+        'calc_intens': '0.000',
+        'u_calc': '0.000',
         'dif_wn_O-C': '0.000',
+        'low_E': '0.00',
+        'upp_E': '0.00',
+        'rwn': '0.00'
     }
     # Find column indices from header row
     header = {cell.value: cell.column for cell in ws[1]}
@@ -664,11 +675,11 @@ def main():
     # Step 1: Read energy levels
     levels_dict, levels_list = read_energy_levels()
 
-    # Step 2: Read observed spectral lines
-    observed_lines, all_assigned, assigned_index = read_observed_lines(levels_dict)
+    # Step 2: Read calculated transitions
+    calc_trans_index = read_transitions(levels_dict)
 
-    # Step 3: Read DREAM calculated transitions
-    calc_trans_index = read_dream_transitions(levels_dict, assigned_index)
+    # Step 3: Read observed spectral lines
+    observed_lines = read_observed_lines(levels_dict, calc_trans_index)
 
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
@@ -677,12 +688,15 @@ def main():
     transition_assignments = match_and_grade(observed_lines, all_possible)
 
     # Step 6: Resolve conflicts & output
-    resolve_conflicts(transition_assignments)
+#     max_num_assignments = resolve_conflicts(observed_lines, transition_assignments)
+    max_num_assignments, num_conflicts = resolve_conflicts(transition_assignments)
     df = build_output(observed_lines)
     write_output(df)
 
     print("=" * 60)
     print("Done.")
+    print(f'Max number of conflicting assignments: {max_num_assignments}')
+    print(f'Total number of conflicting assignments: {num_conflicts}')
     print("=" * 60)
 
 

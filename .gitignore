@@ -78,3 +78,9 @@ output/
 .gemini/
 
 implementation_plan.md
+
+# GitHub Copilot files
+.github/prompts/
+
+# Aider files
+.aider*

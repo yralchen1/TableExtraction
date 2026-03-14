@@ -18,17 +18,25 @@ class SpectralLine:
     intensity: float        # Observed intensity reduced to a uniform scale (>0)
     line_character: str
     assigned_transitions: List['Transition'] = field(default_factory=list)
+    original_assignments: List['Transition'] = field(default_factory=list)
 
 
 @dataclass
 class Transition:
-    lower_level: EnergyLevel
-    upper_level: EnergyLevel
+    lower_level: Optional[EnergyLevel] = None
+    upper_level: Optional[EnergyLevel] = None
     calc_intensity: Optional[float] = None    # On the same scale as observed intensities in lines (>=0); None for transitions without known theoretical intensity
-    CF: Optional[float] = None                # Cancellation factor in theoretical calculation of intensities (>=0); None for transitions without known theoretical intensity
+    u_calc: Optional[float] = None            # Uncertainty of calculated intensity on log scale
+    CF: Optional[float] = None                # Retained for future use
     assigned_to: Optional['SpectralLine'] = None  # Can be None
     grade: Optional[str] = None               # Can be None
+    notes: str = ""                           # Metadata: 'N' (New), 'F' (Conflicting), 'R' (Revised)
 
     @property
     def calculated_wavenumber(self) -> float:
-        return self.upper_level.energy - self.lower_level.energy
+        if self.lower_level and self.upper_level:
+            return self.upper_level.energy - self.lower_level.energy
+        return 0.0
+
+# Special instance for rejected classifications
+UNASSIGNED = Transition(notes='R')

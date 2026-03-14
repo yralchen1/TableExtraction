@@ -264,9 +264,9 @@ This module classifies observed spectral lines by matching them against all poss
 
 1.  **Read Energy Levels** — Loads data from `Pr3_lev_Wyart_1999.xlsm`
 2.  **Read Observed Lines** — Loads data from `Pr3_lines.xlsx`
-3.  **Read Theoretical Transitions** — Loads DREAM calculated intensities/CFs from `Pr3_tp_Dream.xlsm`
+3.  **Read Theoretical Transitions** — Loads calculated intensities and uncertainties from `Icalc.xlsx`
 4.  **Generate Transitions** — Calculates all possible transitions satisfying selection rules (ΔJ ≤ 1, parity change)
-5.  **Match & Grade** — Matches observed lines to transitions and assigns a grade (A1 to D6) based on wavenumber residual and intensity consistency
+5.  **Match & Grade** — Matches observed lines to transitions and assigns a grade (Tier 2-5, Subgrade A-E) based on wavenumber residual and intensity consistency
 6.  **Resolve Conflicts** — Handles transitions assigned to multiple lines, selecting the best match and tagging revisions
 
 ### Grading Scheme
@@ -274,19 +274,23 @@ This module classifies observed spectral lines by matching them against all poss
 Matches are graded on two dimensions:
 
 -   **Tier (Wavenumber Agreement):**
-    -   `A`: Wavenumber residual ≤ 1.0σ (uncertainty)
-    -   `B`: Wavenumber residual ≤ 2.0σ
-    -   `C`: Wavenumber residual ≤ 3.0σ
-    -   `D`: Wavenumber residual > 3.0σ
+    -   `2`: Wavenumber residual ≤ 2.0σ (uncertainty)
+    -   `3`: Wavenumber residual ≤ 3.0σ
+    -   `4`: Wavenumber residual ≤ 4.0σ
+    -   `5`: Wavenumber residual > 5.0σ
 -   **Subgrade (Intensity Consistency):**
-    -   `1` to `3`: Good to poor agreement with DREAM calculated intensity (CF ≥ 0.1)
-    -   `4` to `5`: Agreement with low-CF transitions
-    -   `6`: No theoretical intensity available
+    Assigned based on agreement between observed and calculated intensities (I_obs, I_calc) and uncertainty `u_calc = ln(uA_pcnt/100 + 1)`. Let `ln_I_ratio = |ln(I_calc/I_obs)|`.
+    -   `G`: No theoretical intensity available
+    -   `A`: (ln_I_ratio - u_calc ≤ 0) AND (u_calc ≤ ln(2))
+    -   `B`: (ln_I_ratio - u_calc ≤ ln(2)) AND (ln(2) < u_calc ≤ ln(5))
+    -   `C`: (ln(2) < ln_I_ratio - u_calc ≤ ln(5)) AND (ln(2) < u_calc ≤ ln(5))
+    -   `D`: (ln_I_ratio - u_calc ≤ ln(2)) AND (u_calc > ln(5))
+    -   `E`: (ln_I_ratio - u_calc > ln(5)) AND (u_calc > ln(5))
 
-**Suffixes:**
+**Notes:**
 -   `N`: Newly assigned (not in original source)
 -   `F`: Conflicting assignment (multiple lines match one transition)
--   `R`: Revised (original classification was moved to a better row)
+-   `R`: Revised (original classification was changed or line is now unassigned)
 
 ---
 
