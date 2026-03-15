@@ -332,8 +332,6 @@ def assign_grades(line: SpectralLine, transitions: list):
     ln2 = math.log(2)
     ln5 = math.log(5)
 
-    if abs(line.wavenumber - 33177.0) < 1e-1:
-        pass
     for tr in transitions:
         wn_diff_abs = abs(line.wavenumber - tr.calculated_wavenumber)
         # Tier (Wavenumber Agreement)
@@ -369,20 +367,14 @@ def assign_grades(line: SpectralLine, transitions: list):
 
         tr.grade = tier + subgrade
 
-        # Handle UNASSIGNED removal and notes
+        # Handle UNASSIGNED removal
         if UNASSIGNED in line.assigned_transitions:
             line.assigned_transitions.remove(UNASSIGNED)
 
-        # Set initial notes
-        notes = ""
-        is_original = False
-        for orig in line.original_assignments:
-            if same_transitions(tr, orig):
-                is_original = True
-                break
-        if not is_original:
-            notes += 'N'
-        tr.notes = notes
+        # Set new flag: 1 = new classification, 0 = original
+        is_original = any(same_transitions(tr, orig) for orig in line.original_assignments)
+        tr.new = 0 if is_original else 1
+        tr.notes = ""  # notes now only holds F/R flags from conflict resolution
 
 
 def match_and_grade(observed_lines: list, all_possible_transitions: list):
@@ -464,8 +456,6 @@ def resolve_conflicts(transition_assignments: dict):
     max_num_assignments = 0
     num_conflicts = 0
     for key, assignments in transition_assignments.items():
-        if key == ('059003.000150', '059003.000249'):
-            pass
         if len(assignments) > max_num_assignments:
             max_num_assignments = len(assignments)
         if len(assignments) <= 1: continue
@@ -476,55 +466,89 @@ def resolve_conflicts(transition_assignments: dict):
         #     print("3-way conflict for transition", key, "candidates:",
         #           [(a[0].grade, a[1].wavenumber, a[2]) for a in assignments])
 
-        # conflict-local absolute scale
-        sigmas = []
-        for _t, line, _wn_diff_abs in assignments:
-            s = getattr(line, "wn_uncertainty", None)
-            if s and s > 0:
-                sigmas.append(s)
-
-        # Fallback if something is missing/bad
-        sigma0 = min(sigmas) if sigmas else 1e-6
-
-        def conflict_score(t, lin, wn_diff_abs, sigma0_local):
+        # --- Shared helpers for all scoring approaches ---
+        def _get_z_and_int_err(t, lin, wn_diff_abs):
+            """Compute z (sigma-normalized residual) and int_err for a candidate."""
             sigma = getattr(lin, "wn_uncertainty", None)
             if not sigma or sigma <= 0:
-                sigma = sigma0_local  # best available fallback within this conflict
-
+                sigma = 1e-6
             z = wn_diff_abs / sigma
 
             Iobs = getattr(lin, "intensity", None)
             Icalc = getattr(t, "calc_intensity", None)
             u_Icalc = getattr(t, "u_calc", None)
 
-            if Iobs and Iobs > 0 and Icalc and Icalc > 0:
+            if Iobs and Iobs > 0 and Icalc and Icalc > 0 and u_Icalc is not None:
                 int_err = max(abs(math.log(Icalc / Iobs)) - u_Icalc, 0.0)
             else:
                 int_err = 0.0
 
-            is_new = 1 if ('N' in (t.notes or "")) else 0
-            orig_penalty = 0.5 * is_new
+            return z, int_err
 
-            abs_term = (wn_diff_abs / sigma0_local) ** 2
-            weight_abs_term = 0.04    # Adjust, if analysis of results indicates so
-            weight_int = 0.6          # Adjust, if analysis of results indicates so
-            return (z * z) + weight_abs_term * abs_term + weight_int * (int_err * int_err) + orig_penalty
-
-        def sort_key(item):
+        # =====================================================================
+        # APPROACH A: Lexicographic Sort (ACTIVE)
+        # Sorts by (tier, z, int_err, is_new). No weight tuning needed.
+        # Tier dominates, then z breaks ties, then intensity, then new-vs-old.
+        # =====================================================================
+        def sort_key_lexicographic(item):
             t, lin, wn_diff_abs = item
-            return conflict_score(t, lin, wn_diff_abs, sigma0)
+            z, int_err = _get_z_and_int_err(t, lin, wn_diff_abs)
+            tier = 2 if z <= 2 else 3 if z <= 3 else 4 if z <= 4 else 5
+            is_new = t.new if t.new is not None else 0
+            return (tier, z, int_err, is_new)
+
+        sort_key = sort_key_lexicographic
+
+        # =====================================================================
+        # APPROACH B: Normalized chi-squared Score (INACTIVE)
+        # Combines z and intensity into a single chi² with one tunable scale.
+        # Uncomment this block and comment out Approach A to activate.
+        # =====================================================================
+        # INT_ERR_SCALE = 1.5  # Normalizes int_err to z-equivalent units
+        #
+        # def sort_key_chi2(item):
+        #     t, lin, wn_diff_abs = item
+        #     z, int_err = _get_z_and_int_err(t, lin, wn_diff_abs)
+        #     is_new = t.new if t.new is not None else 0
+        #     chi2 = z * z + (int_err / INT_ERR_SCALE) ** 2 + 0.5 * is_new
+        #     return chi2
+        #
+        # sort_key = sort_key_chi2
+
+        # =====================================================================
+        # APPROACH C: Rank-Based Scoring (INACTIVE)
+        # Uses ranks within the conflict group, robust to outliers.
+        # Uncomment this block and comment out Approach A to activate.
+        # =====================================================================
+        # def sort_key_rank(item):
+        #     """Compute rank-based score. Must be called after computing all
+        #     z and int_err values for the conflict group."""
+        #     t, lin, wn_diff_abs = item
+        #     z, int_err = _get_z_and_int_err(t, lin, wn_diff_abs)
+        #     is_new = t.new if t.new is not None else 0
+        #     # Note: ranks are computed below after building the values list
+        #     return (z, int_err, is_new)  # placeholder; see rank sort below
+        #
+        # # To use rank-based scoring, replace the assignments.sort() call below:
+        # # vals = [(z, ie, is_new) for (t, l, d) in assignments
+        # #         for z, ie in [_get_z_and_int_err(t, l, d)]
+        # #         for is_new in [t.new if t.new is not None else 0]]
+        # # z_ranks = {v: r for r, v in enumerate(sorted(set(v[0] for v in vals)))}
+        # # ie_ranks = {v: r for r, v in enumerate(sorted(set(v[1] for v in vals)))}
+        # # ranked = [(z_ranks[v[0]] + 0.3 * ie_ranks[v[1]] + 0.2 * v[2], i)
+        # #           for i, v in enumerate(vals)]
+        # # ranked.sort()
+        # # assignments = [assignments[i] for _, i in ranked]
 
         assignments.sort(key=sort_key)
         winner_tr, winner_line, _ = assignments[0]
-        if winner_tr.lower_level.level_id == '059003.000150' and winner_tr.upper_level.level_id == '059003.000249':
-            pass
         winner_tr.notes += 'F'
 
-        # Check if any original (non-N) classification is being moved
+        # Check if any original classification is being moved
         # (i.e., an original classification loses to a different line)
         original_moved = False
         for tr, line, _ in assignments[1:]:
-            if 'N' not in tr.notes:
+            if tr.new == 0:
                 original_moved = True
 
         if original_moved:
@@ -563,6 +587,7 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                 'dif_wn_O-C': np.nan,
                 'grade': '',
                 'notes': '',
+                'new': '',
                 'low_E': np.nan,
                 'upp_E': np.nan,
                 'rwn': np.nan
@@ -582,6 +607,7 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                         'dif_wn_O-C': np.nan,
                         'grade': '',
                         'notes': tr.notes,
+                        'new': '',
                         'low_E': np.nan,
                         'upp_E': np.nan,
                         'rwn': np.nan
@@ -603,6 +629,7 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                     'dif_wn_O-C': wn_diff,
                     'grade': tr.grade if tr.grade else '',
                     'notes': tr.notes,
+                    'new': tr.new if tr.new is not None else '',
                     'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
                     'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan
@@ -664,6 +691,44 @@ def write_output(df: pd.DataFrame):
     print(f"  Output written: {len(df)} rows.")
 
 
+WEEDER_INPUT_CSV = os.path.join(SCRIPT_DIR, 'weeder_input.csv')
+
+
+def prepare_weeder_input(df: pd.DataFrame):
+    """Generate weeder_input.csv from classification output.
+
+    Filters to classified lines only and renames columns to match the
+    expected input format for llm_weeder.py.
+    """
+    print("Step 7: Preparing weeder input...")
+    import numpy as np
+
+    # Only rows with a grade (i.e., classified lines)
+    weeder = df[df['grade'].astype(str).str.strip() != ''].copy()
+
+    # Rename columns to match llm_weeder expected format
+    weeder = weeder.rename(columns={
+        'wn_obs': 'obs_wn',
+        'unc_wn_obs': 'sigma',
+        'obs_intens': 'obs_I',
+        'char': 'line_char',
+        'calc_intens': 'calc_I',
+    })
+
+    # Add sequential id
+    weeder.insert(0, 'id', range(1, len(weeder) + 1))
+
+    # Select and order columns for the weeder
+    cols = ['id', 'obs_wn', 'sigma', 'obs_I', 'line_char',
+            'rwn', 'calc_I', 'u_calc', 'grade', 'new']
+    # Only keep columns that exist
+    cols = [c for c in cols if c in weeder.columns]
+    weeder = weeder[cols]
+
+    weeder.to_csv(WEEDER_INPUT_CSV, index=False)
+    print(f"  Weeder input written: {len(weeder)} rows -> {WEEDER_INPUT_CSV}")
+
+
 # ===========================================================================
 # MAIN
 # ===========================================================================
@@ -688,10 +753,12 @@ def main():
     transition_assignments = match_and_grade(observed_lines, all_possible)
 
     # Step 6: Resolve conflicts & output
-#     max_num_assignments = resolve_conflicts(observed_lines, transition_assignments)
     max_num_assignments, num_conflicts = resolve_conflicts(transition_assignments)
     df = build_output(observed_lines)
     write_output(df)
+
+    # Step 7: Prepare weeder input
+    prepare_weeder_input(df)
 
     print("=" * 60)
     print("Done.")

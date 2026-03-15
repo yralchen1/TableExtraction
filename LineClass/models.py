@@ -30,7 +30,8 @@ class Transition:
     CF: Optional[float] = None                # Retained for future use
     assigned_to: Optional['SpectralLine'] = None  # Can be None
     grade: Optional[str] = None               # Can be None
-    notes: str = ""                           # Metadata: 'N' (New), 'F' (Conflicting), 'R' (Revised)
+    notes: str = ""                           # Metadata: 'F' (Conflicting), 'R' (Revised)
+    new: Optional[int] = None                 # 1 = new classification, 0 = original, None = unclassified
 
     @property
     def calculated_wavenumber(self) -> float:

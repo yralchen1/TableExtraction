@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from google import genai
 from google.genai import errors as genai_errors
+from google.genai import types as genai_types
 
 from dotenv import load_dotenv
 # from pathlib import Path
@@ -77,6 +78,25 @@ CANONICAL_REASON_CODES = [
     "UNCERTAIN",
     "MISSING_DATA",
 ]
+
+# --- Structured output schema (array of objects) for Gemini ---
+WEEDER_OUTPUT_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "row_index": {"type": "integer"},
+            "accepted": {"type": "integer", "enum": [0, 1]},
+            "reason_code": {"type": "string", "enum": CANONICAL_REASON_CODES},
+            "reasoning": {"type": "string"}
+        },
+        "required": ["row_index", "accepted", "reason_code", "reasoning"]
+    }
+}
+
+# --- Local pre-filter thresholds (adjust as needed) ---
+PREFILTER_Z_REJECT = 8.0       # Auto-reject candidates with z > this
+PREFILTER_ACCEPT_GRADES = {'2A', '2B'}  # Auto-accept sole originals with these grades
 
 # Keep your long “physics caveats” here (once per request).
 # You can edit this text freely.
@@ -229,38 +249,70 @@ def build_rows_payload(df_batch: pd.DataFrame, required_cols: List[str]) -> List
     return payload
 
 
+def pre_filter(df: pd.DataFrame, obs_key: str) -> tuple:
+    """Auto-decide obvious accept/reject cases without calling the LLM.
+
+    Returns:
+        decided_indices: dict mapping row index -> (accepted, reason_code, reasoning)
+        undecided_df: DataFrame of rows that still need LLM evaluation
+    """
+    decided = {}
+
+    for obs_wn, group in df.groupby(obs_key):
+        for idx, row in group.iterrows():
+            sigma = safe_float(row.get('sigma'))
+            rwn = safe_float(row.get('rwn'))
+            obs_wn_val = safe_float(row.get('obs_wn'))
+            grade = str(row.get('grade', '')) if pd.notna(row.get('grade')) else ''
+            new_flag = int(row.get('new', 1)) if pd.notna(row.get('new')) else 1
+
+            if sigma and sigma > 0 and obs_wn_val is not None and rwn is not None:
+                z = abs(obs_wn_val - rwn) / sigma
+            else:
+                z = None
+
+            # Auto-reject: z > threshold
+            if z is not None and z > PREFILTER_Z_REJECT:
+                decided[idx] = (0, 'Z_MISMATCH', f'z={z:.1f}; auto-reject (pre-filter)')
+                continue
+
+            # Auto-accept: sole original candidate with excellent grade
+            if (len(group) == 1
+                    and grade in PREFILTER_ACCEPT_GRADES
+                    and new_flag == 0
+                    and z is not None and z <= 2.0):
+                decided[idx] = (1, 'STRONG_Z', f'z={z:.1f}; sole orig {grade}; auto-accept (pre-filter)')
+                continue
+
+    undecided_df = df.drop(index=list(decided.keys()))
+    return decided, undecided_df
+
+
 def build_prompt(rows_payload: List[Dict[str, Any]]) -> str:
-    # Compact output format:
-    # [row_index, accepted, reason_code, reasoning]
+    # Output format: array of objects (enforced by structured output schema)
 
     schema_text = f"""
 Output format:
-Return exactly one JSON array.
-Each element of that array must be a 4-item JSON array:
-
-[row_index, accepted, reason_code, reasoning]
-
-Meaning:
+Return exactly one JSON array of objects.
+Each object must have these fields:
 - row_index: integer, 0-based index of the input row in this batch
 - accepted: integer, either 0 or 1
 - reason_code: one of {CANONICAL_REASON_CODES}
 - reasoning: very short string, at most 80 characters
-- prefer semicolon-separated fragments instead of full sentences
-- do not repeat field names unnecessarily
+  - prefer semicolon-separated fragments instead of full sentences
+  - do not repeat field names unnecessarily
 
 Rules:
-- Return exactly {len(rows_payload)} output rows.
+- Return exactly {len(rows_payload)} output objects.
 - Preserve input row order.
 - Do not omit any row.
 - Do not add any extra rows.
-- Do not use markdown.
-- Do not add explanations before or after the JSON.
 - If critical data are missing, use MISSING_DATA, I_UNCERT, or UNCERTAIN as appropriate.
 
 Example output:
 [
-  [0, 1, "STRONG_Z", "z=1.2; old cls; no conflict"],
-  [1, 0, "Z_MISMATCH", "z=7.8; reject"]
+  {{"row_index": 0, "accepted": 1, "reason_code": "STRONG_Z", "reasoning": "z=1.2; old cls; no conflict"}},
+  {{"row_index": 1, "accepted": 0, "reason_code": "Z_MISMATCH", "reasoning": "z=7.8; reject"}}
 ]
 """.strip()
 
@@ -286,13 +338,22 @@ Input rows:
     return prompt
 
 
-def call_model(client: genai.Client, model: str, prompt: str, max_retries: int = 1) -> str:
+def call_model(client: genai.Client, model: str, prompt: str,
+               use_structured_output: bool = True, max_retries: int = 1) -> str:
+    """Call Gemini with optional structured JSON output enforcement."""
     last_err = None
     for attempt in range(max_retries + 1):
         try:
+            config = None
+            if use_structured_output:
+                config = genai_types.GenerateContentConfig(
+                    response_mime_type='application/json',
+                    response_json_schema=WEEDER_OUTPUT_SCHEMA,
+                )
             resp = client.models.generate_content(
                 model=model,
                 contents=prompt,
+                config=config,
             )
             # google-genai returns response.text
             return resp.text or ""
@@ -309,7 +370,8 @@ def call_model(client: genai.Client, model: str, prompt: str, max_retries: int =
     raise last_err  # pragma: no cover
 
 
-def parse_model_json(text: str, expected_n: int) -> List[List[Any]]:
+def parse_model_json(text: str, expected_n: int) -> List[Dict[str, Any]]:
+    """Parse and validate the model's JSON output (array of objects)."""
     text = text.strip()
 
     try:
@@ -334,16 +396,17 @@ def parse_model_json(text: str, expected_n: int) -> List[List[Any]]:
     seen_row_indices = set()
 
     for i, item in enumerate(data):
-        if not isinstance(item, list):
-            raise ValueError(f"Output element {i} is not a list.")
+        if not isinstance(item, dict):
+            raise ValueError(f"Output element {i} is not an object (got {type(item).__name__}).")
 
-        if len(item) != 4:
-            raise ValueError(
-                f"Output element {i} must have 4 items "
-                f"[row_index, accepted, reason_code, reasoning], got {len(item)}"
-            )
+        for key in ('row_index', 'accepted', 'reason_code', 'reasoning'):
+            if key not in item:
+                raise ValueError(f"Output element {i} missing required field '{key}'.")
 
-        row_index, accepted, reason_code, reasoning = item
+        row_index = item['row_index']
+        accepted = item['accepted']
+        reason_code = item['reason_code']
+        reasoning = item['reasoning']
 
         if not isinstance(row_index, int):
             raise ValueError(f"Output element {i} has non-integer row_index: {row_index!r}")
@@ -363,11 +426,10 @@ def parse_model_json(text: str, expected_n: int) -> List[List[Any]]:
         if not isinstance(reasoning, str):
             raise ValueError(f"Output element {i} has non-string reasoning: {reasoning!r}")
 
-        if len(reasoning) > 80:
-            raise ValueError(
-                f"Output element {i} has reasoning longer than 80 characters "
-                f"({len(reasoning)} chars)"
-            )
+        if len(reasoning) > 120:
+            # Warn but don't fail — structured output may produce slightly longer text
+            print(f"  Warning: element {i} reasoning is {len(reasoning)} chars (truncating to 120)")
+            item['reasoning'] = reasoning[:120]
 
     missing = set(range(expected_n)) - seen_row_indices
     extra = seen_row_indices - set(range(expected_n))
@@ -425,6 +487,8 @@ def main():
     ap.add_argument("--max-candidates", dest="max_candidates", type=int, default=DEFAULT_MAX_CANDIDATES_PER_BATCH)
     ap.add_argument("--min-delay", dest="min_delay", type=float, default=DEFAULT_MIN_SECONDS_BETWEEN_CALLS)
     ap.add_argument("--dry-run", dest="dry_run", action="store_true", help="Build batches and prompts but do not call model")
+    ap.add_argument("--no-prefilter", dest="no_prefilter", action="store_true", help="Disable local pre-filter (send all rows to LLM)")
+    ap.add_argument("--no-structured-output", dest="no_structured", action="store_true", help="Disable structured JSON output mode")
     args = ap.parse_args()
 
     df = pd.read_csv(args.in_csv)
@@ -434,6 +498,20 @@ def main():
     for c in [ACCEPT_COL, REASON_CODE_COL, REASON_COL]:
         if c not in df.columns:
             df[c] = None
+
+    # --- Local pre-filter ---
+    n_prefiltered = 0
+    if not args.no_prefilter:
+        decided, undecided_df = pre_filter(df, obs_key)
+        n_prefiltered = len(decided)
+        for idx, (accepted, reason_code, reasoning) in decided.items():
+            df.at[idx, ACCEPT_COL] = accepted
+            df.at[idx, REASON_CODE_COL] = reason_code
+            df.at[idx, REASON_COL] = reasoning
+        print(f"Pre-filter: {n_prefiltered} rows auto-decided, {len(undecided_df)} rows remain for LLM.")
+    else:
+        undecided_df = df
+        print("Pre-filter disabled.")
 
     # Choose which columns to send to the model:
     # Adjust this list to match your CSV headers.
@@ -445,15 +523,28 @@ def main():
     # Keep only columns that actually exist; the model will see None for missing fields
     required_cols = [c for c in required_cols if c in df.columns]
 
-    batches = make_batches(df, obs_key, args.max_lines, args.max_candidates)
-    print(f"Using obs_key='{obs_key}'. Total rows={len(df)}. Batches={len(batches)}.")
+    batches = make_batches(undecided_df, obs_key, args.max_lines, args.max_candidates)
+    print(f"Using obs_key='{obs_key}'. Undecided rows={len(undecided_df)}. Batches={len(batches)}.")
     print(f"Batch caps: max_lines={args.max_lines}, max_candidates={args.max_candidates}")
 
-    client = genai.Client(api_key=args.api_key)
+    use_structured = not args.no_structured
+    if use_structured:
+        print("Structured JSON output mode: ENABLED")
+    else:
+        print("Structured JSON output mode: DISABLED")
+
+    client = None
+    if not args.dry_run:
+        client = genai.Client(api_key=args.api_key)
 
     last_call_t = 0.0
     for bi, df_batch in enumerate(batches, start=1):
         idxs = df_batch.index.tolist()
+
+        # --- Checkpoint/resume: skip batches already completed ---
+        if not pd.isna(df.at[idxs[0], ACCEPT_COL]):
+            print(f"Batch {bi}/{len(batches)} already completed, skipping.")
+            continue
 
         rows_payload = []
         for local_i, (row_idx, row) in enumerate(df_batch.iterrows()):
@@ -475,19 +566,22 @@ def main():
             time.sleep(wait)
 
         print(f"\nCalling model for batch {bi}/{len(batches)}: rows={len(df_batch)} unique_lines={df_batch[obs_key].nunique()}")
-        text = call_model(client, args.model, prompt, max_retries=1)
+        text = call_model(client, args.model, prompt,
+                          use_structured_output=use_structured, max_retries=1)
         last_call_t = time.time()
 
         out = parse_model_json(text, expected_n=len(df_batch))
 
         # Apply outputs back to df by original row order
-        # Each output row is: [row_index, accepted, reason_code, reasoning]
+        # Each output item is: {"row_index": ..., "accepted": ..., "reason_code": ..., "reasoning": ...}
         seen_local_indices = set()
 
         for item in out:
-            local_i, accepted, reason_code, reasoning = item
+            local_i = int(item['row_index'])
+            accepted = item['accepted']
+            reason_code = item['reason_code']
+            reasoning = item['reasoning']
 
-            local_i = int(local_i)
             if local_i in seen_local_indices:
                 raise ValueError(f"Duplicate row_index in model output: {local_i}")
             seen_local_indices.add(local_i)
@@ -508,7 +602,14 @@ def main():
         df.to_csv(args.out_csv, index=False)
         print(f"Saved checkpoint: {args.out_csv}")
 
-    print("\nDONE. Final output:", args.out_csv)
+    # Final save (includes pre-filtered + LLM-decided rows)
+    df.to_csv(args.out_csv, index=False)
+    print(f"\nDONE. Final output: {args.out_csv}")
+    print(f"  Pre-filtered: {n_prefiltered} rows")
+    print(f"  LLM-decided:  {len(df) - n_prefiltered} rows")
+    accepted_count = (df[ACCEPT_COL] == 1).sum() if ACCEPT_COL in df.columns else 0
+    rejected_count = (df[ACCEPT_COL] == 0).sum() if ACCEPT_COL in df.columns else 0
+    print(f"  Accepted: {accepted_count}, Rejected: {rejected_count}")
 
 
 if __name__ == "__main__":
