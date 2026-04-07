@@ -9,6 +9,12 @@ class EnergyLevel:
     parity: str
     J_str: str
     J_val: float
+    intens_from_factor: float = 0.0        # weighted mean of ln(I_obs/I_calc) for transitions FROM this level (upper)
+    u_intens_from_factor: float = 0.0      # uncertainty (chi²-inflated)
+    intens_to_factor: float = 0.0          # same, for transitions TO this level (lower)
+    u_intens_to_factor: float = 0.0
+    from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
+    to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
 
 
 @dataclass
@@ -30,8 +36,12 @@ class Transition:
     CF: Optional[float] = None                # Retained for future use
     assigned_to: Optional['SpectralLine'] = None  # Can be None
     grade: Optional[str] = None               # Can be None
-    notes: str = ""                           # Metadata: 'F' (Conflicting), 'R' (Revised)
+    notes1: str = ""                          # Metadata: 'F' (Conflicting), 'R' (Revised)
+    notes2: str = ""                          # Reason for accepting or rejecting
     new: Optional[int] = None                 # 1 = new classification, 0 = original, None = unclassified
+    accepted: Optional[int] = None            # 1 = accepted, 0 = rejected, None = undecided
+    orig_calc_intensity: Optional[float] = None   # original I_calc from input, never modified
+    orig_u_calc: Optional[float] = None           # original u_calc from input, never modified
 
     @property
     def calculated_wavenumber(self) -> float:
@@ -40,4 +50,4 @@ class Transition:
         return 0.0
 
 # Special instance for rejected classifications
-UNASSIGNED = Transition(notes='R')
+UNASSIGNED = Transition(notes1='R')

@@ -845,3 +845,30 @@ def validate_full_row(row: dict, ref_path: str | None = None, ref_ws_name: str |
     row["computed_wavenumber"] = wl_wn_result["computed_wavenumber"] if wl is not None and wn is not None else None
 
     return row
+
+
+import os
+from google import genai
+from google.genai.types import HttpOptions
+
+def make_genai_client(args):
+    use_vertex = (
+        getattr(args, "use_vertex", False)
+        or os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in {"1", "true", "yes"}
+    )
+
+    if use_vertex:
+        project = getattr(args, "gcp_project", None) or os.getenv("GOOGLE_CLOUD_PROJECT")
+        location = getattr(args, "gcp_location", None) or os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        return genai.Client(
+            vertexai=True,
+            project=project,
+            location=location,
+            http_options=HttpOptions(api_version="v1"),
+        )
+
+    api_key = getattr(args, "api_key", None) or os.getenv("GEMINI_API_KEY")
+    if api_key:
+        return genai.Client(api_key=api_key)
+
+    return genai.Client()

@@ -84,3 +84,7 @@ implementation_plan.md
 
 # Aider files
 .aider*
+
+# Claude agent files
+CLAUDE.md
+.claude/
