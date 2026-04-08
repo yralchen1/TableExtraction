@@ -592,7 +592,7 @@ def resolve_conflicts(transition_assignments: dict, verbose: bool = False):
     return max_num_assignments, num_conflicts
 
 
-def build_output(observed_lines: list) -> pd.DataFrame:
+def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
     """Build the output DataFrame from observed lines and their assignments.
 
     Numeric columns (calc_intens, CF, dif_wn_O-C) are stored as actual floats
@@ -600,64 +600,47 @@ def build_output(observed_lines: list) -> pd.DataFrame:
     """
     print("  Building output...")
     output_rows = []
-
     for obs_line in observed_lines:
+        unassigned_row = {
+            'wn_obs': obs_line.wavenumber,
+            'unc_wn_obs': obs_line.wn_uncertainty,
+            'obs_intens': obs_line.intensity,
+            'char': obs_line.line_character,
+            'low_id': '',
+            'upp_id': '',
+            'calc_intens': np.nan,
+            'orig_calc_intens': np.nan,
+            'u_calc': np.nan,
+            'intens_from_f': np.nan,
+            'intens_to_f': np.nan,
+            'dif_wn_O-C': np.nan,
+            'grade': '',
+            'notes1': '',
+            'notes2': '',
+            'new': '',
+            'accepted': np.nan,
+            'low_E': np.nan,
+            'upp_E': np.nan,
+            'rwn': np.nan,
+            'weight': np.nan
+        }
         if not obs_line.assigned_transitions:
-            output_rows.append({
-                'wn_obs': obs_line.wavenumber,
-                'unc_wn_obs': obs_line.wn_uncertainty,
-                'obs_intens': obs_line.intensity,
-                'char': obs_line.line_character,
-                'low_id': '',
-                'upp_id': '',
-                'calc_intens': np.nan,
-                'orig_calc_intens': np.nan,
-                'u_calc': np.nan,
-                'intens_from_f': np.nan,
-                'intens_to_f': np.nan,
-                'dif_wn_O-C': np.nan,
-                'grade': '',
-                'notes1': '',
-                'notes2': '',
-                'new': '',
-                'accepted': np.nan,
-                'low_E': np.nan,
-                'upp_E': np.nan,
-                'rwn': np.nan
-            })
+            output_rows.append(unassigned_row)
         else:
             for tr in obs_line.assigned_transitions:
                 if tr is UNASSIGNED:
-                    output_rows.append({
-                        'wn_obs': obs_line.wavenumber,
-                        'unc_wn_obs': obs_line.wn_uncertainty,
-                        'obs_intens': obs_line.intensity,
-                        'char': obs_line.line_character,
-                        'low_id': '',
-                        'upp_id': '',
-                        'calc_intens': np.nan,
-                        'orig_calc_intens': np.nan,
-                        'u_calc': np.nan,
-                        'intens_from_f': np.nan,
-                        'intens_to_f': np.nan,
-                        'dif_wn_O-C': np.nan,
-                        'grade': '',
-                        'notes1': tr.notes1,
-                        'notes2': '',
-                        'accepted': np.nan,
-                        'new': '',
-                        'low_E': np.nan,
-                        'upp_E': np.nan,
-                        'rwn': np.nan
-                    })
+                    output_rows.append(unassigned_row)
                     continue
 
                 calc_wn = tr.calculated_wavenumber
                 wn_diff = obs_line.wavenumber - calc_wn
+                u_own = obs_line.wn_uncertainty
+                # Weight for LOPT input is the factor by which LOPT will multiply 1/u_own**2
+                w = weights[id(tr)] * (u_own**2) if tr.accepted is not None and tr.accepted == 1 else 0.0
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
-                    'unc_wn_obs': obs_line.wn_uncertainty,
+                    'unc_wn_obs': u_own,
                     'obs_intens': obs_line.intensity,
                     'char': obs_line.line_character,
                     'low_id': tr.lower_level.level_id if tr.lower_level else '',
@@ -675,7 +658,8 @@ def build_output(observed_lines: list) -> pd.DataFrame:
                     'accepted': tr.accepted if tr.accepted is not None else np.nan,
                     'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
-                    'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan
+                    'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan,
+                    'weight': w
                 })
 
     df = pd.DataFrame(output_rows)
@@ -716,7 +700,8 @@ def write_output(df: pd.DataFrame):
         'dif_wn_O-C': '0.000',
         'low_E': '0.000',
         'upp_E': '0.000',
-        'rwn': '0.000'
+        'rwn': '0.000',
+        'weight': '0.000'
     }
     # Find column indices from header row
     # noinspection PyUnresolvedReferences
@@ -2107,7 +2092,8 @@ def main(max_cycles: int = 10):
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
 
     levels_history = []  # List of level snapshots per cycle
-    na_prev = 0
+    i, na_prev, num_accepted, max_dif_it1 = 0, 0, 0, 0.0
+    weights = {}
     # Step 5 - Main cycle: match & grade, resolve conflicts, weed assignments, optimize levels
     for i in range(max_cycles):
         print(f"Step 5 cycle {i+1}:")
@@ -2118,8 +2104,10 @@ def main(max_cycles: int = 10):
         print(f"  Accepted assignments: {num_accepted}, max energy change in optimization: {max_dif_it1:.6f} cm^-1")
         if num_accepted == na_prev and max_dif_it1 < 0.001: break
         na_prev = num_accepted
+    if i >= max_cycles and (num_accepted != na_prev or max_dif_it1 >= 0.001):
+        print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
-    df = build_output(observed_lines)
+    df = build_output(observed_lines, weights)
     write_output(df)
 
     print("=" * 60)
