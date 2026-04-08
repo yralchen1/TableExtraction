@@ -392,7 +392,7 @@ def assign_grades(line: SpectralLine, transitions: list):
         tr.notes1 = ""  # notes1 holds F/R flags from conflict resolution
 
 
-def match_and_grade(observed_lines: list, all_possible_transitions: list):
+def match_and_grade(observed_lines: list, all_possible_transitions: list, verbose: bool = False):
     """For each observed line, find matching transitions and grade them.
 
     Modifies observed_lines in place (updates assigned_transitions and grades).
@@ -403,7 +403,7 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list):
                                 list of (Transition, SpectralLine, wn_diff_abs)
                                 for conflict resolution
     """
-    print("Step 5: Matching observed lines to transitions & grading...")
+    if verbose: print("Step 5.1: Matching observed lines to transitions & grading...")
 
     # Build a list of wavenumbers for binary search
     all_wn = [t.calculated_wavenumber for t in all_possible_transitions]
@@ -457,17 +457,16 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list):
                     transition_assignments[key] = []
                 transition_assignments[key].append((m, obs_line, abs(obs_line.wavenumber - m.calculated_wavenumber)))
 
-    print(f"  Matching complete.")
+    if verbose: print(f"  Matching complete.")
     return transition_assignments
 
 
 # ===========================================================================
-# STEP 6: Conflict resolution, "R" tagging, and output
+# STEP 5.2: Conflict resolution, "R" tagging, and output
 # ===========================================================================
-# def resolve_conflicts(observed_lines: list, transition_assignments: dict):
-def resolve_conflicts(transition_assignments: dict):
+def resolve_conflicts(transition_assignments: dict, verbose: bool = False):
     """Resolve conflicts and tag 'R' (Revised) notes1."""
-    print("Step 6: Resolving conflicts...")
+    if verbose: print("Step 5.2: Resolving conflicts...")
     
     # 1. Selection for multiple lines pointing to one transition
     max_num_assignments = 0
@@ -741,47 +740,6 @@ def write_output(df: pd.DataFrame):
     print(f"  Output written: {len(df)} rows.")
 
 
-# WEEDER_INPUT_CSV = os.path.join(SCRIPT_DIR, 'weeder_input.csv')
-#
-#
-# def prepare_weeder_input(df: pd.DataFrame):
-#     """Generate weeder_input.csv from classification output.
-#
-#     Filters to classified lines only and renames columns to match the
-#     expected input format for llm_weeder.py.
-#     """
-#     print("Step 7: Preparing weeder input...")
-#
-#     # Only rows with a grade (i.e., classified lines)
-#     weeder = df[df['grade'].astype(str).str.strip() != ''].copy()
-#
-#     # Rename columns to match llm_weeder expected format
-#     weeder = weeder.rename(columns={
-#         'wn_obs': 'obs_wn',
-#         'unc_wn_obs': 'sigma',
-#         'obs_intens': 'obs_I',
-#         'char': 'line_char',
-#         'calc_intens': 'calc_I',
-#     })
-#
-#     # Add sequential id
-#     weeder.insert(0, 'id', range(1, len(weeder) + 1))
-#
-#     # Select and order columns for the weeder
-#     cols = ['id', 'obs_wn', 'sigma', 'obs_I', 'line_char',
-#             'rwn', 'calc_I', 'u_calc', 'grade', 'new']
-#     # Only keep columns that exist
-#     cols = [c for c in cols if c in weeder.columns]
-#     weeder = weeder[cols]
-#
-#     weeder.to_csv(WEEDER_INPUT_CSV, index=False)
-#     print(f"  Weeder input written: {len(weeder)} rows -> {WEEDER_INPUT_CSV}")
-#
-#
-# ===========================================================================
-# WEEDING INFRASTRUCTURE
-# ===========================================================================
-
 def build_level_transition_lists(levels_dict: dict, observed_lines: list) -> None:
     """Populate from_transitions and to_transitions on each EnergyLevel.
 
@@ -818,6 +776,14 @@ def snapshot_accepted(observed_lines: list) -> dict:
             if t is UNASSIGNED:
                 continue
             snap[id(t)] = t.accepted
+    return snap
+
+
+def snapshot_levels(levels_list: list) -> dict:
+    """Return {id(level): energy} for all levels."""
+    snap = {}
+    for lev in levels_list:
+        snap[id(lev)] = lev.energy
     return snap
 
 
@@ -1075,8 +1041,7 @@ def detect_oscillations(accepted_history: list, trans_map: dict):
         if v1 == v3 and v1 != v2:
             oscillating.append((tid, v1, v2, v3))
     if oscillating:
-        print(f"  --- Oscillation detection: {len(oscillating)} transitions "
-              f"flip A→B→A in last 3 iterations ---")
+        print(f"  --- Oscillation detection: {len(oscillating)} transitions flip A→B→A in last 3 iterations ---")
         for tid, v1, v2, v3 in oscillating[:20]:
             t = trans_map.get(tid)
             if t is None:
@@ -1944,7 +1909,7 @@ def print_iteration_summary(iteration: int, stats: tuple):
 
 
 def weed_assignments(observed_lines: list, levels_dict: dict,
-                     max_iterations: int = 59, alpha: float = 0.5, min_n: int=5):
+                     max_iterations: int = 59, alpha: float = 0.5, min_n: int = 5, verbose: bool = False):
     """Iterative weeding with per-level intensity adjustment factors.
 
     1. Run baseline weeding (no adjustments)
@@ -1959,8 +1924,9 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
         alpha: damping coefficient for factor updates (0..1).
                1.0 = no damping, 0.5 = equal blend with previous iteration.
         min_n: minimum number of transitions for calculation of intensity adjustment factors
+        verbose: True for printing diagnostics
     """
-    print("Step 7: Weeding assignments (iterative)...")
+    if verbose: print("Step 5.3: Weeding assignments (iterative)...")
     build_level_transition_lists(levels_dict, observed_lines)
 
     # Build transition map once for oscillation detection
@@ -1975,7 +1941,7 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
 
     # Iteration 0: baseline (calc_intensity == orig_calc_intensity)
     stats = weed_single_pass(observed_lines, blacklist=blacklist)
-    print_iteration_summary(0, stats)
+    if verbose: print_iteration_summary(0, stats)
     prev_snapshot = snapshot_accepted(observed_lines)
     accepted_history = [prev_snapshot]
     prev_factors = None  # no damping on first factor computation
@@ -1984,7 +1950,7 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
         diag = compute_intensity_factors(levels_dict, alpha=alpha,
                                          prev_factors=prev_factors, min_n=min_n)
         print_diagnostics = False
-        if print_diagnostics:
+        if verbose and print_diagnostics:
             print_factor_diagnostics(iteration, diag)
             print_factor_stability(iteration, diag['level_details'], prev_factors)
 
@@ -1998,11 +1964,11 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
         apply_intensity_adjustments(observed_lines)
 
         stats = weed_single_pass(observed_lines, blacklist=blacklist)
-        print_iteration_summary(iteration, stats)
+        if verbose: print_iteration_summary(iteration, stats)
 
         curr_snapshot = snapshot_accepted(observed_lines)
         accepted_history.append(curr_snapshot)
-        if print_diagnostics: detect_oscillations(accepted_history, trans_map)
+        if verbose and print_diagnostics: detect_oscillations(accepted_history, trans_map)
 
         n_changed = count_changes(prev_snapshot, curr_snapshot)
 
@@ -2015,8 +1981,9 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
             1 for k in prev_snapshot
             if k in curr_snapshot and prev_snapshot[k] != 1 and curr_snapshot[k] == 1
         )
-        print(f"  Iteration {iteration}: {n_changed} changes "
-              f"(+{n_newly_accepted} accepted, -{n_newly_rejected} rejected)")
+        if verbose:
+            print(f"  Iteration {iteration}: {n_changed} changes "
+                  f"(+{n_newly_accepted} accepted, -{n_newly_rejected} rejected)")
 
         # Blacklist transitions that flipped acceptance state
         if iteration > 2:
@@ -2026,19 +1993,103 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
                         blacklist.add(tid)
 
         if n_changed == 0:
-            print(f"  Converged after {iteration} iteration(s).")
+            if verbose: print(f"  Converged after {iteration} iteration(s).")
             break
 
         prev_snapshot = curr_snapshot
 
-    if blacklist:
+    if blacklist and verbose:
         print(f"  Blacklisted {len(blacklist)} oscillating transition(s).")
     return stats
+
+def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict, verbose: bool = False) -> int:
+
+    # Step 5.1: Match & grade
+    transition_assignments = match_and_grade(observed_lines, all_possible, verbose=verbose)
+
+    # Step 5.2: Resolve conflicts & output
+    max_num_assignments, num_conflicts = resolve_conflicts(transition_assignments, verbose=verbose)
+    if verbose:
+        print(f'  Max number of conflicting assignments: {max_num_assignments}')
+        print(f'  Total number of conflicting assignments: {num_conflicts}')
+
+    # Step 5.3: Weed assignments (iterative with per-level intensity adjustments)
+    stats = weed_assignments(observed_lines, levels_dict, max_iterations=100, alpha=0.5, min_n=5, verbose=verbose)
+    nd1, nd2, nd3, na = stats
+    if verbose: print(f"Weeding complete. Decisions made: {nd1} in Step1, {nd2} in Step2, {nd3} in Step3")
+    print(f"  Total number of accepted assignments: {na}")
+    return na
+
+
+def calc_weights(lines: dict) -> dict:
+    """Calculate weights for energy levels based on accepted transitions."""
+    weights = {}
+    for line in lines:
+        all_accepted = [t for t in line.assigned_transitions if t.accepted == 1]
+        if not all_accepted: continue
+        any_none = any(t.calc_intensity is None for t in line.assigned_transitions)
+        sum_i = float(len(all_accepted)) if any_none else sum(t.calc_intensity for t in all_accepted)
+        for t in all_accepted:
+            intens = 1.0 if any_none else t.calc_intensity
+            w = 1.0 / (t.assigned_to.wn_uncertainty ** 2) * (intens / sum_i)
+            weights[id(t)] = w
+    return weights
+
+
+def optimize_levels(levels_list: list, levels_history: list, weights: dict, verbose: bool = False) -> float:
+    MAX_IT = 50  # Max. number of iterations
+    TOL = 0.001  # Tolerance on change in level energies
+    levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
+    max_dif_it1 = 0.0
+    for it in range (MAX_IT):
+        max_change = 0.0
+        for lev in levels_list:
+            if lev.energy == 0.0: continue    # Skip the ground level
+            # Compute weighted mean of energy differences for accepted transitions from/to this level
+            e_sum = 0.0
+            w_sum = 0.0
+
+            for t in lev.from_transitions:
+                if t.accepted != 1: continue
+                # w = 1.0 / (t.assigned_to.wn_uncertainty ** 2)
+                w = weights[id(t)] if id(t) in weights else 1.0 / (t.assigned_to.wn_uncertainty ** 2)
+                e_sum += (t.lower_level.energy + t.assigned_to.wavenumber) * w
+                w_sum += w
+            for t in lev.to_transitions:
+                if t.accepted != 1: continue
+                # w = 1.0 / (t.assigned_to.wn_uncertainty ** 2)
+                w = weights[id(t)] if id(t) in weights else 1.0 / (t.assigned_to.wn_uncertainty ** 2)
+                e_sum += (t.upper_level.energy - t.assigned_to.wavenumber) * w
+                w_sum += w
+
+            if w_sum > 0:
+                new_energy = e_sum / w_sum
+                change = abs(new_energy - lev.energy)
+                max_change = max(max_change, change)
+                lev.energy = new_energy
+        if verbose: print(f"Iteration {it+1}: max energy change = {max_change:.6f} cm^-1")
+        if it == 0: max_dif_it1 = max_change
+        if max_change < TOL:
+            if verbose: print("Convergence achieved.")
+            break
+    return max_dif_it1
+
+
+def clear_assignments(all_possible: list, lines: list):
+    for t in all_possible:
+        t.accepted = None
+        t.notes1 = ""
+        t.notes2 = ""
+    for line in lines:
+        line.assigned_transitions = []
+        for tr in line.original_assignments:
+            line.assigned_transitions.append(tr)
+
 
 # ===========================================================================
 # MAIN
 # ===========================================================================
-def main():
+def main(max_cycles: int = 10):
     print("=" * 60)
     print("classify_lines.py — Spectral Line Classification for Pr III")
     print("=" * 60)
@@ -2055,26 +2106,21 @@ def main():
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
 
-    # Step 5: Match & grade
-    transition_assignments = match_and_grade(observed_lines, all_possible)
-
-    # Step 6: Resolve conflicts & output
-    max_num_assignments, num_conflicts = resolve_conflicts(transition_assignments)
-    print(f'Max number of conflicting assignments: {max_num_assignments}')
-    print(f'Total number of conflicting assignments: {num_conflicts}')
-
-    # Step 7: Weed assignments (iterative with per-level intensity adjustments)
-    stats = weed_assignments(observed_lines, levels_dict, 100, 0.5, 5)
-    nd1, nd2, nd3, na = stats
-    print(f"Weeding complete. Decisions made: {nd1} in Step1, {nd2} in Step2, "
-          f"{nd3} in Step3")
-    print(f"Total number of accepted assignments: {na}")
-
+    levels_history = []  # List of level snapshots per cycle
+    na_prev = 0
+    # Step 5 - Main cycle: match & grade, resolve conflicts, weed assignments, optimize levels
+    for i in range(max_cycles):
+        print(f"Step 5 cycle {i+1}:")
+        if i > 0: clear_assignments(all_possible, observed_lines)
+        num_accepted = assignment_cycle(observed_lines, all_possible, levels_dict, verbose=False)
+        weights = calc_weights(observed_lines)
+        max_dif_it1 = optimize_levels(levels_list, levels_history, weights, verbose=False)
+        print(f"  Accepted assignments: {num_accepted}, max energy change in optimization: {max_dif_it1:.6f} cm^-1")
+        if num_accepted == na_prev and max_dif_it1 < 0.001: break
+        na_prev = num_accepted
+    levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
     df = build_output(observed_lines)
     write_output(df)
-
-    # # Step 7: Prepare weeder input
-    # prepare_weeder_input(df)
 
     print("=" * 60)
     print("Done.")
