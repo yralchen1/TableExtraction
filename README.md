@@ -2,7 +2,7 @@
 
 An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files.
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files. A companion `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines — including iterative intensity weeding and energy level optimization — and produces output ready for use with the LOPT level-optimization program.
 
 ---
 
@@ -13,7 +13,9 @@ Originally built for digitizing tables from **Sugar's Pr III** spectroscopy pape
 - **NIST ASD cross-reference** — Looks up energy levels against NIST Atomic Spectra Database with auto-correction for typos, parity flips, and J-value mismatches
 - **Selection rule checks** — Enforces E1 transition rules (parity change, ΔJ ≤ 1)
 - **Misalignment correction** — Detects and fixes OCR-induced row shifts using Ritz wavenumber matching
-- **Line Classification** — Automated matching of observed lines to energy levels with multi-tier grading (A1-D6)
+- **Line Classification** — Automated matching of observed lines to Pr III energy levels with 2D grading (tier by wavenumber agreement in σ units; subgrade by log intensity-ratio consistency)
+- **Iterative Intensity Weeding** — Per-level intensity adjustment factors computed from accepted transitions (Mandel-Paule weighted mean with damped updates) drive iterative re-weeding until convergence; oscillating assignments are blacklisted
+- **Energy Level Optimization** — Weighted least-squares refinement of level energies from accepted transitions, iterated until both accepted count and energy values converge; output is LOPT-ready
 - **Robust JSON parsing** — 6-step fallback parser for malformed LLM output
 - **Configurable** — Year-specific prompts, column contexts, layout definitions, and environment-driven settings
 
@@ -21,7 +23,7 @@ Originally built for digitizing tables from **Sugar's Pr III** spectroscopy pape
 
 ## Prerequisites
 
-- **Python 3.10+**
+- **Python 3.11+** (required for `statistics.mandel_paule` used by the LineClass weeding algorithm)
 - **poppler** (for PDF → image conversion):
   ```bash
   # macOS
@@ -135,7 +137,42 @@ Results are saved to `output/`:
 
 > **CSV J-values:** Half-integer J values (e.g., `5/2`) are written as `="5/2"` in CSV to prevent Excel from misinterpreting them as dates. The Excel file stores them natively as text.
 
-### Output Columns
+### LineClass Output
+
+| File | Description |
+|------|-------------|
+| `LineClass/line_classifications.xlsx` | Classification results, sorted by decreasing wavenumber |
+| `LineClass/line_classifications.csv` | Same data in CSV format |
+
+#### Output Columns
+
+| Column | Description |
+|--------|-------------|
+| `wn_obs` | Observed wavenumber (cm⁻¹), 3 decimal places |
+| `unc_wn_obs` | Wavenumber uncertainty (cm⁻¹) |
+| `obs_intens` | Observed intensity |
+| `char` | Line character (`h`, `w`, `bl`, etc.) |
+| `low_id` | Lower energy level ID |
+| `upp_id` | Upper energy level ID |
+| `calc_intens` | Adjusted calculated intensity (after per-level factors) |
+| `orig_calc_intens` | Original theoretical intensity from `Icalc.xlsx` |
+| `u_calc` | Adjusted log-uncertainty of `calc_intens` |
+| `intens_from_f` | Upper-level intensity correction factor (ln scale) |
+| `intens_to_f` | Lower-level intensity correction factor (ln scale) |
+| `dif_wn_O-C` | Observed − Ritz wavenumber difference (cm⁻¹) |
+| `grade` | 2D grade: tier (2–5) + subgrade (A–G); see grading scheme below |
+| `notes1` | Conflict flags: `F` (conflicting), `R` (revised from original) |
+| `notes2` | Per-transition decision trace from weeding (Step1/Step2/Step3 label) |
+| `new` | `1` = new classification, `0` = original Sugar 1969/1974 classification |
+| `accepted` | `1` = accepted by weeding, `0` = rejected, blank = unclassified line |
+| `low_E` | Lower level energy (cm⁻¹) |
+| `upp_E` | Upper level energy (cm⁻¹) |
+| `rwn` | Ritz wavenumber = upp_E − low_E (cm⁻¹) |
+| `weight` | LOPT-compatible weight for this transition |
+
+> Rows where `accepted = 1` with their `weight` values form direct input for LOPT.
+
+### Extraction Output Columns
 
 | # | Column | Description |
 |---|--------|-------------|
@@ -222,13 +259,14 @@ TableExtraction/
 │   ├── graph.py                           # LangGraph pipeline (nodes & state)
 │   ├── tools.py                           # Validation tools (Edlén, NIST, selection rules)
 │   ├── pdf_to_images.py                   # PDF → PNG conversion
+│   ├── Pr3_lev_Wyart_1999.xlsm           # Energy levels for Pr III (Wyart 1999) — shared input for LineClass
 │   └── requirements.txt                   # Python dependencies
 └── LineClass/                             # Spectral Line Classification
-    ├── classify_lines.py                  # CLI entry point (classification)
+    ├── classify_lines.py                  # Full automated pipeline: match → weed → optimize → LOPT output
     ├── models.py                          # Data models (EnergyLevel, SpectralLine, Transition)
-    ├── Pr3_lines.xlsx                     # Observed lines input
-    ├── Pr3_tp_Dream.xlsm                  # DREAM calculated transitions
-    └── line_classifications.xlsx          # Classification output
+    ├── Pr3_lines.xlsx                     # Observed spectral lines (Sugar 1969/1974)
+    ├── Icalc.xlsx                         # Calculated transition intensities and uncertainties
+    └── line_classifications.xlsx          # Classification output (LOPT-ready)
 ```
 
 ---
@@ -254,20 +292,95 @@ TableExtraction/
 
 Built with [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph`.
 
+### LineClass Pipeline Architecture
+
+```
+┌─────────────────────┐    ┌────────────────────┐    ┌───────────────────────┐
+│  Read Levels,       │───▶│  Generate & Match  │───▶│  Resolve Conflicts    │
+│  Lines, Icalc       │    │  (binary search,   │    │  (conservative sort,  │
+│                     │    │  2D grading)       │    │  F/R flags)           │
+└─────────────────────┘    └────────────────────┘    └──────────┬────────────┘
+                                                                 │
+                                                  ┌──────────────▼────────────┐
+                                                  │  Iterative Weeding        │
+                                                  │  (per-level factors,      │
+                                                  │   3-step per-line logic,  │
+                                                  │   blacklist oscillations) │
+                                                  └──────────┬────────────────┘
+                                                             │
+                                              ┌──────────────▼────────────────┐
+                                              │  Energy Level Optimization    │
+                                              │  (weighted least squares)     │
+                                              └──────────┬────────────────────┘
+                                                         │ converged?
+                                              ┌──────────▼──────────────┐
+                                              │  LOPT-ready output      │
+                                              │  (xlsx + csv)           │
+                                              └─────────────────────────┘
+```
+
+The outer loop repeats until both the number of accepted transitions and the maximum level energy change (< 0.001 cm⁻¹) are stable across cycles.
+
 ---
 
 ## Line Classification Pipeline (`LineClass`)
 
-This module classifies observed spectral lines by matching them against all possible transitions between known energy levels.
+The `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines of Pr III against all theoretically allowed transitions. The pipeline supersedes the previous LLM-based post-processing step with a convergent iterative algorithm. A main outer loop repeats the full assignment cycle until both the accepted transition count and the refined energy levels have stabilized.
+
+### Input Files
+
+| File | Description |
+|------|-------------|
+| `Pr3_lev_Wyart_1999.xlsm` | Energy levels (Wyart 1999) |
+| `Icalc.xlsx` | Theoretical transition intensities and uncertainties |
+| `Pr3_lines.xlsx` | Observed spectral lines with existing Sugar classifications |
 
 ### 6-Step Workflow
 
-1.  **Read Energy Levels** — Loads data from `Pr3_lev_Wyart_1999.xlsm`
-2.  **Read Observed Lines** — Loads data from `Pr3_lines.xlsx`
-3.  **Read Theoretical Transitions** — Loads calculated intensities and uncertainties from `Icalc.xlsx`
-4.  **Generate Transitions** — Calculates all possible transitions satisfying selection rules (ΔJ ≤ 1, parity change)
-5.  **Match & Grade** — Matches observed lines to transitions and assigns a grade (Tier 2-5, Subgrade A-E) based on wavenumber residual and intensity consistency
-6.  **Resolve Conflicts** — Handles transitions assigned to multiple lines, selecting the best match and tagging revisions
+**Steps 1–4** prepare the input data:
+
+1. **Read Energy Levels** — Loads J, energy, and parity from `Pr3_lev_Wyart_1999.xlsm`
+2. **Read Calculated Transitions** — Loads intensities and log-uncertainties from `Icalc.xlsx`
+3. **Read Observed Lines** — Loads wavenumbers, intensities, and original Sugar assignments from `Pr3_lines.xlsx`
+4. **Generate Transitions** — Enumerates all possible transitions satisfying E1 selection rules (|ΔJ| ≤ 1, parity change, wavenumber in [9327, 121665] cm⁻¹)
+
+**Step 5** runs the assignment cycle:
+
+**5.1 Match & Grade** — Binary search finds all possible transitions within 5.5σ of each observed line. Each candidate is assigned a 2D grade: **tier** (2–5) by wavenumber agreement in σ units; **subgrade** (A–G) by intensity consistency (log-ratio of I_obs to I_calc vs. `u_calc`).
+
+**5.2 Resolve Conflicts** — When a transition is matched to multiple observed lines, a conservative sort selects the best match (prefer legacy over new, minimize |Obs−Ritz|, then tier). Losers are removed. The `notes1` field records `F` (conflicting) and `R` (revised).
+
+**5.3 Iterative Intensity Weeding** — See subsection below.
+
+**Step 6** runs energy level optimization — see subsection below.
+
+### Iterative Weeding Algorithm
+
+`weed_assignments()` decides, for each observed line, which of its candidate transitions to accept or reject. It uses per-level intensity calibration factors derived from already-accepted transitions, updated iteratively.
+
+**Outer iteration loop:**
+- **Iteration 0:** Baseline pass using raw theoretical intensities from `Icalc.xlsx`
+- **Iterations 1–N:**
+  1. Compute per-level intensity factors from currently accepted, unblended transitions (minimum 5 qualifying entries per level; Mandel-Paule weighted mean with chi²-inflated fallback; result clamped to ±5 ln-units)
+  2. Apply damped update: `factor_new = alpha × factor_computed + (1−alpha) × factor_prev` (default `alpha = 0.5`)
+  3. Adjust all theoretical intensities: `I_adj = I_orig × exp(f_upper + f_lower)`; uncertainty propagates in quadrature
+  4. Reset all acceptance decisions and re-run weeding with adjusted intensities
+- **Convergence:** stops when no transition changes acceptance state, or after `max_iterations`
+- **Oscillation blacklist:** after iteration 2, transitions that flip acceptance state are blacklisted and fall through to their Step 3 default on all subsequent passes
+
+**Per-line 3-step decision process (`weed_assignments_line`):**
+
+Each line's candidate transitions are sorted by decreasing `calc_intensity`, then by Ritz σ.
+
+- **Step 1 — Clear-cut decisions:** New transitions with Ritz mismatch > 4σ are rejected. A relative-intensity filter removes new transitions contributing < 10% of total `calc_intensity` (< 4% for legacy). Surviving candidates are tested by z-score against I_obs: asymmetric thresholds apply (looser for resonance lines and for cases where `I_calc > I_obs`). Decisions are labeled "Step1" in the `notes2` field.
+
+- **Step 2 — Grouping and late arbitration:** Undecided candidates are tested for pair/triple acceptance: groups pass if their joint center-of-gravity matches the observed wavenumber and their combined effective spread (Doppler width convolved with measurement uncertainty) is consistent with the line profile. For lines flagged `h` or `w`, broadening thresholds are relaxed. Remaining undecided new candidates with `F` or `R` in `notes1` are rejected.
+
+- **Step 3 — Default decisions:** Undecided **new** candidates: rejected ("no solid evidence for acceptance"). Undecided **legacy** candidates: accepted ("no solid evidence for rejection").
+
+### Energy Level Optimization
+
+After weeding, `optimize_levels()` refines each non-ground energy level by a weighted mean of all implied energies from accepted transitions (both upper-from-lower and lower-from-upper). Weights are `1/σ²` for unblended lines; for blended lines the weight is shared proportionally to `calc_intensity`. The iteration runs until max energy change < 0.001 cm⁻¹. The `weight` column in the output is the LOPT-compatible weight for each accepted transition.
 
 ### Grading Scheme
 
@@ -291,6 +404,7 @@ Matches are graded on two dimensions:
 -   `N`: Newly assigned (not in original source)
 -   `F`: Conflicting assignment (multiple lines match one transition)
 -   `R`: Revised (original classification was changed or line is now unassigned)
+-   `notes2`: Per-transition decision trace from weeding (e.g., "Step1: intensity ratio too low", "Step3: legacy default accepted")
 
 ---
 
@@ -317,6 +431,7 @@ The repository includes `astools.py` — a Python translation of the VBA module 
 | `openpyxl` | Excel I/O |
 | `python-dotenv` | Environment config |
 | `pandas` | Data manipulation |
+| `numpy` | Numerical computations in LineClass weeding and optimization |
 
 ---
 
