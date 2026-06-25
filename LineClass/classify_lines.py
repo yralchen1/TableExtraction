@@ -622,7 +622,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'low_E': np.nan,
             'upp_E': np.nan,
             'rwn': np.nan,
-            'weight': np.nan
+            'BF': np.nan
         }
         if not obs_line.assigned_transitions:
             output_rows.append(unassigned_row)
@@ -635,8 +635,11 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                 calc_wn = tr.calculated_wavenumber
                 wn_diff = obs_line.wavenumber - calc_wn
                 u_own = obs_line.wn_uncertainty
-                # Weight for LOPT input is the factor by which LOPT will multiply 1/u_own**2
-                w = weights[id(tr)] * (u_own**2) if tr.accepted is not None and tr.accepted == 1 else 0.0
+                # Output the branching fraction (BF) of this component, NOT the LOPT input
+                # weight. The LOPT weight is BF**2 (the factor by which LOPT multiplies its
+                # own 1/u_own**2); writing BF here avoids accidentally pasting BF**2 into
+                # LOPT's "weight" input column. LOPT (centroid model) squares BF internally.
+                bf = math.sqrt(weights[id(tr)] * (u_own**2)) if tr.accepted is not None and tr.accepted == 1 else 0.0
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
@@ -659,7 +662,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
                     'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan,
-                    'weight': w
+                    'BF': bf
                 })
 
     df = pd.DataFrame(output_rows)
@@ -701,7 +704,7 @@ def write_output(df: pd.DataFrame):
         'low_E': '0.000',
         'upp_E': '0.000',
         'rwn': '0.000',
-        'weight': '0.000'
+        'BF': '0.000'
     }
     # Find column indices from header row
     # noinspection PyUnresolvedReferences
@@ -1320,6 +1323,10 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                             return True, 0, f"{step_label} Rejected Legacy: Ic statistically incompatible with Iobs"
                     return False, None, None
             elif candidate.new == 1 and i_cum_sum == 0.0: # This is the top-calc-intensity candidate. Step must be 1
+                # Do not let intensity alone accept a new line whose Ritz position is mediocre
+                # (> 2.5 sigma); keep consistent with the single-candidate new policy.
+                if _ritz_sigma(candidate) > 2.5:
+                    return False, None, None
                 # Compare Icalc with Iobs
                 # noinspection PyUnresolvedReferences
                 u_sys_tot = np.sqrt(candidate.u_calc ** 2 + u_obs_ln ** 2)
@@ -1579,7 +1586,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                 u_sys = _u_sys(trans)
 
                 if trans.new == 1:  # Test ritz_sigma first
-                    if ritz_sigma > 4.0:
+                    if ritz_sigma > 3.0:
                         trans.accepted = 0
                         num_undecided = num_undecided - 1
                         trans.notes2 = "Step1 Rejected New: Strong Ritz mismatch"
@@ -1671,14 +1678,19 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
 
                 # --- BRANCH 2: New Assignments (new == 1) ---
                 elif trans.new == 1:
-                    if ritz_sigma > 4.0:
+                    if ritz_sigma > 3.0:
                         trans.accepted = 0
                         num_undecided = num_undecided - 1
                         trans.notes2 = "Step1 Rejected New: Strong Ritz mismatch"
                     else:
                         if trans.calc_intensity is not None:
                             d_signed = np.log(trans.calc_intensity/line.intensity)
-                            z_thresh = 1.0 if ritz_sigma <= 2.5 else 0.5
+                            # Intensity can only rescue a new line while its Ritz position is
+                            # still good (<= 2.5 sigma). Above that, no intensity-only accept:
+                            # the line must be corroborated by a pair/triple (Step 2) or it is
+                            # rejected in Step 3. This removes new IDs accepted on weak
+                            # positional evidence (the moderate-tail NP-plot humps).
+                            z_thresh = 1.0 if ritz_sigma <= 2.5 else 0.0
                             F = _fudge_factor_for_asym_intensity([trans],trans.calc_intensity,line.intensity, 
                                                                  0.2)
                             # F = 2.0 if d_signed > np.log(1.0/5) else 1.0
@@ -2016,12 +2028,18 @@ def calc_weights(lines: dict) -> dict:
         sum_i = float(len(all_accepted)) if any_none else sum(t.calc_intensity for t in all_accepted)
         for t in all_accepted:
             intens = 1.0 if any_none else t.calc_intensity
-            w = 1.0 / (t.assigned_to.wn_uncertainty ** 2) * (intens / sum_i)
+            bf = intens / sum_i
+            # Weight components of a blend by square of branching fraction to approximate the "centroid"
+            # model in LOPT v. >= 5. Note that the "component" model used in earlier versions of LOPT
+            # treats each blend component as an independent observation, which is not appropriate for blended lines.
+            w = bf**2 / (t.assigned_to.wn_uncertainty ** 2)
             weights[id(t)] = w
     return weights
 
 
 def optimize_levels(levels_list: list, levels_history: list, weights: dict, verbose: bool = False) -> float:
+    # Minimalistic level optimization used only for the purpose of improving the line-assignment decisions
+    # based on Ritz wavenumbers. The final level optimization is deferred to LOPT v. >= 5.
     MAX_IT = 50  # Max. number of iterations
     TOL = 0.001  # Tolerance on change in level energies
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
