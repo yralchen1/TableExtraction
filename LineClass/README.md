@@ -361,22 +361,22 @@ LineClass/
 ## Pipeline Architecture
 
 ```
-┌─────────────────────┐    ┌────────────────────┐    ┌───────────────────────┐
+┌─────────────────────┐    ┌────────────────────┐     ┌───────────────────────┐
 │  Read Levels,       │───▶│  Generate & Match  │───▶│  Resolve Conflicts    │
-│  Lines, Icalc       │    │  (binary search,   │    │  (conservative sort,  │
-│  (Steps 1–4)        │    │   2D grading)      │    │   F/R flags)          │
-└─────────────────────┘    └────────────────────┘    └──────────┬────────────┘
+│  Lines, Icalc       │    │  (binary search,   │     │  (conservative sort,  │
+│  (Steps 1–4)        │    │   2D grading)      │     │   F/R flags)          │
+└─────────────────────┘    └────────────────────┘     └──────────┬────────────┘
                                                                  │
                                                   ┌──────────────▼────────────┐
                                                   │  Iterative Weeding        │
-                                                  │  (per-level factors,      │
-                                                  │   3-step per-line logic,  │
-                                                  │   blacklist oscillations) │
-                                                  └──────────┬────────────────┘
-                                                             │
-                                              ┌──────────────▼────────────────┐
-                                              │  Energy Level Optimization    │
-                                              │  (weighted mean, BF weights)  │
+                                          ┌──────▶│  (per-level factors,      │
+                                          │       │   3-step per-line logic,  │
+                                          │       │   blacklist oscillations) │
+                           not converged? │       └──────────┬────────────────┘
+                                          │                  │
+                                          │   ┌──────────────▼────────────────┐
+                                          │   │  Energy Level Optimization    │
+                                          └───│  (weighted mean, BF weights)  │
                                               └──────────┬────────────────────┘
                                                          │ converged?
                                               ┌──────────▼──────────────┐
