@@ -2,7 +2,7 @@
 
 An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files. A companion `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines — including iterative intensity weeding and energy level optimization — and produces output ready for use with the LOPT level-optimization program.
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files. A companion `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines — including iterative weeding of spurious classifications and energy level optimization — and produces output ready for use with the LOPT level-optimization program.
 
 ---
 
@@ -23,7 +23,7 @@ Originally built for digitizing tables from **Sugar's Pr III** spectroscopy pape
 
 ## Prerequisites
 
-- **Python 3.11+** (required for `statistics.mandel_paule` used by the LineClass weeding algorithm)
+- **Python 3.10+** (LineClass uses PEP 604 `X | Y` type annotations; its weeding algorithm relies on `mandel_paule` from the repository's bundled `statistics.py`, which shadows the standard-library `statistics` module)
 - **poppler** (for PDF → image conversion):
   ```bash
   # macOS
@@ -168,9 +168,9 @@ Results are saved to `output/`:
 | `low_E` | Lower level energy (cm⁻¹) |
 | `upp_E` | Upper level energy (cm⁻¹) |
 | `rwn` | Ritz wavenumber = upp_E − low_E (cm⁻¹) |
-| `weight` | LOPT-compatible weight for this transition |
+| `BF` | Branching fraction of this component (0 if not accepted); the LOPT centroid weight is `BF²` |
 
-> Rows where `accepted = 1` with their `weight` values form direct input for LOPT.
+> Rows where `accepted = 1` with their `BF` values form direct input for LOPT (which squares `BF` internally to obtain the centroid weight).
 
 ### Extraction Output Columns
 
@@ -262,11 +262,13 @@ TableExtraction/
 │   ├── Pr3_lev_Wyart_1999.xlsm           # Energy levels for Pr III (Wyart 1999) — shared input for LineClass
 │   └── requirements.txt                   # Python dependencies
 └── LineClass/                             # Spectral Line Classification
+    ├── README.md                          # LineClass component documentation
     ├── classify_lines.py                  # Full automated pipeline: match → weed → optimize → LOPT output
     ├── models.py                          # Data models (EnergyLevel, SpectralLine, Transition)
     ├── Pr3_lines.xlsx                     # Observed spectral lines (Sugar 1969/1974)
     ├── Icalc.xlsx                         # Calculated transition intensities and uncertainties
-    └── line_classifications.xlsx          # Classification output (LOPT-ready)
+    ├── line_classifications.xlsx          # Classification output (LOPT-ready)
+    └── line_classifications.csv           # Classification output (CSV)
 ```
 
 ---
@@ -380,7 +382,7 @@ Each line's candidate transitions are sorted by decreasing `calc_intensity`, the
 
 ### Energy Level Optimization
 
-After weeding, `optimize_levels()` refines each non-ground energy level by a weighted mean of all implied energies from accepted transitions (both upper-from-lower and lower-from-upper). Weights are `1/σ²` for unblended lines; for blended lines the weight is shared proportionally to `calc_intensity`. The iteration runs until max energy change < 0.001 cm⁻¹. The `weight` column in the output is the LOPT-compatible weight for each accepted transition.
+After weeding, `optimize_levels()` refines each non-ground energy level by a weighted mean of all implied energies from accepted transitions (both upper-from-lower and lower-from-upper). Weights are `1/σ²` for unblended lines; for blended lines the weight is shared proportionally to `calc_intensity`. The iteration runs until max energy change < 0.001 cm⁻¹. The `BF` column in the output is each accepted component's branching fraction; LOPT squares it internally to obtain the centroid weight.
 
 ### Grading Scheme
 
@@ -390,7 +392,7 @@ Matches are graded on two dimensions:
     -   `2`: Wavenumber residual ≤ 2.0σ (uncertainty)
     -   `3`: Wavenumber residual ≤ 3.0σ
     -   `4`: Wavenumber residual ≤ 4.0σ
-    -   `5`: Wavenumber residual > 5.0σ
+    -   `5`: Wavenumber residual > 4.0σ (up to the 5.5σ match tolerance)
 -   **Subgrade (Intensity Consistency):**
     Assigned based on agreement between observed and calculated intensities (I_obs, I_calc) and uncertainty `u_calc = ln(uA_pcnt/100 + 1)`. Let `ln_I_ratio = |ln(I_calc/I_obs)|`.
     -   `G`: No theoretical intensity available
