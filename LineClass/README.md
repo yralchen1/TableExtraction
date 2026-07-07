@@ -5,15 +5,15 @@ A fully-automated, deterministic pipeline for classifying observed spectral line
 This code was designed to solve a problem specific to the current state of knowledge on the Pr III spectrum:
 - Two separately published line lists represent a complete set of fairly precisely measured lines (Sugar 1969, 1974), but they are **incomplete** in the sense that many lines are unclassified.
 - J.-F. Wyart (1999) constructed an unpublished set of **adopted energy levels** for Pr III, but he never published a complete set of observed lines defining each of these levels. 
-- An extensive list of calculated transition rates exists in a public database DESIRE. This list was derived with the use of most but not all of Wyart's energy levels and covers only a limited range of wavelengths.
+- An extensive list of calculated transition rates exists in a public database DREAM. This list was derived with the use of most but not all of Wyart's energy levels and covers only a limited range of wavelengths.
 
 The main purpose of this code is to find all observed lines defining each known energy level. Prior to running it, the input data were prepared in the following way:
 - Each observed wavenumber has been assigned an estimated uncertainty based on original Sugar's general statements and a number of other criteria.
-- A complete list of all previously known energy levels of Pr III has been constructed, including the data from NIST ASD and Wyart's new levels communicated by him to the DESIRE team.
-- Uncertainties of the DESIRE transition rates for Pr III have been determined by comparison with other available data using the method described by A. Kramida,
+- A complete list of all previously known energy levels of Pr III has been constructed, including the data from NIST ASD and Wyart's new levels communicated by him to the DREAM team.
+- Uncertainties of the DREAM transition rates for Pr III have been determined by comparison with other available data using the method described by A. Kramida,
 Eur. Phys. J. D 78, 36 (2024).
 - The observed line intensities reported by Sugar (1969, 1974) have been reduced to a common linear scale by using the method described by A. Kramida, A. N. Ryabtsev, and P. R. Young,
-Astrophys. J., Suppl. Ser. 258, 37 (2022). This procedure simultaneously produced a set of calculated intensities corresponding to the same intensity scale. These calculated intensities are based on a simplified Boltzmann model of level populations with effective temperature of 1.6 eV and the transition probabilities from DESIRE. 
+Astrophys. J., Suppl. Ser. 258, 37 (2022). This procedure simultaneously produced a set of calculated intensities corresponding to the same intensity scale. These calculated intensities are based on a simplified Boltzmann model of level populations with effective temperature of 1.6 eV and the transition probabilities from DREAM. 
 
 Given these data for observed lines and energy levels, the pipeline performs the following actions:
 - enumerates all electric-dipole (E1) transitions in range;
