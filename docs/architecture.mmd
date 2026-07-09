@@ -1,0 +1,86 @@
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+  "fontSize": "16px",
+  "primaryColor": "#eef2fc",
+  "primaryBorderColor": "#2d5dd0",
+  "primaryTextColor": "#14161c",
+  "lineColor": "#5b6472",
+  "secondaryColor": "#fbf1e1",
+  "tertiaryColor": "#f1ecfa",
+  "clusterBkg": "#ffffff",
+  "clusterBorder": "#c7cbd3",
+  "edgeLabelBackground":"#ffffff"
+}}}%%
+flowchart TB
+
+    PDF1[("jresv73An3p333_A1b.pdf<br/>Sugar 1969")]
+    PDF2[("jresv78An5p555_A1b.pdf<br/>Sugar 1974")]
+
+    subgraph SHARED["Shared inputs &amp; libraries"]
+        direction LR
+        LEV[("Pr3_lev_Wyart_1999.xlsm<br/>sheet Wyart2000<br/>adopted energy levels")]
+        AST["astools.py<br/>CODATA constants - Edlen air/vacuum<br/>- water vapor pressure"]
+        STAT["statistics.py<br/>mandel_paule()<br/>Paule-Mandel weighted mean"]
+    end
+
+    subgraph TE["TableExtraction  (Gemini OCR pipeline)"]
+        direction TB
+        T1["convert_pdf<br/>pdf_to_images.py"]
+        T2["extract_tables<br/>Gemini vision<br/>extraction_prompt.py + prompts/"]
+        T3["validate_rows<br/>tools.py<br/>NIST ASD - Edlen check - E1 rules"]
+        T4["fix_misalignment<br/>Ritz-wavenumber row relocation"]
+        T5["compile_output<br/>CSV + Excel writer"]
+        T1 --> T2 --> T3 --> T4 --> T5
+    end
+
+    CFG["config.py<br/>.env: GOOGLE_API_KEY, GEMINI_MODEL,<br/>tolerances, paths"]
+
+    subgraph LC["LineClass  (deterministic classification pipeline)"]
+        direction TB
+        L1["Read inputs<br/>models.py: EnergyLevel - Transition - SpectralLine"]
+        L2["Generate transitions<br/>enumerate E1-allowed pairs<br/>9327-121665 cm-1"]
+        L3["Match &amp; grade<br/>binary search - 5.5-sigma window<br/>2D grade: tier + subgrade"]
+        L4["Resolve conflicts<br/>conservative sort<br/>flags: F conflicting / R revised"]
+        L5["Iterative weeding<br/>per-line 3-step accept/reject<br/>+ per-level intensity factors"]
+        L6["Energy level optimization<br/>weighted least squares<br/>BF^2/sigma-sq weights"]
+        L1 --> L2 --> L3 --> L4 --> L5 --> L6
+        L6 -. "not converged: count or energy still moving" .-> L3
+    end
+
+    ICALC[("Icalc.xlsx<br/>calculated transition intensities")]
+    LINES[("Pr3_lines.xlsx<br/>observed lines, Sugar classifications")]
+
+    OUT_TE[/"output/*_extracted.csv - .xlsx"/]
+    OUT_LC[/"LineClass/line_classifications.csv - .xlsx"/]
+    LOPT[["LOPT<br/>external level-optimization program"]]
+
+    PDF1 --> T1
+    PDF2 --> T1
+    CFG -.-> T2
+    CFG -.-> T3
+    LEV --> T3
+    AST --> T3
+    T5 --> OUT_TE
+
+    LEV --> L1
+    ICALC --> L1
+    LINES --> L1
+    STAT --> L5
+
+    L6 --> OUT_LC
+    OUT_LC --> LOPT
+
+    classDef pdfNode fill:#f1ecfa,stroke:#6c4fb3,stroke-width:1.5px,color:#14161c;
+    classDef sharedNode fill:#f1ecfa,stroke:#6c4fb3,stroke-width:1.5px,color:#14161c;
+    classDef teNode fill:#eef2fc,stroke:#2d5dd0,stroke-width:1.5px,color:#14161c;
+    classDef lcNode fill:#fbf1e1,stroke:#c8801a,stroke-width:1.5px,color:#14161c;
+    classDef outNode fill:#ffffff,stroke:#5b6472,stroke-width:1.5px,color:#14161c;
+    classDef loptNode fill:#14161c,stroke:#14161c,stroke-width:1.5px,color:#ffffff;
+
+    class PDF1,PDF2 pdfNode;
+    class LEV,AST,STAT,CFG sharedNode;
+    class T1,T2,T3,T4,T5 teNode;
+    class L1,L2,L3,L4,L5,L6 lcNode;
+    class ICALC,LINES sharedNode;
+    class OUT_TE,OUT_LC outNode;
+    class LOPT loptNode;
