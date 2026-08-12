@@ -9,10 +9,13 @@ class EnergyLevel:
     parity: str
     J_str: str
     J_val: float
+    is_new: int = 0                        # 1 = level absent from ASD (found by Wyart), 0 = previously known
+    is_decoy: int = 0                      # 1 = decoy (shadow) copy used for false-positive calibration
     intens_from_factor: float = 0.0        # weighted mean of ln(I_obs/I_calc) for transitions FROM this level (upper)
     u_intens_from_factor: float = 0.0      # uncertainty (chi²-inflated)
     intens_to_factor: float = 0.0          # same, for transitions TO this level (lower)
     u_intens_to_factor: float = 0.0
+    u_energy: float = 0.0                  # estimated uncertainty of the adopted energy (cm^-1); 0.0 = not yet estimated
     from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
     to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
 

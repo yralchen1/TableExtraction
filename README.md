@@ -2,7 +2,7 @@
 
 An AI-powered pipeline for extracting spectral line tables from scanned scientific PDFs using **Google Gemini** multimodal vision and **LangChain/LangGraph**.
 
-Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files. A companion `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines — including iterative weeding of spurious classifications and energy level optimization — and produces output ready for use with the LOPT level-optimization program.
+Originally built for digitizing tables from **Sugar's Pr III** spectroscopy papers ([1969](https://doi.org/10.6028/jres.073A.029) & [1974](https://doi.org/10.6028/jres.078A.036)), the pipeline converts PDF pages to images, sends them to Gemini for OCR/extraction, validates against physics formulas and [NIST ASD](https://physics.nist.gov/asd) reference energy levels, corrects page-level misalignments, and outputs structured Excel/CSV files. A companion `LineClass` module provides a fully-automated, deterministic pipeline for classifying observed spectral lines — including iterative weeding of spurious classifications and energy level optimization — and produces output ready for use with the LOPT level-optimization program. A statistical **validation suite** in the same module measures how often the classifier would confirm an energy level that is not real (by planting displaced "decoy" copies of the tested levels into the real run) and assigns each re-established level a probability of being spurious, combining the level's energy stability with the agreement between its observed and theoretically predicted intensity pattern.
 
 ---
 
@@ -14,8 +14,10 @@ Originally built for digitizing tables from **Sugar's Pr III** spectroscopy pape
 - **Selection rule checks** — Enforces E1 transition rules (parity change, ΔJ ≤ 1)
 - **Misalignment correction** — Detects and fixes OCR-induced row shifts using Ritz wavenumber matching
 - **Line Classification** — Automated matching of observed lines to Pr III energy levels with 2D grading (tier by wavenumber agreement in σ units; subgrade by log intensity-ratio consistency)
-- **Iterative Intensity Weeding** — Per-level intensity adjustment factors computed from accepted transitions (Mandel-Paule weighted mean with damped updates) drive iterative re-weeding until convergence; oscillating assignments are blacklisted
+- **Iterative Intensity Weeding** — A 3-step per-line decision process (clear-cut tests, blend grouping by center-of-gravity, conservative defaults) iterated to convergence; assignments whose accept/reject decision oscillates between iterations or cycles are blacklisted and rejected. Optional per-level intensity calibration factors are available but disabled by default
+- **Level-Energy Uncertainty Estimation** — Each level's energy uncertainty is estimated once per outer cycle from the scatter of energies implied by its currently accepted transitions (propagated through chains of new levels by fixed-point iteration), and folded into the matching window and Ritz-mismatch test, so lines are not rejected just because a not-yet-precisely-known level's adopted energy has a small, unaccounted-for error
 - **Energy Level Optimization** — Weighted least-squares refinement of level energies from accepted transitions, iterated until both accepted count and energy values converge; output is LOPT-ready
+- **Classification Validation** — Decoy (shadow-level) runs measure the false-confirmation rate of the pipeline under fully realistic conditions; each re-established level receives a spurious probability `p_spur` that folds two independent pieces of evidence: the stability of its optimized energy and its observed-vs-predicted intensity pattern
 - **Robust JSON parsing** — 6-step fallback parser for malformed LLM output
 - **Configurable** — Year-specific prompts, column contexts, layout definitions, and environment-driven settings
 
@@ -23,7 +25,7 @@ Originally built for digitizing tables from **Sugar's Pr III** spectroscopy pape
 
 ## Prerequisites
 
-- **Python 3.10+** (LineClass uses PEP 604 `X | Y` type annotations; its weeding algorithm relies on `mandel_paule` from the repository's bundled `statistics.py`, which shadows the standard-library `statistics` module)
+- **Python 3.10+** (LineClass uses PEP 604 `X | Y` type annotations; the bundled `statistics.py` in the repository root, which shadows the standard-library `statistics` module, is needed only if the optional Mandel–Paule intensity-factor weighting is enabled in LineClass)
 - **poppler** (for PDF → image conversion):
   ```bash
   # macOS
@@ -122,6 +124,12 @@ python validate_extracted_table.py --input output/raw_extracted_table.xlsx
 
 # Run the full classification pipeline:
 python LineClass/classify_lines.py
+
+# --- Classification validation (run from LineClass/, after classify_lines.py) ---
+python LineClass/decoy_mc.py       # decoy runs → in-situ false-confirmation rates
+python LineClass/chance_mc.py      # optional shifted-wavenumber cross-check
+python LineClass/level_shifts.py   # validation report + per-level spurious probabilities
+python LineClass/level_shifts.py --detail 059003.000483   # inspect one level
 ```
 
 ---
@@ -143,6 +151,11 @@ Results are saved to `output/`:
 |------|-------------|
 | `LineClass/line_classifications.xlsx` | Classification results, sorted by decreasing wavenumber |
 | `LineClass/line_classifications.csv` | Same data in CSV format |
+| `LineClass/level_shift_report.csv/.xlsx` | Validation: one row per level — energy shift, support counts, intensity-pattern scores, the spurious probabilities `p_spur_decoys`, `p_spur_pattern`, `p_spur`, and the adjudication columns `question_status`/`reason` (questionable marks cleared when the missing predicted lines are masked by nearby stronger lines) |
+| `LineClass/decoy_mc_*.csv/.xlsx` | Validation: decoy-run tables (per-decoy support and energy wander, perturbation check, accepted decoy lines, per-run summary) |
+| `LineClass/chance_mc_*.csv/.xlsx` | Validation (optional): shifted-wavenumber cross-check tables |
+
+All validation tables are Excel-friendly: floats are rounded to meaningful decimals and each CSV has an `.xlsx` twin in which text cells such as J = `3/2` are not converted to dates.
 
 #### Output Columns
 
@@ -165,6 +178,7 @@ Results are saved to `output/`:
 | `notes2` | Per-transition decision trace from weeding (Step1/Step2/Step3 label) |
 | `new` | `1` = new classification, `0` = original Sugar 1969/1974 classification |
 | `accepted` | `1` = accepted by weeding, `0` = rejected, blank = unclassified line |
+| `n_accepted` | Number of accepted classifications of this observed line |
 | `low_E` | Lower level energy (cm⁻¹) |
 | `upp_E` | Upper level energy (cm⁻¹) |
 | `rwn` | Ritz wavenumber = upp_E − low_E (cm⁻¹) |
@@ -261,14 +275,20 @@ TableExtraction/
 │   ├── pdf_to_images.py                   # PDF → PNG conversion
 │   ├── Pr3_lev_Wyart_1999.xlsm           # Energy levels for Pr III (Wyart 1999) — shared input for LineClass
 │   └── requirements.txt                   # Python dependencies
-└── LineClass/                             # Spectral Line Classification
-    ├── README.md                          # LineClass component documentation
+└── LineClass/                             # Spectral Line Classification + validation suite
+    ├── README.md                          # LineClass component documentation (incl. validation)
     ├── classify_lines.py                  # Full automated pipeline: match → weed → optimize → LOPT output
     ├── models.py                          # Data models (EnergyLevel, SpectralLine, Transition)
+    ├── decoy_mc.py                        # Validation: decoy (shadow-level) runs
+    ├── level_shifts.py                    # Validation: calibrations, pattern scores, p_spur; --detail mode
+    ├── chance_mc.py                       # Shared utilities + optional shifted-wavenumber cross-check
     ├── Pr3_lines.xlsx                     # Observed spectral lines (Sugar 1969/1974)
     ├── Icalc.xlsx                         # Calculated transition intensities and uncertainties
     ├── line_classifications.xlsx          # Classification output (LOPT-ready)
-    └── line_classifications.csv           # Classification output (CSV)
+    ├── line_classifications.csv           # Classification output (CSV)
+    ├── level_shift_report.csv/.xlsx       # Validation output: per-level table with p_spur
+    ├── decoy_mc_*.csv/.xlsx               # Validation output: decoy-run tables
+    └── chance_mc_*.csv/.xlsx              # Validation output: cross-check tables (optional)
 ```
 
 ---
@@ -321,7 +341,7 @@ Built with [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph`.
                                               └─────────────────────────┘
 ```
 
-The outer loop repeats until both the number of accepted transitions and the maximum level energy change (< 0.001 cm⁻¹) are stable across cycles.
+The outer loop repeats until both the number of accepted transitions and the maximum level energy change (< 0.001 cm⁻¹) are stable across cycles. At the start of each cycle (not shown), `compute_level_uncertainties` re-estimates every level's `u_energy` from the previous cycle's accepted transitions, before `Generate & Match` runs.
 
 ---
 
@@ -348,7 +368,7 @@ The `LineClass` module provides a fully-automated, deterministic pipeline for cl
 
 **Step 5** runs the assignment cycle:
 
-**5.1 Match & Grade** — Binary search finds all possible transitions within 5.5σ of each observed line. Each candidate is assigned a 2D grade: **tier** (2–5) by wavenumber agreement in σ units; **subgrade** (A–G) by intensity consistency (log-ratio of I_obs to I_calc vs. `u_calc`).
+**5.1 Match & Grade** — Binary search finds all possible transitions within `5.5 σ_comb` of each observed line, where `σ_comb` combines the line's own wavenumber uncertainty with the estimated energy uncertainty of both candidate levels (`u_energy`, re-estimated once per outer cycle — see *Level-Energy Uncertainty Estimation* below). Each candidate is assigned a 2D grade: **tier** (2–5) by wavenumber agreement in the line's own σ (not `σ_comb`); **subgrade** (A–G) by intensity consistency (log-ratio of I_obs to I_calc vs. `u_calc`).
 
 **5.2 Resolve Conflicts** — When a transition is matched to multiple observed lines, a conservative sort selects the best match (prefer legacy over new, minimize |Obs−Ritz|, then tier). Losers are removed. The `notes1` field records `F` (conflicting) and `R` (revised).
 
@@ -362,27 +382,34 @@ The `LineClass` module provides a fully-automated, deterministic pipeline for cl
 
 **Outer iteration loop:**
 - **Iteration 0:** Baseline pass using raw theoretical intensities from `Icalc.xlsx`
-- **Iterations 1–N:**
-  1. Compute per-level intensity factors from currently accepted, unblended transitions (minimum 5 qualifying entries per level; Mandel-Paule weighted mean with chi²-inflated fallback; result clamped to ±5 ln-units)
-  2. Apply damped update: `factor_new = alpha × factor_computed + (1−alpha) × factor_prev` (default `alpha = 0.5`)
-  3. Adjust all theoretical intensities: `I_adj = I_orig × exp(f_upper + f_lower)`; uncertainty propagates in quadrature
-  4. Reset all acceptance decisions and re-run weeding with adjusted intensities
-- **Convergence:** stops when no transition changes acceptance state, or after `max_iterations`
-- **Oscillation blacklist:** after iteration 2, transitions that flip acceptance state are blacklisted and fall through to their Step 3 default on all subsequent passes
+- **Iterations 1–N:** re-weed until no transition changes its acceptance state (or `max_iterations` is reached). An optional per-level intensity calibration (factors computed from accepted unblended transitions by backfitting, with damped updates) can modify the theoretical intensities between iterations; it is **disabled by default** (`USE_INTENSITY_ADJUSTMENT = 0`), having been found to add only ~8 accepted classifications at the cost of ~240 fitted parameters
+- **Oscillation blacklist:** transitions whose accept/reject decision flips between weeding iterations, or whose end-of-cycle state alternates between outer cycles, are blacklisted and permanently rejected — an oscillating decision is treated as evidence of an unreliable assignment. The blacklist persists across the outer cycles
 
 **Per-line 3-step decision process (`weed_assignments_line`):**
 
 Each line's candidate transitions are sorted by decreasing `calc_intensity`, then by Ritz σ.
 
-- **Step 1 — Clear-cut decisions:** New transitions with Ritz mismatch > 4σ are rejected. A relative-intensity filter removes new transitions contributing < 10% of total `calc_intensity` (< 4% for legacy). Surviving candidates are tested by z-score against I_obs: asymmetric thresholds apply (looser for resonance lines and for cases where `I_calc > I_obs`). Decisions are labeled "Step1" in the `notes2` field.
+- **Step 1 — Clear-cut decisions:** New transitions with Ritz mismatch > 3σ_comb are rejected (legacy transitions with no theoretical intensity are rejected only beyond 5σ_comb); `σ_comb` is the same combined line+level-uncertainty sigma used for matching. A relative-intensity filter removes new transitions contributing < 10% of total `calc_intensity` (< 4% for legacy). Surviving candidates are tested by z-score against I_obs: asymmetric thresholds apply (looser for resonance lines and for cases where `I_calc > I_obs`). Decisions are labeled "Step1" in the `notes2` field.
 
 - **Step 2 — Grouping and late arbitration:** Undecided candidates are tested for pair/triple acceptance: groups pass if their joint center-of-gravity matches the observed wavenumber and their combined effective spread (Doppler width convolved with measurement uncertainty) is consistent with the line profile. For lines flagged `h` or `w`, broadening thresholds are relaxed. Remaining undecided new candidates with `F` or `R` in `notes1` are rejected.
 
 - **Step 3 — Default decisions:** Undecided **new** candidates: rejected ("no solid evidence for acceptance"). Undecided **legacy** candidates: accepted ("no solid evidence for rejection").
 
+### Level-Energy Uncertainty Estimation
+
+Before each outer cycle's match & grade step, `compute_level_uncertainties()` (re-)estimates every level's energy uncertainty `u_energy` from the scatter of energies implied by its currently accepted transitions (using the previous cycle's accepted set — empty on the first cycle, so `u_energy` starts at 0 for every level). Because a partner level's own `u_energy` is itself part of the unknown, the whole level system is solved by repeated sweeps (Gauss-Seidel-style fixed-point iteration) until it stabilizes, letting uncertainty propagate outward from well-established old levels through however many links a chain of new levels has, without needing to identify a single transition that "defines" each level. `u_energy` then widens the matching window and the Step-1 Ritz-mismatch test (above) via `σ_comb`, so a transition is not rejected merely because a not-yet-precisely-known level's adopted energy carries an unstated error. See [`LineClass/README.md`](LineClass/README.md) for the full algorithm.
+
 ### Energy Level Optimization
 
 After weeding, `optimize_levels()` refines each non-ground energy level by a weighted mean of all implied energies from accepted transitions (both upper-from-lower and lower-from-upper). Weights are `1/σ²` for unblended lines; for blended lines the weight is shared proportionally to `calc_intensity`. The iteration runs until max energy change < 0.001 cm⁻¹. The `BF` column in the output is each accepted component's branching fraction; LOPT squares it internally to obtain the centroid weight.
+
+### Classification Validation
+
+Many of the accepted classifications re-establish energy levels that were never confirmed in print (Wyart's unpublished levels), so the reliability of the result must be measured, not assumed. Three scripts in `LineClass/` do this (details in [`LineClass/README.md`](LineClass/README.md)):
+
+- **`decoy_mc.py`** repeats the real classification with one **decoy** added per tested level: an exact copy (same J, parity, possible transitions, and predicted intensities) whose energy is displaced far enough that none of its transitions can coincide with a true line. The decoys compete with the real levels in every step, so every line accepted for a decoy is a false match obtained under fully realistic conditions; with one decoy per tested level, the number of decoys passing any acceptance rule equals the number of false confirmations to expect if all tested levels were fake.
+- **`chance_mc.py`** provides shared utilities for the suite and, run directly, an independent cross-check in which all observed wavenumbers are shifted so that every accepted match is false; its rates are upper bounds and agree with the decoy rates within ~25%.
+- **`level_shifts.py`** turns the calibrations into per-level verdicts. Each tested level is judged by two independent pieces of evidence: the stability of its optimized energy (a genuine level returns almost exactly to its input value, because its lines tie it to well-anchored known levels; a level built from chance coincidences drifts away) and its intensity pattern (a real level's strongest theoretically predicted transitions must be present among its accepted lines — the classical "square-array" argument). Both are calibrated on the known-genuine old levels and on the known-fake decoys, and folded into a per-level **probability of being spurious** (`p_spur`), written to `level_shift_report.csv/.xlsx` together with the separate energy-only and pattern-only probabilities. A `--detail` mode prints any single level's predicted transitions with the fate of each in the run, for case-by-case inspection.
 
 ### Grading Scheme
 

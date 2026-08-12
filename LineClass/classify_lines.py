@@ -42,6 +42,15 @@ WN_MAX = 121665.0
 ATOMIC_MASS = 140.90765  # u, standard mass unit
 T = 1.6   # eV, plasma temperature
 
+USE_INTENSITY_ADJUSTMENT = 0
+
+# Weighting of the per-level intensity-factor fits: 'unweighted' or 'mandel_paule'.
+# The residuals r = ln(I_obs/I_calc_orig) correlate strongly with u_calc (strong
+# lines have small u_calc and systematically negative r), so 1/u_calc^2-weighted
+# means are dragged to the strong-line offset and increase the overall intensity
+# discrepancy instead of reducing it; unweighted means avoid this bias.
+FACTOR_WEIGHTING = 'unweighted'
+
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -101,6 +110,7 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
         # J_adopt = col 11 (index 10), E_adopt = col 13 (index 12),
         # par_ASD = col 14 (index 13), ASD_id = col 23 (index 22)
         j_str_val = row[10].value   # J_adopt (col 11)
+        e_asd_val = row[11].value   # E_ASD (col 12): blank = level absent from ASD (new in Wyart's list)
         energy_val = row[12].value  # E_adopt (col 13)
         parity_val = row[13].value  # par_ASD (col 14)
         level_id_val = row[22].value  # ASD_id (col 23)
@@ -128,7 +138,8 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
             energy=energy,
             parity=parity,
             J_str=j_str,
-            J_val=j_val
+            J_val=j_val,
+            is_new=1 if (e_asd_val is None or str(e_asd_val).strip() == '') else 0
         )
         levels_dict[level_id] = lev
         levels_list.append(lev)
@@ -196,16 +207,133 @@ def read_transitions(levels_dict: dict) -> dict:
 
 
 # ===========================================================================
+# Decoy (shadow) levels for in-situ false-positive calibration
+# ===========================================================================
+DECOY_PREFIX = 'D_'
+
+
+def decoy_energy(energy: float, parity: str, delta: float) -> float:
+    """Energy of the decoy copy of a level.
+
+    The displacement sign alternates with parity so that EVERY transition
+    involving a decoy is displaced from its true wavenumber: by delta for
+    decoy-real pairs and by 2*delta for decoy-decoy pairs (a transition always
+    connects levels of opposite parity, whose displacements have opposite
+    signs and therefore never cancel in the energy difference).
+    """
+    return energy + (-delta if parity == 'o' else delta)
+
+
+def add_decoy_levels(levels_dict: dict, levels_list: list,
+                     calc_trans_index: dict, delta: float,
+                     decoy_ids=None) -> int:
+    """Insert a decoy (shadow) copy of every level to be validated.
+
+    decoy_ids selects the levels to copy (an iterable of level ids). If it is
+    None, the levels absent from ASD (is_new == 1) are copied. decoy_mc.py
+    passes the ids of the new* levels — those supported by more new than old
+    identifications in the baseline run — so that there is exactly one decoy
+    per level whose reality is being tested.
+
+    A decoy duplicates a Wyart new level in everything the pipeline can see —
+    J, parity, connectivity to the level system, and calculated transition
+    intensities — except that its energy is displaced by +-delta (sign
+    alternating with parity, see decoy_energy). The decoys then compete with
+    the real levels under completely realistic conditions: they are matched
+    against the same observed lines, take part in conflict resolution and
+    weeding, and are re-optimized together with the real levels, while the
+    real levels stay anchored by the true identifications and most observed
+    lines are already consumed by them.
+
+    Because a decoy has, by construction, no true lines in the list, every
+    line the pipeline accepts for it is a false positive obtained in situ.
+    The per-decoy statistics (number of accepted lines n; wander |dE| of the
+    optimized energy from the input value) calibrate the false-positive rate
+    of new-level confirmations: see decoy_mc.py and level_shifts.py.
+
+    |delta| must exceed the largest matching tolerance (5.5 * max u_obs) so
+    that a decoy transition can never re-match the true line of its original;
+    a few cm^-1 does not change the local level and line densities.
+
+    Returns the number of decoy levels added.
+    """
+    if decoy_ids is None:
+        new_levels = [lev for lev in levels_list if lev.is_new == 1 and lev.is_decoy == 0]
+    else:
+        decoy_ids = set(decoy_ids)
+        missing = decoy_ids - set(levels_dict)
+        if missing:
+            raise ValueError(f"decoy_ids absent from the level list: {sorted(missing)[:5]} ...")
+        new_levels = [lev for lev in levels_list
+                      if lev.level_id in decoy_ids and lev.is_decoy == 0]
+    for lev in new_levels:
+        d = EnergyLevel(
+            level_id=DECOY_PREFIX + lev.level_id,
+            energy=decoy_energy(lev.energy, lev.parity, delta),
+            parity=lev.parity,
+            J_str=lev.J_str,
+            J_val=lev.J_val,
+            is_new=1,
+            is_decoy=1,
+        )
+        levels_dict[d.level_id] = d
+        levels_list.append(d)
+
+    # Give decoy transitions the same calculated intensities as their
+    # originals: for every Icalc entry involving a new level, register the
+    # decoy-substituted id pairs ('assigned_to' stays None: decoys have no
+    # legacy identifications). Both orientations are stored because the
+    # energy ordering of a close pair can flip under the +-delta displacement.
+    new_ids = {lev.level_id for lev in new_levels}
+    extra = {}
+    for (id1, id2), data in calc_trans_index.items():
+        variants = set()
+        if id1 in new_ids:
+            variants.add((DECOY_PREFIX + id1, id2))
+        if id2 in new_ids:
+            variants.add((id1, DECOY_PREFIX + id2))
+        if id1 in new_ids and id2 in new_ids:
+            variants.add((DECOY_PREFIX + id1, DECOY_PREFIX + id2))
+        for a, b in variants:
+            entry = {'calc_intensity': data['calc_intensity'],
+                     'u_calc': data['u_calc'],
+                     'assigned_to': None}
+            extra[(a, b)] = entry
+            extra[(b, a)] = entry
+    calc_trans_index.update(extra)
+    print(f"  Added {len(new_levels)} decoy levels (displaced by +-{abs(delta):g} cm^-1) "
+          f"and {len(extra)} decoy Icalc entries.")
+    return len(new_levels)
+
+
+# ===========================================================================
 # STEP 3: Read observed spectral lines
 # ===========================================================================
 # noinspection PyTypeChecker,PyUnresolvedReferences
-def read_observed_lines(levels_dict: dict, calc_trans_index: dict):
+def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: float = 0.0,
+                        drop_legacy: bool = False):
     """Read observed spectral lines from Pr3_lines.xlsx.
+
+    Args:
+        wn_shift: constant added to every observed wavenumber (cm^-1).
+                  Used for Monte-Carlo estimation of chance coincidences:
+                  a nonzero shift destroys all true line-transition
+                  correspondences while preserving the statistical structure
+                  of the line list (density, intensities, uncertainties).
+        drop_legacy: if True, do not attach the legacy identifications from
+                  the input file, so the pipeline classifies from scratch and
+                  every candidate is treated as new. Required for
+                  chance-coincidence runs: shifted legacy assignments would
+                  otherwise be accepted by the Step-3 old-candidate default
+                  despite grossly wrong residuals, and the level optimization
+                  would then drag level energies to re-absorb the shift.
 
     Returns:
         observed_lines: list of SpectralLine objects
     """
     print("Step 3: Reading observed spectral lines...")
+    if wn_shift != 0.0:
+        print(f"  NOTE: all observed wavenumbers shifted by {wn_shift:+.3f} cm^-1 (chance-coincidence run)")
     wb = openpyxl.load_workbook(LINES_FILE, read_only=True, data_only=True)
     ws = wb['Sheet1']
 
@@ -222,7 +350,7 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict):
             continue
 
         try:
-            wavenumber = float(wn_val)
+            wavenumber = float(wn_val) + wn_shift
             uncertainty = float(unc_val)
             intensity = float(intens_val)
         except (ValueError, TypeError):
@@ -245,7 +373,7 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict):
             observed_lines.append(current_line)
             prev_line = current_line
 
-        if id1_val and id2_val:
+        if id1_val and id2_val and not drop_legacy:
             lower = levels_dict.get(id1_val)
             upper = levels_dict.get(id2_val)
             if lower is not None and upper is not None:
@@ -392,11 +520,20 @@ def assign_grades(line: SpectralLine, transitions: list):
         tr.notes1 = ""  # notes1 holds F/R flags from conflict resolution
 
 
-def match_and_grade(observed_lines: list, all_possible_transitions: list, verbose: bool = False):
+def match_and_grade(observed_lines: list, all_possible_transitions: list,
+                    levels_dict: dict = None, verbose: bool = False):
     """For each observed line, find matching transitions and grade them.
 
     Modifies observed_lines in place (updates assigned_transitions and grades).
     Also tracks all new assignments for conflict resolution.
+
+    The matching tolerance is 5.5 * combined_sigma, where combined_sigma
+    folds in each candidate's level-energy uncertainties (EnergyLevel.u_energy,
+    from compute_level_uncertainties(), as estimated from the previous
+    cycle's accepted transitions) in quadrature with the line's own
+    wavenumber uncertainty, not just the line's uncertainty alone. This lets
+    a transition whose Ritz wavenumber depends on a not-yet-precisely-known
+    new level be matched even when the observed line itself is very precise.
 
     Returns:
         transition_assignments: dict keyed by (lower_id, upper_id) ->
@@ -408,6 +545,11 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list, verbos
     # Build a list of wavenumbers for binary search
     all_wn = [t.calculated_wavenumber for t in all_possible_transitions]
 
+    # Widest possible per-level contribution to the tolerance, used only to
+    # size the coarse bisect search window; the exact per-candidate tolerance
+    # (below) still uses each candidate's own two levels.
+    max_u_energy = max((lev.u_energy for lev in levels_dict.values()), default=0.0) if levels_dict else 0.0
+
     # Track all assignments: (lower_id, upper_id) -> [(transition, line, wn_diff)]
     transition_assignments = {}
 
@@ -415,9 +557,9 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list, verbos
         # if (line_idx + 1) % 1000 == 0:
         #     print(f"  Processing line {line_idx + 1}/{len(observed_lines)}...")
 
-        tolerance = 5.5 * obs_line.wn_uncertainty
-        wn_lo = obs_line.wavenumber - tolerance
-        wn_hi = obs_line.wavenumber + tolerance
+        search_tolerance = 5.5 * math.sqrt(obs_line.wn_uncertainty ** 2 + 2 * max_u_energy ** 2)
+        wn_lo = obs_line.wavenumber - search_tolerance
+        wn_hi = obs_line.wavenumber + search_tolerance
 
         idx_lo = bisect.bisect_left(all_wn, wn_lo)
         idx_hi = bisect.bisect_right(all_wn, wn_hi)
@@ -425,6 +567,9 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list, verbos
         matches = []
         for t in all_possible_transitions[idx_lo:idx_hi]:
             wn_diff_abs = abs(obs_line.wavenumber - t.calculated_wavenumber)
+            u_lower = t.lower_level.u_energy if t.lower_level else 0.0
+            u_upper = t.upper_level.u_energy if t.upper_level else 0.0
+            tolerance = 5.5 * math.sqrt(obs_line.wn_uncertainty ** 2 + u_lower ** 2 + u_upper ** 2)
             if wn_diff_abs <= tolerance:
                 # Reuse or create transition
                 existing = None
@@ -449,8 +594,16 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list, verbos
                 
                 matches.append(target_tr)
 
+        # Grade all candidates on this line: the fresh matches plus any seeded
+        # original assignments whose Ritz wavenumber fell outside the matching
+        # window this cycle. The latter still take part in the weeding (e.g.
+        # the Step-2 blend logic), so they must not keep grade=None/new=None.
+        matched_ids = {id(m) for m in matches}
+        stale = [otr for otr in obs_line.assigned_transitions
+                 if otr is not UNASSIGNED and id(otr) not in matched_ids]
+        if matches or stale:
+            assign_grades(obs_line, matches + stale)
         if matches:
-            assign_grades(obs_line, matches)
             for m in matches:
                 key = (m.lower_level.level_id, m.upper_level.level_id)
                 if key not in transition_assignments:
@@ -601,6 +754,8 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
     print("  Building output...")
     output_rows = []
     for obs_line in observed_lines:
+        n_accepted_line = sum(1 for t in obs_line.assigned_transitions
+                              if t is not UNASSIGNED and t.accepted == 1)
         unassigned_row = {
             'wn_obs': obs_line.wavenumber,
             'unc_wn_obs': obs_line.wn_uncertainty,
@@ -619,6 +774,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'notes2': '',
             'new': '',
             'accepted': np.nan,
+            'n_accepted': n_accepted_line,
             'low_E': np.nan,
             'upp_E': np.nan,
             'rwn': np.nan,
@@ -659,6 +815,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'notes2': tr.notes2 if tr.notes2 else '',
                     'new': tr.new if tr.new is not None else '',
                     'accepted': tr.accepted if tr.accepted is not None else np.nan,
+                    'n_accepted': n_accepted_line,
                     'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
                     'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan,
@@ -756,14 +913,25 @@ def reset_weeding_state(observed_lines: list) -> None:
             t.notes2 = ""
 
 
+def trans_key(t) -> tuple:
+    """Stable identity of an assignment: (lower_id, upper_id, line).
+
+    Transition objects are re-created by match_and_grade() in each outer
+    Step-5 cycle, so id(t) cannot identify a transition across cycles.
+    SpectralLine objects persist for the whole run, hence this key is
+    stable and unique (a line holds at most one transition per level pair).
+    """
+    return t.lower_level.level_id, t.upper_level.level_id, id(t.assigned_to)
+
+
 def snapshot_accepted(observed_lines: list) -> dict:
-    """Return {id(transition): accepted} for all non-UNASSIGNED transitions."""
+    """Return {trans_key(transition): accepted} for all non-UNASSIGNED transitions."""
     snap = {}
     for line in observed_lines:
         for t in line.assigned_transitions:
             if t is UNASSIGNED:
                 continue
-            snap[id(t)] = t.accepted
+            snap[trans_key(t)] = t.accepted
     return snap
 
 
@@ -822,11 +990,75 @@ def _wm_mandel_paule(values: list, uncertainties: list) -> tuple:
     return wm, u_wm
 
 
-def _compute_factor_for_transition_list(transitions: list, min_n: int=5) -> tuple:
-    """Compute a weighted-mean intensity adjustment factor from a list of transitions.
+def compute_level_uncertainties(levels_dict: dict, max_sweeps: int = 50, tol: float = 1e-4) -> None:
+    """Estimate each level's u_energy from the scatter of energies implied by
+    its currently accepted transitions (level.from_transitions/to_transitions,
+    as left by the previous Step-5 cycle's weeding), and write it back onto
+    each EnergyLevel. Must be called before matching/weeding starts for a
+    cycle, since it consumes the *previous* cycle's accepted transitions.
+
+    For a level L with an accepted transition to partner P (observed
+    wavenumber uncertainty u_obs), that transition implies E_L = E_P +- wn_obs
+    with combined uncertainty sqrt(u_obs^2 + u_energy(P)^2). u_energy(L) is
+    then the chi-squared-inflated weighted-mean uncertainty of all such
+    implied energies (_wm_red_chi, the same statistic already used for the
+    per-level intensity factors).
+
+    Because u_energy(P) is itself being solved for, this is done by
+    fixed-point (Gauss-Seidel-style) iteration over all levels: levels
+    connected only through chains of other new levels pick up their partners'
+    still-converging uncertainty from the previous sweep, so uncertainty
+    propagates outward from the well-determined levels without needing to
+    identify a single "defining transition" for each level of a chain.
+
+    Levels with no accepted transitions (including every level on the first
+    cycle, before any assignment exists) keep u_energy = 0.0 (unknown); they
+    pick up a real estimate once assignments accumulate in later cycles.
+    """
+    for lev in levels_dict.values():
+        lev.u_energy = 0.0
+
+    for _sweep in range(max_sweeps):
+        new_u = {}
+        for lid, lev in levels_dict.items():
+            values, uncertainties = [], []
+            for t in lev.from_transitions:  # lev is the upper level of t
+                if t.accepted != 1:
+                    continue
+                values.append(t.lower_level.energy + t.assigned_to.wavenumber)
+                uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.lower_level.u_energy ** 2))
+            for t in lev.to_transitions:  # lev is the lower level of t
+                if t.accepted != 1:
+                    continue
+                values.append(t.upper_level.energy - t.assigned_to.wavenumber)
+                uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.upper_level.u_energy ** 2))
+
+            if values:
+                _, u_wm = _wm_red_chi(values, uncertainties)
+                new_u[lid] = u_wm if u_wm is not None else 0.0
+            else:
+                new_u[lid] = 0.0
+
+        max_delta = max(abs(new_u[lid] - lev.u_energy) for lid, lev in levels_dict.items())
+        for lid, lev in levels_dict.items():
+            lev.u_energy = new_u[lid]
+        if max_delta < tol:
+            break
+
+
+def _compute_factor_for_transition_list(transitions: list, min_n: int=5, offset=None) -> tuple:
+    """Compute a mean intensity adjustment factor from a list of transitions.
 
     Qualifying transitions: accepted == 1, orig_calc_intensity and orig_u_calc > 0,
     and the parent line has exactly one accepted transition (unblended).
+
+    Args:
+        transitions: candidate Transition list (a level's from- or to-list).
+        min_n: minimum number of qualifying transitions.
+        offset: optional callable t -> float, subtracted from each residual
+                r = ln(I_obs/I_calc_orig) before averaging. The backfitting
+                loop uses it to fit this factor on the partial residuals left
+                by the complementary (from/to) factor.
 
     Returns (factor, u_factor, n_qualifying).
     If n_qualifying < min_n, returns (0.0, 0.0, n_qualifying).
@@ -847,25 +1079,27 @@ def _compute_factor_for_transition_list(transitions: list, min_n: int=5) -> tupl
         n_accepted_on_line = sum(1 for tt in line.assigned_transitions if tt.accepted == 1)
         if n_accepted_on_line != 1:
             continue
-        qualifying.append(t)
+        r = math.log(t.assigned_to.intensity / t.orig_calc_intensity)
+        if abs(r) > 3.0:
+            continue  # Skip candidates with strongly deviating intensities
+        qualifying.append((t, r))
 
     n = len(qualifying)
-    if n < min_n:
+    if n < min_n or USE_INTENSITY_ADJUSTMENT != 1:
         return 0.0, 0.0, n
 
-    # Weighted mean: w_i = 1/u_calc_i^2, r_i = ln(I_obs / I_calc_orig)
+    # Residuals to average: r_i = ln(I_obs / I_calc_orig) - offset_i
     r_values = []
     r_uncertainties = []
-    for t in qualifying:
+    for t, r in qualifying:
         r_uncertainties += [t.orig_u_calc]
-        r = math.log(t.assigned_to.intensity / t.orig_calc_intensity)
-        r_values += [r]
+        r_values += [r - (offset(t) if offset else 0.0)]
 
-    use_mandel_paule = True
-    if use_mandel_paule:
+    if FACTOR_WEIGHTING == 'mandel_paule':
         factor, u_factor = _wm_mandel_paule(r_values, r_uncertainties)
     else:
-        factor, u_factor = _wm_red_chi(r_values, r_uncertainties)
+        factor = sum(r_values) / n
+        u_factor = math.sqrt(sum((r - factor) ** 2 for r in r_values) / (n * (n - 1))) if n > 1 else 0.0
     if factor is None:
         return 0.0, 0.0, n
 
@@ -894,6 +1128,13 @@ def compute_intensity_factors(levels_dict: dict, alpha: float = 0.5,
     Uses orig_calc_intensity/orig_u_calc (raw theoretical values) to prevent
     feedback amplification across iterations.
 
+    The from- and to-factors are fitted by backfitting: the from-factors are
+    computed on the residuals left by the current to-factors and vice versa,
+    alternating until the factors stabilize. This solves the joint two-way
+    model r = f_from(upper) + f_to(lower) + noise. Fitting each factor
+    independently on the full residuals (as done previously) counts shared
+    discrepancy structure twice, so the combined adjustment overshoots.
+
     Args:
         levels_dict: dict of level_id -> EnergyLevel
         alpha: damping coefficient (0..1). 1.0 = no damping, 0.5 = blend
@@ -912,9 +1153,33 @@ def compute_intensity_factors(levels_dict: dict, alpha: float = 0.5,
     to_factors = []
     level_details = {}  # level_id -> (n_from, from_factor, n_to, to_factor)
 
+    # Backfitting: alternately refit the from-factors on the residuals left by
+    # the to-factors and vice versa, until the factors stabilize.
+    MAX_BACKFIT_SWEEPS = 50
+    BACKFIT_TOL = 1e-4
+    raw_from_map, raw_to_map = {}, {}
+    u_from_map, u_to_map = {}, {}
+    n_from_map, n_to_map = {}, {}
+    for _sweep in range(MAX_BACKFIT_SWEEPS):
+        max_delta = 0.0
+        for lid, level in levels_dict.items():
+            f, u_f, n = _compute_factor_for_transition_list(
+                level.from_transitions, min_n,
+                offset=lambda t: raw_to_map.get(t.lower_level.level_id, 0.0))
+            max_delta = max(max_delta, abs(f - raw_from_map.get(lid, 0.0)))
+            raw_from_map[lid], u_from_map[lid], n_from_map[lid] = f, u_f, n
+        for lid, level in levels_dict.items():
+            f, u_f, n = _compute_factor_for_transition_list(
+                level.to_transitions, min_n,
+                offset=lambda t: raw_from_map.get(t.upper_level.level_id, 0.0))
+            max_delta = max(max_delta, abs(f - raw_to_map.get(lid, 0.0)))
+            raw_to_map[lid], u_to_map[lid], n_to_map[lid] = f, u_f, n
+        if max_delta < BACKFIT_TOL:
+            break
+
     for lid, level in levels_dict.items():
         # Upper-level (emission) correction
-        raw_from, u_from, n_from = _compute_factor_for_transition_list(level.from_transitions, min_n)
+        raw_from, u_from, n_from = raw_from_map[lid], u_from_map[lid], n_from_map[lid]
         if prev_factors is not None and lid in prev_factors:
             prev_from = prev_factors[lid][0]
             applied_from = alpha * raw_from + (1.0 - alpha) * prev_from
@@ -922,7 +1187,7 @@ def compute_intensity_factors(levels_dict: dict, alpha: float = 0.5,
             applied_from = raw_from
         level.intens_from_factor = applied_from
         level.u_intens_from_factor = u_from
-        if n_from >= 5:
+        if n_from >= min_n:
             n_from_computed += 1
             if applied_from != 0.0:
                 from_factors.append(applied_from)
@@ -930,7 +1195,7 @@ def compute_intensity_factors(levels_dict: dict, alpha: float = 0.5,
             n_from_skipped += 1
 
         # Lower-level correction
-        raw_to, u_to, n_to = _compute_factor_for_transition_list(level.to_transitions, min_n)
+        raw_to, u_to, n_to = raw_to_map[lid], u_to_map[lid], n_to_map[lid]
         if prev_factors is not None and lid in prev_factors:
             prev_to = prev_factors[lid][1]
             applied_to = alpha * raw_to + (1.0 - alpha) * prev_to
@@ -938,7 +1203,7 @@ def compute_intensity_factors(levels_dict: dict, alpha: float = 0.5,
             applied_to = raw_to
         level.intens_to_factor = applied_to
         level.u_intens_to_factor = u_to
-        if n_to >= 5:
+        if n_to >= min_n:
             n_to_computed += 1
             if applied_to != 0.0:
                 to_factors.append(applied_to)
@@ -1011,23 +1276,36 @@ def print_factor_stability(iteration: int, level_details: dict, prev_factors: di
         print(f"  --- Factor stability (iter {iteration}): all levels stable (<0.05) ---")
 
 
-def detect_oscillations(accepted_history: list, trans_map: dict):
+def detect_oscillations(accepted_history: list, trans_map: dict, verbose: bool=False):
     """Identify transitions that flip acceptance state A→B→A across last 3 snapshots.
 
     Args:
-        accepted_history: list of snapshot dicts [{id(t): accepted}, ...], oldest first.
-        trans_map: {id(t): Transition} for reverse lookup.
+        accepted_history: list of snapshot dicts [{trans_key(t): accepted}, ...], oldest first.
+        trans_map: {trans_key(t): Transition} for reverse lookup.
+        verbose: if True, print diagnostics (default False).
     """
     if len(accepted_history) < 3:
         return
     s1, s2, s3 = accepted_history[-3], accepted_history[-2], accepted_history[-1]
     oscillating = []
     for tid in s1:
+        if tid not in s2 and tid in s3:
+            v1, v3 = s1[tid], s3[tid]
+            if v1 != v3:
+                oscillating.append((tid, v1, None, v3))
+                continue
+        if tid in s2 and tid not in s3:
+            v1, v2 = s1[tid], s2[tid]
+            if v1 != v2:
+                oscillating.append((tid, v1, v2, None))
+                continue
         if tid not in s2 or tid not in s3:
             continue
         v1, v2, v3 = s1[tid], s2[tid], s3[tid]
         if v1 == v3 and v1 != v2:
             oscillating.append((tid, v1, v2, v3))
+    if not verbose:
+        oscillating = []
     if oscillating:
         print(f"  --- Oscillation detection: {len(oscillating)} transitions flip A→B→A in last 3 iterations ---")
         for tid, v1, v2, v3 in oscillating[:20]:
@@ -1151,7 +1429,10 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         return cur_group, i_tot_theory, u_ln_theo_group
 
     def _ritz_sigma(candidate: Transition) -> float:
-        return abs(line.wavenumber - candidate.calculated_wavenumber) / line.wn_uncertainty
+        u_lower = candidate.lower_level.u_energy if candidate.lower_level else 0.0
+        u_upper = candidate.upper_level.u_energy if candidate.upper_level else 0.0
+        combined_sigma = math.sqrt(line.wn_uncertainty ** 2 + u_lower ** 2 + u_upper ** 2)
+        return abs(line.wavenumber - candidate.calculated_wavenumber) / combined_sigma
 
     def _u_sys(candidate: Transition):
         # NOTE: preserve truthiness semantics (0.0 behaves as missing intensity)
@@ -1188,15 +1469,16 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         """
         Effective spread normalized by combined resolution width.
 
-        The observed line profile is a convolution of the Doppler (thermal)
+        The observed line profile is a convolution of the Doppler (thermal,
+        FWHM-based)
         profile and the instrumental profile.  The effective resolution is
-        sqrt(doppler_sigma² + wn_uncertainty²), so at low wavenumber where
+        sqrt(doppler_width² + wn_uncertainty²), so at low wavenumber where
         Doppler widths are small the measurement uncertainty dominates
         (recovering sigma-spread behavior), and at high wavenumber the
         Doppler width dominates.
 
         Returns dimensionless value:
-            effective_spread / sqrt(doppler_sigma² + wn_uncertainty²)
+            effective_spread / sqrt(doppler_width² + wn_uncertainty²)
         """
 
         if not group: return 999.0
@@ -1206,21 +1488,22 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         # --- constants ---
         eV_to_J = 1.602176634e-19
         u_to_kg = 1.66053906660e-27
-        c = 2.99792458e10  # cm/s
+        c = 2.99792458e8  # m/s (SI, consistent with sqrt(kT/m) below)
 
-        # --- Doppler sigma in cm^-1 ---
+        # --- Doppler width (FWHM) in cm^-1 ---
         T_J = temperature_eV * eV_to_J
         m_kg = atomic_mass_u * u_to_kg
 
-        # sqrt(kT / m) / c
-        doppler_sigma_factor = (T_J / m_kg) ** 0.5 / c
+        # FWHM factor: sqrt(8*ln2 * kT / m) / c  (dimensionless; 8.22e-6 for
+        # Pr at T = 1.6 eV)
+        doppler_fwhm_factor = math.sqrt(8.0 * math.log(2.0) * T_J / m_kg) / c
 
         # Use representative wavenumber (CoG is best)
         cog = _cog(group)
-        doppler_sigma = cog * doppler_sigma_factor
+        doppler_width = cog * doppler_fwhm_factor
 
         # --- combined resolution width ---
-        effective_resolution = math.sqrt(doppler_sigma ** 2 + obs_wn_unc ** 2)
+        effective_resolution = math.sqrt(doppler_width ** 2 + obs_wn_unc ** 2)
 
         # --- effective spread in cm^-1 ---
         any_none = _any_i_none(group)
@@ -1375,7 +1658,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                         n_decided_step2: int,
                         n_undecided: int) -> tuple[bool, int, int]:
         pool_not_rejected = [t for t in line.assigned_transitions
-                             if t.accepted != 0 and not (blacklist and id(t) in blacklist)]
+                             if t.accepted != 0 and not (blacklist and trans_key(t) in blacklist)]
         n_pool = len(pool_not_rejected)
         pair_pass_made = False
         progress = False
@@ -1473,7 +1756,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                         n_decided_step2: int,
                         n_undecided: int) -> tuple[bool, int, int]:
         pool_nr = [t for t in line.assigned_transitions
-                   if t.accepted != 0 and not (blacklist and id(t) in blacklist)]
+                   if t.accepted != 0 and not (blacklist and trans_key(t) in blacklist)]
         npool = len(pool_nr)
         triple_pass_made = False
         progress = False
@@ -1573,7 +1856,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         if not step1_done:
             num_decided_step1 = 0
             for rank, trans in enumerate(undecided, start=1):
-                if blacklist and id(trans) in blacklist:
+                if blacklist and trans_key(trans) in blacklist:
                     continue
                 # 1. Initialize cumulative values from already accepted (accepted == 1) transitions
                 accepted_already = _accepted_already()
@@ -1738,7 +2021,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         elif not step2_done:
             num_decided_step2 = 0
             for trans in undecided:
-                if blacklist and id(trans) in blacklist:
+                if blacklist and trans_key(trans) in blacklist:
                     continue
                 # 1. Initialize cumulative values from already accepted (accepted == 1) transitions
                 accepted_already = _accepted_already()
@@ -1831,7 +2114,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
 
             # --- Step2 late arbitration: conflict flags in notes1 ---
             for trans in [t for t in line.assigned_transitions
-                          if t.accepted is None and not (blacklist and id(t) in blacklist)]:
+                          if t.accepted is None and not (blacklist and trans_key(t) in blacklist)]:
                 notes1 = trans.notes1 or ""
 
                 if trans.new == 1:
@@ -1853,16 +2136,19 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
             if num_decided_step2 == 0:
                 step2_done = True
         else:
-            # Step 3: Reject all undecided new candidates and accept all undecided old candidates
+            # Step 3: Reject all undecided new candidates and accept all undecided old candidates.
+            # Blacklisted (oscillating) transitions are always rejected: their instability is
+            # evidence of an unreliable assignment, so they must stay dropped even if old.
             for rank, trans in enumerate(undecided, start=1):
-                if trans.new == 1:
+                if blacklist and trans_key(trans) in blacklist:
+                    trans.accepted = 0
+                    trans.notes2 = "Step3 Rejected: decisions oscillate between weeding iterations or cycles"
+                elif trans.new == 1:
                     trans.accepted = 0
                     trans.notes2 = "Step3 Rejected: new, no solid evidence for acceptance"
                 else:
                     trans.accepted = 1
                     trans.notes2 = "Step3 Accepted: old, no solid evidence for rejection"
-                if blacklist and id(trans) in blacklist:
-                    trans.notes2 += "; decisions oscillate in iterations"
                 num_undecided = num_undecided - 1
 
     num_decided_step1 = 0
@@ -1905,8 +2191,8 @@ def print_iteration_summary(iteration: int, stats: tuple):
     print(f"  {label}: Step1={nd1}, Step2={nd2}, Step3={nd3}, Accepted={na}")
 
 
-def weed_assignments(observed_lines: list, levels_dict: dict,
-                     max_iterations: int = 59, alpha: float = 0.5, min_n: int = 5, verbose: bool = False):
+def weed_assignments(observed_lines: list, levels_dict: dict, blacklist: set,
+                     max_iterations: int = 59, alpha: float = 0.5, min_n: int = 10, verbose: bool = False):
     """Iterative weeding with per-level intensity adjustment factors.
 
     1. Run baseline weeding (no adjustments)
@@ -1917,6 +2203,9 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
     Args:
         observed_lines: list of SpectralLine objects.
         levels_dict: dictionary of energy levels, keyed by level ID.
+        blacklist: set of trans_key() tuples of oscillating transitions.
+                   Created once before the outer Step-5 cycle and shared
+                   across cycles, so oscillations between cycles persist.
         max_iterations: maximum number of weeding iterations to perform.
         alpha: damping coefficient for factor updates (0..1).
                1.0 = no damping, 0.5 = equal blend with previous iteration.
@@ -1928,13 +2217,11 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
 
     # Build transition map once for oscillation detection
     trans_map = {
-        id(t): t
+        trans_key(t): t
         for line in observed_lines
         for t in line.assigned_transitions
         if t is not UNASSIGNED
     }
-
-    blacklist = set()
 
     # Iteration 0: baseline (calc_intensity == orig_calc_intensity)
     stats = weed_single_pass(observed_lines, blacklist=blacklist)
@@ -1985,7 +2272,8 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
         # Blacklist transitions that flipped acceptance state
         if iteration > 2:
             for tid in prev_snapshot:
-                if tid in curr_snapshot and prev_snapshot[tid] != curr_snapshot[tid]:
+                if (tid in curr_snapshot and prev_snapshot[tid] != curr_snapshot[tid]) or (
+                        tid not in curr_snapshot and prev_snapshot[tid] == 1):
                     if tid not in blacklist:
                         blacklist.add(tid)
 
@@ -1996,13 +2284,46 @@ def weed_assignments(observed_lines: list, levels_dict: dict,
         prev_snapshot = curr_snapshot
 
     if blacklist and verbose:
-        print(f"  Blacklisted {len(blacklist)} oscillating transition(s).")
+        print(f"  Blacklisted {len(blacklist)} oscillating transition(s) (cumulative).")
     return stats
 
-def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict, verbose: bool = False) -> int:
+
+def blacklist_cycle_oscillations(cycle_snapshots: list, blacklist: set) -> int:
+    """Blacklist transitions whose end-of-cycle acceptance oscillates A→B→A
+    across the last three outer Step-5 cycles.
+
+    The weeding-internal detection in weed_assignments() cannot see these
+    flips: it compares snapshots only between its own inner iterations, so a
+    transition that is stable within every cycle but lands on the opposite
+    decision in alternating cycles never produces an inner-iteration change.
+
+    Absence from a snapshot (transition not matched in that cycle) counts as
+    a distinct state, so present→absent→present is also treated as an
+    oscillation: whenever the transition reappears it will stay rejected.
+
+    Args:
+        cycle_snapshots: list of end-of-cycle snapshot_accepted() dicts, oldest first.
+        blacklist: shared set of trans_key() tuples; oscillators are added to it.
+
+    Returns the number of newly blacklisted transitions.
+    """
+    if len(cycle_snapshots) < 3:
+        return 0
+    s1, s2, s3 = cycle_snapshots[-3], cycle_snapshots[-2], cycle_snapshots[-1]
+    n_new = 0
+    for key in set(s1) | set(s2) | set(s3):
+        v1, v2, v3 = s1.get(key), s2.get(key), s3.get(key)
+        if v1 == v3 and v2 != v1 and key not in blacklist:
+            blacklist.add(key)
+            n_new += 1
+    return n_new
+
+
+def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict,
+                     blacklist: set, verbose: bool = False) -> int:
 
     # Step 5.1: Match & grade
-    transition_assignments = match_and_grade(observed_lines, all_possible, verbose=verbose)
+    transition_assignments = match_and_grade(observed_lines, all_possible, levels_dict, verbose=verbose)
 
     # Step 5.2: Resolve conflicts & output
     max_num_assignments, num_conflicts = resolve_conflicts(transition_assignments, verbose=verbose)
@@ -2011,7 +2332,7 @@ def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict
         print(f'  Total number of conflicting assignments: {num_conflicts}')
 
     # Step 5.3: Weed assignments (iterative with per-level intensity adjustments)
-    stats = weed_assignments(observed_lines, levels_dict, max_iterations=100, alpha=0.5, min_n=5, verbose=verbose)
+    stats = weed_assignments(observed_lines, levels_dict, blacklist, max_iterations=100, alpha=0.5, min_n=10, verbose=verbose)
     nd1, nd2, nd3, na = stats
     if verbose: print(f"Weeding complete. Decisions made: {nd1} in Step1, {nd2} in Step2, {nd3} in Step3")
     print(f"  Total number of accepted assignments: {na}")
@@ -2092,9 +2413,32 @@ def clear_assignments(all_possible: list, lines: list):
 # ===========================================================================
 # MAIN
 # ===========================================================================
-def main(max_cycles: int = 10):
+def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
+         decoy_shift: float = 0.0, decoy_ids=None) -> pd.DataFrame:
+    """Run the full classification pipeline.
+
+    Args:
+        max_cycles: maximum number of Step-5 cycles.
+        wn_shift: constant added to all observed wavenumbers (cm^-1);
+                  nonzero values are used for chance-coincidence Monte Carlo.
+        write_files: write line_classifications.xlsx/.csv (disable for
+                     Monte-Carlo runs so the real output is not overwritten).
+        decoy_shift: if nonzero, add a decoy copy of every level selected by
+                  decoy_ids, displaced by +-decoy_shift (see
+                  add_decoy_levels), for the in-situ false-positive
+                  calibration; the observed lines and legacy identifications
+                  are used unchanged.
+        decoy_ids: ids of the levels to copy as decoys (defaults to the
+                  levels absent from ASD).
+
+    Returns the output DataFrame.
+    """
     print("=" * 60)
     print("classify_lines.py — Spectral Line Classification for Pr III")
+    if wn_shift != 0.0:
+        print(f"CHANCE-COINCIDENCE RUN: wavenumber shift {wn_shift:+.3f} cm^-1")
+    if decoy_shift != 0.0:
+        print(f"DECOY RUN: shadow copies of the new levels displaced by +-{abs(decoy_shift):g} cm^-1")
     print("=" * 60)
 
     # Step 1: Read energy levels
@@ -2103,8 +2447,15 @@ def main(max_cycles: int = 10):
     # Step 2: Read calculated transitions
     calc_trans_index = read_transitions(levels_dict)
 
+    # Optional: insert decoy levels for the in-situ false-positive calibration
+    if decoy_shift != 0.0:
+        add_decoy_levels(levels_dict, levels_list, calc_trans_index, decoy_shift,
+                         decoy_ids=decoy_ids)
+
     # Step 3: Read observed spectral lines
-    observed_lines = read_observed_lines(levels_dict, calc_trans_index)
+    # Chance-coincidence runs classify from scratch (no legacy identifications)
+    observed_lines = read_observed_lines(levels_dict, calc_trans_index, wn_shift=wn_shift,
+                                         drop_legacy=(wn_shift != 0.0))
 
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
@@ -2112,11 +2463,21 @@ def main(max_cycles: int = 10):
     levels_history = []  # List of level snapshots per cycle
     i, na_prev, num_accepted, max_dif_it1 = 0, 0, 0, 0.0
     weights = {}
+    blacklist = set()  # oscillating transitions, keyed by trans_key(); persists across cycles
+    cycle_snapshots = []  # end-of-cycle acceptance snapshots for cross-cycle oscillation detection
     # Step 5 - Main cycle: match & grade, resolve conflicts, weed assignments, optimize levels
     for i in range(max_cycles):
         print(f"Step 5 cycle {i+1}:")
         if i > 0: clear_assignments(all_possible, observed_lines)
-        num_accepted = assignment_cycle(observed_lines, all_possible, levels_dict, verbose=False)
+        # Level.from_transitions/to_transitions still hold the previous cycle's
+        # accepted transitions at this point (clear_assignments doesn't touch
+        # them); on cycle 0 they're empty, so every level starts at u_energy=0.
+        compute_level_uncertainties(levels_dict)
+        num_accepted = assignment_cycle(observed_lines, all_possible, levels_dict, blacklist, verbose=True)
+        cycle_snapshots.append(snapshot_accepted(observed_lines))
+        n_new_bl = blacklist_cycle_oscillations(cycle_snapshots, blacklist)
+        if n_new_bl:
+            print(f"  Blacklisted {n_new_bl} transition(s) oscillating between cycles.")
         weights = calc_weights(observed_lines)
         max_dif_it1 = optimize_levels(levels_list, levels_history, weights, verbose=False)
         print(f"  Accepted assignments: {num_accepted}, max energy change in optimization: {max_dif_it1:.6f} cm^-1")
@@ -2126,11 +2487,13 @@ def main(max_cycles: int = 10):
         print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
     df = build_output(observed_lines, weights)
-    write_output(df)
+    if write_files:
+        write_output(df)
 
     print("=" * 60)
     print("Done.")
     print("=" * 60)
+    return df
 
 
 if __name__ == '__main__':
