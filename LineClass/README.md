@@ -114,11 +114,15 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | File                                | Location (constant)                   | Sheet       | Description                                                               |
 |-------------------------------------|---------------------------------------|-------------|---------------------------------------------------------------------------|
 | `Pr3_lev_Wyart_1999.xlsm`           | `../TableExtraction/` (`LEVELS_FILE`) | `Wyart2000` | Energy levels (Wyart 1999 adopted values). Shared with `TableExtraction`. |
-| `Icalc.xlsx`                        | `LineClass/` (`ICALC_FILE`)           | `Sheet1`    | Calculated (theoretical) transition intensities and their uncertainties.  |
+| `Icalc.xlsx`                        | `LineClass/` (`files.icalc`)          | `Icalc`     | Calculated (theoretical) transition intensities and their uncertainties.  |
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
 ### Column mapping (as read by the code)
+
+The file names, worksheet names and column names below are the ones configured in
+`lineclass_config.toml`; the readers locate each column by its **name** in the header
+row, so the `#` position columns are informative only. See [Configuration](#configuration).
 
 **Energy levels** — `read_energy_levels()`, sheet `Wyart2000` (header row skipped):
 
@@ -350,6 +354,158 @@ Weights come from `calc_weights`: for each accepted transition on a line, `BF = 
 
 ---
 
+## Transitions missing from `Icalc.xlsx`: the censoring correction
+
+### What the absence of a transition means
+
+`Icalc.xlsx` holds the calculated transitions: for each pair of energy levels it gives
+`gA` — the statistical weight of the upper level multiplied by the probability, per
+second, that the atom makes that transition — together with the predicted intensity
+`Icalc` and the uncertainty `u%gA` of `gA` in percent. `gA` measures how strong the line
+is expected to be.
+
+The file is **not** a list of every transition that exists. Cowan's atomic-structure
+codes, which produced it, printed a transition only when `gA` reached **1000 s⁻¹**. So a
+level pair that does not appear in the file is not a transition of unknown strength: it
+is one **known to be weaker than the cutoff**. Statisticians call data of this kind
+*left-censored* — the value was measured, found to be below a threshold, and only the
+fact of being below it was recorded.
+
+Checked against the data (593 levels of the `Wyart2000` sheet):
+
+|                                                                                  | pairs         |
+|----------------------------------------------------------------------------------|---------------|
+| electric-dipole-allowed level pairs within the wavenumber range of the file       | 31646         |
+| present in `Icalc.xlsx`                                                           | 30206 (95.4%) |
+| absent, i.e. `gA` < 1000 s⁻¹                                                      | 1442 (4.6%)   |
+| present but *not* dipole-allowed                                                  | 0             |
+| rows dropped because a level id is unknown                                        | 0             |
+
+Every pair in the file is allowed and every allowed pair is either in the file or below
+the cutoff, so the censoring reading holds exactly, and it applies to 4.6% of the
+candidate pairs.
+
+Until 2026-08 the pipeline treated such a pair as having *no* predicted intensity, which
+meant that both intensity tests — the relative-intensity filter on a blended line and the
+z-test of predicted against observed intensity on a line with a single candidate — were
+simply skipped for it. An identification resting on a censored pair therefore escaped the
+strongest evidence against it: the theory says this line should be far too weak to see,
+and it was seen. The censoring correction gives such a pair the intensity implied by a
+`gA` just below the cutoff, so that its predicted weakness counts against the
+identification instead of exempting it.
+
+### The imputed value
+
+Write `u_ln = ln(1 + u%gA/100)` for the uncertainty of `gA` on a logarithmic scale (the
+`u_ln` column of the file). A logarithmic scale is the natural one because the uncertainty
+of a calculated `gA` is a factor, not an amount: `u_ln = 0.69` means "uncertain by about a
+factor of two", in whatever decade `gA` happens to lie.
+
+1. **`u_ln_missing`** = root mean square of `u_ln` over the decade just above the cutoff,
+   1000 ≤ `gA` ≤ 10000 s⁻¹. Measured: **1.7383**. (`u_ln` grows as `gA` falls — the weak
+   transitions are the badly calculated ones — so the uncertainty appropriate just below
+   the cutoff is the one seen just above it.)
+2. **`gA_missing` = cutoff · exp(−`u_ln_missing`) = 176 s⁻¹**, i.e. the value whose
+   **upper one-standard-deviation bound sits exactly on the cutoff**,
+   `gA_missing · exp(u_ln_missing) = 1000 s⁻¹`. The censored transition is thereby made as
+   strong as it could be while still being consistent with having been left out of the
+   file. A larger value would contradict the censoring; a smaller one would assert
+   knowledge that is not there and punish the identification harder than the data warrant.
+
+   > **Not** "gA minus its uncertainty is zero." That reading appeared in early notes and
+   > is wrong. With a logarithmic uncertainty the linear standard deviation is
+   > `σ = gA·(e^u_ln − 1)`, so `gA − σ = gA·(2 − e^u_ln)` vanishes only at
+   > `u_ln = ln 2 = 0.693`, not at the 1.738 measured here — and on a log-normally
+   > distributed quantity zero is unreachable at any finite number of standard deviations.
+   > The lower one-standard-deviation bound of the imputed value is
+   > `cutoff·exp(−2·u_ln_missing)` = 31 s⁻¹, 3% of the cutoff.
+
+3. The intensity follows from the relation the file itself obeys, to eight significant
+   figures over all 30206 rows:
+
+   ```
+   Icalc = C · gA · exp(−Eup / kT) / rwn ,      C = 135.8 ,  kT = 12905 cm⁻¹
+   ```
+
+   with `Eup` the energy of the upper level and `rwn` the Ritz wavenumber, both in cm⁻¹.
+   `kT` is an effective excitation temperature written as an energy in the same unit.
+   `gA_imputation.check_intensity_model` re-fits `C` and `kT` on each run and warns if the
+   file disagrees with the configured values by more than 1%.
+
+`python gA_imputation.py --report` prints the whole calibration: the decade-by-decade
+profile of `u_ln`, the estimate in force, and the model check.
+
+### Switching the policy
+
+`missing_gA.policy` in `lineclass_config.toml` selects the treatment, and
+`--missing-gA {none,impute}` overrides it on the command line of `classify_lines.py`,
+`decoy_mc.py` and `chance_mc.py`:
+
+| value                | meaning                                                                             |
+|----------------------|-------------------------------------------------------------------------------------|
+| `"impute"` (default) | a censored pair gets the imputed intensity above and faces both intensity tests      |
+| `"none"`             | a censored pair has no predicted intensity and the intensity tests are skipped for it (the behaviour before 2026-08) |
+
+The switch is on the Monte-Carlo drivers as well because a false-positive calibration made
+under one policy must never be used to judge a run made under the other: the decoy runs are
+the yardstick, and the yardstick has to be marked in the same units as the thing measured.
+
+The imputed intensity is computed at the point of use (`classify_lines.imputed_values`),
+not when the file is read, so a decoy level's transitions are imputed exactly when the real
+transitions they shadow would be. That is what keeps the false-positive calibration fair.
+
+### What the correction does to the result
+
+Full comparison, evidence and verdict: `PLAN_missing_gA.md`, "Stage 5 results" (a working
+document kept outside version control). Both runs
+are archived under `baseline/policy_none/` and `baseline/policy_impute/` and are reproduced
+exactly by the current code; `tools/analyze_policy_diff.py OLD NEW [--list]` regenerates the
+comparison.
+
+Accepted identifications fall from 3336 to 3300 — **36 lost, 2 gained, 1.1% of the total**;
+33 of the 36 rest on a censored pair. The identifications removed behave like false ones on
+three independent measures:
+
+|                                                                       | `none`         | `impute`      |
+|-----------------------------------------------------------------------|----------------|---------------|
+| accepted **decoy** identifications per run (false by construction)     | 91.2           | **50.0**      |
+| expected false level confirmations at the best criterion               | 2.12           | **1.00**      |
+| tested levels validated at that criterion                              | 50/123 (40.6%) | 46/113 (40.7%)|
+| rms level shift &#124;dE&#124; over the 192 new levels                 | 0.1318         | **0.0941** cm⁻¹ |
+| rms &#124;dE&#124; over the 64 levels that lost an identification      | 0.1837         | **0.0845** cm⁻¹ |
+| new levels with spurious probability `p_spur` < 0.1                    | 49             | **57**        |
+
+The policy removes 45% of the demonstrably false identifications at a cost of 1.1% of all
+of them — about 40 false for each real one — while the same proportion of tested levels
+survives validation and the expected contamination among them halves. The levels that lose
+an identification are precisely the ones that were wandering: their rms energy shift was
+twice the average before the correction and is below it after, which is the signature of
+removing a false line rather than a true one.
+
+One number carries the argument without depending on the imputation recipe at all: under
+`"none"`, identifications resting on a censored pair are **25.8%** of what the decoys accept
+(188 of 730 pooled decoy identifications) but only **1.2%** of what the real run accepts (40
+of 3336). They are 21 times over-represented among identifications that are false by
+construction, so exempting them from the intensity tests was letting through the very
+population the decoys mark as spurious.
+
+Nine new levels lost every identification they had. All nine were supported *only* by
+identifications on censored pairs, and all nine already carried `p_spur` ≥ 0.40 under the
+old policy — not one was a level the old run considered established. One level already in the
+NIST ASD, 059003.000304, also lost both of its identifications; both were new proposals on
+censored pairs, so its published status is untouched. The sole-candidate
+z-thresholds were examined and deliberately **left unchanged**: for the 33 rejected imputed
+identifications the z of the intensity test runs from 3.34 to 5.88 (median 4.79) against a
+rejection threshold of 1.25, so every one of these rejections would stand at any threshold
+up to 3.3 and the thresholds have no leverage on the outcome.
+
+One caution when comparing the two archived runs: `p_spur` is **not** comparable one-to-one
+between them, because each run carries its own decoy calibration and the `"impute"`
+calibration is the tighter one. Two levels cross the 0.1 mark while keeping exactly the same
+identifications and the same energy shift.
+
+---
+
 ## Validation of the classification (`decoy_mc.py`, `level_shifts.py`)
 
 ### The problem
@@ -425,17 +581,38 @@ python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → c
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
 ```
 
+The first three accept `--missing-gA {none,impute}`, which overrides `missing_gA.policy` of
+the configuration file. Steps 1 and 2 must be run under the **same** policy, since step 2
+calibrates step 1.
+
 Step 2 reads the baseline output of step 1 (to define the tested levels and the perturbation reference), so the order matters. Each full validation run takes a few minutes.
 
 ---
 
 ## Configuration
 
-There is no config file; tunables are module constants and function defaults in `classify_lines.py`:
+**`lineclass_config.toml`**, read by `config.py` (`config.load()`) at the start of every
+script, holds everything that describes the *inputs*: file names, worksheet names, and the
+column names the readers look for. Columns are found by their **name** in the header row of
+the worksheet, not by position, so a rearranged input workbook needs no change in the code.
+Relative paths are taken relative to the directory holding the configuration file.
+
+| section                     | what it fixes                                                                     |
+|-----------------------------|-----------------------------------------------------------------------------------|
+| `[files]`                   | the four input/output workbook names                                                |
+| `[range]`                   | `wn_min`, `wn_max`: the wavenumber interval (cm⁻¹) in which candidate transitions are generated |
+| `[levels.layout]`, `[lines.layout]`, `[icalc.layout]` | worksheet name and column names of each input file            |
+| `[icalc.completeness]`      | `gA_cutoff`: the printing threshold of Cowan's codes, 1000 s⁻¹ — the basis of the censoring correction above |
+| `[missing_gA]`              | `policy` (`"impute"` or `"none"`) and the settings of the imputation recipe          |
+| `[intensity_model]`         | `C` and `kT` of `Icalc = C·gA·exp(−Eup/kT)/rwn`, plus the tolerance of the re-fit check |
+
+The remaining tunables are decisions about the *method* rather than the data, and stay as
+module constants and function defaults in `classify_lines.py`:
 
 | Name                       | Value                | Meaning                                                        |
 |----------------------------|----------------------|----------------------------------------------------------------|
-| `WN_MIN`, `WN_MAX`         | `9327.0`, `121665.0` | Allowed Ritz-wavenumber range (cm⁻¹)                           |
+| `WN_MIN`, `WN_MAX`         | `9327.0`, `121665.0` | Allowed Ritz-wavenumber range (cm⁻¹); set from `[range]` of the configuration file |
+| `MISSING_POLICY`           | `'impute'`           | Treatment of a level pair absent from `Icalc.xlsx`; set from `[missing_gA]`, overridden by `--missing-gA` |
 | `ATOMIC_MASS`              | `140.90765` u        | Pr mass for Doppler width                                      |
 | `T`                        | `1.6` eV             | Plasma temperature for Doppler width                           |
 | match tolerance            | `5.5 σ_comb`          | Candidate window in `match_and_grade`; `σ_comb` combines `wn_uncertainty` with `u_energy` of both levels |
@@ -461,8 +638,17 @@ LineClass/
 ├── models.py                     # Dataclasses: EnergyLevel, SpectralLine, Transition, UNASSIGNED
 ├── decoy_mc.py                   # Validation: decoy (shadow-level) runs → false-confirmation rates in situ
 ├── level_shifts.py               # Validation: calibrations, criterion grids, pattern scores, p_spur; --detail mode
-├── chance_mc.py                  # Shared utilities (read_input_levels, per_level_table, save_table);
-│                                 #   run directly for the optional shifted-wavenumber cross-check
+├── chance_mc.py                  # Shared utilities (read_input_levels, per_level_table, save_table,
+│                                 #   apply_policy_option); run directly for the optional
+│                                 #   shifted-wavenumber cross-check
+├── config.py                     # Reads lineclass_config.toml; file, sheet and column names
+├── lineclass_config.toml         # Configuration: inputs, layouts, gA cutoff, missing-gA policy
+├── gA_imputation.py              # The censoring correction: gA_missing, u_ln_missing, Icalc model
+│                                 #   (`--report` prints the calibration)
+├── tests/                        # pytest suite (python -m pytest -q)
+├── tools/                        # compare_runs.py, analyze_policy_diff.py
+├── baseline/                     # Archived reference runs (policy_none/, policy_impute/)
+├── PLAN_missing_gA.md            # The censoring correction: plan, evidence, Stage-5 verdict
 ├── Icalc.xlsx                    # Input: calculated transition intensities & uncertainties
 ├── Pr3_lines.xlsx                # Input: observed spectral lines (Sugar 1969/1974)
 ├── intensity_correction_functions.txt  # Input (optional): Sugar plate-intensity calibration
