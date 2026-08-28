@@ -1,0 +1,229 @@
+C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\numpy\_core\fromnumeric.py:3824: RuntimeWarning: Mean of empty slice
+  return _methods._mean(a, axis=axis, dtype=dtype,
+C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\numpy\_core\_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+Levels read: 593 total; tested (new*, n_new > n_old): 113; old (reference): 480
+Predicted transitions loaded: 29162; observable: 1985 (excluded: 113 in coverage gaps, 27064 below Sugar's noise level)
+cross-tab vs ASD status (is_new_level = 1 means absent from ASD):
+  absent_from_ASD=0, new_star=0: 392
+  absent_from_ASD=0, new_star=1: 9
+  absent_from_ASD=1, new_star=0: 88
+  absent_from_ASD=1, new_star=1: 104
+
+============================================================
+OLD-LEVEL CALIBRATION (387 old levels with >= 1 accepted line)
+============================================================
+|dE| percentiles (pNN = value below which NN% of the levels fall):
+  p50 = 0.0156,  p90 = 0.1028,  p95 = 0.1561,  p99 = 0.3281,  max = 1.0754  cm^-1
+d = dE*n: aggregate rms = 0.712 cm^-1 (dominated by the many-line levels);
+per given n the genuine shifts are much tighter:
+   support bin  count  median |dE|  median |d|
+           1-2      9       0.0529       0.087
+           3-4     14       0.0316       0.125
+           5-7     60       0.0245       0.139
+          8-11     89       0.0290       0.265
+         12-17     72       0.0142       0.202
+         18-25     66       0.0092       0.206
+           26+     77       0.0115       0.353
+
+============================================================
+TESTED (NEW*) LEVELS (113) IN THE REAL RUN
+============================================================
+support distribution (n = accepted lines):  1: 37  2: 30  3: 24  4: 9  5: 7  6: 3  8+: 3
+|dE|: p50 = 0.0506,  p90 = 0.2339,  p95 = 0.2955,  max = 0.4781  cm^-1
+  within old-level p90 (0.1028 cm^-1): 80 of 113
+  within old-level p95 (0.1561 cm^-1): 96 of 113
+  within old-level p99 (0.3281 cm^-1): 110 of 113
+  within old-level max (1.0754 cm^-1): 113 of 113
+
+Largest |d| = |dE*n| among tested levels (top 12):
+          level_id    J par     E_input        dE    n       d
+     059003.000400 15/2   o   118063.00   +0.2972    4   +1.19
+     059003.000445  7/2   o    82082.70   +0.2816    3   +0.84
+     059003.000584 15/2   e   134433.41   +0.2519    3   +0.76
+     059003.000587  3/2   e   134480.15   +0.3072    2   +0.61
+     059003.000481 13/2   o   117397.80   -0.0726    8   -0.58
+     059003.000460  3/2   o   111772.91   -0.1869    3   -0.56
+     059003.000454 11/2   o    87726.90   -0.4781    1   -0.48
+     059003.000579 13/2   e   134402.02   +0.2371    2   +0.47
+     059003.000439 11/2   o    76130.52   -0.1494    3   -0.45
+     059003.000607 13/2   e   138783.50   +0.1479    3   +0.44
+     059003.000184  7/2   e    46783.64   +0.1476    3   +0.44
+     059003.000580 11/2   e   134402.83   +0.2208    2   +0.44
+
+============================================================
+IN-SITU DECOY CALIBRATION (8 runs x 113 decoys) - primary
+============================================================
+
+|dE| by support n: real tested levels vs decoys (runs pooled):
+    n    real: N   median      p90   |      decoys: N   median      p90
+    1         37   0.0568   0.3037   |            177   0.1261   0.4733
+    2         30   0.0479   0.1480   |             84   0.2806   1.1486
+    3         24   0.0892   0.1756   |             22   0.3695   0.7710
+    4          9   0.0219   0.1401   |              7   0.4820   1.4074
+    5          7   0.0175   0.0330   |              1   0.9071   0.9071
+    6          3   0.0026   0.0428   |              0      nan      nan
+    7          0      nan      nan   |              0      nan      nan
+   8+          3   0.0169   0.0614   |              1   0.3118   0.3118
+
+Criterion (n >= N and |dE| <= T): tested levels passing / expected false passes per run (in-situ decoys, worst case):
+  N \ T              p90             p95             p99             max
+  >= 1       80 / 13.12      96 / 17.62     110 / 24.75     113 / 34.38
+  >= 2       58 /  3.38      69 /  4.88      76 /  7.75      76 / 12.75
+  >= 3       34 /  0.75      42 /  1.00      46 /  1.62      46 /  3.62
+  >= 4       21 /  0.25      21 /  0.25      22 /  0.50      22 /  1.00
+  >= 5       13 /  0.00      13 /  0.00      13 /  0.12      13 /  0.25
+  >= 6        6 /  0.00       6 /  0.00       6 /  0.12       6 /  0.12
+  >= 7        3 /  0.00       3 /  0.00       3 /  0.12       3 /  0.12
+  >= 8        3 /  0.00       3 /  0.00       3 /  0.12       3 /  0.12
+Best cut at <= 5% expected contamination: n >= 3 and |dE| <= p99 = 0.3281 cm^-1 -> 46 of 113 levels validated, expected false: 1.62
+
+============================================================
+INTENSITY-PATTERN CHECK
+============================================================
+top10 = share of the 10 strongest predicted transitions of the level found among
+the accepted lines; C = intensity-weighted completeness; V = C relative to the
+best C achievable with the level's matched lines. Tested levels are split by the
+energy-shift evidence alone to show that the pattern is an independent check.
+
+  group                                      N   top10   med C  V: p25    p50    p75
+  old levels (genuine)                     373    0.64    0.91    0.81   0.96   1.00
+  tested, p_spur_decoys < 0.1              108    0.45    0.54    0.30   0.89   1.00
+  tested, p_spur_decoys >= 0.1               0     nan     nan     nan    nan    nan
+  decoys with >= 1 line (fake)             289    0.22    0.14    0.00   0.29   0.89
+
+Decoy trials with >= 3 of the top-10 predictions accepted: 12 of 289 (4.2%) - an upper bound on the chance
+that a displaced level accidentally sits on a real, previously unknown level.
+
+pattern_V range probabilities used as evidence (genuine / spurious):
+  0-0.1: 0.09/0.35  0.1-0.3: 0.04/0.16  0.3-0.6: 0.05/0.15  0.6-0.9: 0.16/0.10  0.9-1: 0.65/0.25
+
+============================================================
+PER-LEVEL SPURIOUS PROBABILITIES
+============================================================
+log-normal |d| models (ln|d| = a + b*ln n, scatter s):
+  spurious (decoys):    a = -2.232, b = +1.894, s = 1.452   (289 supported decoys)
+  genuine (old levels): a = -2.682, b = +0.398, s = 1.425   (386 old levels)
+
+Most probable number of spurious levels among the 113 tested (with 95% confidence ranges):
+  energy shifts alone:        S =   0.0  [0.0 .. 11.2]
+    robustness check (genuine |dE| independent of n): S = 37.0  [22.8 .. 49.5]
+  intensity pattern alone:    S =  36.5  [18.2 .. 55.2]
+  both folded (final p_spur): S =  20.2  [5.0 .. 37.5]
+    robustness check, folded: S = 33.8  [21.0 .. 45.8]
+consistency: sum of folded p_spur = 20.0
+levels by folded p_spur: <5%: 42,  5-50%: 58,  50-90%: 13,  >90%: 0
+
+Tested levels with folded p_spur >= 0.1 (52):
+          level_id    J par     E_input        dE   n  top10     V   p_dE  p_pat  p_spur
+     059003.000454 11/2   o    87726.90   -0.4781   1    0/1  0.00  0.000  0.854   0.741
+     059003.000456  9/2   o    99681.90   -0.3178   1    0/2  0.00  0.000  0.854   0.722
+     059003.000554  9/2   e   107177.80   +0.2137   1    0/6  0.00  0.000  0.854   0.702
+     059003.000451  7/2   o    86390.45   +0.1756   1    0/2  0.00  0.000  0.854   0.693
+     059003.000461  1/2   o   111779.59   +0.1692   1    0/2  0.00  0.000  0.854   0.691
+     059003.000436  7/2   o    74619.63   -0.1112   1    0/2  0.00  0.000  0.854   0.670
+     059003.000551  5/2   e   106384.65   -0.1032   1    0/5  0.00  0.000  0.854   0.667
+     059003.000619  5/2   e   138883.81   -0.3342   1    1/3  0.57  0.000  0.807   0.652
+     059003.000622 15/2   e   141328.85   +0.2944   1    1/4  0.31  0.000  0.807   0.645
+     059003.000558 11/2   e   107697.07   +0.0522   1    0/9  0.00  0.000  0.854   0.634
+     059003.000616 17/2   e   138833.55   -0.0342   1    1/3  0.23  0.000  0.841   0.588
+     059003.000441 13/2   o    76534.72   -0.0163   1    1/4  0.25  0.000  0.841   0.553
+     059003.000435  5/2   o    68676.55   -0.0092   1    0/2  0.00  0.000  0.854   0.553
+     059003.000400 15/2   o   118063.00   +0.2972   4    3/7  0.05  0.000  0.298   0.446
+     059003.000376 19/2   o   114970.95   +0.0005   1    1/4  0.02  0.000  0.854   0.443
+     059003.000445  7/2   o    82082.70   +0.2816   3    0/2  0.00  0.000  0.338   0.431
+     059003.000455 13/2   o    89969.42   +0.0002   1    0/2  0.00  0.000  0.854   0.420
+     059003.000485  3/2   o   118224.13   +0.4263   1    0/0    --  0.000  0.598   0.414
+     059003.000567 13/2   e   122932.60   +0.0604   2    0/1  0.00  0.000  0.680   0.404
+     059003.000584 15/2   e   134433.41   +0.2519   3    2/3  0.19  0.000  0.315   0.379
+     059003.000503  7/2   o   132958.22   +0.1557   1    0/0    --  0.000  0.598   0.358
+     059003.000570 11/2   e   126743.30   -0.0000   1    0/2  0.00  0.000  0.854   0.342
+     059003.000615 19/2   e   138827.78   -0.0000   1    1/3  0.21  0.000  0.841   0.319
+     059003.000565  9/2   e   119225.52   -0.0568   1    0/0    --  0.000  0.598   0.309
+     059003.000544  3/2   e   105191.13   -0.0515   1    0/0    --  0.000  0.598   0.304
+     059003.000572  9/2   e   129454.45   +0.0506   1    0/0    --  0.000  0.598   0.304
+     059003.000612 11/2   e   138799.91   +0.0488   2    2/4  0.52  0.000  0.602   0.294
+     059003.000184  7/2   e    46783.64   +0.1476   3    2/4  0.01  0.000  0.338   0.281
+     059003.000440  5/2   o    76411.04   -0.0268   2    0/4  0.00  0.000  0.680   0.277
+     059003.000374 17/2   o   114725.60   +0.1440   3    1/5  0.06  0.000  0.338   0.276
+     059003.000585  5/2   e   134454.31   +0.2484   1    1/3  0.70  0.000  0.470   0.270
+     059003.000599 15/2   e   136589.44   +0.0896   1    1/3  0.84  0.000  0.470   0.227
+     059003.000595 15/2   e   136559.59   +0.0806   1    1/3  0.77  0.000  0.470   0.223
+     059003.000438  7/2   o    75982.80   +0.1044   3    1/3  0.24  0.000  0.315   0.199
+     059003.000591 17/2   e   134496.12   +0.2513   1    1/2  1.00  0.000  0.362   0.192
+     059003.000604  3/2   e   136641.90   +0.0236   1    1/2  0.72  0.000  0.470   0.182
+     059003.000587  3/2   e   134480.15   +0.3072   2    1/2  1.00  0.000  0.171   0.176
+     059003.000443 15/2   o    79377.15   -0.0131   2    1/2  0.27  0.000  0.657   0.174
+     059003.000589  3/2   e   134488.70   -0.1398   1    1/2  1.00  0.000  0.362   0.172
+     059003.000453  3/2   o    86938.55   -0.1118   1    1/2  0.90  0.000  0.362   0.165
+     059003.000431  3/2   o    65073.26   -0.0940   1    1/1  1.00  0.000  0.362   0.160
+     059003.000579 13/2   e   134402.02   +0.2371   2    1/3  1.00  0.000  0.171   0.150
+     059003.000588  5/2   e   134480.72   +0.1254   2    2/3  0.64  0.000  0.243   0.148
+     059003.000430  5/2   o    30602.83   +0.0097   2    2/9  0.18  0.000  0.657   0.146
+     059003.000561 11/2   e   111039.75   +0.0544   1    1/5  1.00  0.000  0.362   0.145
+     059003.000580 11/2   e   134402.83   +0.2208   2    2/4  1.00  0.000  0.171   0.144
+     059003.000606 17/2   e   136650.90   +0.0317   1    1/2  1.00  0.000  0.362   0.131
+     059003.000560  9/2   e   108574.00   +0.0186   1    1/7  1.00  0.000  0.362   0.120
+     059003.000575 13/2   e   130218.64   +0.0158   1    1/3  1.00  0.000  0.362   0.117
+     059003.000610 17/2   e   138796.56   +0.0650   3    2/3  0.45  0.000  0.267   0.108
+     059003.000448  9/2   o    84690.20   +0.1399   2    1/3  1.00  0.000  0.171   0.107
+     059003.000477  3/2   o   116777.55   +0.0064   1    1/1  1.00  0.000  0.362   0.101
+
+Masking check of the questionable levels (a missing predicted transition counts as hidden if,
+within one effective line width — instrumental FWHM 0.035 angstrom convolved with the Doppler
+width — an observed line reaches 0.5 x its predicted intensity, or if the Gaussian wing of a
+stronger line still exceeds the predicted intensity at its position; the mark is cleared when
+>= 90% of the missing predicted intensity is hidden and the energy shift alone is not suspect):
+  question_status = removed (questionable mark cleared): 18
+    059003.000374  (91% of the missing predicted intensity is masked)
+    059003.000436  (100% of the missing predicted intensity is masked)
+    059003.000438  (100% of the missing predicted intensity is masked)
+    059003.000441  (100% of the missing predicted intensity is masked)
+    059003.000443  (100% of the missing predicted intensity is masked)
+    059003.000445  (100% of the missing predicted intensity is masked)
+    059003.000448  (99% of the missing predicted intensity is masked)
+    059003.000451  (100% of the missing predicted intensity is masked)
+    059003.000453  (100% of the missing predicted intensity is masked)
+    059003.000454  (100% of the missing predicted intensity is masked)
+    059003.000456  (98% of the missing predicted intensity is masked)
+    059003.000579  (100% of the missing predicted intensity is masked)
+    059003.000580  (100% of the missing predicted intensity is masked)
+    059003.000584  (100% of the missing predicted intensity is masked)
+    059003.000588  (100% of the missing predicted intensity is masked)
+    059003.000604  (100% of the missing predicted intensity is masked)
+    059003.000610  (100% of the missing predicted intensity is masked)
+    059003.000615  (96% of the missing predicted intensity is masked)
+  question_status = retained: 34
+     29  no reason to clear
+      5  no theoretical predictions (pattern check not applicable)
+
+============================================================
+SHIFTED-WAVENUMBER CHANCE CALIBRATION (8 runs) - upper bound
+============================================================
+Counts restricted to the tested levels; the whole line list is available for false matching
+here (nothing is consumed by true identifications), so these false-pass counts are upper bounds.
+
+|dE| by support n: real tested levels vs chance (runs pooled):
+    n    real: N   median      p90   |      chance: N   median      p90
+    1         37   0.0568   0.3037   |            101   0.2172   0.7992
+    2         30   0.0479   0.1480   |            121   0.2984   0.9978
+    3         24   0.0892   0.1756   |            134   0.2158   0.8341
+    4          9   0.0219   0.1401   |            154   0.2294   0.7914
+    5          7   0.0175   0.0330   |            117   0.2181   0.8630
+    6          3   0.0026   0.0428   |             80   0.2469   0.7430
+    7          0      nan      nan   |             52   0.2485   0.6909
+   8+          3   0.0169   0.0614   |             46   0.1886   0.6072
+
+Criterion (n >= N and |dE| <= T): tested levels passing / expected false passes per run (shifted-wavenumber chance, worst case):
+  N \ T              p90             p95             p99             max
+  >= 1       80 / 25.88      96 / 36.62     110 / 63.12     113 / 95.25
+  >= 2       58 / 22.00      69 / 31.75      76 / 55.38      76 / 83.00
+  >= 3       34 / 18.88      42 / 26.62      46 / 46.75      46 / 69.38
+  >= 4       21 / 14.75      21 / 20.62      22 / 35.75      22 / 53.50
+  >= 5       13 /  9.62      13 / 13.50      13 / 24.12      13 / 35.50
+  >= 6        6 /  6.00       6 /  8.00       6 / 14.50       6 / 21.88
+  >= 7        3 /  3.50       3 /  4.50       3 /  8.12       3 / 12.25
+  >= 8        3 /  1.62       3 /  2.25       3 /  4.12       3 /  5.75
+No cut reaches <= 5% expected contamination.
+
+Written: F:\UMD\AI\as-ai\LineClass\level_shift_report.csv (+ .xlsx twin)
