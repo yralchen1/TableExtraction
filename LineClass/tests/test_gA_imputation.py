@@ -39,7 +39,7 @@ def synthetic(n_per_decade=500, seed=0):
     u_ln = -0.25 * x + 2.5 + rng.normal(0.0, 0.05, x.size)
     Eup = rng.uniform(10000.0, 60000.0, x.size)
     rwn = rng.uniform(9000.0, 100000.0, x.size)
-    Icalc = 100.0 * gA * np.exp(-Eup / 10000.0) / rwn
+    Icalc = 100.0 * gA * (rwn / 1.0e8) * np.exp(-Eup / 10000.0)
     return pd.DataFrame({'gA': gA, 'u_ln': u_ln, 'Icalc': Icalc,
                          'Eup': Eup, 'rwn': rwn})
 
@@ -162,7 +162,7 @@ def test_intensity_model_is_recovered_from_synthetic_data():
 
 def test_impute_intensity_matches_the_definition():
     got = imp.impute_intensity(175.8, 40000.0, 30000.0, 135.8, 12905.0)
-    want = 135.8 * 175.8 * math.exp(-40000.0 / 12905.0) / 30000.0
+    want = 135.8 * 175.8 * (30000.0 / 1.0e8) * math.exp(-40000.0 / 12905.0)
     assert float(got) == pytest.approx(want, rel=1e-14)
 
 
@@ -172,7 +172,7 @@ def test_impute_intensity_is_vectorised():
                                np.array([1e4, 2e4]), 135.8, 12905.0)
     assert got.shape == (2,)
     assert got[0] == pytest.approx(
-        135.8 * 100.0 * math.exp(-1e4 / 12905.0) / 1e4, rel=1e-14)
+        135.8 * 100.0 * (1e4 / 1.0e8) * math.exp(-1e4 / 12905.0), rel=1e-14)
 
 
 # --- the real file ----------------------------------------------------------

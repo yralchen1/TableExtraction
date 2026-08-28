@@ -354,6 +354,151 @@ Weights come from `calc_weights`: for each accepted transition on a line, `BF = 
 
 ---
 
+## The intensity model (Boltzmann plot)
+
+### The relation
+
+`gA` is the statistical weight of the upper level times the probability per second that the
+atom makes the transition; it is what Cowan's codes compute. In a plasma in local
+thermodynamic equilibrium the number of atoms sitting in an upper level of energy `Eup`
+falls off as `exp(−Eup/kT)`, where `kT` is an effective excitation temperature written as an
+energy in cm⁻¹, the same unit as `Eup`. The observed intensity is the **energy flux under
+the line contour**, so it carries one factor of the photon energy — that is, one factor of
+the wavenumber `rwn`. Hence
+
+```
+Icalc = C · gA · (rwn / 1e8) · exp(−Eup / kT)
+```
+
+with `rwn` the Ritz wavenumber in cm⁻¹ and `1e8/rwn` the vacuum wavelength in ångström.
+`C` absorbs everything constant across the spectrum: the number of emitters, the solid
+angle, and the plate response, which the intensity calibration has already removed from the
+observed intensities. Taking logarithms turns the relation into a straight line — the
+**Boltzmann plot**:
+
+```
+y = ln[ Iobs · (1e8/rwn) / gA ]  =  ln C  −  Eup / kT
+```
+
+so a straight-line fit of `y` against `Eup` gives `kT` from the slope (`kT = −1/slope`) and
+`C` from the intercept (`C = exp(intercept)`).
+
+### Fitting it: `tools/fit_boltzmann.py`
+
+```
+python tools/fit_boltzmann.py                                  # fit and report
+python tools/fit_boltzmann.py --write                          # ... and rewrite Icalc.xlsx
+python tools/fit_boltzmann.py --plot fit.png --points pts.csv  # ... with diagnostics
+```
+
+It takes one point per accepted identification (`accepted = 1` in
+`line_classifications.csv`), reading `obs_intens` and `rwn` from that file and `gA` and
+`Eup` for the same level pair from `Icalc.xlsx`; a pair absent from `Icalc.xlsx` has no `gA`
+and cannot enter the plot. It then fits twice: once on everything, then again after
+dropping the points whose predicted intensity disagrees with the observed one by more than
+a factor `e²` (`|ln(Icalc/Iobs)| > 2`, the `--clip` value). With `--write` it recomputes the
+`Icalc` column of every row of `Icalc.xlsx` from the fitted constants and the file's own
+`gA`, `Eup` and `rwn`, keeping a copy of the previous workbook as
+`Icalc_before_boltzmann.xlsx`. Because openpyxl stores no cached result for a formula, the
+`u_ln` column — written in the workbook as `=LN(1+u%gA/100)` — is materialised as the
+number that formula gives, so that the file reads back correctly for every consumer.
+
+The first fit, made on the 3300 identifications the old model had accepted (3296 of them
+have a `gA`), gave
+
+| pass | points | C | kT | rms of ln I |
+|---|---|---|---|---|
+| first  | 3296 | 193.05 | 12140.6 cm⁻¹ | 1.381 |
+| second (after dropping 319) | 2977 | 175.0916 | 11953.797 cm⁻¹ (1.482 eV) | 0.822 |
+
+but those constants are not the ones in force: they were superseded by the iteration
+described below, which ends at **`C` = 131.092, `kT` = 13009.1 cm⁻¹** (1.613 eV).
+
+`C` and `kT` live in `[intensity_model]` of `lineclass_config.toml`; the single
+implementation of the relation is `gA_imputation.impute_intensity`, which the imputation of
+censored transitions and `tools/fit_boltzmann.py` both call.
+`gA_imputation.check_intensity_model` re-fits the constants on the file at every run and
+warns if they have drifted apart by more than `verify_tolerance` (1%).
+
+> **Superseded on 2026-08-28.** The `Icalc` column formerly obeyed
+> `Icalc = C·gA·exp(−Eup/kT)/rwn` with `C = 135.8`, `kT = 12905 cm⁻¹` — proportional to the
+> wavelength instead of to the wavenumber, a factor `rwn²` different in shape across the
+> spectrum. Those constants came from a fit made with the DREAM `gA` values; with the
+> present `gA` values they disagree badly with the observed intensities. Recomputing the
+> column raised `Icalc` by a factor of 15.6 in the median (range 0.20 to 90.8).
+
+The first run made with this model (un-iterated constants) is archived under
+`baseline/boltzmann_model/` and the converged one under `baseline/boltzmann_converged/`
+(classification, level-shift report, both Monte Carlos, run logs), beside the two policy
+archives.
+
+### Making the fit self-consistent: `tools/iterate_boltzmann.py`
+
+The constants are fitted on the accepted identifications, and which identifications are
+accepted depends on the calculated intensities, hence on the constants. A single fit
+therefore leaves the model and the line list disagreeing with each other. The loop is closed
+by
+
+```
+python tools/iterate_boltzmann.py            # to convergence, tol = 1%
+python tools/iterate_boltzmann.py --dry-run  # one fit, print it, change nothing
+```
+
+which repeats: fit `C` and `kT` on the accepted lines → recompute the whole `Icalc` column
+with them → write them into `[intensity_model]` → reclassify every observed line against the
+new `Icalc` → fit again. The convergence test is on the calculated intensities themselves,
+not on the constants:
+
+```
+max over all 30206 transitions of | Icalc_now / Icalc_previous − 1 |  <  0.01
+```
+
+i.e. no calculated intensity moved by as much as one per cent in the last round. Testing the
+intensities rather than `C` and `kT` matters because the two constants trade off against each
+other: a larger `C` with a smaller `kT` reproduces almost the same intensities over the
+energy range where most lines lie, so the constants can still be moving while nothing the
+pipeline uses is. The criterion above cannot be satisfied that way, since it looks at every
+transition, including those at the ends of the energy range where the trade-off fails.
+
+It converged in three rounds (2026-08-28):
+
+| round | C | kT (cm⁻¹) | max \|ΔIcalc\| | accepted identifications after |
+|---|---|---|---|---|
+| 1 | 134.651 | 12915.77 | 0.855 | 4890 |
+| 2 | 131.111 | 13005.43 | 0.0500 | 4894 |
+| 3 | **131.092** | **13009.11** | **0.00293** | **4894** |
+
+Almost all of the change is in the first round; the second moves every intensity by at most
+5%, the third by at most 0.3%. Against the un-iterated fit the classification barely moves
+(4839 → 4894 accepted identifications), which is the reassuring outcome: the fixed point is
+close to the first fit, so the answer does not depend on where the iteration started.
+The converged run is archived under `baseline/boltzmann_converged/` together with the round
+logs.
+
+Where the converged run stands (all figures from `baseline/boltzmann_converged/`): 4894
+accepted identifications; every one of the 593 levels, and all 192 of Wyart's new levels,
+carries at least one; 209 levels are tested (a tested level is one supported by more new
+than previously published identifications). The in-situ decoys — shadow copies of the tested
+levels displaced in energy, so every line they accept is false by construction — put the best
+validation cut at `n >= 4` accepted lines with `|dE| <= 0.1299 cm^-1`, giving **115 of the 209
+levels validated with 5.75 expected false among them** (5.0%). Folding the energy shift and
+the intensity pattern into a per-level spurious probability leaves 196 levels below 5%,
+7 between 5% and 50%, 6 between 50% and 90%, none above.
+
+
+### What is not yet refitted
+
+The linearized observed intensities in `Pr3_lines.xlsx`, and the plate calibration
+`intensity_correction_functions.txt` that produced them, were derived from a similar
+Boltzmann model but with the DREAM `gA` values. They are left as they stand for now; the
+correction is expected to be small compared with the change in `C` and `kT` above. Note
+that the noise-level formula of `level_shifts.py` (`1000·exp(P(λ))`, the linear-scale
+intensity of Sugar's faintest recordable line) needs no adjustment for the new model: it
+concerns only the observed intensities being brought to a common linear scale, and the
+refitted `Icalc` is directly comparable with those linearized observed intensities.
+
+---
+
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
 ### What the absence of a transition means
@@ -420,11 +565,11 @@ factor of two", in whatever decade `gA` happens to lie.
    > The lower one-standard-deviation bound of the imputed value is
    > `cutoff·exp(−2·u_ln_missing)` = 31 s⁻¹, 3% of the cutoff.
 
-3. The intensity follows from the relation the file itself obeys, to eight significant
-   figures over all 30206 rows:
+3. The intensity follows from the relation every row of the file obeys (see
+   [The intensity model](#the-intensity-model-boltzmann-plot) below):
 
    ```
-   Icalc = C · gA · exp(−Eup / kT) / rwn ,      C = 135.8 ,  kT = 12905 cm⁻¹
+   Icalc = C · gA · (rwn / 1e8) · exp(−Eup / kT) ,   C = 131.092 ,  kT = 13009.1 cm⁻¹
    ```
 
    with `Eup` the energy of the upper level and `rwn` the Ritz wavenumber, both in cm⁻¹.
@@ -555,8 +700,8 @@ Running `python level_shifts.py` produces the full analysis:
    - `p_spur_pattern` — from the intensity pattern alone;
    - `p_spur` — both folded together (the final value).
    
-   With the current inputs: S = 18 [0–43 at 95% confidence] from the energy shifts alone (61 under the alternative small-n assumption — poorly determined), 37 [24–51] from the pattern alone, and **33 [22–46] folded** (42 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 56 levels; the 158 unmarked levels then carry a summed probability of only 3.7 expected spurious levels, while the marked group is expected to contain ~30 spurious and ~26 genuine members (a "questionable" mark is a caution, not a verdict).
-5. **Masking check (adjudication of the questionable marks).** A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every questionable level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared, provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`). The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs, 6 of the 56 flagged levels are cleared, leaving 50 questionable (28 with no reason to clear, 16 with no observable predictions, 6 where masking was found but the energy shift alone remains suspect).
+   With the current inputs (converged model, 209 tested levels): S = 0 [0–11.5 at 95% confidence] from the energy shifts alone (49 [28–69] under the alternative small-n assumption — poorly determined), 6.5 [0.5–15.0] from the pattern alone, and **6.0 [1.0–13.8] folded** (11.2 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 11 levels; the 198 unmarked levels then carry a summed probability of only 1.0 expected spurious levels, while the marked group is expected to contain ~5 spurious and ~6 genuine members (a "questionable" mark is a caution, not a verdict).
+5. **Masking check (adjudication of the questionable marks).** A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every questionable level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared, provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`). The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs, 3 of the 11 flagged levels are cleared, leaving 8 questionable (all 8 with no reason to clear).
 6. **Report file** — `level_shift_report.csv/.xlsx`, one row per level: `level_id`, `is_new_level` (absent from ASD), `new_star` (tested), `note`, `J`, `parity`, `E_input`, `E_final`, `dE`, `n_old`, `n_new`, `n_tot`, `d`, `n_pred`, `n_top10`, `top10_found`, `pattern_C`, `pattern_V`, `n_acc_below_noise`, `p_spur_decoys`, `p_spur_pattern`, `p_spur`, `question_status`, `reason` (the probabilities and the adjudication columns are filled only where applicable).
 
 **Single-level inspection:** `python level_shifts.py --detail <level_id> …` prints one level's predicted transitions (strongest first) with the fate of each in the real run — accepted (with the observed line), rejected (with the weeding note), or not matched by any observed line — plus the accepted lines that have no theoretical prediction. This is the working tool for judging individual questionable levels.
@@ -564,7 +709,7 @@ Running `python level_shifts.py` produces the full analysis:
 ### Limits of the validation (to be stated alongside the results)
 
 - **Recovery, not physical proof.** A small ΔE certifies that the accepted lines reproduce the energy encoded in Wyart's input value — i.e. that his identifications were recovered. If Wyart himself was misled by chance coincidences, our run re-finds the same coincidences with a small ΔE; only the intensity pattern (and physics arguments: theory, g-factors, term structure) can catch that case.
-- **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. Sixteen of the 56 marked levels have no observable predictions at all; their `p_spur` rests on the energy shift and the support count alone. A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
+- **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. In the converged run all 11 marked levels do have observable predictions (in earlier runs a sizeable part of them did not, and there `p_spur` rests on the energy shift and the support count alone). A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
 - **Decoys can accidentally be real.** A displaced decoy may land on a real, previously unknown level (most likely a neighboring-J member of the same term at high energies) or on the true position of a level misassigned in the underlying Cowan-code fit. Both effects make some decoy "false positives" actually real, so the decoy-based false rates are slight overestimates — the bias is in the safe direction. The fraction of supported decoy trials showing three or more of their top-10 predictions accepted (~6%) is an upper bound on this contamination.
 - **Lines omitted as blends with other ionization stages.** Sugar assigned lines to Pr II, III, or IV by comparing exposures at different degrees of excitation; a Pr III line nearly coinciding with a stronger Pr II or Pr IV line could not be assigned confidently and was omitted from his Pr III list. Such omissions are invisible to the masking check (the search covers only Sugar's Pr III lines), so some "missing" strong predictions are excusable in a way the automation cannot see. Statistically the effect is absorbed — the old (genuine) reference levels suffer the same omissions, so the pattern-score comparison between the classes stays fair — but the per-level adjudication is conservative: a questionable mark that an expert would clear on this ground stays retained. Automating this excuse would require Pr II and Pr IV line lists.
 
@@ -646,8 +791,11 @@ LineClass/
 ├── gA_imputation.py              # The censoring correction: gA_missing, u_ln_missing, Icalc model
 │                                 #   (`--report` prints the calibration)
 ├── tests/                        # pytest suite (python -m pytest -q)
-├── tools/                        # compare_runs.py, analyze_policy_diff.py
-├── baseline/                     # Archived reference runs (policy_none/, policy_impute/)
+├── tools/                        # compare_runs.py, analyze_policy_diff.py, fit_boltzmann.py
+│                                 #   (Boltzmann fit of C and kT), iterate_boltzmann.py
+│                                 #   (fit → rewrite Icalc → reclassify, to convergence)
+├── baseline/                     # Archived reference runs (policy_none/, policy_impute/,
+│                                 #   boltzmann_model/, boltzmann_converged/)
 ├── PLAN_missing_gA.md            # The censoring correction: plan, evidence, Stage-5 verdict
 ├── Icalc.xlsx                    # Input: calculated transition intensities & uncertainties
 ├── Pr3_lines.xlsx                # Input: observed spectral lines (Sugar 1969/1974)

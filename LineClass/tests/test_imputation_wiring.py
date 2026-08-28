@@ -93,11 +93,12 @@ def test_policy_impute_follows_the_intensity_model(policy):
     i_calc, u_calc = cl.imputed_values(lo, up)
     assert u_calc == u_ln
     assert i_calc == pytest.approx(
-        C * gA * math.exp(-up.energy / kT) / (up.energy - lo.energy), rel=1e-14)
+        C * gA * (up.energy - lo.energy) / 1.0e8
+        * math.exp(-up.energy / kT), rel=1e-14)
 
 
 def test_a_transition_of_zero_wavenumber_is_not_imputed(policy):
-    """The model divides by the wavenumber, so a degenerate pair has no value."""
+    """A pair of equal energies is not a transition, so it gets no value."""
     policy('impute')
     lo, up = levels()
     up.energy = lo.energy

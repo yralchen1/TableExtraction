@@ -100,10 +100,18 @@ self_consistent   = false       # true: iterate gA = cutoff*exp(-u_ln(gA)) on th
 fit_range_decades = [3.0, 6.0]  # log10(gA) range used by that fit
 
 [intensity_model]
-# Relation recovered from the file: Icalc = C * gA * exp(-Eup/kT) / rwn,
-# with Eup and rwn in cm^-1.  Used to turn an imputed gA into an intensity.
-C  = 135.8
-kT = 12905.0
+# Relation obeyed by the file: Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT), with
+# Eup and rwn in cm^-1; 1e8/rwn is the vacuum wavelength in angstroms.  Used to
+# turn an imputed gA into an intensity, and by level_shifts.py.
+# C and kT come from the Boltzmann plot of the accepted observed intensities
+# (tools/fit_boltzmann.py, two passes with |ln(Icalc/Iobs)| <= 2 in between),
+# which also rewrote the Icalc column of the file with them.  These are the
+# converged values: tools/iterate_boltzmann.py repeated fit -> rewrite Icalc ->
+# reclassify until no Icalc in the file moved by as much as 1% in a round
+# (3 rounds, 2026-08-28; the first, un-iterated fit gave C = 175.09, kT = 11954).
+# Superseded on 2026-08-28: C = 135.8, kT = 12905, Icalc = C*gA*exp(-Eup/kT)/rwn.
+C  = 131.091981
+kT = 13009.113665
 # Warn if a re-fit on the file disagrees with C or kT by more than this
 # fraction, instead of silently adopting the new values.
 verify_tolerance = 0.01

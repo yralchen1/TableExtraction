@@ -92,7 +92,9 @@ def _imputation_calibration():
     Returns (gA, u_ln, C, kT): the gA whose upper one-standard-deviation edge
     sits exactly on the printing cutoff, the uncertainty belonging to it (on
     the logarithmic scale), and the two constants of the intensity relation
-    Icalc = C*gA*exp(-Eup/kT)/rwn that the file obeys.  gA_imputation.py
+    Icalc = C*gA*(rwn/1e8)*exp(-Eup/kT) that the file obeys (the predicted
+    intensity is an energy flux, hence proportional to the wavenumber).
+    gA_imputation.py
     derives all four and explains the choice.
     """
     global _IMPUTED
@@ -107,7 +109,7 @@ def _imputation_calibration():
         print(f"  Transitions absent from {os.path.basename(ICALC_FILE)} are imputed "
               f"with gA = {gA:.1f} s^-1 (cutoff {CFG.gA_cutoff:g} s^-1), "
               f"u_ln = {u_ln:.4f},")
-        print(f"    through Icalc = {C:g} * gA * exp(-Eup/{kT:g}) / rwn.")
+        print(f"    through Icalc = {C:g} * gA * (rwn/1e8) * exp(-Eup/{kT:g}).")
     return _IMPUTED
 
 

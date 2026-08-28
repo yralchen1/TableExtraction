@@ -63,13 +63,17 @@ faithful to the trend of the data.
 The second half of the module turns an imputed gA into an imputed intensity.
 The intensities in the file follow
 
-    Icalc = C * gA * exp(-Eup/kT) / rwn
+    Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT)
 
-exactly (to eight significant figures over all 30206 rows), where Eup is the
-energy of the upper level of the transition and rwn its Ritz wavenumber, both
-in cm^-1, and kT is an effective excitation temperature expressed as an
-energy in the same unit.  `fit_intensity_model` recovers C and kT from the
-file, and `impute_intensity` applies the relation.
+exactly, where Eup is the energy of the upper level of the transition and rwn
+its Ritz wavenumber, both in cm^-1, 1e8/rwn is the vacuum wavelength of the
+transition in angstroms, and kT is an effective excitation temperature
+expressed as an energy in the same unit as Eup.  The observed intensity is an
+energy flux, hence proportional to the photon energy and so to rwn, which is
+where that factor comes from.  `fit_intensity_model` recovers C and kT from the
+file, and `impute_intensity` applies the relation.  The two constants come
+from the Boltzmann plot of the accepted observed intensities; see
+`tools/fit_boltzmann.py`, which fits them and rewrites the Icalc column.
 
 Run `python gA_imputation.py --report` for the calibration report.
 """
@@ -85,6 +89,9 @@ import config
 
 # Logical column names this module needs from the calculated-transition file.
 NEEDED = ('gA', 'u_ln', 'Icalc', 'Eup', 'rwn')
+
+# 1e8/rwn[cm^-1] is the vacuum wavelength of the transition in angstroms.
+ANGSTROM_PER_CM = 1.0e8
 
 
 class ImputationError(Exception):
@@ -257,17 +264,19 @@ def estimate_missing_gA(df: pd.DataFrame, cutoff: float, window: float = 10.0,
 # --- the intensity that goes with an imputed gA -----------------------------
 
 def fit_intensity_model(df: pd.DataFrame):
-    """Recover C and kT of  Icalc = C*gA*exp(-Eup/kT)/rwn  from the file.
+    """Recover C and kT of  Icalc = C*gA*(rwn/1e8)*exp(-Eup/kT)  from the file.
 
     Taking logarithms turns the relation into a straight line,
-    ln(Icalc*rwn/gA) = ln(C) - Eup/kT, which is fitted by least squares.
+    ln(Icalc*(1e8/rwn)/gA) = ln(C) - Eup/kT, which is fitted by least squares.
+    It is the Boltzmann plot of `tools/fit_boltzmann.py`, read off the
+    calculated intensities instead of the observed ones.
     Returns (C, kT), kT in cm^-1.
     """
     d = df[(df['Icalc'] > 0) & (df['gA'] > 0) & (df['rwn'] > 0)]
     if len(d) < 2:
         raise ImputationError('too few usable rows to fit the intensity model')
-    y = np.log(d['Icalc'].to_numpy(float) * d['rwn'].to_numpy(float)
-               / d['gA'].to_numpy(float))
+    y = np.log(d['Icalc'].to_numpy(float) * ANGSTROM_PER_CM
+               / d['rwn'].to_numpy(float) / d['gA'].to_numpy(float))
     slope, intercept = np.polyfit(d['Eup'].to_numpy(float), y, 1)
     if slope >= 0:
         raise ImputationError('the fitted excitation temperature is not '
@@ -276,9 +285,13 @@ def fit_intensity_model(df: pd.DataFrame):
 
 
 def impute_intensity(gA, Eup, rwn, C: float, kT: float):
-    """The intensity the model gives for a transition of strength `gA`."""
-    return C * np.asarray(gA, float) * np.exp(-np.asarray(Eup, float) / kT) \
-        / np.asarray(rwn, float)
+    """The intensity the model gives for a transition of strength `gA`.
+
+    Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT); the factor 1e8/rwn is the
+    vacuum wavelength of the transition in angstroms.
+    """
+    return C * np.asarray(gA, float) * np.asarray(rwn, float) \
+        / ANGSTROM_PER_CM * np.exp(-np.asarray(Eup, float) / kT)
 
 
 def intensity_model_error(df: pd.DataFrame, C: float, kT: float) -> float:
@@ -373,7 +386,7 @@ def report(cfg=None, stream=sys.stdout) -> None:
     p('')
 
     C, kT, C_fit, kT_fit, agrees = check_intensity_model(df, cfg, stream=None)
-    p("Intensity model  Icalc = C * gA * exp(-Eup/kT) / rwn  "
+    p("Intensity model  Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT)  "
       "(Eup, rwn, kT in cm^-1):")
     p(f"    configured  C = {C:.6g}   kT = {kT:.6g}")
     p(f"    fitted      C = {C_fit:.6g}   kT = {kT_fit:.6g}"
