@@ -46,8 +46,9 @@ The (n, |dE|) criterion tables comparing the real new levels against this
 calibration are printed by level_shifts.py.
 
 Usage:
-    python decoy_mc.py            # full run, all deltas
-    python decoy_mc.py --smoke    # plumbing test: one delta, 2 cycles
+    python decoy_mc.py                      # full run, all deltas
+    python decoy_mc.py --smoke              # plumbing test: one delta, 2 cycles
+    python decoy_mc.py --missing-gA impute  # override missing_gA.policy
 """
 import os
 import sys
@@ -78,6 +79,7 @@ def decoy_level_frame(levels: pd.DataFrame, delta: float, ids: list) -> pd.DataF
 
 def main():
     smoke = '--smoke' in sys.argv
+    mc.apply_policy_option()
     deltas = DELTAS[:1] if smoke else DELTAS
     max_cycles = 2 if smoke else 20
     if smoke:

@@ -45,6 +45,10 @@ class Transition:
     accepted: Optional[int] = None            # 1 = accepted, 0 = rejected, None = undecided
     orig_calc_intensity: Optional[float] = None   # original I_calc from input, never modified
     orig_u_calc: Optional[float] = None           # original u_calc from input, never modified
+    is_imputed: int = 0                       # 1 = the pair is absent from the calculated-transition
+                                              #     file, so its intensity was imputed from the
+                                              #     printing cutoff of gA (see gA_imputation.py);
+                                              #     0 = the intensity comes from the file, or none
 
     @property
     def calculated_wavenumber(self) -> float:

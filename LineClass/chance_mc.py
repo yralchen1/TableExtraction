@@ -47,8 +47,9 @@ Outputs written next to this script:
   chance_mc_lines.csv   — accepted (chance) lines of every shifted run.
 
 Usage:
-    python chance_mc.py            # full run, all shifts
-    python chance_mc.py --smoke    # quick plumbing test: one shift, 2 cycles
+    python chance_mc.py                      # full run, all shifts
+    python chance_mc.py --smoke              # quick plumbing test: one shift, 2 cycles
+    python chance_mc.py --missing-gA impute  # override missing_gA.policy
 """
 import os
 import sys
@@ -59,6 +60,7 @@ import openpyxl
 import pandas as pd
 
 import classify_lines as cl
+import config
 
 SHIFTS = [-11.3, -9.7, -8.3, -6.9, 6.9, 8.3, 9.7, 11.3]  # cm^-1, all > 5.5*max(u_obs)
 MAX_SUPPORT_BIN = 8  # per-level support histogram: 1..MAX_SUPPORT_BIN+
@@ -70,7 +72,7 @@ LINES_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          'chance_mc_lines.csv')
 # Accepted-line columns kept from each shifted run (for later residual analyses)
 LINE_COLS = ['wn_obs', 'unc_wn_obs', 'obs_intens', 'low_id', 'upp_id',
-             'dif_wn_O-C', 'grade', 'u_calc', 'calc_intens']
+             'dif_wn_O-C', 'grade', 'u_calc', 'calc_intens', 'imputed']
 
 
 def accepted_stats(df: pd.DataFrame) -> dict:
@@ -141,6 +143,11 @@ LINE_DECIMALS = {'wn_obs': 4, 'unc_wn_obs': 4, 'obs_intens': 2,
 LEVEL_DECIMALS = {'E_input': 4, 'E_final': 4, 'dE': 4}
 
 
+def _text(val) -> str:
+    """A cell value as a stripped string; an empty cell gives ''."""
+    return str(val).strip() if val is not None else ''
+
+
 def read_input_levels() -> pd.DataFrame:
     """Input (Wyart) level energies and old/new status from the levels file.
 
@@ -149,18 +156,19 @@ def read_input_levels() -> pd.DataFrame:
     note, J and parity are carried along for reporting.
     """
     wb = openpyxl.load_workbook(cl.LEVELS_FILE, read_only=True, data_only=True)
-    ws = wb['Wyart2000']
+    ws = wb[cl.CFG.levels.sheet]
+    col = cl.column_index(ws, cl.CFG.levels, cl.LEVELS_FILE)
     recs = []
     for row in ws.iter_rows(min_row=2):  # skip header
-        level_id = cl.to_str_id(row[22].value)  # ASD_id (col 23)
-        energy_val = row[12].value              # E_adopt (col 13)
+        level_id = cl.to_str_id(row[col['id']].value)
+        energy_val = row[col['E']].value
         if not level_id or energy_val is None:
             continue
-        e_asd = row[11].value                   # E_ASD (col 12)
+        e_asd = row[col['E_ASD']].value
         is_new = 1 if (e_asd is None or str(e_asd).strip() == '') else 0
-        note = str(row[0].value).strip() if row[0].value is not None else ''
-        j_str = str(row[10].value).strip() if row[10].value is not None else ''
-        parity = str(row[13].value).strip() if row[13].value is not None else ''
+        note = _text(row[col['note']].value)
+        j_str = _text(row[col['J']].value)
+        parity = _text(row[col['parity']].value)
         recs.append((level_id, float(energy_val), is_new, note, j_str, parity))
     wb.close()
     return pd.DataFrame(recs, columns=['level_id', 'E_input', 'is_new_level',
@@ -217,8 +225,28 @@ def print_stats(label: str, s: dict):
           f"({MAX_SUPPORT_BIN} = {MAX_SUPPORT_BIN} or more)")
 
 
+def apply_policy_option(argv=None) -> str:
+    """Honour `--missing-gA {none,impute}` on the command line.
+
+    A Monte-Carlo run must use the same treatment of the level pairs absent
+    from the calculated-transition file as the real run it calibrates, so both
+    Monte-Carlo scripts accept the same switch as classify_lines.py.  Without
+    the switch the policy of the configuration file is used.  Returns the
+    policy in force.
+    """
+    argv = sys.argv if argv is None else argv
+    if '--missing-gA' in argv:
+        i = argv.index('--missing-gA')
+        if i + 1 >= len(argv) or argv[i + 1] not in ('none', 'impute'):
+            raise SystemExit("--missing-gA takes 'none' or 'impute'")
+        cl.apply_config(config.load(), policy=argv[i + 1])
+    print(f"missing-gA policy: {cl.MISSING_POLICY}")
+    return cl.MISSING_POLICY
+
+
 def main():
     smoke = '--smoke' in sys.argv
+    apply_policy_option()
     shifts = SHIFTS[:1] if smoke else SHIFTS
     max_cycles = 2 if smoke else 20
     if smoke:
