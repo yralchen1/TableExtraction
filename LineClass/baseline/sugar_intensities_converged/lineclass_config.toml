@@ -1,0 +1,136 @@
+# Configuration for the Pr III line-classification pipeline.
+#
+# Every input-file name, worksheet name and column name used by the readers is
+# listed here, so that a change in the layout of an input workbook needs no
+# change in the code.  Columns are given by their NAME in the header row of the
+# worksheet (row 1), not by position: the readers look the name up in that row.
+#
+# Relative paths are interpreted relative to the directory holding this file.
+
+[files]
+levels     = "../TableExtraction/Pr3_lev_Wyart_1999.xlsm"  # adopted energy levels
+lines      = "Pr3_lines.xlsx"                              # observed spectral lines
+icalc      = "Icalc.xlsx"                                  # calculated transitions
+output     = "line_classifications.xlsx"                   # main output workbook
+output_csv = "line_classifications.csv"                    # the same table as csv
+
+[range]
+# Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions
+# outside it are not generated.
+wn_min = 9327.0
+wn_max = 121665.0
+
+[levels.layout]
+sheet = "Wyart2000"
+
+[levels.layout.columns]
+# J      = adopted total angular momentum, as written ("5/2", "3", ...)
+# E_ASD  = energy as listed in the NIST ASD; an empty cell means the level is
+#          absent from the ASD, i.e. it is one of Wyart's new levels
+# E      = adopted energy (cm^-1)
+# parity = parity of the level, "e" (even) or "o" (odd)
+# id     = unique level identifier used throughout the pipeline
+# note   = free remark of the level list, carried along in the reports
+J      = "J_adopt"
+note   = "note"
+E_ASD  = "E_ASD"
+E      = "E_adopt"
+parity = "par_ASD"
+id     = "ASD_id"
+
+[lines.layout]
+sheet = "Sheet1"
+
+[lines.layout.columns]
+# wn        = observed wavenumber (cm^-1)
+# u_wn      = its uncertainty (cm^-1)
+# intensity = observed intensity reduced to a uniform scale
+# character = line-character flags of the original list ("bl", "w", ...)
+# id1, id2  = level ids of the identification given in that list, if any
+#             (the "legacy" identification)
+wn        = "own"
+u_wn      = "unc_own"
+intensity = "Icor"
+character = "Ch."
+id1       = "id1"
+id2       = "id2"
+
+[icalc.layout]
+sheet = "Icalc"
+
+[icalc.layout.columns]
+# id1, id2 = level ids of the lower and of the upper level of the transition
+# rwn      = Ritz wavenumber (cm^-1)
+# gA       = statistical weight times transition probability (s^-1)
+# u_pct_gA = uncertainty of gA, in percent
+# Icalc    = predicted intensity, on the scale of the observed intensities
+# Eup      = energy of the upper level (cm^-1)
+# u_ln     = uncertainty of gA on the logarithmic scale, ln(1 + u%gA/100)
+id1      = "id1"
+id2      = "id2"
+rwn      = "rwn"
+gA       = "gA"
+u_pct_gA = "u%gA"
+Icalc    = "Icalc"
+Eup      = "Eup"
+u_ln     = "u_ln"
+
+[icalc.completeness]
+# Cowan's codes printed only transitions with gA >= gA_cutoff, so the absence of
+# a level pair from the file means gA < gA_cutoff, not that gA is unknown.
+gA_cutoff = 1.0e3
+# A few rows fall marginally below the cutoff after rescaling to Ritz
+# wavenumbers; true = read them like any other row.
+allow_below_cutoff = true
+
+[missing_gA]
+# How a candidate transition that is absent from the Icalc file is treated.
+#   "none"   = the transition simply has no predicted intensity, and the
+#              intensity tests are skipped for it (the behaviour before 2026-08)
+#   "impute" = it is given the intensity implied by a gA just below the cutoff,
+#              so that its predicted weakness counts against the identification
+# "impute" is the adopted policy (Stage 5 of PLAN_missing_gA.md): it removes 45%
+# of the in-situ decoy (false by construction) identifications at a cost of 1.1%
+# of the real ones.  Use --missing-gA none to reproduce the earlier behaviour.
+policy = "impute"
+# Settings used only by "impute":
+u_ln_window       = 10.0        # rms of u_ln over gA_cutoff <= gA <= window*gA_cutoff
+u_ln_estimator    = "rms"       # rms | mean | median
+self_consistent   = false       # true: iterate gA = cutoff*exp(-u_ln(gA)) on the linear fit
+fit_range_decades = [3.0, 6.0]  # log10(gA) range used by that fit
+
+[intensity_model]
+# Relation obeyed by the file: Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT), with
+# Eup and rwn in cm^-1; 1e8/rwn is the vacuum wavelength in angstroms.  Used to
+# turn an imputed gA into an intensity, and by level_shifts.py.
+# C and kT come from the Boltzmann plot of the accepted observed intensities
+# (tools/fit_boltzmann.py, two passes with |ln(Icalc/Iobs)| <= 2 in between),
+# which also rewrote the Icalc column of the file with them.  These are the
+# converged values: tools/iterate_boltzmann.py repeated fit -> rewrite Icalc ->
+# reclassify until no Icalc in the file moved by as much as 1% in a round.
+# History (all 2026-08-28):
+#   C = 135.8,  kT = 12905 - with Icalc = C*gA*exp(-Eup/kT)/rwn, the wrong
+#                            (photon-number) form; superseded.
+#   C = 175.09, kT = 11954 - first fit of the energy-flux form, un-iterated.
+#   C = 131.09, kT = 13009 - converged (3 rounds), observed intensities still
+#                            on the hand-made plate calibration.
+#   C = 252.87, kT = 12358 - converged (3 rounds, tol 0.005) after the plate
+#                            calibration itself was refitted with the new gA
+#                            values by tools/calibrate_intensities.py and put
+#                            into Pr3_lines.xlsx by tools/apply_calibration.py.
+#                            C rose by a factor ~1.9 mainly because the zero
+#                            point of the new correction differs from the old
+#                            one (P is fixed only up to an additive constant,
+#                            and C absorbs it); the median observed intensity
+#                            moved by a factor 1.39.
+#   C = 245.68, kT = 12425 - converged (2 rounds, tol 0.005) after Sugar's own
+#                            printed intensities were brought into the line
+#                            list as the column Iorig by
+#                            tools/attach_sugar_intensities.py and the plate
+#                            calibration was refitted to them directly, so
+#                            that nothing has to be reconstructed.
+C  = 245.676036
+kT = 12424.621628
+# Warn if a re-fit on the file disagrees with C or kT by more than this
+# fraction, instead of silently adopting the new values.
+verify_tolerance = 0.01

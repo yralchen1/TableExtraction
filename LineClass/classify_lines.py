@@ -1142,6 +1142,76 @@ def _wm_mandel_paule(values: list, uncertainties: list) -> tuple:
     return wm, u_wm
 
 
+def _level_energy_determinations(lev) -> tuple:
+    """Return the energies that `lev`'s accepted transitions imply for it.
+
+    Each accepted transition of the level is one independent determination of
+    the level's energy: the partner level's energy plus (or minus) the
+    observed wavenumber, with the uncertainty of that observed wavenumber
+    combined in quadrature with the partner level's own energy uncertainty.
+
+    Returns (keys, values, uncertainties): three parallel lists, one entry per
+    accepted transition. The keys are trans_key() values, stable across
+    Step-5 cycles, so that one determination can later be identified and
+    dropped (see u_energy_excluding()).
+    """
+    keys, values, uncertainties = [], [], []
+    for t in lev.from_transitions:  # lev is the upper level of t
+        if t.accepted != 1:
+            continue
+        keys.append(trans_key(t))
+        values.append(t.lower_level.energy + t.assigned_to.wavenumber)
+        uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.lower_level.u_energy ** 2))
+    for t in lev.to_transitions:  # lev is the lower level of t
+        if t.accepted != 1:
+            continue
+        keys.append(trans_key(t))
+        values.append(t.upper_level.energy - t.assigned_to.wavenumber)
+        uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.upper_level.u_energy ** 2))
+    return keys, values, uncertainties
+
+
+def u_energy_excluding(level, transition) -> float:
+    """u_energy of `level` recomputed without `transition`'s own determination.
+
+    Every acceptance test compares a candidate's Ritz mismatch with the
+    combined uncertainty sqrt(u_obs^2 + u_energy(lower)^2 + u_energy(upper)^2).
+    Taken at face value, u_energy would make that test circular: a transition
+    that disagrees with its level raises the scatter of the level's accepted
+    determinations, the chi-squared inflation in _wm_red_chi() turns that
+    scatter into a larger u_energy, and the larger u_energy softens the very
+    test the transition has to pass. The worse the disagreement, the easier
+    the transition gets in - which is how a level could end up holding three
+    mutually incompatible lines.
+
+    Leaving the candidate's own determination out removes the circularity at
+    its source: each transition is judged against the level as defined by the
+    *other* accepted transitions, which cannot be influenced by it. A level
+    that rests on this transition alone is left with u_energy = 0, so the
+    candidate is judged on the observed wavenumber uncertainty alone - the
+    honest answer, since without this transition that level has no measured
+    energy at all.
+
+    The determinations left after the removal may still disagree among
+    themselves, and their u_energy is still inflated accordingly; that is not
+    circular, and it resolves itself over the Step-5 cycles: the worst
+    offender fails its own test, is dropped, and the level re-forms from what
+    remains.
+    """
+    if level is None:
+        return 0.0
+    contrib = level.u_contrib
+    if not contrib or transition.assigned_to is None:
+        return level.u_energy
+    rest = [vu for k, vu in contrib.items() if k != trans_key(transition)]
+    if len(rest) == len(contrib):     # this transition is not one of them
+        return level.u_energy
+    if not rest:
+        return 0.0
+    _, u_wm = _wm_red_chi([v for v, _ in rest], [u for _, u in rest])
+    return u_wm if u_wm is not None else 0.0
+
+
 def compute_level_uncertainties(levels_dict: dict, max_sweeps: int = 50, tol: float = 1e-4) -> None:
     """Estimate each level's u_energy from the scatter of energies implied by
     its currently accepted transitions (level.from_transitions/to_transitions,
@@ -1169,22 +1239,12 @@ def compute_level_uncertainties(levels_dict: dict, max_sweeps: int = 50, tol: fl
     """
     for lev in levels_dict.values():
         lev.u_energy = 0.0
+        lev.u_contrib = {}
 
     for _sweep in range(max_sweeps):
         new_u = {}
         for lid, lev in levels_dict.items():
-            values, uncertainties = [], []
-            for t in lev.from_transitions:  # lev is the upper level of t
-                if t.accepted != 1:
-                    continue
-                values.append(t.lower_level.energy + t.assigned_to.wavenumber)
-                uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.lower_level.u_energy ** 2))
-            for t in lev.to_transitions:  # lev is the lower level of t
-                if t.accepted != 1:
-                    continue
-                values.append(t.upper_level.energy - t.assigned_to.wavenumber)
-                uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.upper_level.u_energy ** 2))
-
+            _, values, uncertainties = _level_energy_determinations(lev)
             if values:
                 _, u_wm = _wm_red_chi(values, uncertainties)
                 new_u[lid] = u_wm if u_wm is not None else 0.0
@@ -1196,6 +1256,13 @@ def compute_level_uncertainties(levels_dict: dict, max_sweeps: int = 50, tol: fl
             lev.u_energy = new_u[lid]
         if max_delta < tol:
             break
+
+    # Keep the individual determinations behind each u_energy, so that the
+    # acceptance tests can leave a transition's own determination out when
+    # they judge that transition (u_energy_excluding()).
+    for lev in levels_dict.values():
+        keys, values, uncertainties = _level_energy_determinations(lev)
+        lev.u_contrib = {k: (v, u) for k, v, u in zip(keys, values, uncertainties)}
 
 
 def _compute_factor_for_transition_list(transitions: list, min_n: int=5, offset=None) -> tuple:
@@ -1586,8 +1653,11 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         return cur_group, i_tot_theory, u_ln_theo_group
 
     def _ritz_sigma(candidate: Transition) -> float:
-        u_lower = candidate.lower_level.u_energy if candidate.lower_level else 0.0
-        u_upper = candidate.upper_level.u_energy if candidate.upper_level else 0.0
+        # Each level's uncertainty is taken as its *other* accepted
+        # transitions leave it, so that a candidate cannot soften its own
+        # test by disagreeing with its level (see u_energy_excluding()).
+        u_lower = u_energy_excluding(candidate.lower_level, candidate)
+        u_upper = u_energy_excluding(candidate.upper_level, candidate)
         combined_sigma = math.sqrt(line.wn_uncertainty ** 2 + u_lower ** 2 + u_upper ** 2)
         return abs(line.wavenumber - candidate.calculated_wavenumber) / combined_sigma
 
@@ -1775,23 +1845,23 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                 d_ln_abs = abs(ln_ratio_tot)
                 z_score = d_ln_abs / (S * u_sys_tot)
                 if ln_ratio_tot > 0:
-                    # Predicted sum too strong vs Iobs: relax rejection threshold
+                    # The candidate's own Ic too strong vs Iobs: relax rejection threshold
                     z_reject = 1.0 * _fudge_factor_for_asym_intensity([candidate],
-                                                                      i_tot_theo, line.intensity, 1.0)
+                                                                      candidate.calc_intensity, line.intensity, 1.0)
                     if z_score <= 1.0:
-                        note = f"{step_label} Accepted New: Ic stat significant & compatible with Iobs (asym: sum too strong)"
+                        note = f"{step_label} Accepted New: Ic stat significant & compatible with Iobs (asym: Ic too strong)"
                         if _lower_id_resonance(candidate):
                             note += ", resonance lower"
                         return True, 1, note
                     if z_score > z_reject:
-                        note = f"{step_label} Rejected new: Ic statistically incompatible with Iobs (asym: sum too strong, z>{z_reject:.1f})"
+                        note = f"{step_label} Rejected new: Ic statistically incompatible with Iobs (asym: Ic too strong, z>{z_reject:.1f})"
                         return True, 0, note
                 elif ln_ratio_tot < 0:
-                    # Predicted sum too weak: stricter rejection
+                    # The candidate's own Ic too weak vs Iobs: stricter rejection
                     if z_score <= 1.0:
-                        return True, 1, f"{step_label} Accepted New: Ic stat significant & compatible with Iobs (asym: sum too weak)"
+                        return True, 1, f"{step_label} Accepted New: Ic stat significant & compatible with Iobs (asym: Ic too weak)"
                     if z_score > 1.25:
-                        return True, 0, f"{step_label} Rejected New: Ic statistically incompatible with Iobs (asym: sum too weak, z>1.25)"
+                        return True, 0, f"{step_label} Rejected New: Ic statistically incompatible with Iobs (asym: Ic too weak, z>1.25)"
                 else:
                     if z_score <= 1.0:
                         return True, 1, f"{step_label} Accepted New: Ic stat significant & compatible with Iobs"
@@ -2131,6 +2201,15 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                             # rejected in Step 3. This removes new IDs accepted on weak
                             # positional evidence (the moderate-tail NP-plot humps).
                             z_thresh = 1.0 if ritz_sigma <= 2.5 else 0.0
+                            # OPEN QUESTION (2026-08-30): the intensity threshold here
+                            # is 0.2, where every other call site passes 1.0. With 1.0
+                            # the rejection threshold is relaxed only when the predicted
+                            # intensity actually exceeds the observed one; with 0.2 it is
+                            # relaxed whenever the prediction reaches a fifth of the
+                            # observation, i.e. for most candidates. The commented-out
+                            # line below shows the same 1/5 intent, so this looks
+                            # deliberate, but the reason for it is no longer on record.
+                            # Revisit if related anomalies show up in the output.
                             F = _fudge_factor_for_asym_intensity([trans],trans.calc_intensity,line.intensity, 
                                                                  0.2)
                             # F = 2.0 if d_signed > np.log(1.0/5) else 1.0
@@ -2516,44 +2595,131 @@ def calc_weights(lines: dict) -> dict:
 
 
 def optimize_levels(levels_list: list, levels_history: list, weights: dict, verbose: bool = False) -> float:
-    # Minimalistic level optimization used only for the purpose of improving the line-assignment decisions
-    # based on Ritz wavenumbers. The final level optimization is deferred to LOPT v. >= 5.
-    MAX_IT = 50  # Max. number of iterations
-    TOL = 0.001  # Tolerance on change in level energies
+    """Optimize all level energies at once by weighted least squares.
+
+    Every accepted transition is one observation equation
+
+        E(upper level) - E(lower level) = wn(observed)
+
+    weighted by w = weights[t] (the branching-fraction weight built by
+    calc_weights) or, if the transition has no entry there, by 1/u^2, u
+    being the uncertainty of the observed wavenumber.  The energies that
+    minimize the weighted sum of squared residuals are the solution of the
+    normal equations  (A^T W A) x = A^T W y , which are formed here by
+    accumulating the 2x2 block each transition contributes and solved
+    directly.  This is the exact minimum of the same model the previous
+    iterative version approached; the earlier sweep stopped when a single
+    pass moved no level by more than 0.001 cm^-1, which bounds the step,
+    not the distance still left to the minimum, and so left up to
+    ~0.05 cm^-1 of avoidable error in the strongly coupled levels.
+
+    Levels sitting at 0.0 are held fixed (the ground level), as are levels
+    that no accepted transition touches - nothing constrains those.  Should
+    a group of levels be connected only to each other and not, through any
+    chain of transitions, to a fixed level, its energies are determined only
+    up to a common offset; one level of such a group is then held at its
+    current energy so that the group keeps the position it has.
+
+    Returns the largest energy change made, which the caller uses to decide
+    whether the classification cycle has settled.
+    """
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
-    max_dif_it1 = 0.0
-    for it in range (MAX_IT):
-        max_change = 0.0
-        for lev in levels_list:
-            if lev.energy == 0.0: continue    # Skip the ground level
-            # Compute weighted mean of energy differences for accepted transitions from/to this level
-            e_sum = 0.0
-            w_sum = 0.0
 
-            for t in lev.from_transitions:
-                if t.accepted != 1: continue
-                # w = 1.0 / (t.assigned_to.wn_uncertainty ** 2)
-                w = weights[id(t)] if id(t) in weights else 1.0 / (t.assigned_to.wn_uncertainty ** 2)
-                e_sum += (t.lower_level.energy + t.assigned_to.wavenumber) * w
-                w_sum += w
-            for t in lev.to_transitions:
-                if t.accepted != 1: continue
-                # w = 1.0 / (t.assigned_to.wn_uncertainty ** 2)
-                w = weights[id(t)] if id(t) in weights else 1.0 / (t.assigned_to.wn_uncertainty ** 2)
-                e_sum += (t.upper_level.energy - t.assigned_to.wavenumber) * w
-                w_sum += w
+    # ---- the observation equations -------------------------------------
+    # A transition is reachable from both of its levels, so it is collected
+    # through its identity to be counted once.
+    trans = {}
+    for lev in levels_list:
+        for t in lev.from_transitions:
+            if t.accepted == 1: trans[id(t)] = t
+        for t in lev.to_transitions:
+            if t.accepted == 1: trans[id(t)] = t
+    trans = list(trans.values())
+    if not trans: return 0.0
 
-            if w_sum > 0:
-                new_energy = e_sum / w_sum
-                change = abs(new_energy - lev.energy)
-                max_change = max(max_change, change)
-                lev.energy = new_energy
-        if verbose: print(f"Iteration {it+1}: max energy change = {max_change:.6f} cm^-1")
-        if it == 0: max_dif_it1 = max_change
-        if max_change < TOL:
-            if verbose: print("Convergence achieved.")
-            break
-    return max_dif_it1
+    def weight_of(t):
+        if id(t) in weights: return weights[id(t)]
+        return 1.0 / (t.assigned_to.wn_uncertainty ** 2)
+
+    # ---- which levels are free to move ---------------------------------
+    fixed = {id(lev) for lev in levels_list if lev.energy == 0.0}
+    touched = set()
+    for t in trans:
+        touched.add(id(t.lower_level))
+        touched.add(id(t.upper_level))
+
+    # A group of levels tied only to each other floats as a whole; find the
+    # groups with a simple union-find and hold one level of each floating
+    # group in place.  ANCHOR stands for "any fixed level".
+    ANCHOR = 0
+    parent = {ANCHOR: ANCHOR}
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    def union(a, b):
+        parent.setdefault(a, a); parent.setdefault(b, b)
+        ra, rb = find(a), find(b)
+        if ra == rb: return
+        # ANCHOR stays the root of its group, so a group tied to a fixed
+        # level is recognised as anchored however the union is written.
+        if ra == ANCHOR: parent[rb] = ra
+        else: parent[ra] = rb
+    for t in trans:
+        a, b = id(t.lower_level), id(t.upper_level)
+        union(ANCHOR if a in fixed else a, ANCHOR if b in fixed else b)
+    pinned = {}
+    for lev in levels_list:
+        if id(lev) not in touched or id(lev) in fixed: continue
+        root = find(id(lev))
+        if root == ANCHOR: continue
+        if root not in pinned: pinned[root] = id(lev)
+    fixed |= set(pinned.values())
+
+    free = [lev for lev in levels_list
+            if id(lev) in touched and id(lev) not in fixed]
+    if not free: return 0.0
+    col = {id(lev): j for j, lev in enumerate(free)}
+    n = len(free)
+
+    # ---- normal equations ----------------------------------------------
+    energy = {id(lev): lev.energy for lev in levels_list}
+    normal = np.zeros((n, n))
+    rhs = np.zeros(n)
+    for t in trans:
+        w = weight_of(t)
+        if w <= 0: continue
+        y = t.assigned_to.wavenumber
+        ju = col.get(id(t.upper_level))
+        jl = col.get(id(t.lower_level))
+        if ju is None: y -= energy[id(t.upper_level)]     # move to the rhs
+        if jl is None: y += energy[id(t.lower_level)]
+        if ju is not None:
+            normal[ju, ju] += w
+            rhs[ju] += w * y
+        if jl is not None:
+            normal[jl, jl] += w
+            rhs[jl] -= w * y
+        if ju is not None and jl is not None:
+            normal[ju, jl] -= w
+            normal[jl, ju] -= w
+
+    try:
+        solution = np.linalg.solve(normal, rhs)
+    except np.linalg.LinAlgError:
+        # Should not happen once every floating group is pinned; the
+        # least-squares solution is used rather than failing outright.
+        solution = np.linalg.lstsq(normal, rhs, rcond=None)[0]
+
+    max_change = 0.0
+    for lev, e_new in zip(free, solution):
+        max_change = max(max_change, abs(e_new - lev.energy))
+        lev.energy = float(e_new)
+    if verbose:
+        print(f"Level optimization: {n} levels from {len(trans)} transitions, "
+              f"max energy change = {max_change:.6f} cm^-1")
+    return max_change
 
 
 def clear_assignments(all_possible: list, lines: list):
@@ -2618,7 +2784,7 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
 
     levels_history = []  # List of level snapshots per cycle
-    i, na_prev, num_accepted, max_dif_it1 = 0, 0, 0, 0.0
+    i, na_prev, num_accepted, max_lev_change = 0, 0, 0, 0.0
     weights = {}
     blacklist = set()  # oscillating transitions, keyed by trans_key(); persists across cycles
     cycle_snapshots = []  # end-of-cycle acceptance snapshots for cross-cycle oscillation detection
@@ -2636,11 +2802,11 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         if n_new_bl:
             print(f"  Blacklisted {n_new_bl} transition(s) oscillating between cycles.")
         weights = calc_weights(observed_lines)
-        max_dif_it1 = optimize_levels(levels_list, levels_history, weights, verbose=False)
-        print(f"  Accepted assignments: {num_accepted}, max energy change in optimization: {max_dif_it1:.6f} cm^-1")
-        if num_accepted == na_prev and max_dif_it1 < 0.001: break
+        max_lev_change = optimize_levels(levels_list, levels_history, weights, verbose=False)
+        print(f"  Accepted assignments: {num_accepted}, max energy change in optimization: {max_lev_change:.6f} cm^-1")
+        if num_accepted == na_prev and max_lev_change < 0.001: break
         na_prev = num_accepted
-    if i >= max_cycles and (num_accepted != na_prev or max_dif_it1 >= 0.001):
+    if i >= max_cycles and (num_accepted != na_prev or max_lev_change >= 0.001):
         print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
     df = build_output(observed_lines, weights)

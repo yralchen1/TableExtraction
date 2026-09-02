@@ -1,0 +1,29 @@
+# Line endings: every text file stored in git uses LF ("\n") only.
+# Other contributors work on Linux, so LF is the uniform in-repository form.
+# `eol=lf` also checks these files out with LF on Windows, overriding any
+# local core.autocrlf=true setting.
+* text=auto eol=lf
+
+# Explicit text types (belt and braces for the auto-detector).
+*.py    text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.log   text eol=lf
+*.csv   text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.ini   text eol=lf
+*.svg   text eol=lf
+*.mmd   text eol=lf
+*.par   text eol=lf
+*.prn   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Binary: never touch the bytes.
+*.xlsx  binary
+*.xlsm  binary
+*.xls   binary
+*.png   binary
+*.jpg   binary
+*.pdf   binary

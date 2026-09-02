@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -18,6 +18,11 @@ class EnergyLevel:
     u_energy: float = 0.0                  # estimated uncertainty of the adopted energy (cm^-1); 0.0 = not yet estimated
     from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
     to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
+    u_contrib: Dict[tuple, tuple] = field(default_factory=dict)
+    # The individual energy determinations behind u_energy, keyed by
+    # trans_key(transition) -> (implied energy, its uncertainty); filled by
+    # compute_level_uncertainties() so that a single transition's own
+    # contribution can be removed again (see u_energy_excluding()).
 
 
 @dataclass

@@ -1,0 +1,74 @@
+lines read: 6760 with an intensity, 3469 of them identified, 3463 with a calculated transition
+    the correction must cover 821.92 - 10721.57 A (all lines with an intensity); it is fitted on 879.44 - 10719.52 A
+
+stage 1 - first correction, nothing removed (3463 lines)
+    round  1:  0 regions, C = 0.5972, kT = 11334.5 cm^-1, rms dlnI = 2.3482, max |dIcor| = -
+    round  2: 12 regions, C = 0.149, kT = 14163.0 cm^-1, rms dlnI = 1.6038, max |dIcor| = 64.29
+    round  3: 12 regions, C = 0.1468, kT = 14200.7 cm^-1, rms dlnI = 1.6054, max |dIcor| = 1.086
+    round  4: 12 regions, C = 0.1468, kT = 14200.7 cm^-1, rms dlnI = 1.6054, max |dIcor| = 0
+
+stage 2 - dropping lines with |dlnI| > 2.00 whose calculated gA is uncertain by more than 50%
+    pass 1: 472 lines beyond the cut; the percentage rule would drop 442 of them, the uncertainty rule 107; 442 dropped
+    round  1:  0 regions, C = 0.7057, kT = 10671.9 cm^-1, rms dlnI = 1.9766, max |dIcor| = -
+    round  2: 10 regions, C = 0.229, kT = 12614.0 cm^-1, rms dlnI = 0.9217, max |dIcor| = 383.9
+    round  3: 10 regions, C = 0.2011, kT = 12884.0 cm^-1, rms dlnI = 0.9190, max |dIcor| = 1.268
+    round  4: 10 regions, C = 0.2011, kT = 12884.0 cm^-1, rms dlnI = 0.9190, max |dIcor| = 0
+    pass 2: 77 lines beyond the cut; the percentage rule would drop 51 of them, the uncertainty rule 19; 51 dropped
+    round  1:  0 regions, C = 0.7141, kT = 10608.4 cm^-1, rms dlnI = 1.9593, max |dIcor| = -
+    round  2: 10 regions, C = 0.2182, kT = 12650.0 cm^-1, rms dlnI = 0.8780, max |dIcor| = 220.9
+    round  3: 10 regions, C = 0.208, kT = 12749.0 cm^-1, rms dlnI = 0.8780, max |dIcor| = 0.9442
+    round  4: 10 regions, C = 0.208, kT = 12749.0 cm^-1, rms dlnI = 0.8780, max |dIcor| = 0
+    pass 3: 39 lines beyond the cut; the percentage rule would drop 10 of them, the uncertainty rule 2; 10 dropped
+    round  1:  0 regions, C = 0.7173, kT = 10596.0 cm^-1, rms dlnI = 1.9595, max |dIcor| = -
+    round  2: 10 regions, C = 0.227, kT = 12562.1 cm^-1, rms dlnI = 0.8748, max |dIcor| = 257.3
+    round  3: 10 regions, C = 0.2095, kT = 12726.7 cm^-1, rms dlnI = 0.8725, max |dIcor| = 1.011
+    round  4: 10 regions, C = 0.2095, kT = 12726.7 cm^-1, rms dlnI = 0.8725, max |dIcor| = 0
+    pass 4: 33 lines beyond the cut; the percentage rule would drop 6 of them, the uncertainty rule 1; 6 dropped
+    round  1:  0 regions, C = 0.7162, kT = 10597.7 cm^-1, rms dlnI = 1.9599, max |dIcor| = -
+    round  2: 10 regions, C = 0.2113, kT = 12707.3 cm^-1, rms dlnI = 0.8704, max |dIcor| = 308.9
+    round  3: 10 regions, C = 0.2026, kT = 12794.5 cm^-1, rms dlnI = 0.8683, max |dIcor| = 1.059
+    round  4: 10 regions, C = 0.2022, kT = 12799.0 cm^-1, rms dlnI = 0.8683, max |dIcor| = 0.09161
+    round  5: 10 regions, C = 0.2022, kT = 12799.0 cm^-1, rms dlnI = 0.8683, max |dIcor| = 0
+
+stage 3 - dropping apparently too-weak lines that end on a level at or below 0 cm^-1 (self-absorption)
+    lines still too weak by more than the cut, by the energy of the level they end on:
+        lower level <=      0 cm^-1 :    0 of the 18 such lines are that weak
+        lower level <=   1000 cm^-1 :    0 of the 18 such lines are that weak
+        lower level <=   2000 cm^-1 :    0 of the 38 such lines are that weak
+        lower level <=   5000 cm^-1 :    0 of the 68 such lines are that weak
+        lower level <=  10000 cm^-1 :    0 of the 79 such lines are that weak
+    pass 1: 0 lines dropped as self-absorbed
+
+stage 4 - what is left beyond |dlnI| > 2.00
+    region 1    821.92 -  1303.23 A :  641 lines,   1 outliers ( 0.2%),  640 would remain
+    region 2   1303.23 -  1432.59 A :   86 lines,   2 outliers ( 2.3%),   84 would remain
+    region 3   1432.59 -  2057.16 A :  390 lines,  11 outliers ( 2.8%),  379 would remain
+    region 4   2057.16 -  2125.85 A :   75 lines,   0 outliers ( 0.0%),   75 would remain
+    region 5   2125.85 -  2469.88 A :  539 lines,   2 outliers ( 0.4%),  537 would remain
+    region 6   2469.88 -  2766.42 A :  355 lines,   3 outliers ( 0.8%),  352 would remain
+    region 7   2766.42 -  4068.52 A :  462 lines,  10 outliers ( 2.2%),  452 would remain
+    region 8   4068.52 -  4948.26 A :  122 lines,   2 outliers ( 1.6%),  120 would remain
+    region 9   4948.26 -  6877.19 A :  119 lines,   0 outliers ( 0.0%),  119 would remain
+    region 10   6877.19 - 10721.57 A :  165 lines,   1 outliers ( 0.6%),  164 would remain
+    32 outliers dropped; final iteration to 0.002
+    round  1:  0 regions, C = 0.7278, kT = 10541.1 cm^-1, rms dlnI = 1.9263, max |dIcor| = -
+    round  2:  9 regions, C = 0.2531, kT = 12298.2 cm^-1, rms dlnI = 0.8020, max |dIcor| = 222.2
+    round  3:  9 regions, C = 0.2452, kT = 12360.1 cm^-1, rms dlnI = 0.8000, max |dIcor| = 1.762
+    round  4:  9 regions, C = 0.2452, kT = 12360.1 cm^-1, rms dlnI = 0.8000, max |dIcor| = 0
+
+final correction: 9 regions, C = 0.245171, kT = 12360.09 cm^-1 (1.5325 eV)
+  region       from          to    deg     n   rms dlnI    P(from)    P(to)   swing
+      1      821.92     1427.04      3   720      0.791      0.477   -3.176    0.00
+      2     1427.04     2081.03      2   418      0.865     -3.383   -0.700    0.00
+      3     2081.03     2131.19      3    42      0.769      0.491    5.786    0.38
+      4     2131.19     2450.51      3   500      0.779      5.153    1.605    0.25
+      5     2450.51     2763.84      3   386      0.767      1.005    0.538    0.00
+      6     2763.84     3980.94      3   443      0.880     -0.397   -2.056    0.00
+      7     3980.94     4917.25      3   128      0.768     -2.569   -0.957    0.23
+      8     4917.25     6877.19      2   121      0.630     -0.661   -2.601    0.00
+      9     6877.19    10721.57      3   164      0.720     -3.543   -6.483    0.93
+  (swing = how far P goes beyond what the lines of the region ask for, in natural logarithms; a large value at an end of a region means the polynomial is unconstrained there - lower --max-degree or raise --pts-per-coef)
+
+correction written to intensity_correction_auto.txt
+per-line diagnostics written to intensity_calibration_lines.csv
+plot written to intensity_calibration.png

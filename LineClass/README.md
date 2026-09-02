@@ -158,6 +158,13 @@ Indexed by `(lower_id, upper_id)`.
 | `id1`     | 5 | original lower level id | Original Sugar classification                        |
 | `id2`     | 6 | original upper level id | Original Sugar classification                        |
 
+Column 17, `Iorig`, is not read by the pipeline: it holds the intensity Sugar printed for
+the line, from which `Icor` is built, and is used only by the calibration tools (see
+[Sugar's own intensities](#sugars-own-intensities-toolsattach_sugar_intensitiespy)). Every
+line has one, including the 23 whose `ref` is `Wyart1974`: that column names whose
+classification the row carries, not who measured the line, and all the lines in the list
+were measured by Sugar.
+
 Consecutive rows with the **same wavenumber** are folded into a single `SpectralLine` whose `original_assignments` collect all listed classifications (blended components).
 
 ---
@@ -337,6 +344,8 @@ Both the matching tolerance and the Step-1 Ritz-mismatch test (above) compare an
 
 **Propagation through chains.** `u_energy(P)` in the formula above is itself an estimate being solved for, so the whole level system is updated by fixed-point (Gauss-Seidel-style) sweeps: every level is recomputed from the *previous* sweep's `u_energy` values, repeated until the largest per-level change drops below `tol` (or `max_sweeps` is reached — see *Configuration*). This lets uncertainty propagate outward from the well-determined old levels through however many links a chain of new levels has, without the algorithm ever needing to identify a single "defining transition" for a level in the middle of a ladder: each level simply combines whatever accepted transitions it has, weighted by their own (possibly still-converging) partner uncertainties, and a few sweeps are enough for the chain to settle.
 
+**Leaving the candidate out (why the test is not circular).** Taken at face value, `u_energy` would make every acceptance test judge a transition against an error bar the transition itself helped to inflate: a line that disagrees with its level widens the scatter of that level's implied energies, the chi²-inflation in `_wm_red_chi` turns that scatter into a larger `u_energy`, and the larger `u_energy` shrinks the very `σ_comb` ratio the line has to pass. Three mutually incompatible lines could therefore hold each other up. The test is made non-circular by **leave-one-out**: `_ritz_sigma(candidate)` asks `u_energy_excluding(level, candidate)` for each of the candidate's two levels, which recomputes that level's chi²-inflated weighted-mean uncertainty from its *other* accepted determinations only (they are kept for this purpose in `EnergyLevel.u_contrib`, keyed by `trans_key`, which is the transition identity that survives the re-creation of `Transition` objects each cycle). A level whose only support is the candidate itself falls back to `u_energy = 0`, i.e. the candidate is judged on the observed wavenumber uncertainty alone — the honest answer, since without that transition the level has no measured energy. Nothing is capped: the *remaining* determinations still inflate normally when they genuinely disagree. No separate consistency-weeding step is needed, because each Step-5 cycle re-decides every assignment from scratch: the worst line of an inconsistent level now fails its own test, is dropped, and the level re-forms from what is left.
+
 **Consequence for convergence.** Because `u_energy` is recomputed from scratch every cycle from that cycle's starting (previous-cycle) acceptance state, and the matching/Step-1 tolerances depend on it, a transition that is rejected in one cycle purely because a partner level's uncertainty was still underestimated can be picked up in a later cycle, once more of that level's other transitions have been accepted and its `u_energy` has grown to reflect the real scatter.
 
 ---
@@ -412,7 +421,11 @@ have a `gA`), gave
 | second (after dropping 319) | 2977 | 175.0916 | 11953.797 cm⁻¹ (1.482 eV) | 0.822 |
 
 but those constants are not the ones in force: they were superseded by the iteration
-described below, which ends at **`C` = 131.092, `kT` = 13009.1 cm⁻¹** (1.613 eV).
+described below, which ended at `C` = 131.092, `kT` = 13009.1 cm⁻¹ (1.613 eV) — and those
+in turn by the refit of the plate calibration, which is described further down and leaves
+`C` = 252.641, `kT` = 12365.9 cm⁻¹ (1.533 eV), and finally by the refit that followed the
+removal of the circularity from the Ritz acceptance test (see *Leaving the candidate out*
+above), which leaves **`C` = 251.606, `kT` = 12375.4 cm⁻¹** (1.534 eV) in force.
 
 `C` and `kT` live in `[intensity_model]` of `lineclass_config.toml`; the single
 implementation of the relation is `gA_imputation.impute_intensity`, which the imputation of
@@ -460,6 +473,17 @@ energy range where most lines lie, so the constants can still be moving while no
 pipeline uses is. The criterion above cannot be satisfied that way, since it looks at every
 transition, including those at the ends of the energy range where the trade-off fails.
 
+**A trap to know about.** The first fit of a run reads the observed intensities out of
+`line_classifications.csv`, i.e. out of the *previous* classification. If the `Icor` column
+of `Pr3_lines.xlsx` has just been changed, that file still holds the intensities from before
+the change, so round 1 returns exactly the constants that were already in force, `Icalc`
+does not move, and the loop declares itself converged after one round - on the old answer.
+The reclassification it performs at the end of that round does refresh the file, so simply
+running the tool a second time starts it correctly. Whenever the intensity column has been
+rewritten, run `iterate_boltzmann.py` twice and take the second run as the real one. The
+giveaway in the log is that the number of accepted identifications the round *reclassified*
+differs from the number it *fitted on*: nothing moved, and yet the answer changed.
+
 It converged in three rounds (2026-08-28):
 
 | round | C | kT (cm⁻¹) | max \|ΔIcalc\| | accepted identifications after |
@@ -475,27 +499,453 @@ close to the first fit, so the answer does not depend on where the iteration sta
 The converged run is archived under `baseline/boltzmann_converged/` together with the round
 logs.
 
-Where the converged run stands (all figures from `baseline/boltzmann_converged/`): 4894
-accepted identifications; every one of the 593 levels, and all 192 of Wyart's new levels,
-carries at least one; 209 levels are tested (a tested level is one supported by more new
-than previously published identifications). The in-situ decoys — shadow copies of the tested
-levels displaced in energy, so every line they accept is false by construction — put the best
-validation cut at `n >= 4` accepted lines with `|dE| <= 0.1299 cm^-1`, giving **115 of the 209
-levels validated with 5.75 expected false among them** (5.0%). Folding the energy shift and
-the intensity pattern into a per-level spurious probability leaves 196 levels below 5%,
-7 between 5% and 50%, 6 between 50% and 90%, none above.
+That table is history: the observed intensities themselves were afterwards put on a
+refitted plate calibration (see [The adopted calibration](#the-adopted-calibration)), and
+the same iteration was run again on them - twice, in fact, the second time after Sugar's
+own printed intensities replaced the reconstructed ones. The constants in force are the ones
+that run ended at, `C` = 252.641 and `kT` = 12365.9 cm⁻¹. They were re-fitted once more on
+2026-08-30, after the leave-one-out change to the Ritz test withdrew 6 identifications, and
+the loop closed in a single round: `C` = 251.606, `kT` = 12375.4 cm⁻¹, with no calculated
+intensity moving by as much as 0.5% (max 0.46%) and the re-fit on the reclassified list
+returning the same two constants to six figures. On 2026-08-31 the plate calibration was
+refitted once again, this time with the two coverage gaps of Sugar's exposures imposed as
+region boundaries (see [The coverage gaps, and the refit that imposed them](#the-coverage-gaps-and-the-refit-that-imposed-them-2026-08-31)),
+and the loop closed in two rounds at `C` = 268.527, `kT` = 12241.8 cm⁻¹. Those are the
+values now in force.
+
+Where the validation stood after the Ritz acceptance test was made non-circular, and before
+the coverage gaps were imposed on the plate calibration (all figures from
+`baseline/noncircular_ritz/`; for the state now in force see
+[The coverage gaps, and the refit that imposed them](#the-coverage-gaps-and-the-refit-that-imposed-them-2026-08-31)): 4874 accepted identifications; 208 levels are
+tested (a tested level is one supported by more new than previously published
+identifications). The in-situ decoys — shadow copies of the tested levels displaced in
+energy, so every line they accept is false by construction — put the best validation cut at
+`n >= 4` accepted lines with `|dE| <= 0.1374 cm^-1`, giving **113 of the 208 levels
+validated with 4.75 expected false among them** (4.2%). The shifted-wavenumber cross-check,
+a looser upper bound, passes 113 of 208 at the same support with 2.62 expected false.
+Folding the energy shift and the intensity pattern into a per-level spurious probability
+leaves **199 levels below 5%, 8 between 5% and 50%, one above 50%**, for a most probable
+3.0 spurious levels among the 208 (95% range 0.0–10.0). Seven levels come out at
+`p_spur >= 0.1`, and the masking check clears one of them (059003.000457, 96% of its missing
+predicted intensity hidden under observed lines), leaving six questionable levels retained.
+
+Almost all of the change from the previous state is one level. `059003.000622` had been held
+up by three mutually incompatible lines that the circular test let through; with the
+circularity gone it keeps a single line, and its spurious probability moves from 0.005 to
+0.873 — the level is not refuted, but it is no longer supported, and the report now says so.
+`059003.000268` fell out of the tested set for the neutral reason that it lost two new lines
+and its previously published support (6) now outnumbers its new support (5), so it counts as
+a reference level instead. Every other tested level moved by less than 0.06 in `p_spur`.
+The rise of the most probable number of spurious levels from 1.8 to 3.0 is therefore not a
+loss of quality: it is one falsely validated level being correctly re-labelled as doubtful.
+
+For comparison, three earlier states of the same validation. **Immediately before the
+circularity was removed** (`baseline/sugar_intensities_complete/`): 4880 accepted
+identifications, 209 tested levels, the cut at `n >= 4`, `|dE| <= 0.1289 cm^-1` validating
+112 of 209 with 5.50 expected false, and 202 / 7 / 0 levels below 5%, between 5% and 50%,
+and above 50% `p_spur`. With Sugar's intensities used for
+the 6760 lines credited to him and the remaining 23 still reconstructed
+(`baseline/sugar_intensities_converged/`): 4884 accepted identifications, the same cut
+validating 112 of 209 with 5.25 expected false, and 204 / 5 / 0 levels below 5%, between 5%
+and 50%, and above 50% `p_spur`. **Before the plate calibration was refitted at all**
+(`baseline/boltzmann_converged/`): 4894 accepted identifications, the cut at `n >= 4`,
+`|dE| <= 0.1299 cm^-1` validating 115 of 209 with 5.75 expected false (5.0%), and 196 / 7 / 6.
+The recalibration therefore left the number of validated levels essentially unchanged while
+removing every level that had stood above 50% spurious probability; the last step, closing
+the 23 remaining gaps, moved nothing beyond the ordinary jitter of the two Monte Carlos.
 
 
-### What is not yet refitted
+### The plate calibration behind the observed intensities
 
 The linearized observed intensities in `Pr3_lines.xlsx`, and the plate calibration
-`intensity_correction_functions.txt` that produced them, were derived from a similar
-Boltzmann model but with the DREAM `gA` values. They are left as they stand for now; the
-correction is expected to be small compared with the change in `C` and `kT` above. Note
+`intensity_correction_functions.txt` that produced them, were originally derived by hand
+from a similar Boltzmann model but with the DREAM `gA` values. They have since been
+refitted with the new `gA` values by `tools/calibrate_intensities.py` and adopted into
+`Pr3_lines.xlsx` by `tools/apply_calibration.py`, both starting from the intensities Sugar
+actually printed, which `tools/attach_sugar_intensities.py` brought into the line list as
+the column `Iorig`; all three are described below. Note
 that the noise-level formula of `level_shifts.py` (`1000·exp(P(λ))`, the linear-scale
 intensity of Sugar's faintest recordable line) needs no adjustment for the new model: it
 concerns only the observed intensities being brought to a common linear scale, and the
 refitted `Icalc` is directly comparable with those linearized observed intensities.
+
+### Sugar's own intensities: `tools/attach_sugar_intensities.py`
+
+Everything below rests on the numbers Sugar printed beside each line - small whole numbers
+(1, 3, 20, 500, … 9000) expressing how black the line came out on the photographic plate.
+Those numbers were the starting point of the `Icor` column, but for a long time they were
+not kept anywhere in `Pr3_lines.xlsx`, so the calibration tools had to *reconstruct* them
+by undoing whatever correction was in force - and could only do so as accurately as that
+correction file happened to be.
+
+They are now in the line list, in the column **`Iorig`**, copied straight from the two
+manually checked extractions of Sugar's tables:
+
+| source label | source workbook, sheet `Table 1` | wavenumber range measured | wavenumber column | intensity column |
+|---|---|---|---|---|
+| `Sugar1969` | `Pr3_Sugar69_extracted_gemini-3-flash-preview_v1.xlsm` | 47541 - 121663 cm^-1 | `wn_mean` (24) | `Intensity` (3) |
+| `Sugar1974` | `Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm` | 9329 - 47440 cm^-1 | `wn adopted` (31) | `Intens` (3) |
+
+Lines are matched **by wavenumber, not by wavelength**. Sugar printed both for every line,
+and the two do not always agree to his last digit; each extraction workbook therefore
+carries a reconciled value - a weighted mean of the wavenumber he printed and the one
+implied by the wavelength he printed - and it is that value, and only that, from which
+`Pr3_lines.xlsx` was built. The tool is told which column holds it, takes the nearest
+wavenumber, and refuses a match farther away than `--tol` (default 1e-4 cm^-1).
+
+They are **not** matched through the `ref` column of the line list. That column says whose
+*classification* a row carries, which is a different question from who *measured* the line:
+the rows credited to `Wyart1974` were measured by Sugar like all the others, and their
+intensities stand in his workbooks. Which of the two workbooks holds a given line is
+settled by the line's wavenumber, because the two recordings cover disjoint stretches of
+the spectrum - everything above about 47500 cm^-1 was recorded in 1969 and everything below
+it in 1974 (the ranges in the table leave a 100 cm^-1 gap between them). No boundary has to
+be configured: the tool looks each line up in every source given and keeps the nearest
+wavenumber found in any of them, which is the same thing whenever the sources are disjoint
+and the better choice where they are not. The label on the left of a `--source` is
+therefore only a name, used in the report and in the audit file.
+
+```bash
+python tools/attach_sugar_intensities.py \
+  --source "Sugar1969=Pr3_Sugar69_extracted_gemini-3-flash-preview_v1.xlsm:Table 1:wn_mean:Intensity" \
+  --source "Sugar1974=Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm:Table 1:wn adopted:Intens"
+```
+
+A column may be named by its header (letter case, blanks and embedded line breaks ignored)
+or by its 1-based number, which is safer when the header contains a line break. The
+workbook is copied to `Pr3_lines.bak_iorig.xlsx` first, only the one column is written -
+created at the right-hand end if it is not there yet, updated in place if it is, so a
+second run never adds a second copy of it - and a row-by-row audit goes to
+`iorig_match.csv`.
+
+**How it came out.** All 6783 lines of the working list matched, the worst wavenumber
+difference being 4.4e-11 cm^-1 - the last binary digit of a stored number, i.e. exact.
+115 source lines serve two rows each, which is correct: an observed line with two candidate
+identifications appears twice in the line list. 2883 of the 2946 lines of the 1969 paper
+and 3785 of the 4333 of the 1974 paper were used; the rest belong to lines the working list
+does not carry. `Iorig` runs from 1 to 9000 and has no empty cell.
+
+The reconstruction it replaces was in fact good: over the 6760 lines matched at the first
+attempt, the previously restored intensities and the true ones differ by a standard
+deviation of 8% (in natural logarithms), 99% of them within ±15%, with one line off by a
+factor 245. The refit below therefore moves the answer only slightly - but it now rests on
+the measurements instead of on an inversion of a hand-made file.
+
+The 23 rows credited to `Wyart1974` were left empty at that first attempt, when the source
+file was chosen by `ref`; they were filled in afterwards, once it became clear that `ref`
+names the author of the classification and not the observer. Their reconstructed
+intensities turn out to have been good too - the true numbers differ from them by between
+-7% and +21%.
+
+Its tests are in `tests/test_attach_sugar_intensities.py`.
+
+### Refitting the plate calibration: `tools/calibrate_intensities.py`
+
+`intensity_correction_functions.txt` holds the correction that turns Sugar's reported
+plate intensities into the uniform linear scale of the `Icor` column of `Pr3_lines.xlsx`:
+
+```
+Icor(lambda) = 1000 * I_Sugar * exp(P(lambda))
+```
+
+with `lambda` the vacuum wavelength in angstroms (`1e8/wn`) and `P` a piecewise
+polynomial - the file gives, one region per text line, `lambda_lo lambda_hi c0;c1;c2;...`
+meaning `P = c0 + c1*lambda + c2*lambda^2 + ...` inside that region. The regions are the
+pieces the spectrum was recorded in: inside one, the sensitivity of plate, grating and
+optics varies smoothly with wavelength; between two, it jumps. That file was built by
+hand. `tools/calibrate_intensities.py` builds it automatically, boundaries included.
+
+It is a **standalone** tool: it imports nothing from the pipeline (only numpy, openpyxl
+and, for `--plot`, matplotlib), and takes every file, sheet and column name as an option.
+
+```bash
+# the run that produced the correction now in force: it fits Sugar's own
+# intensities, so nothing has to be undone first
+python tools/calibrate_intensities.py --col-intensity Iorig --cover 821.92 10721.57 \
+       --out-functions intensity_correction_sugar.txt --plot intensity_calibration.png
+
+# the older way, when the originals are not written down: undo the correction
+# that is in force and fit what is left
+python tools/calibrate_intensities.py --restore-from intensity_correction_functions.txt --no-restore-round
+
+# just undo the correction and report the range of the restored intensities
+python tools/calibrate_intensities.py --restore-from intensity_correction_functions.txt --restore-only
+```
+
+**What it does.** It joins the identified lines of `Pr3_lines.xlsx` to `Icalc.xlsx` on
+their two level ids, so that each has a calculated intensity
+`Icalc = C*gA*(rwn/1e8)*exp(-Eup/kT)` - the energy-flux form, proportional to the
+wavenumber, used everywhere in this project. The disagreement `dlnI = ln(Icalc/Iobs)`
+plotted against wavelength is the correction to be found. Then:
+
+1. **Regions.** Two kinds of boundary. The **coverage gaps** are given in advance
+   (`--gap LO HI`, repeatable; the defaults are Sugar's two, `1522.49-1529.85` and
+   `2103.46-2107.92` A, the same numbers as `COVERAGE_GAPS_A` in `level_shifts.py`;
+   `--no-gaps` switches them off). No exposure covered those intervals, so no line was
+   ever recorded on both of the plates that meet there, nothing tied their intensity
+   scales together, and the correction is genuinely discontinuous by an amount no data
+   can reveal. They are therefore cuts *before* any fitting: the lines on the two sides
+   are segmented and fitted independently, and the gap interval itself is covered by no
+   region (a wavelength inside it, or beyond the ends, takes the value of the nearest
+   region at that region's own end - never an extrapolation). Fitting one polynomial
+   across a gap would smear a real, arbitrarily large step over the whole neighbourhood.
+   Everything else is found in the data: recursive binary splitting. Each region's
+   polynomial degree is chosen by
+   the Bayesian information criterion `BIC = n*ln(SSE/n) + k*ln(n)` (`n` points, `SSE`
+   sum of squared residuals, `k` fitted coefficients); a cut is kept when it lowers the
+   total BIC of the two halves by more than a further `--split-penalty*ln(n)`. A region
+   that still wants a degree above `--max-degree` (default 5) is split instead of fitted
+   stiffly - the rule "if the required power is too high, break the region into smaller
+   pieces". No region may fall below `--min-points`, and a polynomial that would run away
+   at a thinly populated end of its region is refused in favour of a lower degree
+   (`--max-swing`).
+2. **The fit.** `ln C`, `1/kT` and every polynomial coefficient enter the model linearly,
+   so all of them are found in one least-squares solution rather than by alternating
+   between the Boltzmann line and the polynomials. That matters: `Eup` and `lambda` are
+   correlated, a change of temperature can be partly mimicked by a tilt of `P`, and
+   alternation passes that tilt back and forth for dozens of rounds. Solved jointly, the
+   whole calibration converges in 3 or 4 rounds - the rounds being needed only because
+   the region boundaries themselves are decided anew from each fit.
+3. **Convergence** is measured as in `iterate_boltzmann.py`: the largest relative change
+   of any corrected intensity between two rounds, `--tol` (2%) for the preliminary stages
+   and `--tol-final` (0.2%) for the last.
+4. **Outliers**, in physically motivated stages, the whole fit repeated after each and
+   each stage looking again up to `--max-passes` times, never by a blunt cut on `|dlnI|`:
+   - *stage 1* nothing removed;
+   - *stage 2* of the lines with `|dlnI| > --dln-cut` (2), those whose calculated `gA` is
+     uncertain by more than `--u-cut` percent (50) - for them the disagreement is
+     plausibly the calculation's fault. The alternative `--u-rule sigma` instead removes
+     those whose `|dlnI|` is within `--u-sigma` uncertainties of their own `gA`
+     (`u_ln = ln(1+u%gA/100)`), and both counts are printed whichever rule is in force;
+   - *stage 3* of the lines still too **weak** (`dlnI > +cut`, the only sign
+     self-absorption can produce), those ending on a level at or below
+     `--self-abs-elow` (default 0, the ground level: resonance lines). The tool also
+     prints how many anomalously weak lines end on levels below 1000, 2000, 5000 and
+     10000 cm^-1, so the threshold can be reconsidered from the data;
+   - *stage 4* what is left: dropped, and the fit repeated at `--tol-final`, **only if**
+     every region loses at most `--max-drop-frac` (5%) of its lines and keeps at least
+     `--min-points`. Otherwise the tool stops with a message and writes no correction
+     file, because the residual disagreement is then not a matter of a few bad lines.
+
+**Where it lands on the Pr III data.** The run in force fits the `Iorig` column, i.e.
+Sugar's own numbers, so nothing is restored and nothing can be lost in restoring. From the
+3486 identified lines that have a `gA`, it converges to 9 regions and `kT` = 12253 cm^-1
+(1.52 eV), with an rms `dlnI` of 0.807 (a factor 2.2), after 509 lines removed in stage 2,
+none in stage 3 (no resonance line is anomalously weak) and 27 in stage 4. The region
+boundaries are
+
+```
+1431.09  2098.04  2176.43  2450.71  2766.63  3979.61  4875.46  6877.19  A
+```
+
+which land near the hand-made ones (1530, 2108, 2752, 4455, 6050 A) - about as close as two
+different segmentations of the same jumps can be expected to agree - and within a few
+angstroms of the earlier automatic fit that worked from restored rather than true
+intensities. The last region carries a `swing` of 0.97 against the 1.0 the tool allows: its
+polynomial is only weakly held down at the long-wavelength end, where the lines thin out.
+
+**Why one pass is now enough.** Fitting `Iorig` makes the calibration independent of
+everything the pipeline does downstream. It reads Sugar's intensities, Sugar's own
+identifications (the `id1`/`id2` columns of `Pr3_lines.xlsx`) and the `gA`, `Eup` and `rwn`
+of `Icalc.xlsx` - never `Icor`, never our classification, never the fitted `C` and `kT`. So
+the correction cannot drift as the classification settles, and re-running the tool after
+the whole chain has converged reproduces the file byte for byte. Before `Iorig` existed the
+tool had to undo the correction that was in force, which fed its own output back into its
+input and made the fixed point something to be checked rather than guaranteed.
+
+**A note on snapping.** When the originals must be restored rather than read
+(`--restore-from` without `Iorig`), they are *not* snapped to whole numbers here
+(`--no-restore-round`), although Sugar reported whole numbers. The reason is in the report
+the snapping prints: over all 6783 lines the nearest whole number was up to 16% away, and
+one line in a hundred more than 14% away, concentrated below 1000 A. The stored
+coefficients of the hand-made correction were not accurate enough to land back exactly on
+the original integers there, so snapping would have invented errors of that size instead of
+removing them.
+
+Two cautions, both printed by the tool. The excitation temperature it returns is an
+*effective* number, not a measurement of the plasma: `Eup` and `lambda` are correlated,
+so part of a real temperature effect can be absorbed into `P(lambda)` and the other way
+round. And the stage-2 rule is decisive here - with the flat 50% threshold the procedure
+completes as above, while `--u-rule sigma` removes only 133 lines, leaves 336 outliers,
+and the tool refuses at stage 4 because 13 of its 15 regions would lose more than 5% of
+their lines. Nine `gA` values in ten in this file are uncertain by more than 50%, so the
+flat threshold removes nearly every outlier while a 2-sigma test against those same
+uncertainties explains almost nothing. The output files are
+`intensity_correction_auto.txt` (same format as the input) and
+`intensity_calibration_lines.csv` (per-line `P`, `dlnI`, and which stage dropped it).
+
+The correction is fitted on the identified lines only (879 A upwards here), but it has to
+be applied to **every** line that carries an intensity, so it is made to cover the full
+wavelength range of the line list: the outermost regions are stretched to reach the ends,
+and their degree is lowered until the polynomial no longer runs away over the stretched
+part, where no line holds it down. `--cover LO HI` widens that further; here it is set to
+the wavelength range of the configured spectral interval (`[range]` of
+`lineclass_config.toml`, 9327 - 121665 cm^-1, i.e. 821.92 - 10721.57 A), a shade wider
+than the observed lines themselves, so that the noise-level formula of `level_shifts.py`
+finds a correction at every wavenumber it is asked about instead of returning "no value"
+at the two ends.
+
+One trap worth naming, for the `--restore-from` route only: it must be given the correction
+**currently applied to the column**, not the hand-made one it descends from. Once a new
+correction has been adopted, that file is the new one; restoring with the old one instead
+silently leaves the new correction inside the "original" intensities and the fit wanders
+off (in this data it ended by refusing at stage 4). Fitting `Iorig` avoids the question
+entirely.
+
+Its own tests are in `tests/test_calibrate_intensities.py`: a synthetic spectrum whose
+scale is spoiled by a known two-region function, which the tool must find back, breakpoint
+included.
+
+### Adopting a new correction: `tools/apply_calibration.py`
+
+The intensity column of `Pr3_lines.xlsx` does not hold Sugar's numbers; it holds them
+already corrected, `Icor = 1000 * I_Sugar * exp(P_old(lambda))`. A new correction can
+therefore not simply be multiplied in: the old one has to be divided out first.
+`tools/apply_calibration.py` does exactly that, for every line that has a wavenumber and
+a positive intensity:
+
+```
+I_Sugar  = Icor / ( 1000 * exp(P_old(lambda)) )
+Icor_new = 1000 * I_Sugar * exp( P_new(lambda) )
+```
+
+Undoing is only necessary while `I_Sugar` is not written down anywhere. Now that it is,
+`--orig-col Iorig` takes it from the column instead, with no undoing and no snapping to
+whole numbers, so the first line above is skipped and the second is exact. Rows whose
+`Iorig` is empty would still go the long way round through `--old`; since every line of
+`Pr3_lines.xlsx` now has one, none do. The overall factor `K` can then no longer be guessed
+from the restored values, so it is given explicitly; `--scale 1000` is the scale this
+project has always used.
+
+```bash
+# the run that adopted the correction now in force
+python tools/apply_calibration.py --orig-col Iorig --scale 1000 \
+       --old intensity_correction_functions.txt --new intensity_correction_sugar.txt
+
+python tools/apply_calibration.py --old ... --new ... --dry-run   # report only
+```
+
+The workbook is copied to `Pr3_lines.bak.xlsx` before it is touched, only the one column
+is written, and a per-line record of the change goes to `intensity_rescale.csv`
+(`wn`, `lambda`, the old intensity, `P_old`, the restored original, `P_new`, the new
+intensity). Because the operation is a change of scale and not an accumulation, applying
+`old -> new` and then `new -> old` returns the column exactly as it was; that round trip
+is one of the tests in `tests/test_apply_calibration.py`.
+
+### The adopted calibration
+
+The automatic correction, fitted to Sugar's own intensities, is the one in force. The files
+now stand as follows:
+
+| file | what it is |
+|------|------------|
+| `intensity_correction_functions.txt` | the correction in force; `level_shifts.py` reads this name for its noise level |
+| `intensity_correction_sugar.txt` | the same file under the name it was produced with (the fit to `Iorig`) |
+| `intensity_correction_auto.txt` | what `calibrate_intensities.py` last produced - identical to the file in force, which is the fixed-point check |
+| `baseline/before_coverage_gaps/` | line list, `Icalc.xlsx`, classification, level-shift report, both Monte Carlos, LOPT output, config and correction as they were before the coverage gaps were imposed |
+| `intensity_correction_manual.txt` | the original hand-made correction, kept for reference |
+| `Pr3_lines.bak.xlsx` | the line list with the previous intensities (before this adoption) |
+| `Pr3_lines.bak_iorig.xlsx` | the line list before the `Iorig` column was added |
+| `baseline/sugar_intensities_complete/` | the run in force: line list, `Icalc.xlsx`, classification, level-shift report, both Monte Carlos, run logs, config and correction |
+| `baseline/sugar_intensities_converged/` | the previous run, with the 23 lines credited to Wyart still on reconstructed intensities |
+| `baseline/before_sugar_intensities/` | line list, `Icalc.xlsx`, classification, level-shift report, config and correction as they were before Sugar's own intensities were used |
+| `baseline/before_intensity_recalibration/` | the same, one step further back: before the plate calibration was refitted at all |
+
+Adopting it changed every intensity, but only slightly, because the correction it replaced
+was itself a fit to nearly the same numbers: the median line moved by a factor 0.99, the
+middle 90% of them by factors between 0.92 and 1.08, and the largest single change was a
+factor 4.4. Every line in the column now satisfies
+`Icor = 1000 * Iorig * exp(P(lambda))` to within 6e-16, i.e. exactly.
+
+Since the classification weighs an identification partly by how well the observed intensity
+agrees with the calculated one, the fit and the classification then had to be brought back
+into agreement with `tools/iterate_boltzmann.py`. That took two rounds (`--tol 0.005`,
+after the first, stale-input run described above) and ended at
+
+```
+C = 252.641,  kT = 12365.92 cm^-1,  rms |ln(Icalc/Iobs)| = 0.867
+```
+
+with no calculated intensity moving by more than 0.31% in the last round. `C` is not
+comparable with its value under the earlier hand-made correction: `P(lambda)` is fixed only
+up to an additive constant and `C` absorbs it. `kT` is comparable, and the sequence of
+values it has taken is 13009 (hand-made correction) -> 12358 (refit from restored
+originals) -> 12425 (refit from Sugar's own numbers for the lines he was credited with) ->
+**12366** cm^-1 (the same with his numbers for every line in the list) -> **12375** cm^-1
+(after the leave-one-out change to the Ritz test, 2026-08-30) -> **12242** cm^-1 (after
+the coverage gaps were imposed on the calibration, 2026-08-31; see the next subsection).
+
+On the classification the change is small, as it should be: **4880** accepted
+identifications, the same number as under the previous correction, with the grades barely
+moving (main grade 2/3/4/5 = 4500/335/37/8 against 4505/334/37/8; subgrade A/B/C/D/E/G =
+1633/1963/109/211/69/895 against 1633/1966/117/210/71/887).
+
+**The loop closes, and this time by construction.** Running `calibrate_intensities.py`
+again after the whole chain had converged reproduced `intensity_correction_functions.txt`
+byte for byte, which is no longer a coincidence to be checked but a consequence of the fit
+reading only inputs that the pipeline does not write (see *Why one pass is now enough*,
+above).
+
+### The coverage gaps, and the refit that imposed them (2026-08-31)
+
+Everything above found its region boundaries in the data alone. That was wrong at two
+wavelengths. Sugar's spectrum was not recorded in one continuous sweep: no exposure covers
+1522.49-1529.85 A, and none covers 2103.46-2107.92 A. Across such a gap no line was ever
+recorded on both of the plates that meet there, so nothing tied their intensity scales
+together and Sugar had no way of stitching them; the correction is therefore genuinely
+discontinuous at each gap, by an amount that no amount of data can reveal. The automatic
+segmentation had run single polynomials straight across both - the worst case was the old
+region `2098.04 - 2176.43 A`, which straddled the second gap and tried to absorb the step
+with a cubic (`-816142; 1141.6; -0.532; 8.3e-5`), smearing a true discontinuity over its
+whole neighbourhood.
+
+The gaps are now given to `calibrate_intensities.py` in advance (`--gap LO HI`, defaults
+`DEFAULT_GAPS_A`, the same numbers as `COVERAGE_GAPS_A` in `level_shifts.py`) and cut the
+lines into blocks *before* any fitting, so the two sides of a gap are segmented and fitted
+independently and the step between them is unconstrained. The refit gives 8 regions,
+`C` = 0.2622, `kT` = 12226.9 cm^-1, rms `dlnI` = 0.8175:
+
+| region | from (A) | to (A) | degree | lines | rms dlnI |
+|---|---|---|---|---|---|
+| 1 | 821.92 | 1522.49 | 3 | 787 | 0.829 |
+| | *coverage gap* | | | | *P jumps by +3.45* |
+| 2 | 1529.85 | 2103.46 | 1 | 399 | 0.861 |
+| | *coverage gap* | | | | *P jumps by +6.76* |
+| 3 | 2107.92 | 2476.72 | 3 | 560 | 0.785 |
+| 4 | 2476.72 | 2883.39 | 3 | 400 | 0.798 |
+| 5 | 2883.39 | 3889.18 | 3 | 382 | 0.889 |
+| 6 | 3889.18 | 4875.46 | 2 | 140 | 0.835 |
+| 7 | 4875.46 | 6877.19 | 2 | 123 | 0.628 |
+| 8 | 6877.19 | 10721.57 | 3 | 168 | 0.739 |
+
+The second jump is large - a factor ~860 in Sugar's scale - and it is what the lines ask
+for: the four lines between 2107.92 and 2125 A have `ln(Icalc/Iobs)` = 5.4 +- 0.3 against
+about -0.5 just below the gap. Only its first few angstroms are thinly populated (the
+region as a whole holds 560 lines), so the value 6.29 exactly at the edge is a short
+extrapolation; the swing diagnostic there is 0.89, just under the `--max-swing` limit of 1.
+
+Adopting it (`apply_calibration.py --orig-col Iorig --scale 1000`) moved the median line by
+a factor 1.01, the middle 90% by factors 0.70 to 1.42, and the largest single line by 37;
+the column again satisfies `Icor = 1000 * Iorig * exp(P(lambda))` to 6e-16. The Boltzmann
+iteration then closed in two rounds (`--tol 0.005`, after the stale-input round) at
+
+```
+C = 268.527,  kT = 12241.81 cm^-1,  rms |ln(Icalc/Iobs)| = 0.876
+```
+
+with no calculated intensity moving by more than 0.47% in the last round, and
+`classify_lines.py` re-run on that model reproducing the same answer. `kT` from the
+independent joint fit inside the calibration (12227 cm^-1) and `kT` from the pipeline
+(12242 cm^-1) now agree to 0.1%.
+
+On the classification: **4891** accepted identifications against 4874 before (main grade
+2/3/4/5 = 4535/316/37/3 against 4522/312/35/5; subgrade A/B/C/D/E/G =
+1609/1929/130/212/69/942 against 1628/1962/109/210/69/896). On the validation: 208 tested
+levels, best decoy-calibrated cut at `n >= 5` and `|dE| <= 0.2335 cm^-1` validating **114
+of 208** with 4.75 expected false, and 198 / 9 / 1 levels below 5%, between 5% and 50%, and
+between 50% and 90% spurious probability, for a most probable **3.5** spurious levels among
+the 208 (95% range 0.0-10.8). The state before this change is archived in
+`baseline/before_coverage_gaps/`.
 
 ---
 
@@ -569,7 +1019,7 @@ factor of two", in whatever decade `gA` happens to lie.
    [The intensity model](#the-intensity-model-boltzmann-plot) below):
 
    ```
-   Icalc = C · gA · (rwn / 1e8) · exp(−Eup / kT) ,   C = 131.092 ,  kT = 13009.1 cm⁻¹
+   Icalc = C · gA · (rwn / 1e8) · exp(−Eup / kT) ,   C = 251.606 ,  kT = 12375.4 cm⁻¹
    ```
 
    with `Eup` the energy of the upper level and `rwn` the Ritz wavenumber, both in cm⁻¹.
@@ -689,27 +1139,109 @@ Running `python level_shifts.py` produces the full analysis:
 
 1. **Old-level calibration** — the |ΔE| percentiles quoted above, and the per-support behavior of d.
 2. **Criterion grids** — for every combination of `N` (minimum number of supporting lines) and `T` (largest allowed |ΔE|), the number of tested levels passing the cut `n ≥ N and |ΔE| ≤ T` against the expected number of false passes (decoy calibration, and the shifted-wavenumber upper bound).
-3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). With the current inputs 56 predictions are excluded in the gaps and 11905 below the noise level, of 18331 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
+3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). A third correction enters that comparison. `Icalc` is meant to be on the same linear scale as the observed intensities, and from 1000 Å upward it is — the median of `I_obs/I_pred` over the accepted identifications is within about 30 % of 1. Below 900 Å it is not: the median falls to 0.09 (83 accepted lines), and the ratio of the band totals — all observed intensities over all predicted ones, which does not depend on which lines were classified — agrees at 0.16. A prediction there is therefore about ten times fainter on the plate than its `I_pred` says. `intensity_scale_bias` measures that factor band by band (`SCALE_BIAS_BANDS_A`, at least `SCALE_BIAS_MIN_N` = 10 accepted lines, correction applied only where the factor is below `SCALE_BIAS_MAX_FACTOR` = 0.5) together with the scatter of `ln(I_obs/I_pred)`, and the corrected intensity `I_pred·f(λ)` is what has to clear the noise level. This is a fault of the calculated intensities, not of the plates: Sugar's plates reach his intensity 1 everywhere, and Pr III lines of intensity 1 are recorded and classified down to the short-wavelength edge at 821.9 Å. With the current inputs 113 predictions are excluded in the gaps and 21178 below the noise level, of 29162 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
    - `top10_found` — how many of the 10 strongest predictions are among the accepted lines (`n_top10` = how many were available);
    - `pattern_C` — intensity-weighted completeness: the sum of predicted intensities over the accepted transitions divided by the sum over all predicted observable ones;
    - `pattern_V` — C divided by the largest C achievable with the level's number of matched lines. V = 1 means the accepted lines are exactly the strongest predictions; V = 0 means predictions exist but none was found. Unlike C, V does not punish a level for accepted lines that theory does not cover, and it is nearly independent of n.
+   - `top1` — the fate of the level's **strongest** predicted observable transition on its own: `found` (it is among the accepted lines), `masked` (absent, but an observed line hides it — see the masking test in item 5), `faint` (absent, nothing hides it, but the line would not reliably have been recorded anyway — see below), `missing` (absent and unexplained), or blank (no observable prediction). This is scored separately because `pattern_V` cannot catch it: V asks whether the *accepted* lines are the strongest of the predictions, so a level whose two accepted lines are ranked 2 and 3 reaches V ≈ 1 with rank 1 missing. A missing, unmasked strongest branch is the most direct evidence there is against a level — but only where the line would have been seen. `detection_probability` turns the corrected intensity and the measured scatter of `ln(I_obs/I_pred)` into the probability that the branch would have been recorded at all (a log-normal centred on `I_pred·f(λ)` with that scatter, integrated above the noise level); below `DETECT_CONFIDENCE` = 0.9 the absence carries no information and `top1` reads `faint` instead of `missing`. The two classes separate cleanly — with the current inputs every branch still called `missing` would have been recorded with probability ≥ 0.94, and every `faint` one with 0.85 or less — so the exact cut does not matter. Of the 208 tested levels, 180 have their strongest branch accepted, 10 have it masked, 2 have it faint and 16 have it missing.
    
-   Calibration: genuine (old) levels have a median C of 0.92 and median V of 0.95; decoys have 0.03 and 0.06. The information here is genuinely new — the weeding checks each line's intensity individually but never penalizes a level for strong predicted lines that are *absent*. Two known weaknesses: a single grossly wrong predicted rate can wreck C and V of a real level (theory faults of this kind are common), and levels whose transitions are not covered by the theory get no pattern verdict at all.
+   Calibration: genuine (old) levels have a median C of 0.91 and median V of 0.94; decoys have 0.03 and 0.06. The information here is genuinely new — the weeding checks each line's intensity individually but never penalizes a level for strong predicted lines that are *absent*. Two known weaknesses: a single grossly wrong predicted rate can wreck C and V of a real level (theory faults of this kind are common), and levels whose transitions are not covered by the theory get no pattern verdict at all.
 4. **Per-level spurious probabilities.** For each tested level, two independent pieces of evidence are weighed between "genuine" and "spurious" (= behaves like a decoy): the energy shift (|d| modeled as a log-normal distribution whose median depends on n, fitted separately to the old levels and to the decoys) and the intensity pattern (the probability of the level's V range under each hypothesis, measured on the old levels and on the decoys). The prior probability that a tested level with support n is spurious is `S·q(n)/m(n)`, where `q(n)` is the decoy probability of ending with support n and `m(n)` is the observed number of tested levels with support n; the single unknown S — the total number of spurious levels — is estimated by maximizing the likelihood. Three posterior probabilities go into the report:
    - `p_spur_decoys` — from the energy shift alone;
    - `p_spur_pattern` — from the intensity pattern alone;
    - `p_spur` — both folded together (the final value).
    
-   With the current inputs (converged model, 209 tested levels): S = 0 [0–11.5 at 95% confidence] from the energy shifts alone (49 [28–69] under the alternative small-n assumption — poorly determined), 6.5 [0.5–15.0] from the pattern alone, and **6.0 [1.0–13.8] folded** (11.2 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 11 levels; the 198 unmarked levels then carry a summed probability of only 1.0 expected spurious levels, while the marked group is expected to contain ~5 spurious and ~6 genuine members (a "questionable" mark is a caution, not a verdict).
-5. **Masking check (adjudication of the questionable marks).** A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every questionable level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared, provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`). The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs, 3 of the 11 flagged levels are cleared, leaving 8 questionable (all 8 with no reason to clear).
-6. **Report file** — `level_shift_report.csv/.xlsx`, one row per level: `level_id`, `is_new_level` (absent from ASD), `new_star` (tested), `note`, `J`, `parity`, `E_input`, `E_final`, `dE`, `n_old`, `n_new`, `n_tot`, `d`, `n_pred`, `n_top10`, `top10_found`, `pattern_C`, `pattern_V`, `n_acc_below_noise`, `p_spur_decoys`, `p_spur_pattern`, `p_spur`, `question_status`, `reason` (the probabilities and the adjudication columns are filled only where applicable).
+   With the current inputs (converged model, 208 tested levels): S = 0.0 [0.0–8.0 at 95% confidence] from the energy shifts alone (36.8 [19.5–53.8] under the alternative small-n assumption — poorly determined), 4.8 [0.0–13.0] from the pattern alone, and **3.5 [0.0–10.8] folded** (9.0 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 8 levels; the 200 unmarked levels then carry a summed probability of only 0.7 expected spurious levels, while the marked group is expected to contain ~2.9 spurious and ~5.2 genuine members (a "questionable" mark is a caution, not a verdict).
+5. **Masking check (adjudication of the questionable marks).** Two things put a tested level up for examination: the probabilities question it (`p_spur ≥ 0.1`), or its strongest predicted transition is absent from the accepted lines and would have been recorded had it been there (`top1` reads `missing`; a branch too faint to have been recorded reads `faint` and does not put the level up for examination). A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every such level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared — provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`) **and** the strongest branch is not itself among the unexplained absences. A missing, unmasked strongest branch keeps the mark whatever the probabilities say. The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs, 20 levels are examined (8 flagged by `p_spur`, 16 by a missing strongest branch, 4 by both); 1 is cleared (059003.000457, 96% of its missing predicted intensity masked), leaving 19 questionable — 16 because their strongest predicted transition is absent and nothing hides it, 3 with no reason to clear.
+6. **Report file** — `level_shift_report.csv/.xlsx`, one row per level: `level_id`, `is_new_level` (absent from ASD), `new_star` (tested), `note`, `J`, `parity`, `E_input`, `E_final`, `dE`, `n_old`, `n_new`, `n_tot`, `d`, `n_pred`, `n_top10`, `top10_found`, `top1`, `pattern_C`, `pattern_V`, `n_acc_below_noise`, `p_spur_decoys`, `p_spur_pattern`, `p_spur`, `question_status`, `reason` (the probabilities and the adjudication columns are filled only where applicable).
 
 **Single-level inspection:** `python level_shifts.py --detail <level_id> …` prints one level's predicted transitions (strongest first) with the fate of each in the real run — accepted (with the observed line), rejected (with the weeding note), or not matched by any observed line — plus the accepted lines that have no theoretical prediction. This is the working tool for judging individual questionable levels.
+
+### Revised identifications: building the report from LOPT (`lopt_lines.py`)
+
+Identifications do not stay as the pipeline left them. They are revised by hand — in
+IDEN2, or by editing the LOPT input file — and **LOPT** (the least-squares level
+optimizer) is then re-run on the revised list. `--lopt` builds the same validation
+report from LOPT's own line-output file, so a hand-revised run can be validated with
+the identical machinery:
+
+```
+python level_shifts.py --lopt LOPT_output_lines_revised.txt \
+                       --e-input revised_level_energies.csv
+```
+
+The report is named after the LOPT file (`LOPT_output_lines_revised.txt` →
+`level_shift_report_revised.csv`) so it never overwrites the pipeline's own; `--report`
+overrides the name.
+
+**What `lopt_lines.py` recovers, and from where.** LOPT's line output is tab-separated
+with one header row; which columns it holds depends on the print options of the
+parameter file, so they are looked up by name, and a number LOPT does not give prints
+as `_`.
+
+| the report needs | where it comes from |
+|---|---|
+| `accepted` | `Weight > 0`. Rows flagged `P` carry weight 0 — predicted (Ritz) positions LOPT was asked to print but not to fit. Rows flagged `c` are the components of a resolved blend and carry their branching fraction; they are accepted. |
+| `low_E`, `upp_E` | re-solved from the accepted lines (see below), or LOPT's own energies with `--energies lopt` |
+| `new` | not in LOPT's output. An identification is *old* when the same pair of levels stands in the `id1`/`id2` columns of the line workbook — the published identifications — against a line at the same wavenumber. Level pairs are unique across the line list, so the pair alone is a safe key and the wavenumber is only a guard. |
+| `wn_obs`, `obs_intens` | LOPT prints both, but rounded to the precision of the line's uncertainty; the exact values are taken from the line workbook by nearest-wavenumber match within 0.05 cm⁻¹. |
+
+Columns LOPT cannot supply — a candidate's calculated intensity, its grade, the weeding
+notes — are written as blanks, and `--detail` says so.
+
+**Why the energies are re-solved rather than taken from LOPT.** The report judges a
+tested level by its energy shift ΔE against the same quantity measured on levels that
+are false by construction: the decoys of `decoy_mc.py` and the chance levels of
+`chance_mc.py`. Those reference populations are made by re-running the pipeline, so
+their `E_final` comes from the pipeline's optimizer. Taking `E_final` for the tested
+levels from LOPT instead would measure the two sides of the comparison with different
+instruments: LOPT tunes single-line levels, treats blends by its centroid model and
+rounds its output, and its energies differ from the pipeline's by up to 0.2 cm⁻¹ — the
+same size as the ΔE under test, and enough to widen the fitted scatter of the genuine
+population from s = 1.34 to s = 1.98, which quietly makes every level look more genuine.
+
+So `--lopt` takes the **accepted set** from LOPT and re-solves the energies from it with
+the pipeline's own weighted least squares (`lopt_lines.refit_energies`): each accepted
+transition is one observation equation `E(upper) − E(lower) = wn_obs` weighted by
+`BF²/u²`, the ground level is held fixed, and one level of any group not connected to it
+is anchored at its input energy. Fed the pipeline's own identifications, the refit
+reproduces `line_classifications.csv` to a median of 1.3·10⁻⁶ cm⁻¹ and a maximum of
+0.0012 cm⁻¹, and the resulting report reproduces every integer column of
+`level_shift_report.csv` exactly and `p_spur` to 0.001. A `--lopt` report and the
+ordinary one therefore differ only in the thing being studied — which lines are assigned
+to which levels — which is what makes a before/after comparison of a revision fair.
+
+Add `--energies lopt --lopt-levels LOPT_output_levels_revised.txt` to report LOPT's own
+optimized energies instead. Those are the energies to publish; they are not comparable
+with the calibrations. The level-output file is worth passing because its four decimals do not
+depend on how much precision LOPT chose to print for each level, unlike the `E1`/`E2`
+columns of the line output; for `LOPT_output_lines_revised.txt` the two agree exactly on
+all 593 levels.
+
+**`--e-input`: levels a revision deliberately moved.** ΔE asks whether the optimizer
+stays where the identifications put the level. For a level that was *re-positioned*, the
+adopted-level workbook is the wrong reference and ΔE would report the size of the move
+rather than test it. Give the new starting energies in a two-column CSV
+(`level_id,E_input`); the levels listed there are reported on the console, the rest keep
+the workbook value. Note that ΔE is then not an independent test for those levels
+either, if the new `E_input` was itself computed from the very lines the revision
+assigns to them — their evidence is the intensity pattern and the residual spread.
+
+**What the calibrations do and do not need.** `decoy_mc.py` and `chance_mc.py` take no
+LOPT input and need none: they insert fake levels into the pipeline, or shift every
+wavenumber, and measure what the pipeline does with them. Their output is a *null*
+distribution — how a level that is false by construction behaves — and it is the real
+side of the comparison that has to be brought into the same units, which is what the
+refit does. Both are deterministic given the pipeline, so re-running them after a
+revision of the identifications reproduces the same files. The one residual
+approximation is that the null was measured in an environment where the pipeline's own
+assignments consumed the observed lines; a revision that changes a handful of the ~4900
+accepted lines changes that environment by well under a percent.
 
 ### Limits of the validation (to be stated alongside the results)
 
 - **Recovery, not physical proof.** A small ΔE certifies that the accepted lines reproduce the energy encoded in Wyart's input value — i.e. that his identifications were recovered. If Wyart himself was misled by chance coincidences, our run re-finds the same coincidences with a small ΔE; only the intensity pattern (and physics arguments: theory, g-factors, term structure) can catch that case.
-- **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. In the converged run all 11 marked levels do have observable predictions (in earlier runs a sizeable part of them did not, and there `p_spur` rests on the energy shift and the support count alone). A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
+- **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. In the converged run all 5 marked levels do have observable predictions (in earlier runs a sizeable part of them did not, and there `p_spur` rests on the energy shift and the support count alone). A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
 - **Decoys can accidentally be real.** A displaced decoy may land on a real, previously unknown level (most likely a neighboring-J member of the same term at high energies) or on the true position of a level misassigned in the underlying Cowan-code fit. Both effects make some decoy "false positives" actually real, so the decoy-based false rates are slight overestimates — the bias is in the safe direction. The fraction of supported decoy trials showing three or more of their top-10 predictions accepted (~6%) is an upper bound on this contamination.
 - **Lines omitted as blends with other ionization stages.** Sugar assigned lines to Pr II, III, or IV by comparing exposures at different degrees of excitation; a Pr III line nearly coinciding with a stronger Pr II or Pr IV line could not be assigned confidently and was omitted from his Pr III list. Such omissions are invisible to the masking check (the search covers only Sugar's Pr III lines), so some "missing" strong predictions are excusable in a way the automation cannot see. Statistically the effect is absorbed — the old (genuine) reference levels suffer the same omissions, so the pattern-score comparison between the classes stays fair — but the per-level adjudication is conservative: a questionable mark that an expert would clear on this ground stays retained. Automating this excuse would require Pr II and Pr IV line lists.
 
@@ -724,6 +1256,16 @@ python classify_lines.py     # 1. the real classification → line_classificatio
 python decoy_mc.py           # 2. eight decoy runs → decoy_mc_*.csv/.xlsx
 python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → chance_mc_*.csv/.xlsx
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
+```
+
+After identifications have been revised by hand and LOPT re-run on them, step 4 is
+repeated against the revised run, reusing the calibrations of steps 2–3:
+
+```
+python make_LOPT_input.py                     # optional: pipeline table → LOPT input files
+#   … revise the identifications, run LOPT …
+python level_shifts.py --lopt LOPT_output_lines_revised.txt \
+                       --e-input revised_level_energies.csv
 ```
 
 The first three accept `--missing-gA {none,impute}`, which overrides `missing_gA.policy` of
@@ -793,12 +1335,25 @@ LineClass/
 ├── tests/                        # pytest suite (python -m pytest -q)
 ├── tools/                        # compare_runs.py, analyze_policy_diff.py, fit_boltzmann.py
 │                                 #   (Boltzmann fit of C and kT), iterate_boltzmann.py
-│                                 #   (fit → rewrite Icalc → reclassify, to convergence)
+│                                 #   (fit → rewrite Icalc → reclassify, to convergence),
+│                                 #   calibrate_intensities.py (standalone: finds the
+│                                 #   piecewise plate-intensity correction and its regions),
+│                                 #   apply_calibration.py (takes the intensity column
+│                                 #   from one such correction to another),
+│                                 #   attach_sugar_intensities.py (copies Sugar's printed
+│                                 #   intensities into the line list as the column Iorig)
 ├── baseline/                     # Archived reference runs (policy_none/, policy_impute/,
-│                                 #   boltzmann_model/, boltzmann_converged/)
+│                                 #   boltzmann_model/, boltzmann_converged/,
+│                                 #   before_intensity_recalibration/,
+│                                 #   before_sugar_intensities/,
+│                                 #   sugar_intensities_converged/,
+│                                 #   sugar_intensities_complete/ — the run in force)
 ├── PLAN_missing_gA.md            # The censoring correction: plan, evidence, Stage-5 verdict
 ├── Icalc.xlsx                    # Input: calculated transition intensities & uncertainties
-├── Pr3_lines.xlsx                # Input: observed spectral lines (Sugar 1969/1974)
+├── Pr3_lines.xlsx                # Input: observed spectral lines (Sugar 1969/1974);
+│                                 #   column Iorig holds Sugar's own printed intensities
+├── Pr3_Sugar69_extracted_*.xlsm  # Source: the checked extraction of Sugar 1969, Table 1
+├── Pr_3_Sugar74_Table1_*.xlsm    # Source: the checked extraction of Sugar 1974, Table 1
 ├── intensity_correction_functions.txt  # Input (optional): Sugar plate-intensity calibration
 ├── line_classifications.xlsx     # Output: classification table (LOPT-ready)
 ├── line_classifications.csv      # Output: same data as CSV

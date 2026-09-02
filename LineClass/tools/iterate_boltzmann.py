@@ -104,7 +104,7 @@ def accepted_count(csv_path):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--config', default=config.DEFAULT_PATH)
-    ap.add_argument('--tol', type=float, default=0.01,
+    ap.add_argument('--tol', type=float, default=0.0001,
                     help='converged when no Icalc moves by more than this '
                          'fraction in a round (default 0.01)')
     ap.add_argument('--max-rounds', type=int, default=12)

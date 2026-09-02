@@ -1,0 +1,30 @@
+Pr3_line_class13.prn          ; TRANSITIONS input file name; Explanations are below!
+Pr3_line_class5_fixlev.txt            ; FIXED LEVELS input file name
+Pr3_line_class13_opt_lev.txt   ; Levels OUTPUT file name
+Pr3_line_class13_opt_lin.txt   ; Transitions OUTPUT file name
+N                 ; OMIT calc. wavelengths in ANGSTROMS in the output (Y/N)?
+Y                 ; TUNE single-line levels (Y/N)?
+N                 ; Print listing of correlated-lines uncert. effects (Y/N)?
+Y       ; CALCULATE predicted line UNCERTAINTIES (Y/N)?
+N       ; Write virtual lines (Y/N)?
+N       ; Divide levels into independent groups (Y/N)?
+5000    ; MIN. wavenumber for AIR wavelength [cm-1]
+50000   ; MAX. wavenumber for AIR wavelength [cm-1]
+99.0     ; ROUND-OFF threshold for output LEVELS
+99.0     ; ROUND-OFF threshold for output LINES
+ 1       ; 1st column of WAVELENGTH in the transitions-input file
+ 12      ; LAST column of WAVELENGTH in the transitions-input file
+ 14      ;1st column of wavelength UNCERTAINTY in the transitions-input file
+ 19      ;LAST column of wavelength UNCERTAINTY in the transitions-input file
+    25   ; 1st column of LINE INTENSITY in the transitions-input file
+    42   ; LAST column of LINE INTENSITY in the transitions-input file
+43     ;1st column of LOWER LEVEL LABEL in the transitions-input file
+55     ;LAST column of LOWER LEVEL LABEL in the transitions-input file
+ 59    ;1st column of UPPER level LABEL in the transitions-input file (width must be same as for lower level)
+73      ;1st column for LINE FLAGS (B=blend,Q=questionable,M=masked,P=predicted,A=air wavelength,V=vacuum wavelength; width=5 chars; CORRELATION GROUP No. is entered here!)
+  82    ;1st column of line WEIGHT in the transitions-input file
+  87    ;LAST column of line WEIGHT in the transitions-input file
+90      ; 1st column of wavelength UNITS in the transitions-input file (width=4 chars)
+Y       ; tab-delimited output [Y/N]?
+Y       ; Round input [Y/N]?
+centroid; BLEND TREATMENT [component/centroid]

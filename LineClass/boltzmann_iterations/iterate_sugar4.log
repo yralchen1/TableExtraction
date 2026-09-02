@@ -1,0 +1,12 @@
+round 1: 4882 accepted lines, 4878 with a gA, 4365 kept -> C = 252.276, kT = 12370.8 cm^-1, rms ln I = 0.8683
+         Icalc rewritten (30206 values): max |change| 0.02272, median 0.01329
+         reclassified: 4880 accepted identifications (496 s)
+round 2: 4880 accepted lines, 4876 with a gA, 4362 kept -> C = 252.641, kT = 12365.9 cm^-1, rms ln I = 0.8671
+         Icalc rewritten (30206 values): max |change| 0.00306, median 0.002168
+         reclassified: 4880 accepted identifications (517 s)
+
+converged after 2 rounds: no calculated intensity moved by more than 0.00306 (< 0.005) in the last round.
+
+round      C          kT (cm^-1)   max|dIcalc|   accepted
+    1   252.2756    12370.798       0.02272       4880
+    2   252.6405    12365.916       0.00306       4880

@@ -1,0 +1,75 @@
+lines read: 6783 with an intensity, 3492 of them identified, 3486 with a calculated transition
+    the correction must cover 821.92 - 10721.57 A (all lines with an intensity); it is fitted on 879.44 - 10719.52 A
+
+stage 1 - first correction, nothing removed (3486 lines)
+    round  1:  0 regions, C = 0.6041, kT = 11315.2 cm^-1, rms dlnI = 2.3514, max |dIcor| = -
+    round  2: 11 regions, C = 0.1647, kT = 13914.5 cm^-1, rms dlnI = 1.6044, max |dIcor| = 149.5
+    round  3: 11 regions, C = 0.1651, kT = 13908.6 cm^-1, rms dlnI = 1.6030, max |dIcor| = 2.391
+    round  4: 11 regions, C = 0.1651, kT = 13908.6 cm^-1, rms dlnI = 1.6030, max |dIcor| = 0
+
+stage 2 - dropping lines with |dlnI| > 2.00 whose calculated gA is uncertain by more than 50%
+    pass 1: 466 lines beyond the cut; the percentage rule would drop 436 of them, the uncertainty rule 105; 436 dropped
+    round  1:  0 regions, C = 0.7145, kT = 10653.2 cm^-1, rms dlnI = 1.9831, max |dIcor| = -
+    round  2:  9 regions, C = 0.2644, kT = 12329.5 cm^-1, rms dlnI = 0.9228, max |dIcor| = 473.8
+    round  3:  9 regions, C = 0.2252, kT = 12650.9 cm^-1, rms dlnI = 0.9200, max |dIcor| = 0.8812
+    round  4:  9 regions, C = 0.2187, kT = 12711.7 cm^-1, rms dlnI = 0.9197, max |dIcor| = 0.8184
+    round  5:  9 regions, C = 0.2187, kT = 12711.7 cm^-1, rms dlnI = 0.9197, max |dIcor| = 0
+    pass 2: 77 lines beyond the cut; the percentage rule would drop 51 of them, the uncertainty rule 20; 51 dropped
+    round  1:  0 regions, C = 0.7293, kT = 10573.9 cm^-1, rms dlnI = 1.9669, max |dIcor| = -
+    round  2: 10 regions, C = 0.2314, kT = 12529.4 cm^-1, rms dlnI = 0.8773, max |dIcor| = 464.3
+    round  3:  9 regions, C = 0.2191, kT = 12640.8 cm^-1, rms dlnI = 0.8804, max |dIcor| = 3.979
+    round  4:  9 regions, C = 0.2191, kT = 12640.8 cm^-1, rms dlnI = 0.8804, max |dIcor| = 0
+    pass 3: 38 lines beyond the cut; the percentage rule would drop 10 of them, the uncertainty rule 5; 10 dropped
+    round  1:  0 regions, C = 0.7306, kT = 10564.7 cm^-1, rms dlnI = 1.9652, max |dIcor| = -
+    round  2:  9 regions, C = 0.2206, kT = 12617.0 cm^-1, rms dlnI = 0.8746, max |dIcor| = 456.4
+    round  3:  9 regions, C = 0.2132, kT = 12687.5 cm^-1, rms dlnI = 0.8733, max |dIcor| = 1.57
+    round  4:  9 regions, C = 0.2132, kT = 12687.5 cm^-1, rms dlnI = 0.8733, max |dIcor| = 0
+    pass 4: 30 lines beyond the cut; the percentage rule would drop 2 of them, the uncertainty rule 0; 2 dropped
+    round  1:  0 regions, C = 0.7321, kT = 10560.0 cm^-1, rms dlnI = 1.9652, max |dIcor| = -
+    round  2:  9 regions, C = 0.2218, kT = 12604.3 cm^-1, rms dlnI = 0.8733, max |dIcor| = 456.3
+    round  3:  9 regions, C = 0.2137, kT = 12680.6 cm^-1, rms dlnI = 0.8720, max |dIcor| = 1.161
+    round  4:  9 regions, C = 0.2137, kT = 12680.6 cm^-1, rms dlnI = 0.8720, max |dIcor| = 0
+
+stage 3 - dropping apparently too-weak lines that end on a level at or below 0 cm^-1 (self-absorption)
+    lines still too weak by more than the cut, by the energy of the level they end on:
+        lower level <=      0 cm^-1 :    0 of the 18 such lines are that weak
+        lower level <=   1000 cm^-1 :    0 of the 18 such lines are that weak
+        lower level <=   2000 cm^-1 :    0 of the 38 such lines are that weak
+        lower level <=   5000 cm^-1 :    0 of the 68 such lines are that weak
+        lower level <=  10000 cm^-1 :    0 of the 79 such lines are that weak
+    pass 1: 0 lines dropped as self-absorbed
+
+stage 4 - what is left beyond |dlnI| > 2.00
+    region 1    821.92 -  1302.83 A :  641 lines,   1 outliers ( 0.2%),  640 would remain
+    region 2   1302.83 -  1522.49 A :  151 lines,   4 outliers ( 2.6%),  147 would remain
+    region 3   1529.85 -  2103.46 A :  406 lines,   7 outliers ( 1.7%),  399 would remain
+    region 4   2107.92 -  2476.72 A :  560 lines,   0 outliers ( 0.0%),  560 would remain
+    region 5   2476.72 -  2883.39 A :  404 lines,   4 outliers ( 1.0%),  400 would remain
+    region 6   2883.39 -  4000.16 A :  403 lines,   9 outliers ( 2.2%),  394 would remain
+    region 7   4000.16 -  4898.36 A :  131 lines,   2 outliers ( 1.5%),  129 would remain
+    region 8   4898.36 -  6877.19 A :  122 lines,   0 outliers ( 0.0%),  122 would remain
+    region 9   6877.19 - 10721.57 A :  169 lines,   1 outliers ( 0.6%),  168 would remain
+    28 outliers dropped; final iteration to 0.002
+    round  1:  0 regions, C = 0.7454, kT = 10501.5 cm^-1, rms dlnI = 1.9342, max |dIcor| = -
+    round  2:  8 regions, C = 0.2743, kT = 12140.9 cm^-1, rms dlnI = 0.8168, max |dIcor| = 469.8
+    round  3:  8 regions, C = 0.2622, kT = 12226.9 cm^-1, rms dlnI = 0.8175, max |dIcor| = 0.9634
+    round  4:  8 regions, C = 0.2622, kT = 12226.9 cm^-1, rms dlnI = 0.8175, max |dIcor| = 0
+
+final correction: 8 regions, C = 0.262201, kT = 12226.94 cm^-1 (1.5159 eV)
+  coverage gaps honoured (no region crosses one, and the correction may jump across it): 1522.49 - 1529.85 A, 2103.46 - 2107.92 A
+  region       from          to    deg     n   rms dlnI    P(from)    P(to)   swing
+      1      821.92     1522.49      3   787      0.829     -2.726   -2.937    0.00
+            1522.49     1529.85      coverage gap: no exposures, the scales on the two sides are unrelated
+      2     1529.85     2103.46      1   399      0.861      0.515   -0.477    0.00
+            2103.46     2107.92      coverage gap: no exposures, the scales on the two sides are unrelated
+      3     2107.92     2476.72      3   560      0.785      6.286    0.917    0.89
+      4     2476.72     2883.39      3   400      0.798      1.277    0.914    0.00
+      5     2883.39     3889.18      3   382      0.889      0.192   -1.603    0.00
+      6     3889.18     4875.46      2   140      0.835     -1.534   -1.974    0.00
+      7     4875.46     6877.19      2   123      0.628     -0.471   -2.558    0.00
+      8     6877.19    10721.57      3   168      0.739     -3.528   -6.473    0.97
+  (swing = how far P goes beyond what the lines of the region ask for, in natural logarithms; a large value at an end of a region means the polynomial is unconstrained there - lower --max-degree or raise --pts-per-coef)
+
+correction written to intensity_correction_auto.txt
+per-line diagnostics written to intensity_calibration_lines.csv
+plot written to intensity_calibration.png

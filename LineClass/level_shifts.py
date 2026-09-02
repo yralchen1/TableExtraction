@@ -70,15 +70,50 @@ The sum of the folded p_spur over the tested levels reproduces the joint
 estimate of S, and the expected number of false validations under any cut
 equals the sum of p_spur over the levels passing the cut.
 
-Adjudication of the questionable marks. Levels with folded
-p_spur >= P_QUESTIONABLE are additionally examined by the masking check
-(question_status): a strong predicted transition may be absent only because
-a nearby stronger observed line hides it on the photographic plates. If the
-dominant part of a questionable level's missing predicted intensity is
-hidden in this way and the energy-shift evidence alone is not suspect, the
+Adjudication of the questionable marks. Two things put a tested level up for
+examination: the probabilities question it (folded p_spur >= P_QUESTIONABLE),
+or its STRONGEST predicted transition is absent from the accepted lines with
+nothing to explain the absence and no reason it would have escaped the plates
+(report column top1 = 'missing'). Both are then
+put through the masking check (question_status): a strong predicted transition
+may be absent only because a nearby stronger observed line hides it on the
+photographic plates. If the dominant part of the level's missing predicted
+intensity is hidden in this way, the energy-shift evidence alone is not
+suspect, and the strongest branch is not among the unexplained absences, the
 questionable mark is cleared. The report columns question_status
 ('removed' = mark cleared, 'retained' = mark kept) and reason record the
 outcome.
+
+Why the strongest branch is judged separately. A level can score well on both
+the energy shift and pattern_V and still be wrong, if the lines it explains
+are weaker ones while its brightest predicted branch is simply not there.
+pattern_V does not catch this: V asks whether the ACCEPTED lines are the
+strongest of the predictions, so a level whose two accepted lines are ranked 2
+and 3 can reach V near 1 with rank 1 missing. A missing, unmasked strongest
+branch is the most direct evidence there is against a level, and it keeps the
+questionable mark whatever the probabilities say. The top1 column reads
+'found' (the strongest predicted transition is accepted), 'masked' (absent,
+but an observed line hides it), 'faint' (absent, nothing hides it, but the
+line would not reliably have been recorded anyway - see below), 'missing'
+(absent, unexplained), or blank (the level has no observable prediction).
+
+Absence is evidence only where a line would have been seen. Icalc is on the
+same linear scale as the observed intensities from 1000 A upward, but not in
+the far ultraviolet: below 900 A the median of I_obs/I_pred over the accepted
+identifications is 0.09, and the ratio of the band totals - all observed
+intensities over all predicted ones, which does not depend on which lines
+were classified - agrees at 0.16. A prediction there is therefore about ten
+times fainter on the plate than its I_pred says. intensity_scale_bias
+measures that factor band by band, together with the scatter of
+ln(I_obs/I_pred), which is of order 1 (a factor e either way) even where the
+scale is right. The corrected intensity is what the observability filter
+compares with the noise level, and detection_probability turns the pair into
+the probability that the line would have been recorded at all: a missing
+strongest branch counts as evidence (top1 = 'missing') only above
+DETECT_CONFIDENCE, and reads 'faint' below it. Sugar's plates do reach his
+intensity 1 everywhere - lines of intensity 1 are recorded and classified
+down to the short-wavelength edge at 821.9 A - so this is a fault of the
+calculated intensities, not of the plates.
 
 Intensity-pattern check. Independently of the energy shifts, a real level
 must reproduce the PATTERN of theoretically predicted intensities: its
@@ -122,17 +157,71 @@ theory; the new information in these scores is the COVERAGE of the strong
 predictions - the weeding never penalized a level for strong predicted
 lines that are absent.
 
+Where the run comes from. By default the accepted identifications and the
+optimized level energies are read from the classify_lines.py output table
+(line_classifications.csv), whose energies come from that program's own
+internal weighted least squares. Identifications are also revised by hand -
+in IDEN2, or by editing the LOPT input file - after which LOPT itself is
+re-run; --lopt builds the same report from LOPT's line-output file instead
+(see lopt_lines.py). For the same set of identifications the reconstruction
+reproduces the classify table row for row.
+
+Which energies a --lopt report uses, and why it is not LOPT's own by default.
+The report judges a tested level by its energy shift dE against the same
+quantity measured on levels that are false by construction: the decoys of
+decoy_mc.py and the chance levels of chance_mc.py. Those reference populations
+are made by re-running the pipeline, so their E_final comes from the
+pipeline's optimizer. Taking E_final for the tested levels from LOPT instead
+would measure the two sides of that comparison with different instruments:
+LOPT tunes single-line levels, treats blends by its centroid model and rounds
+its output, and its energies differ from the pipeline's by up to 0.2 cm^-1 -
+the same size as the dE under test, and enough to widen the fitted scatter of
+the genuine population by half again. So --lopt takes the ACCEPTED SET from
+LOPT and re-solves the energies from it with the pipeline's own least squares
+(lopt_lines.refit_energies). Fed the pipeline's own identifications the refit
+reproduces the pipeline's energies to 1e-6 cm^-1 (median) and 0.0012 cm^-1
+(maximum), so a --lopt report and the ordinary one differ only in the thing
+being studied: which lines are assigned to which levels, which is what makes
+a before/after comparison of a revision fair. Pass --energies lopt (with
+--lopt-levels LOPT_output_levels_revised.txt, whose four-decimal energies are
+better than the rounded E1/E2 of the line output) to report LOPT's own
+optimized energies instead; those are the energies to publish, but they are
+not comparable with the calibrations.
+
+One thing does NOT follow a --lopt run automatically. E_input still comes from
+the adopted-level workbook. dE asks whether the optimizer stays where the
+identifications put the level, so for a level that a revision deliberately
+MOVED, the workbook energy is the wrong reference and dE would report the size
+of the move rather than test it. Give the new starting energies in a
+two-column csv (level_id,E_input) via --e-input; the levels listed there are
+reported, the rest keep the workbook value. Note that dE is then not an
+independent test for those levels either, if the new E_input was itself
+computed from the very lines the revision assigns to them: their evidence is
+the intensity pattern and the residual spread, not dE.
+
 Outputs: level_shift_report.csv/.xlsx (one row per level: energies, dE, d,
-support counts, new* flag, p_spur, pattern scores) and the printed
-calibration tables.
+support counts, new* flag, p_spur, pattern scores, top1) and the printed
+calibration tables. With --lopt the report is named after the LOPT file
+(LOPT_output_lines_revised.txt -> level_shift_report_revised.csv) so that it
+never overwrites the pipeline's own; --report overrides the name.
 
 Usage:
     python level_shifts.py                          # the full report
     python level_shifts.py --detail <level_id> ...  # inspect single levels:
         prints the level's predicted transitions (strongest first) and what
         happened to each in the real run - accepted, rejected (with the
-        weeding note), or not matched by any observed line.
+        weeding note), or not matched by any observed line.  In --lopt mode
+        the calculated intensity, grade and weeding note of a candidate are
+        not available and print as blanks: LOPT does not record them.
+    python level_shifts.py --lopt LOPT_output_lines_revised.txt \
+                           --e-input revised_level_energies.csv
+        the report of a hand-revised, LOPT-optimized run, written to
+        level_shift_report_revised.csv.  Add
+            --energies lopt --lopt-levels LOPT_output_levels_revised.txt
+        to report LOPT's own energies instead of the calibration-consistent
+        refit, and --report NAME to choose the output name.
 """
+import math
 import os
 import sys
 
@@ -142,9 +231,17 @@ import pandas as pd
 import chance_mc as mc
 import classify_lines as cl
 import decoy_mc as dmc
+import lopt_lines
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPORT_CSV = os.path.join(HERE, 'level_shift_report.csv')
+
+# Set from the command line by --lopt / --report / --e-input; see read_run()
+# and the usage block of the module docstring.
+LOPT_LINES = None    # LOPT line-output file to build the run from
+LOPT_LEVELS = None   # LOPT level-output file, for --energies lopt
+ENERGIES = 'refit'   # 'refit' (calibration-consistent) or 'lopt'; see read_run
+E_INPUT_CSV = None   # csv of revised adopted energies (level_id,E_input)
 
 SUPPORT_MAX_BIN = 8   # last support bin is "8 or more"
 N_WORST = 12          # how many largest-|d| tested levels to list on the console
@@ -166,7 +263,22 @@ CALIB_FILE = os.path.join(HERE, 'intensity_correction_functions.txt')
 # no line falling inside them could have been observed. The edges coincide
 # with the seams of the intensity-calibration regions, where the intensity
 # scales of the bordering exposures could not be reconciled.
+# They are also the forced region boundaries of the intensity calibration
+# (DEFAULT_GAPS_A in tools/calibrate_intensities.py): keep the two lists equal.
 COVERAGE_GAPS_A = [(1522.49, 1529.85), (2103.46, 2107.92)]
+
+# Wavelength bands in which the predicted intensities are checked against the
+# observed ones for a scale error (see intensity_scale_bias).  Sugar's plates
+# reach his intensity 1 everywhere - lines of intensity 1 are recorded and
+# classified down to the short-wavelength edge at 821.9 A - but the CALCULATED
+# intensities in the far ultraviolet are an order of magnitude too large, so a
+# prediction there is far weaker on the plate than its I_pred suggests.
+SCALE_BIAS_BANDS_A = [(0.0, 900.0), (900.0, 1000.0)]
+SCALE_BIAS_MIN_N = 10          # accepted lines needed to measure a band
+SCALE_BIAS_MAX_FACTOR = 0.5    # only a bias this strong is worth correcting
+# A missing strongest branch counts as evidence against a level only if the
+# line would have been recorded with at least this probability (top1_status).
+DETECT_CONFIDENCE = 0.9
 
 
 def q(x, p):
@@ -301,7 +413,111 @@ def in_coverage_gap(wn: float) -> bool:
     return any(lo <= lam <= hi for lo, hi in COVERAGE_GAPS_A)
 
 
-def filter_observable(preds: pd.DataFrame, e_final: dict, calib):
+def intensity_scale_bias(real: pd.DataFrame, preds: pd.DataFrame,
+                         e_final: dict, verbose: bool = True) -> dict:
+    """Scale error and scatter of the predicted intensities, band by band.
+
+    Icalc is meant to be on the same linear scale as the observed
+    intensities, and from 1000 A upward it is: the median of I_obs / I_pred
+    over the accepted identifications is within about 30 percent of 1.  Below
+    900 A it is not - the median falls to about 0.09, and the ratio of the
+    band totals (all observed intensities over all predicted ones, which does
+    not depend on which lines were classified) agrees at 0.16.  A predicted
+    transition there is therefore about ten times fainter on the plate than
+    its I_pred says, and judging it against the noise level on the
+    uncorrected scale calls lines observable that are in fact at the
+    detection limit.
+
+    The scatter matters as much as the factor: ln(I_obs/I_pred) has a
+    standard deviation of order 1 (a factor e either way) even where the
+    scale is right, because gA values of this size carry uncertainties of
+    tens of percent and Sugar's eye estimates are coarse.  It is measured
+    here so that the detectability of a single predicted line can be stated
+    as a probability rather than a yes or no (see top1_status).
+
+    Returns {(lambda_low, lambda_high): (factor, sd)} for the bands of
+    SCALE_BIAS_BANDS_A measured on at least SCALE_BIAS_MIN_N accepted lines,
+    plus the entry None: (1.0, sd) for every other wavelength.  A band whose
+    factor is not below SCALE_BIAS_MAX_FACTOR gets factor 1.0: the intensity
+    scale there is right and nothing is corrected.
+    """
+    ip = {tuple(sorted((lo, up))): v
+          for lo, up, v in preds.itertuples(index=False)}
+    acc = real[real['accepted'] == 1]
+    lam, res = [], []
+    for lo, up, wn, io_ in zip(acc['low_id'], acc['upp_id'],
+                               acc['wn_obs'], acc['obs_intens']):
+        v = ip.get(tuple(sorted((str(lo), str(up)))))
+        if v is None or not (v > 0) or not (io_ > 0):
+            continue
+        lam.append(1.0e8 / float(wn))
+        res.append(math.log(float(io_) / float(v)))
+    lam = np.asarray(lam, dtype=float)
+    res = np.asarray(res, dtype=float)
+    out, covered = {}, np.zeros(len(lam), dtype=bool)
+    for lo_a, hi_a in SCALE_BIAS_BANDS_A:
+        m = (lam >= lo_a) & (lam < hi_a)
+        if int(m.sum()) < SCALE_BIAS_MIN_N:
+            continue
+        covered |= m
+        f = float(np.exp(np.median(res[m])))
+        sd = float(np.std(res[m], ddof=1))
+        if f >= SCALE_BIAS_MAX_FACTOR:
+            f = 1.0
+        out[(lo_a, hi_a)] = (f, sd)
+        if verbose:
+            print(f"  intensity scale {lo_a:.0f}-{hi_a:.0f} A: median "
+                  f"I_obs/I_pred = {np.exp(np.median(res[m])):.3f} "
+                  f"(sd of ln = {sd:.2f}) over {int(m.sum())} accepted lines"
+                  + ("" if f != 1.0 else "  - no correction"))
+    rest = res[~covered]
+    sd0 = float(np.std(rest, ddof=1)) if len(rest) > 2 else 1.0
+    out[None] = (1.0, sd0)
+    if verbose:
+        print(f"  intensity scale elsewhere: no correction "
+              f"(sd of ln = {sd0:.2f} over {len(rest)} accepted lines)")
+    return out
+
+
+def scale_bias(wn: float, bias: dict) -> tuple:
+    """(factor, sd of ln) of intensity_scale_bias applying at this wavenumber."""
+    if not bias:
+        return 1.0, 1.0
+    lam = 1.0e8 / wn
+    for band, v in bias.items():
+        if band is not None and band[0] <= lam < band[1]:
+            return v
+    return bias.get(None, (1.0, 1.0))
+
+
+def scale_bias_factor(wn: float, bias: dict) -> float:
+    """The intensity-scale factor applying at this wavenumber."""
+    return scale_bias(wn, bias)[0]
+
+
+def detection_probability(wn: float, i_pred: float, calib, bias: dict) -> float:
+    """Probability that a predicted line would have been recorded at all.
+
+    The line reaches the plate with intensity I_pred times the scale factor of
+    its band, and the spread of that estimate is the measured sd of
+    ln(I_obs/I_pred).  The probability is the mass of that log-normal above
+    the noise level (Sugar's intensity 1) at the same wavelength.  Returns 1.0
+    where there is no calibration to compare with.
+    """
+    if calib is None:
+        return 1.0
+    thr = noise_threshold_linear(wn, calib)
+    if thr is None or thr <= 0 or i_pred <= 0:
+        return 1.0
+    f, sd = scale_bias(wn, bias)
+    if not (sd > 0):
+        return 1.0 if i_pred * f >= thr else 0.0
+    z = math.log(i_pred * f / thr) / sd
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+def filter_observable(preds: pd.DataFrame, e_final: dict, calib,
+                      bias: dict | None = None):
     """Drop predicted transitions that could not have been observed.
 
     Two causes: (a) the Ritz wavelength falls inside one of Sugar's coverage
@@ -309,6 +525,13 @@ def filter_observable(preds: pd.DataFrame, e_final: dict, calib):
     I_pred/exp(P(lambda)) is below the noise level 1, i.e. I_pred is below
     the linear noise threshold at the Ritz wavelength (requires the
     calibration; predictions outside the calibrated range are kept).
+
+    `bias`, from intensity_scale_bias, corrects the known scale error of the
+    predicted intensities in the far ultraviolet before that comparison: what
+    has to clear the noise level is the intensity the line would actually
+    have on the plate, I_pred times the factor of its band.  The pattern
+    scores keep using the uncorrected I_pred, which is a relative weight
+    among a level's branches, not a plate intensity.
     Returns (kept, dropped_below_noise, n_in_gaps).
     """
     gap = np.array([in_coverage_gap(e_final[up] - e_final[lo])
@@ -318,8 +541,9 @@ def filter_observable(preds: pd.DataFrame, e_final: dict, calib):
         return kept, preds.iloc[0:0], int(gap.sum())
     keep = []
     for lo, up, ip in kept.itertuples(index=False):
-        thr = noise_threshold_linear(e_final[up] - e_final[lo], calib)
-        keep.append(thr is None or ip >= thr)
+        wn = e_final[up] - e_final[lo]
+        thr = noise_threshold_linear(wn, calib)
+        keep.append(thr is None or ip * scale_bias_factor(wn, bias) >= thr)
     keep = np.array(keep, dtype=bool)
     return (kept[keep].reset_index(drop=True),
             kept[~keep].reset_index(drop=True), int(gap.sum()))
@@ -563,12 +787,92 @@ def fit_spurious_probabilities(tested: pd.DataFrame, decoys: pd.DataFrame,
     return res
 
 
+def read_energy_overrides(path: str, levels: pd.DataFrame) -> pd.DataFrame:
+    """Replace E_input for the levels listed in a two-column csv.
+
+    The file has a header and the columns level_id and E_input.  It is needed
+    when identifications were revised in a way that MOVES a level: dE tests
+    whether the optimizer stays at the energy the identifications were built
+    for, so for a level deliberately re-positioned the starting energy is the
+    new hypothesised one, not the value in the adopted-level workbook.  Levels
+    absent from the file keep their workbook energy.
+    """
+    ov = pd.read_csv(path, dtype={'level_id': str})
+    missing = [c for c in ('level_id', 'E_input') if c not in ov.columns]
+    if missing:
+        raise ValueError(f"{os.path.basename(path)}: missing column(s) "
+                         f"{', '.join(missing)}")
+    emap = dict(zip(ov['level_id'].astype(str), ov['E_input'].astype(float)))
+    known = set(levels['level_id'])
+    unknown = sorted(set(emap) - known)
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: level id(s) not in the "
+                         f"level list: {', '.join(unknown)}")
+    out = levels.copy()
+    old = dict(zip(out['level_id'], out['E_input']))
+    out['E_input'] = out['level_id'].map(lambda l: emap.get(l, old[l]))
+    print(f"E_input overridden for {len(emap)} level(s) from "
+          f"{os.path.basename(path)}:")
+    for lid, e in sorted(emap.items()):
+        print(f"  {lid}  {old[lid]:.4f} -> {e:.4f}  "
+              f"({e - old[lid]:+.4f} cm^-1)")
+    return out
+
+
+def read_run():
+    """The run the report describes: (levels, accepted-line table, obs_lines).
+
+    Without --lopt this is the classify_lines.py run: its output table, whose
+    low_E / upp_E columns hold the energies of its own internal least-squares
+    optimization.  With --lopt the accepted set is read from a LOPT
+    line-output file instead (see lopt_lines.py), which is how a hand-revised
+    set of identifications enters the report.
+
+    Which energies the LOPT path uses is set by ENERGIES (--energies):
+      'refit' (the default) re-solves the level energies from the accepted
+              lines with the pipeline's own weighted least squares.  This is
+              what the report needs.  The energy shift dE of a tested level is
+              judged against the dE of levels that are false by construction -
+              the decoys of decoy_mc.py and the chance levels of chance_mc.py -
+              and those are produced by re-running the pipeline, so their
+              E_final comes from the pipeline's optimizer.  Measuring the
+              tested levels with LOPT instead would compare the two sides with
+              different instruments: LOPT's energies differ from the
+              pipeline's by up to 0.2 cm^-1, which is the same size as the dE
+              under test.  Fed the pipeline's own identifications the refit
+              reproduces its energies to 1e-6 cm^-1 (median), so a --lopt
+              report and the ordinary one differ only in the identifications.
+      'lopt'  uses LOPT's own optimized energies, from --lopt-levels when a
+              level-output file is given and from the E1/E2 columns of the
+              line output otherwise.  Right for reporting the adopted
+              energies; not comparable with the calibrations.
+
+    obs_lines (wavenumber and intensity of every measured line) is used only by
+    the masking check.  In LOPT mode it comes from the observed-line workbook,
+    which is the complete list; the classify path keeps using the candidate
+    table it always used, so the existing report is unchanged.
+    """
+    levels = mc.read_input_levels()
+    if E_INPUT_CSV:
+        levels = read_energy_overrides(E_INPUT_CSV, levels)
+    if LOPT_LINES:
+        print(f"Run read from LOPT output instead of "
+              f"{os.path.basename(cl.OUTPUT_CSV)}:")
+        real = lopt_lines.read_run(
+            LOPT_LINES, energies=ENERGIES, levels_path=LOPT_LEVELS,
+            e_input=dict(zip(levels['level_id'], levels['E_input'])))
+        obs_lines = lopt_lines.read_observed_lines()[['wn_obs', 'obs_intens']]
+    else:
+        real = pd.read_csv(cl.OUTPUT_CSV, dtype={'low_id': str, 'upp_id': str})
+        obs_lines = real.drop_duplicates('wn_obs')[['wn_obs', 'obs_intens']]
+    return levels, real, obs_lines
+
+
 def main():
     # ------------------------------------------------------------------
     # Real run, per level
     # ------------------------------------------------------------------
-    levels = mc.read_input_levels()
-    real = pd.read_csv(cl.OUTPUT_CSV, dtype={'low_id': str, 'upp_id': str})
+    levels, real, obs_lines = read_run()
     per = mc.per_level_table(real, levels)
     per['n_tot'] = per['n_old'] + per['n_new']
     per['abs_dE'] = per['dE'].abs()
@@ -582,7 +886,9 @@ def main():
     preds = load_predictions(set(per['level_id']), e_final_map)
     calib = read_intensity_calibration()
     n_pred_all = len(preds)
-    preds, preds_below, n_gap = filter_observable(preds, e_final_map, calib)
+    bias = intensity_scale_bias(real, preds, e_final_map)
+    preds, preds_below, n_gap = filter_observable(preds, e_final_map, calib,
+                                                  bias)
     real_pairs = accepted_pair_set(real)
     sc = pattern_scores(per['level_id'], real_pairs, preds)
     per['n_pred'] = [sc[l][0] for l in per['level_id']]
@@ -590,6 +896,11 @@ def main():
     per['top10_found'] = [sc[l][2] for l in per['level_id']]
     per['pattern_C'] = [sc[l][3] for l in per['level_id']]
     per['pattern_V'] = [sc[l][4] for l in per['level_id']]
+    # fate of each level's strongest predicted observable transition
+    by_level = predictions_by_level(preds, e_final_map)
+    per['top1'] = per['level_id'].map(
+        top1_status(per['level_id'], by_level, real_pairs, obs_lines,
+                    calib, bias))
     # accepted lines whose predicted intensity is below Sugar's noise level
     # (kept in the support count n; this column only makes them visible)
     below_cnt = {}
@@ -835,17 +1146,28 @@ def main():
         # ------------------------------------------------------------------
         # Masking check: adjudication of the questionable marks
         # ------------------------------------------------------------------
-        obs_lines = real.drop_duplicates('wn_obs')[['wn_obs', 'obs_intens']]
-        qstat = question_status(newp, preds, e_final_map, real_pairs, obs_lines)
-        print(f"\nMasking check of the questionable levels (a missing predicted "
-              f"transition counts as hidden if,\nwithin one effective line "
-              f"width — instrumental FWHM {INSTR_FWHM_A:g} angstrom convolved "
-              f"with the Doppler\nwidth — an observed line reaches "
+        qstat = question_status(newp, by_level, real_pairs, obs_lines,
+                                dict(zip(per['level_id'], per['top1'])))
+        t1 = per.loc[per['new_star'] == 1, 'top1'].value_counts()
+        print(f"\nStrongest predicted branch of the {n_tested} tested levels: "
+              f"{int(t1.get('found', 0))} accepted, "
+              f"{int(t1.get('masked', 0))} absent but masked\nby a stronger "
+              f"line, {int(t1.get('faint', 0))} absent but too faint on the "
+              f"plate to have been\nrecorded, {int(t1.get('missing', 0))} "
+              f"absent with nothing hiding them, {int(t1.get('', 0))} without "
+              f"an observable prediction.")
+        print(f"\nMasking check of the levels the probabilities question "
+              f"(p_spur >= {P_QUESTIONABLE}) or whose strongest\npredicted "
+              f"branch is missing (a missing predicted transition counts as "
+              f"hidden if, within\none effective line width - instrumental "
+              f"FWHM {INSTR_FWHM_A:g} angstrom convolved with the Doppler "
+              f"width -\nan observed line reaches "
               f"{MASK_STRENGTH:g} x its predicted intensity, or if the "
-              f"Gaussian wing of a\nstronger line still exceeds the predicted "
-              f"intensity at its position; the mark is cleared when\n>= "
-              f"{MASK_CLEAR_FRACTION:.0%} of the missing predicted intensity "
-              f"is hidden and the energy shift alone is not suspect):")
+              f"Gaussian wing of a stronger\nline still exceeds the predicted "
+              f"intensity at its position; the mark is cleared when >= "
+              f"\n{MASK_CLEAR_FRACTION:.0%} of the missing predicted intensity "
+              f"is hidden, the energy shift alone is not suspect,\nand the "
+              f"strongest branch is not among the unexplained absences):")
         removed = sorted((lid, f) for lid, (st, _, f) in qstat.items()
                          if st == 'removed')
         print(f"  question_status = removed (questionable mark cleared): "
@@ -903,7 +1225,7 @@ def main():
         lambda lid: qstat.get(lid, ('', ''))[1])
     cols = ['level_id', 'is_new_level', 'new_star', 'note', 'J', 'parity',
             'E_input', 'E_final', 'dE', 'n_old', 'n_new', 'n_tot', 'd',
-            'n_pred', 'n_top10', 'top10_found', 'pattern_C', 'pattern_V',
+            'n_pred', 'n_top10', 'top10_found', 'top1', 'pattern_C', 'pattern_V',
             'n_acc_below_noise', 'p_spur_decoys', 'p_spur_pattern', 'p_spur',
             'question_status', 'reason']
     print()
@@ -924,38 +1246,50 @@ def doppler_fwhm_factor() -> float:
                          / (cl.ATOMIC_MASS * u_to_kg)) / c)
 
 
-def question_status(newp: pd.DataFrame, preds: pd.DataFrame, e_final_map: dict,
-                    accepted_pairs: set, obs_lines: pd.DataFrame) -> dict:
-    """Adjudication of the questionable levels: can the bad score be excused?
+def _hidden_by_a_stronger_line(ritz: float, i_pred: float, wn_arr, int_arr,
+                               dop: float) -> bool:
+    """Is a predicted transition hidden under an observed line?
 
-    A tested level with folded p_spur >= P_QUESTIONABLE is re-examined the way
-    an expert would: a strong predicted transition may be absent from the
-    accepted lines simply because a nearby STRONGER line hides it on the
-    photographic plates. The masking test uses the effective line width
-    (full width at half maximum): the instrumental width INSTR_FWHM_A
-    convolved with the Doppler width, both in wavelength units where the
-    spectrograph resolution is nearly constant. An observed line hides a
-    missing prediction in either of two regimes:
+    ritz is the predicted position in cm^-1 and i_pred its predicted
+    intensity; wn_arr and int_arr are the positions and intensities of all
+    observed lines, wn_arr sorted; dop is the Doppler width factor returned by
+    doppler_fwhm_factor().
+
+    The test uses the effective line width (full width at half maximum): the
+    instrumental width INSTR_FWHM_A convolved with the Doppler width, both in
+    wavelength units, where the spectrograph resolution is nearly constant.
+    An observed line hides the prediction in either of two regimes:
       - within one effective width the two lines are not resolved, so a line
         of at least MASK_STRENGTH times the predicted intensity absorbs it;
-      - beyond one width, the prediction is hidden under the WING of a much
-        stronger line: a Gaussian profile of the effective width is applied
-        to the observed line, and the prediction counts as hidden if the
-        profile intensity at the predicted position still exceeds the
-        predicted intensity (the masking distance therefore grows with the
-        intensity ratio).
-    If at least MASK_CLEAR_FRACTION of the missing predicted intensity is
-    hidden (i.e. the DOMINANT missing predictions are masked; a small
-    unmasked residue of weak predictions is tolerated, as the theory is
-    least reliable for weak transitions), the bad pattern score carries no
-    evidence against the level, and the questionable mark is cleared
-    (question_status = 'removed') - provided the energy-shift evidence alone
-    does not keep the level suspect (p_spur_decoys < P_QUESTIONABLE).
-    Otherwise the mark is kept (question_status = 'retained') with the
-    applicable reason.
+      - beyond one width the prediction is hidden under the WING of a much
+        stronger line: a Gaussian profile of the effective width is applied to
+        the observed line, and the prediction counts as hidden if the profile
+        intensity at the predicted position still exceeds i_pred.  The masking
+        distance therefore grows with the intensity ratio.
+    """
+    lam = 1.0e8 / ritz                      # angstrom
+    fwhm_wn = float(np.hypot(INSTR_FWHM_A, dop * lam)) * ritz * ritz * 1.0e-8
+    # candidates out to 3 widths (a Gaussian wing at 3 FWHM requires an
+    # intensity ratio above e^25 - far beyond any real line pair)
+    win = 3.0 * fwhm_wn
+    i0 = np.searchsorted(wn_arr, ritz - win)
+    i1 = np.searchsorted(wn_arr, ritz + win)
+    four_ln2 = 4.0 * np.log(2.0)
+    for j in range(i0, i1):
+        sep = abs(wn_arr[j] - ritz)
+        if sep <= fwhm_wn:
+            if int_arr[j] >= MASK_STRENGTH * i_pred:     # unresolved
+                return True
+        elif (int_arr[j] * np.exp(-four_ln2 * (sep / fwhm_wn) ** 2)) >= i_pred:
+            return True
+    return False
 
-    Returns {level_id: (question_status, reason, masked_fraction)} for the
-    questionable levels (masked_fraction is NaN when not applicable).
+
+def predictions_by_level(preds: pd.DataFrame, e_final_map: dict) -> dict:
+    """{level_id: [(I_pred, pair, ritz), ...]} sorted strongest first.
+
+    pair is the unordered level-id pair of the predicted transition and ritz
+    its Ritz position, E(upper) - E(lower), from the optimized energies.
     """
     by_level = {}
     for lo, up, ip in preds.itertuples(index=False):
@@ -963,16 +1297,107 @@ def question_status(newp: pd.DataFrame, preds: pd.DataFrame, e_final_map: dict,
         ritz = e_final_map[up] - e_final_map[lo]
         by_level.setdefault(lo, []).append((ip, pair, ritz))
         by_level.setdefault(up, []).append((ip, pair, ritz))
+    for lid in by_level:
+        by_level[lid].sort(key=lambda t: -t[0])
+    return by_level
+
+
+def top1_status(level_ids, by_level: dict, accepted_pairs: set,
+                obs_lines: pd.DataFrame, calib=None,
+                bias: dict | None = None) -> dict:
+    """Fate of each level's STRONGEST predicted observable transition.
+
+    'found'   - it is among the accepted identifications;
+    'masked'  - it is not, but an observed line strong enough and close enough
+                to hide it stands at its predicted position, so its absence
+                from the line list is explained;
+    'faint'   - it is not, nothing hides it, but the line would not reliably
+                have been recorded in the first place: its intensity on the
+                plate, I_pred corrected by the scale factor of its band, is
+                too close to the noise level for its absence to mean
+                anything (detection_probability below DETECT_CONFIDENCE).
+                This is what happens in the far ultraviolet, where the
+                calculated intensities are an order of magnitude too large;
+    'missing' - it is not, nothing hides it, and it should have been
+                recorded: the branch the theory makes the level's brightest
+                is simply not there;
+    ''        - the level has no observable prediction, so the test does not
+                apply.
+
+    Why this is worth a column of its own.  A level can score well on both the
+    energy shift and the intensity pattern and still be wrong, if what it
+    explains is a set of weaker lines while its brightest predicted branch is
+    absent for no reason.  pattern_V does not catch that on its own: V measures
+    whether the ACCEPTED lines are the strongest of the predictions, so a level
+    whose two accepted lines happen to be ranked 2 and 3 can reach V near 1
+    while rank 1 is missing.  A missing, unmasked strongest branch is the
+    single most direct piece of evidence against a level, and it keeps the
+    questionable mark whatever the probabilities say.
+    """
     obs_sorted = obs_lines.sort_values('wn_obs')
     wn_arr = obs_sorted['wn_obs'].to_numpy(dtype=float)
     int_arr = obs_sorted['obs_intens'].to_numpy(dtype=float)
+    dop = doppler_fwhm_factor()
+    out = {}
+    for lid in level_ids:
+        plist = by_level.get(lid, [])
+        if not plist:
+            out[lid] = ''
+            continue
+        ip, pair, ritz = plist[0]
+        if pair in accepted_pairs:
+            out[lid] = 'found'
+        elif _hidden_by_a_stronger_line(ritz, ip, wn_arr, int_arr, dop):
+            out[lid] = 'masked'
+        elif detection_probability(ritz, ip, calib, bias) < DETECT_CONFIDENCE:
+            out[lid] = 'faint'
+        else:
+            out[lid] = 'missing'
+    return out
+
+
+def question_status(newp: pd.DataFrame, by_level: dict, accepted_pairs: set,
+                    obs_lines: pd.DataFrame, top1: dict) -> dict:
+    """Adjudication of the questionable levels: can the bad score be excused?
+
+    A level is examined here when either the probabilities call it into
+    question - folded p_spur >= P_QUESTIONABLE - or its strongest predicted
+    branch is missing and unmasked (top1_status == 'missing'), which is
+    evidence against the level no matter what the probabilities say.  A
+    strongest branch that is absent but too faint to have been recorded
+    (top1_status == 'faint') is not evidence and does not put the level up
+    for examination on its own.
+
+    The examination is the one an expert would make: a strong predicted
+    transition may be absent from the accepted lines simply because a nearby
+    stronger line hides it on the photographic plates
+    (_hidden_by_a_stronger_line).  If at least MASK_CLEAR_FRACTION of the
+    missing predicted intensity among the K_TOP strongest predictions is
+    hidden - i.e. the DOMINANT missing predictions are masked, a small
+    unmasked residue of weak predictions being tolerated because the theory is
+    least reliable for weak transitions - then the bad pattern score carries
+    no evidence against the level and the questionable mark is cleared
+    (question_status = 'removed').  Clearing requires two further things: the
+    energy-shift evidence alone must not remain suspect
+    (p_spur_decoys < P_QUESTIONABLE), and the strongest predicted branch must
+    not be missing and unmasked.
+
+    Returns {level_id: (question_status, reason, masked_fraction)} for the
+    levels examined; masked_fraction is NaN when the test does not apply.
+    """
+    obs_sorted = obs_lines.sort_values('wn_obs')
+    wn_arr = obs_sorted['wn_obs'].to_numpy(dtype=float)
+    int_arr = obs_sorted['obs_intens'].to_numpy(dtype=float)
+    dop = doppler_fwhm_factor()
 
     out = {}
     for _, r in newp.iterrows():
-        if not r['p_spur'] >= P_QUESTIONABLE:
-            continue
         lid = r['level_id']
-        plist = sorted(by_level.get(lid, []), key=lambda t: -t[0])
+        suspect = bool(r['p_spur'] >= P_QUESTIONABLE)
+        no_top1 = top1.get(lid) == 'missing'
+        if not (suspect or no_top1):
+            continue
+        plist = by_level.get(lid, [])
         if not plist:
             out[lid] = ('retained',
                         'no theoretical predictions (pattern check not applicable)',
@@ -985,42 +1410,33 @@ def question_status(newp: pd.DataFrame, preds: pd.DataFrame, e_final_map: dict,
             out[lid] = ('retained', 'no reason to clear', np.nan)
             continue
         i_missing = sum(ip for ip, _, _ in missing)
-        i_masked = 0.0
-        dop = doppler_fwhm_factor()
-        four_ln2 = 4.0 * np.log(2.0)
-        for ip, pair, ritz in missing:
-            # effective line width (FWHM): instrumental + Doppler, in
-            # wavelength units, converted to wavenumber units at this
-            # position (d_wn = d_lambda * wn^2 * 1e-8; lambda in angstrom)
-            lam = 1.0e8 / ritz
-            fwhm_wn = float(np.hypot(INSTR_FWHM_A, dop * lam)) * ritz * ritz * 1.0e-8
-            # candidates out to 3 widths (a Gaussian wing at 3 FWHM requires
-            # an intensity ratio above e^25 - far beyond any real line pair)
-            win = 3.0 * fwhm_wn
-            i0 = np.searchsorted(wn_arr, ritz - win)
-            i1 = np.searchsorted(wn_arr, ritz + win)
-            for j in range(i0, i1):
-                sep = abs(wn_arr[j] - ritz)
-                if sep <= fwhm_wn:
-                    hidden = int_arr[j] >= MASK_STRENGTH * ip   # unresolved
-                else:
-                    # under the Gaussian wing of a much stronger line
-                    hidden = (int_arr[j] * np.exp(-four_ln2 * (sep / fwhm_wn) ** 2)
-                              >= ip)
-                if hidden:
-                    i_masked += ip
-                    break
+        i_masked = sum(ip for ip, _, ritz in missing
+                       if _hidden_by_a_stronger_line(ritz, ip, wn_arr, int_arr, dop))
         frac = i_masked / i_missing
-        if frac >= MASK_CLEAR_FRACTION:
-            if r['p_spur_decoys'] < P_QUESTIONABLE:
-                out[lid] = ('removed', 'strong missing transitions are masked '
-                                       'by nearby stronger lines', frac)
-            else:
-                out[lid] = ('retained', 'masking found, but the energy shift '
-                                        'alone remains suspect', frac)
-        else:
+        if no_top1:
+            out[lid] = ('retained', 'the strongest predicted transition of the '
+                                    'level is absent and nothing hides it', frac)
+        elif frac < MASK_CLEAR_FRACTION:
             out[lid] = ('retained', 'no reason to clear', frac)
+        elif r['p_spur_decoys'] >= P_QUESTIONABLE:
+            out[lid] = ('retained', 'masking found, but the energy shift '
+                                    'alone remains suspect', frac)
+        else:
+            out[lid] = ('removed', 'strong missing transitions are masked '
+                                   'by nearby stronger lines', frac)
     return out
+
+
+def _opt(value, prefix: str = '', width: int = 0) -> str:
+    """`prefix + value`, or nothing when the value is missing.
+
+    In --lopt mode the grade and the weeding note of a candidate do not exist
+    (LOPT records neither), and printing them as "nan" only clutters the line.
+    """
+    text = '' if value is None else str(value).strip()
+    if text in ('', 'nan', 'None'):
+        return ''
+    return prefix + (text[:width] if width else text)
 
 
 def print_level_detail(level_id: str):
@@ -1033,8 +1449,7 @@ def print_level_detail(level_id: str):
     was matched to it). Accepted lines without a theoretical prediction are
     listed at the end.
     """
-    levels = mc.read_input_levels()
-    real = pd.read_csv(cl.OUTPUT_CSV, dtype={'low_id': str, 'upp_id': str})
+    levels, real, _ = read_run()
     per = mc.per_level_table(real, levels)
     row = per[per['level_id'] == level_id]
     if row.empty:
@@ -1056,6 +1471,7 @@ def print_level_detail(level_id: str):
     e_final_map = dict(zip(per['level_id'], per['E_final']))
     preds = load_predictions(set(per['level_id']), e_final_map)
     calib = read_intensity_calibration()
+    bias = intensity_scale_bias(real, preds, e_final_map, verbose=False)
     mine = preds[(preds['lo_id'] == level_id) |
                  (preds['up_id'] == level_id)].sort_values('I_pred',
                                                            ascending=False)
@@ -1078,18 +1494,28 @@ def print_level_detail(level_id: str):
             fate = "NO MATCH (no observed line matched)"
         else:
             cr = next((r for r in rows if r['accepted'] == 1), rows[0])
-            base = (f"wn_obs={cr['wn_obs']:.3f}  I_obs={cr['obs_intens']:.0f}  "
-                    f"grade={cr['grade']}")
+            base = (f"wn_obs={cr['wn_obs']:.3f}  I_obs={cr['obs_intens']:.0f}"
+                    + _opt(cr['grade'], '  grade='))
             if cr['accepted'] == 1:
                 fate = "ACCEPTED  " + base
             else:
-                fate = f"REJECTED  {base}  {str(cr['notes2'])[:55]}"
+                fate = "REJECTED  " + base + _opt(cr['notes2'], '  ', 55)
         if in_coverage_gap(wn_ritz):
             fate += "  [in coverage gap - not observable]"
         elif calib is not None:
             thr = noise_threshold_linear(wn_ritz, calib)
-            if thr is not None and p['I_pred'] < thr:
-                fate += "  [below noise level]"
+            f = scale_bias_factor(wn_ritz, bias)
+            pdet = detection_probability(wn_ritz, p['I_pred'], calib, bias)
+            if thr is not None and p['I_pred'] * f < thr:
+                fate += ("  [below noise level]" if f == 1.0 else
+                         f"  [below noise level on the plate: I_pred x {f:.2f}"
+                         f" = {p['I_pred'] * f:.0f} vs {thr:.0f}]")
+            elif pdet < DETECT_CONFIDENCE:
+                fate += (f"  [at the noise level on the plate: "
+                         + (f"I_pred x {f:.2f} = {p['I_pred'] * f:.0f}"
+                            if f != 1.0 else f"I_pred = {p['I_pred']:.0f}")
+                         + f" vs {thr:.0f}, recorded with probability "
+                           f"{pdet:.2f}]")
         print(f"  {partner:>16} {wn_ritz:11.3f} {p['I_pred']:10.1f}  {fate}")
 
     pred_pairs = {tuple(sorted((p['lo_id'], p['up_id'])))
@@ -1102,13 +1528,56 @@ def print_level_detail(level_id: str):
         for pr, cr in extra:
             partner = pr[0] if pr[1] == level_id else pr[1]
             print(f"  {partner:>16}  wn_obs={cr['wn_obs']:.3f}  "
-                  f"I_obs={cr['obs_intens']:.0f}  grade={cr['grade']}")
+                  f"I_obs={cr['obs_intens']:.0f}"
+                  + _opt(cr['grade'], '  grade='))
+
+
+def _take_option(argv: list, name: str):
+    """Remove `--name VALUE` from argv and return VALUE (None if absent)."""
+    if name not in argv:
+        return None
+    i = argv.index(name)
+    if i + 1 >= len(argv):
+        raise SystemExit(f"{name} needs a file name")
+    value = argv[i + 1]
+    del argv[i:i + 2]
+    return value
+
+
+def _default_report_name(lopt_path: str) -> str:
+    """level_shift_report<tag>.csv, where <tag> follows LOPT_output_lines.
+
+    LOPT_output_lines_revised.txt -> level_shift_report_revised.csv, so that a
+    LOPT-driven report never silently overwrites the pipeline's own.
+    """
+    base = os.path.splitext(os.path.basename(lopt_path))[0]
+    stem = 'LOPT_output_lines'
+    tag = base[len(stem):] if base.startswith(stem) else '_' + base
+    return os.path.join(HERE, f"level_shift_report{tag}.csv")
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 3 and sys.argv[1] == '--detail':
-        for _lid in sys.argv[2:]:
+    _argv = sys.argv[1:]
+    LOPT_LINES = _take_option(_argv, '--lopt')
+    LOPT_LEVELS = _take_option(_argv, '--lopt-levels')
+    ENERGIES = _take_option(_argv, '--energies') or 'refit'
+    if ENERGIES not in ('refit', 'lopt'):
+        raise SystemExit("--energies takes 'refit' or 'lopt'")
+    if LOPT_LEVELS and ENERGIES != 'lopt':
+        raise SystemExit("--lopt-levels is only used with --energies lopt")
+    E_INPUT_CSV = _take_option(_argv, '--e-input')
+    _report = _take_option(_argv, '--report')
+    if LOPT_LINES:
+        REPORT_CSV = _report or _default_report_name(LOPT_LINES)
+    elif _report:
+        REPORT_CSV = _report
+    if _argv and _argv[0] == '--detail':
+        if len(_argv) < 2:
+            raise SystemExit("--detail needs at least one level id")
+        for _lid in _argv[1:]:
             print_level_detail(_lid)
             print()
+    elif _argv:
+        raise SystemExit(f"unrecognised argument(s): {' '.join(_argv)}")
     else:
         main()
