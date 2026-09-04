@@ -3,13 +3,13 @@
 *.iws
 *.iml
 *.ipr
-
+docs/
 # Python specific
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
+Paper.tex
 # VS Code
 .vscode/
 
