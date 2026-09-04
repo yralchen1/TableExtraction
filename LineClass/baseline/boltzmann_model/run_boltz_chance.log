@@ -1,0 +1,2381 @@
+missing-gA policy: impute
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift -11.300 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by -11.300 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Transitions absent from Icalc.xlsx are imputed with gA = 175.8 s^-1 (cutoff 1000 s^-1), u_ln = 1.7383,
+    through Icalc = 175.092 * gA * (rwn/1e8) * exp(-Eup/11953.8).
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 95
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2671, Step2=48, Step3=196, Accepted=486
+  Iteration 1: Step1=2671, Step2=48, Step3=196, Accepted=486
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2671 in Step1, 48 in Step2, 196 in Step3
+  Total number of accepted assignments: 486
+  Accepted assignments: 486, max energy change in optimization: 2.379290 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 1831
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6972, Step2=209, Step3=394, Accepted=1276
+  Iteration 1: Step1=6972, Step2=209, Step3=394, Accepted=1276
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 6972 in Step1, 209 in Step2, 394 in Step3
+  Total number of accepted assignments: 1276
+  Accepted assignments: 1276, max energy change in optimization: 6.011973 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 18
+  Total number of conflicting assignments: 3895
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=10951, Step2=405, Step3=506, Accepted=2205
+  Iteration 1: Step1=10951, Step2=405, Step3=506, Accepted=2205
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 10951 in Step1, 405 in Step2, 506 in Step3
+  Total number of accepted assignments: 2205
+  Blacklisted 1830 transition(s) oscillating between cycles.
+  Accepted assignments: 2205, max energy change in optimization: 3.172405 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 2329
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=9143, Step2=270, Step3=819, Accepted=1797
+  Iteration 1: Step1=9143, Step2=270, Step3=819, Accepted=1797
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1830 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 9143 in Step1, 270 in Step2, 819 in Step3
+  Total number of accepted assignments: 1797
+  Blacklisted 2659 transition(s) oscillating between cycles.
+  Accepted assignments: 1797, max energy change in optimization: 2.180274 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 1290
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7006, Step2=163, Step3=893, Accepted=1542
+  Iteration 1: Step1=7006, Step2=163, Step3=893, Accepted=1542
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4489 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7006 in Step1, 163 in Step2, 893 in Step3
+  Total number of accepted assignments: 1542
+  Blacklisted 799 transition(s) oscillating between cycles.
+  Accepted assignments: 1542, max energy change in optimization: 1.253787 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 802
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5715, Step2=121, Step3=910, Accepted=1358
+  Iteration 1: Step1=5715, Step2=121, Step3=910, Accepted=1358
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5288 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5715 in Step1, 121 in Step2, 910 in Step3
+  Total number of accepted assignments: 1358
+  Blacklisted 316 transition(s) oscillating between cycles.
+  Accepted assignments: 1358, max energy change in optimization: 1.503979 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 581
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5020, Step2=88, Step3=876, Accepted=1265
+  Iteration 1: Step1=5020, Step2=88, Step3=876, Accepted=1265
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5604 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5020 in Step1, 88 in Step2, 876 in Step3
+  Total number of accepted assignments: 1265
+  Blacklisted 203 transition(s) oscillating between cycles.
+  Accepted assignments: 1265, max energy change in optimization: 2.073131 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 523
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4632, Step2=76, Step3=890, Accepted=1220
+  Iteration 1: Step1=4632, Step2=76, Step3=890, Accepted=1220
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5807 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4632 in Step1, 76 in Step2, 890 in Step3
+  Total number of accepted assignments: 1220
+  Blacklisted 105 transition(s) oscillating between cycles.
+  Accepted assignments: 1220, max energy change in optimization: 0.565551 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 494
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4424, Step2=75, Step3=885, Accepted=1205
+  Iteration 1: Step1=4424, Step2=75, Step3=885, Accepted=1205
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5912 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4424 in Step1, 75 in Step2, 885 in Step3
+  Total number of accepted assignments: 1205
+  Blacklisted 61 transition(s) oscillating between cycles.
+  Accepted assignments: 1205, max energy change in optimization: 0.242826 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 472
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4312, Step2=67, Step3=916, Accepted=1190
+  Iteration 1: Step1=4312, Step2=67, Step3=916, Accepted=1190
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5973 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4312 in Step1, 67 in Step2, 916 in Step3
+  Total number of accepted assignments: 1190
+  Blacklisted 33 transition(s) oscillating between cycles.
+  Accepted assignments: 1190, max energy change in optimization: 0.263094 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 478
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4280, Step2=66, Step3=920, Accepted=1183
+  Iteration 1: Step1=4280, Step2=66, Step3=920, Accepted=1183
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6006 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4280 in Step1, 66 in Step2, 920 in Step3
+  Total number of accepted assignments: 1183
+  Blacklisted 24 transition(s) oscillating between cycles.
+  Accepted assignments: 1183, max energy change in optimization: 0.122632 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 475
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4253, Step2=67, Step3=890, Accepted=1181
+  Iteration 1: Step1=4253, Step2=67, Step3=890, Accepted=1181
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6030 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4253 in Step1, 67 in Step2, 890 in Step3
+  Total number of accepted assignments: 1181
+  Blacklisted 9 transition(s) oscillating between cycles.
+  Accepted assignments: 1181, max energy change in optimization: 0.129191 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 466
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4245, Step2=63, Step3=872, Accepted=1183
+  Iteration 1: Step1=4245, Step2=63, Step3=872, Accepted=1183
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6039 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4245 in Step1, 63 in Step2, 872 in Step3
+  Total number of accepted assignments: 1183
+  Blacklisted 5 transition(s) oscillating between cycles.
+  Accepted assignments: 1183, max energy change in optimization: 0.266432 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 465
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4225, Step2=65, Step3=890, Accepted=1174
+  Iteration 1: Step1=4225, Step2=65, Step3=890, Accepted=1174
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6044 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4225 in Step1, 65 in Step2, 890 in Step3
+  Total number of accepted assignments: 1174
+  Blacklisted 4 transition(s) oscillating between cycles.
+  Accepted assignments: 1174, max energy change in optimization: 0.072205 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 458
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4210, Step2=62, Step3=881, Accepted=1172
+  Iteration 1: Step1=4210, Step2=62, Step3=881, Accepted=1172
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6048 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4210 in Step1, 62 in Step2, 881 in Step3
+  Total number of accepted assignments: 1172
+  Accepted assignments: 1172, max energy change in optimization: 0.222582 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 459
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4188, Step2=63, Step3=885, Accepted=1169
+  Iteration 1: Step1=4188, Step2=63, Step3=885, Accepted=1169
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6048 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4188 in Step1, 63 in Step2, 885 in Step3
+  Total number of accepted assignments: 1169
+  Blacklisted 8 transition(s) oscillating between cycles.
+  Accepted assignments: 1169, max energy change in optimization: 0.139209 cm^-1
+Step 5 cycle 17:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 455
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4187, Step2=61, Step3=884, Accepted=1169
+  Iteration 1: Step1=4187, Step2=61, Step3=884, Accepted=1169
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6056 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4187 in Step1, 61 in Step2, 884 in Step3
+  Total number of accepted assignments: 1169
+  Blacklisted 4 transition(s) oscillating between cycles.
+  Accepted assignments: 1169, max energy change in optimization: 0.590145 cm^-1
+Step 5 cycle 18:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 456
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4188, Step2=62, Step3=883, Accepted=1169
+  Iteration 1: Step1=4188, Step2=62, Step3=883, Accepted=1169
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6060 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4188 in Step1, 62 in Step2, 883 in Step3
+  Total number of accepted assignments: 1169
+  Blacklisted 1 transition(s) oscillating between cycles.
+  Accepted assignments: 1169, max energy change in optimization: 0.515479 cm^-1
+Step 5 cycle 19:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 455
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4181, Step2=62, Step3=886, Accepted=1171
+  Iteration 1: Step1=4181, Step2=62, Step3=886, Accepted=1171
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6061 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4181 in Step1, 62 in Step2, 886 in Step3
+  Total number of accepted assignments: 1171
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 1171, max energy change in optimization: 0.034866 cm^-1
+Step 5 cycle 20:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 452
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4175, Step2=62, Step3=880, Accepted=1170
+  Iteration 1: Step1=4175, Step2=62, Step3=880, Accepted=1170
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6063 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4175 in Step1, 62 in Step2, 880 in Step3
+  Total number of accepted assignments: 1170
+  Blacklisted 5 transition(s) oscillating between cycles.
+  Accepted assignments: 1170, max energy change in optimization: 0.008011 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT -11.3 cm^-1 (0.1 min): candidates=5117, accepted=1170 (new=1170, old=0)
+    levels by number of accepted-new lines  1:  54 2: 101 3: 124 4:  95 5:  67 6:  32 7:  29 8:  61   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift -9.700 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by -9.700 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 106
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2703, Step2=42, Step3=245, Accepted=496
+  Iteration 1: Step1=2703, Step2=42, Step3=245, Accepted=496
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2703 in Step1, 42 in Step2, 245 in Step3
+  Total number of accepted assignments: 496
+  Accepted assignments: 496, max energy change in optimization: 1.846674 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 1730
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6905, Step2=214, Step3=424, Accepted=1305
+  Iteration 1: Step1=6905, Step2=214, Step3=424, Accepted=1305
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 6905 in Step1, 214 in Step2, 424 in Step3
+  Total number of accepted assignments: 1305
+  Accepted assignments: 1305, max energy change in optimization: 9.857726 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 3731
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=10803, Step2=388, Step3=553, Accepted=2210
+  Iteration 1: Step1=10803, Step2=388, Step3=553, Accepted=2210
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 10803 in Step1, 388 in Step2, 553 in Step3
+  Total number of accepted assignments: 2210
+  Blacklisted 1762 transition(s) oscillating between cycles.
+  Accepted assignments: 2210, max energy change in optimization: 4.792380 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 2117
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8875, Step2=232, Step3=718, Accepted=1810
+  Iteration 1: Step1=8875, Step2=232, Step3=718, Accepted=1810
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1762 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 8875 in Step1, 232 in Step2, 718 in Step3
+  Total number of accepted assignments: 1810
+  Blacklisted 2399 transition(s) oscillating between cycles.
+  Accepted assignments: 1810, max energy change in optimization: 1.912541 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 9
+  Total number of conflicting assignments: 1280
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7148, Step2=139, Step3=872, Accepted=1563
+  Iteration 1: Step1=7148, Step2=139, Step3=872, Accepted=1563
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4161 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7148 in Step1, 139 in Step2, 872 in Step3
+  Total number of accepted assignments: 1563
+  Blacklisted 624 transition(s) oscillating between cycles.
+  Accepted assignments: 1563, max energy change in optimization: 2.234185 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 841
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5990, Step2=108, Step3=868, Accepted=1401
+  Iteration 1: Step1=5990, Step2=108, Step3=868, Accepted=1401
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4785 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5990 in Step1, 108 in Step2, 868 in Step3
+  Total number of accepted assignments: 1401
+  Blacklisted 317 transition(s) oscillating between cycles.
+  Accepted assignments: 1401, max energy change in optimization: 2.843348 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 664
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5284, Step2=100, Step3=859, Accepted=1296
+  Iteration 1: Step1=5284, Step2=100, Step3=859, Accepted=1296
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5102 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5284 in Step1, 100 in Step2, 859 in Step3
+  Total number of accepted assignments: 1296
+  Blacklisted 239 transition(s) oscillating between cycles.
+  Accepted assignments: 1296, max energy change in optimization: 1.847321 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 9
+  Total number of conflicting assignments: 601
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4933, Step2=78, Step3=959, Accepted=1271
+  Iteration 1: Step1=4933, Step2=78, Step3=959, Accepted=1271
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5341 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4933 in Step1, 78 in Step2, 959 in Step3
+  Total number of accepted assignments: 1271
+  Blacklisted 242 transition(s) oscillating between cycles.
+  Accepted assignments: 1271, max energy change in optimization: 1.185776 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 512
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4569, Step2=65, Step3=1010, Accepted=1229
+  Iteration 1: Step1=4569, Step2=65, Step3=1010, Accepted=1229
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5583 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4569 in Step1, 65 in Step2, 1010 in Step3
+  Total number of accepted assignments: 1229
+  Blacklisted 163 transition(s) oscillating between cycles.
+  Accepted assignments: 1229, max energy change in optimization: 0.945575 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 11
+  Total number of conflicting assignments: 452
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4354, Step2=66, Step3=990, Accepted=1231
+  Iteration 1: Step1=4354, Step2=66, Step3=990, Accepted=1231
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5746 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4354 in Step1, 66 in Step2, 990 in Step3
+  Total number of accepted assignments: 1231
+  Blacklisted 69 transition(s) oscillating between cycles.
+  Accepted assignments: 1231, max energy change in optimization: 0.542652 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 435
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4271, Step2=58, Step3=953, Accepted=1216
+  Iteration 1: Step1=4271, Step2=58, Step3=953, Accepted=1216
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5815 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4271 in Step1, 58 in Step2, 953 in Step3
+  Total number of accepted assignments: 1216
+  Blacklisted 29 transition(s) oscillating between cycles.
+  Accepted assignments: 1216, max energy change in optimization: 0.494106 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 414
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4207, Step2=56, Step3=940, Accepted=1204
+  Iteration 1: Step1=4207, Step2=56, Step3=940, Accepted=1204
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5844 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4207 in Step1, 56 in Step2, 940 in Step3
+  Total number of accepted assignments: 1204
+  Blacklisted 18 transition(s) oscillating between cycles.
+  Accepted assignments: 1204, max energy change in optimization: 0.338771 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 413
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4162, Step2=59, Step3=958, Accepted=1209
+  Iteration 1: Step1=4162, Step2=59, Step3=958, Accepted=1209
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5862 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4162 in Step1, 59 in Step2, 958 in Step3
+  Total number of accepted assignments: 1209
+  Blacklisted 14 transition(s) oscillating between cycles.
+  Accepted assignments: 1209, max energy change in optimization: 0.538207 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 407
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4154, Step2=57, Step3=956, Accepted=1205
+  Iteration 1: Step1=4154, Step2=57, Step3=956, Accepted=1205
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5876 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4154 in Step1, 57 in Step2, 956 in Step3
+  Total number of accepted assignments: 1205
+  Blacklisted 7 transition(s) oscillating between cycles.
+  Accepted assignments: 1205, max energy change in optimization: 0.467302 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 404
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4144, Step2=55, Step3=962, Accepted=1203
+  Iteration 1: Step1=4144, Step2=55, Step3=962, Accepted=1203
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5883 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4144 in Step1, 55 in Step2, 962 in Step3
+  Total number of accepted assignments: 1203
+  Blacklisted 8 transition(s) oscillating between cycles.
+  Accepted assignments: 1203, max energy change in optimization: 0.013850 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 405
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4146, Step2=55, Step3=964, Accepted=1203
+  Iteration 1: Step1=4146, Step2=55, Step3=964, Accepted=1203
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5891 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4146 in Step1, 55 in Step2, 964 in Step3
+  Total number of accepted assignments: 1203
+  Blacklisted 1 transition(s) oscillating between cycles.
+  Accepted assignments: 1203, max energy change in optimization: 0.000908 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT -9.7 cm^-1 (0.1 min): candidates=5165, accepted=1203 (new=1203, old=0)
+    levels by number of accepted-new lines  1:  55 2:  95 3: 129 4:  95 5:  61 6:  39 7:  30 8:  67   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift -8.300 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by -8.300 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 96
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2615, Step2=47, Step3=240, Accepted=451
+  Iteration 1: Step1=2615, Step2=47, Step3=240, Accepted=451
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2615 in Step1, 47 in Step2, 240 in Step3
+  Total number of accepted assignments: 451
+  Accepted assignments: 451, max energy change in optimization: 1.649085 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 16
+  Total number of conflicting assignments: 2212
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7236, Step2=258, Step3=428, Accepted=1370
+  Iteration 1: Step1=7236, Step2=258, Step3=428, Accepted=1370
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 7236 in Step1, 258 in Step2, 428 in Step3
+  Total number of accepted assignments: 1370
+  Accepted assignments: 1370, max energy change in optimization: 6.404717 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 20
+  Total number of conflicting assignments: 5744
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=12773, Step2=585, Step3=499, Accepted=2698
+  Iteration 1: Step1=12773, Step2=585, Step3=499, Accepted=2698
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 12773 in Step1, 585 in Step2, 499 in Step3
+  Total number of accepted assignments: 2698
+  Blacklisted 1937 transition(s) oscillating between cycles.
+  Accepted assignments: 2698, max energy change in optimization: 9.804252 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 3674
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=10807, Step2=410, Step3=920, Accepted=2203
+  Iteration 1: Step1=10807, Step2=410, Step3=920, Accepted=2203
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1937 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 10807 in Step1, 410 in Step2, 920 in Step3
+  Total number of accepted assignments: 2203
+  Blacklisted 3509 transition(s) oscillating between cycles.
+  Accepted assignments: 2203, max energy change in optimization: 2.955380 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 10
+  Total number of conflicting assignments: 1927
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8080, Step2=195, Step3=1059, Accepted=1711
+  Iteration 1: Step1=8080, Step2=195, Step3=1059, Accepted=1711
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5446 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 8080 in Step1, 195 in Step2, 1059 in Step3
+  Total number of accepted assignments: 1711
+  Blacklisted 1275 transition(s) oscillating between cycles.
+  Accepted assignments: 1711, max energy change in optimization: 2.697876 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 9
+  Total number of conflicting assignments: 1127
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6289, Step2=128, Step3=1101, Accepted=1421
+  Iteration 1: Step1=6289, Step2=128, Step3=1101, Accepted=1421
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6721 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 6289 in Step1, 128 in Step2, 1101 in Step3
+  Total number of accepted assignments: 1421
+  Blacklisted 350 transition(s) oscillating between cycles.
+  Accepted assignments: 1421, max energy change in optimization: 1.630502 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 9
+  Total number of conflicting assignments: 725
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5281, Step2=91, Step3=1032, Accepted=1305
+  Iteration 1: Step1=5281, Step2=91, Step3=1032, Accepted=1305
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7071 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5281 in Step1, 91 in Step2, 1032 in Step3
+  Total number of accepted assignments: 1305
+  Blacklisted 192 transition(s) oscillating between cycles.
+  Accepted assignments: 1305, max energy change in optimization: 1.191589 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 559
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4743, Step2=66, Step3=969, Accepted=1236
+  Iteration 1: Step1=4743, Step2=66, Step3=969, Accepted=1236
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7263 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4743 in Step1, 66 in Step2, 969 in Step3
+  Total number of accepted assignments: 1236
+  Blacklisted 172 transition(s) oscillating between cycles.
+  Accepted assignments: 1236, max energy change in optimization: 1.594333 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 540
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4581, Step2=72, Step3=1032, Accepted=1215
+  Iteration 1: Step1=4581, Step2=72, Step3=1032, Accepted=1215
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7435 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4581 in Step1, 72 in Step2, 1032 in Step3
+  Total number of accepted assignments: 1215
+  Blacklisted 120 transition(s) oscillating between cycles.
+  Accepted assignments: 1215, max energy change in optimization: 0.943235 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 8
+  Total number of conflicting assignments: 517
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4379, Step2=62, Step3=1067, Accepted=1194
+  Iteration 1: Step1=4379, Step2=62, Step3=1067, Accepted=1194
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7555 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4379 in Step1, 62 in Step2, 1067 in Step3
+  Total number of accepted assignments: 1194
+  Blacklisted 84 transition(s) oscillating between cycles.
+  Accepted assignments: 1194, max energy change in optimization: 1.810157 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 475
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4271, Step2=58, Step3=1061, Accepted=1185
+  Iteration 1: Step1=4271, Step2=58, Step3=1061, Accepted=1185
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7639 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4271 in Step1, 58 in Step2, 1061 in Step3
+  Total number of accepted assignments: 1185
+  Blacklisted 69 transition(s) oscillating between cycles.
+  Accepted assignments: 1185, max energy change in optimization: 0.525668 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 489
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4273, Step2=52, Step3=1091, Accepted=1182
+  Iteration 1: Step1=4273, Step2=52, Step3=1091, Accepted=1182
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7708 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4273 in Step1, 52 in Step2, 1091 in Step3
+  Total number of accepted assignments: 1182
+  Blacklisted 24 transition(s) oscillating between cycles.
+  Accepted assignments: 1182, max energy change in optimization: 2.020655 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 492
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4288, Step2=48, Step3=1114, Accepted=1178
+  Iteration 1: Step1=4288, Step2=48, Step3=1114, Accepted=1178
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7732 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4288 in Step1, 48 in Step2, 1114 in Step3
+  Total number of accepted assignments: 1178
+  Blacklisted 9 transition(s) oscillating between cycles.
+  Accepted assignments: 1178, max energy change in optimization: 1.055298 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 465
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4236, Step2=55, Step3=1088, Accepted=1173
+  Iteration 1: Step1=4236, Step2=55, Step3=1088, Accepted=1173
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7741 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4236 in Step1, 55 in Step2, 1088 in Step3
+  Total number of accepted assignments: 1173
+  Blacklisted 54 transition(s) oscillating between cycles.
+  Accepted assignments: 1173, max energy change in optimization: 0.648956 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 468
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4228, Step2=54, Step3=1102, Accepted=1165
+  Iteration 1: Step1=4228, Step2=54, Step3=1102, Accepted=1165
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7795 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4228 in Step1, 54 in Step2, 1102 in Step3
+  Total number of accepted assignments: 1165
+  Blacklisted 40 transition(s) oscillating between cycles.
+  Accepted assignments: 1165, max energy change in optimization: 0.258090 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 459
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4182, Step2=51, Step3=1121, Accepted=1163
+  Iteration 1: Step1=4182, Step2=51, Step3=1121, Accepted=1163
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7835 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4182 in Step1, 51 in Step2, 1121 in Step3
+  Total number of accepted assignments: 1163
+  Blacklisted 11 transition(s) oscillating between cycles.
+  Accepted assignments: 1163, max energy change in optimization: 0.261187 cm^-1
+Step 5 cycle 17:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 454
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4156, Step2=52, Step3=1140, Accepted=1165
+  Iteration 1: Step1=4156, Step2=52, Step3=1140, Accepted=1165
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7846 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4156 in Step1, 52 in Step2, 1140 in Step3
+  Total number of accepted assignments: 1165
+  Blacklisted 19 transition(s) oscillating between cycles.
+  Accepted assignments: 1165, max energy change in optimization: 0.079102 cm^-1
+Step 5 cycle 18:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 449
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4146, Step2=49, Step3=1144, Accepted=1167
+  Iteration 1: Step1=4146, Step2=49, Step3=1144, Accepted=1167
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7865 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4146 in Step1, 49 in Step2, 1144 in Step3
+  Total number of accepted assignments: 1167
+  Blacklisted 6 transition(s) oscillating between cycles.
+  Accepted assignments: 1167, max energy change in optimization: 0.051785 cm^-1
+Step 5 cycle 19:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 451
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4141, Step2=49, Step3=1150, Accepted=1166
+  Iteration 1: Step1=4141, Step2=49, Step3=1150, Accepted=1166
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7871 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4141 in Step1, 49 in Step2, 1150 in Step3
+  Total number of accepted assignments: 1166
+  Accepted assignments: 1166, max energy change in optimization: 0.141798 cm^-1
+Step 5 cycle 20:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 448
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4140, Step2=49, Step3=1140, Accepted=1170
+  Iteration 1: Step1=4140, Step2=49, Step3=1140, Accepted=1170
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7871 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4140 in Step1, 49 in Step2, 1140 in Step3
+  Total number of accepted assignments: 1170
+  Blacklisted 1 transition(s) oscillating between cycles.
+  Accepted assignments: 1170, max energy change in optimization: 0.078200 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT -8.3 cm^-1 (0.1 min): candidates=5329, accepted=1170 (new=1170, old=0)
+    levels by number of accepted-new lines  1:  48 2:  93 3: 135 4: 101 5:  69 6:  38 7:  25 8:  56   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift -6.900 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by -6.900 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 104
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2657, Step2=36, Step3=227, Accepted=418
+  Iteration 1: Step1=2657, Step2=36, Step3=227, Accepted=418
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2657 in Step1, 36 in Step2, 227 in Step3
+  Total number of accepted assignments: 418
+  Accepted assignments: 418, max energy change in optimization: 2.473490 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 17
+  Total number of conflicting assignments: 2170
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7135, Step2=219, Step3=420, Accepted=1309
+  Iteration 1: Step1=7135, Step2=219, Step3=420, Accepted=1309
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 7135 in Step1, 219 in Step2, 420 in Step3
+  Total number of accepted assignments: 1309
+  Accepted assignments: 1309, max energy change in optimization: 7.565169 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 17
+  Total number of conflicting assignments: 5725
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=12975, Step2=581, Step3=558, Accepted=2734
+  Iteration 1: Step1=12975, Step2=581, Step3=558, Accepted=2734
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 12975 in Step1, 581 in Step2, 558 in Step3
+  Total number of accepted assignments: 2734
+  Blacklisted 1865 transition(s) oscillating between cycles.
+  Accepted assignments: 2734, max energy change in optimization: 5.160665 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 18
+  Total number of conflicting assignments: 3869
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=11261, Step2=410, Step3=924, Accepted=2328
+  Iteration 1: Step1=11261, Step2=410, Step3=924, Accepted=2328
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1865 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 11261 in Step1, 410 in Step2, 924 in Step3
+  Total number of accepted assignments: 2328
+  Blacklisted 3398 transition(s) oscillating between cycles.
+  Accepted assignments: 2328, max energy change in optimization: 4.358965 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 1941
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8409, Step2=199, Step3=1070, Accepted=1811
+  Iteration 1: Step1=8409, Step2=199, Step3=1070, Accepted=1811
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5263 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 8409 in Step1, 199 in Step2, 1070 in Step3
+  Total number of accepted assignments: 1811
+  Blacklisted 1133 transition(s) oscillating between cycles.
+  Accepted assignments: 1811, max energy change in optimization: 2.911188 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 1184
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6753, Step2=132, Step3=1056, Accepted=1523
+  Iteration 1: Step1=6753, Step2=132, Step3=1056, Accepted=1523
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6396 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 6753 in Step1, 132 in Step2, 1056 in Step3
+  Total number of accepted assignments: 1523
+  Blacklisted 316 transition(s) oscillating between cycles.
+  Accepted assignments: 1523, max energy change in optimization: 1.454200 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 800
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5574, Step2=93, Step3=1024, Accepted=1346
+  Iteration 1: Step1=5574, Step2=93, Step3=1024, Accepted=1346
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6712 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5574 in Step1, 93 in Step2, 1024 in Step3
+  Total number of accepted assignments: 1346
+  Blacklisted 185 transition(s) oscillating between cycles.
+  Accepted assignments: 1346, max energy change in optimization: 1.243635 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 604
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4917, Step2=71, Step3=975, Accepted=1291
+  Iteration 1: Step1=4917, Step2=71, Step3=975, Accepted=1291
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6897 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4917 in Step1, 71 in Step2, 975 in Step3
+  Total number of accepted assignments: 1291
+  Blacklisted 178 transition(s) oscillating between cycles.
+  Accepted assignments: 1291, max energy change in optimization: 0.668580 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 530
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4619, Step2=65, Step3=993, Accepted=1240
+  Iteration 1: Step1=4619, Step2=65, Step3=993, Accepted=1240
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7075 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4619 in Step1, 65 in Step2, 993 in Step3
+  Total number of accepted assignments: 1240
+  Blacklisted 126 transition(s) oscillating between cycles.
+  Accepted assignments: 1240, max energy change in optimization: 0.597526 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 501
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4420, Step2=58, Step3=1005, Accepted=1224
+  Iteration 1: Step1=4420, Step2=58, Step3=1005, Accepted=1224
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7201 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4420 in Step1, 58 in Step2, 1005 in Step3
+  Total number of accepted assignments: 1224
+  Blacklisted 77 transition(s) oscillating between cycles.
+  Accepted assignments: 1224, max energy change in optimization: 1.021646 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 469
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4359, Step2=53, Step3=968, Accepted=1208
+  Iteration 1: Step1=4359, Step2=53, Step3=968, Accepted=1208
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7278 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4359 in Step1, 53 in Step2, 968 in Step3
+  Total number of accepted assignments: 1208
+  Blacklisted 52 transition(s) oscillating between cycles.
+  Accepted assignments: 1208, max energy change in optimization: 1.599009 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 457
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4279, Step2=55, Step3=985, Accepted=1207
+  Iteration 1: Step1=4279, Step2=55, Step3=985, Accepted=1207
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7330 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4279 in Step1, 55 in Step2, 985 in Step3
+  Total number of accepted assignments: 1207
+  Blacklisted 27 transition(s) oscillating between cycles.
+  Accepted assignments: 1207, max energy change in optimization: 0.239989 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 446
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4248, Step2=54, Step3=979, Accepted=1199
+  Iteration 1: Step1=4248, Step2=54, Step3=979, Accepted=1199
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7357 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4248 in Step1, 54 in Step2, 979 in Step3
+  Total number of accepted assignments: 1199
+  Blacklisted 17 transition(s) oscillating between cycles.
+  Accepted assignments: 1199, max energy change in optimization: 0.233868 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 451
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4248, Step2=50, Step3=977, Accepted=1195
+  Iteration 1: Step1=4248, Step2=50, Step3=977, Accepted=1195
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7374 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4248 in Step1, 50 in Step2, 977 in Step3
+  Total number of accepted assignments: 1195
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 1195, max energy change in optimization: 0.246510 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 15
+  Total number of conflicting assignments: 449
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4242, Step2=50, Step3=975, Accepted=1195
+  Iteration 1: Step1=4242, Step2=50, Step3=975, Accepted=1195
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 7376 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4242 in Step1, 50 in Step2, 975 in Step3
+  Total number of accepted assignments: 1195
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 1195, max energy change in optimization: 0.000921 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT -6.9 cm^-1 (0.1 min): candidates=5267, accepted=1195 (new=1195, old=0)
+    levels by number of accepted-new lines  1:  31 2: 118 3: 135 4: 112 5:  50 6:  38 7:  32 8:  56   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift +6.900 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by +6.900 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 93
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2687, Step2=48, Step3=211, Accepted=475
+  Iteration 1: Step1=2687, Step2=48, Step3=211, Accepted=475
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2687 in Step1, 48 in Step2, 211 in Step3
+  Total number of accepted assignments: 475
+  Accepted assignments: 475, max energy change in optimization: 1.919056 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 16
+  Total number of conflicting assignments: 1357
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6408, Step2=180, Step3=419, Accepted=1190
+  Iteration 1: Step1=6408, Step2=180, Step3=419, Accepted=1190
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 6408 in Step1, 180 in Step2, 419 in Step3
+  Total number of accepted assignments: 1190
+  Accepted assignments: 1190, max energy change in optimization: 6.705671 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 11
+  Total number of conflicting assignments: 2416
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8981, Step2=303, Step3=475, Accepted=1813
+  Iteration 1: Step1=8981, Step2=303, Step3=475, Accepted=1813
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 8981 in Step1, 303 in Step2, 475 in Step3
+  Total number of accepted assignments: 1813
+  Blacklisted 1395 transition(s) oscillating between cycles.
+  Accepted assignments: 1813, max energy change in optimization: 3.395937 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 1861
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8272, Step2=232, Step3=734, Accepted=1676
+  Iteration 1: Step1=8272, Step2=232, Step3=734, Accepted=1676
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1395 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 8272 in Step1, 232 in Step2, 734 in Step3
+  Total number of accepted assignments: 1676
+  Blacklisted 1757 transition(s) oscillating between cycles.
+  Accepted assignments: 1676, max energy change in optimization: 2.284529 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 995
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6441, Step2=163, Step3=829, Accepted=1419
+  Iteration 1: Step1=6441, Step2=163, Step3=829, Accepted=1419
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 3152 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 6441 in Step1, 163 in Step2, 829 in Step3
+  Total number of accepted assignments: 1419
+  Blacklisted 884 transition(s) oscillating between cycles.
+  Accepted assignments: 1419, max energy change in optimization: 1.541946 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 689
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5438, Step2=92, Step3=863, Accepted=1255
+  Iteration 1: Step1=5438, Step2=92, Step3=863, Accepted=1255
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4036 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5438 in Step1, 92 in Step2, 863 in Step3
+  Total number of accepted assignments: 1255
+  Blacklisted 238 transition(s) oscillating between cycles.
+  Accepted assignments: 1255, max energy change in optimization: 1.139684 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 585
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4941, Step2=76, Step3=828, Accepted=1193
+  Iteration 1: Step1=4941, Step2=76, Step3=828, Accepted=1193
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4274 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4941 in Step1, 76 in Step2, 828 in Step3
+  Total number of accepted assignments: 1193
+  Blacklisted 116 transition(s) oscillating between cycles.
+  Accepted assignments: 1193, max energy change in optimization: 0.526121 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 543
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4652, Step2=79, Step3=840, Accepted=1161
+  Iteration 1: Step1=4652, Step2=79, Step3=840, Accepted=1161
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4390 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4652 in Step1, 79 in Step2, 840 in Step3
+  Total number of accepted assignments: 1161
+  Blacklisted 80 transition(s) oscillating between cycles.
+  Accepted assignments: 1161, max energy change in optimization: 0.550578 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 491
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4446, Step2=68, Step3=828, Accepted=1146
+  Iteration 1: Step1=4446, Step2=68, Step3=828, Accepted=1146
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4470 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4446 in Step1, 68 in Step2, 828 in Step3
+  Total number of accepted assignments: 1146
+  Blacklisted 64 transition(s) oscillating between cycles.
+  Accepted assignments: 1146, max energy change in optimization: 2.028263 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 488
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4380, Step2=67, Step3=836, Accepted=1134
+  Iteration 1: Step1=4380, Step2=67, Step3=836, Accepted=1134
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4534 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4380 in Step1, 67 in Step2, 836 in Step3
+  Total number of accepted assignments: 1134
+  Blacklisted 20 transition(s) oscillating between cycles.
+  Accepted assignments: 1134, max energy change in optimization: 0.601388 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 466
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4342, Step2=63, Step3=824, Accepted=1126
+  Iteration 1: Step1=4342, Step2=63, Step3=824, Accepted=1126
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4554 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4342 in Step1, 63 in Step2, 824 in Step3
+  Total number of accepted assignments: 1126
+  Blacklisted 27 transition(s) oscillating between cycles.
+  Accepted assignments: 1126, max energy change in optimization: 0.823424 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 457
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4313, Step2=66, Step3=834, Accepted=1123
+  Iteration 1: Step1=4313, Step2=66, Step3=834, Accepted=1123
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4581 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4313 in Step1, 66 in Step2, 834 in Step3
+  Total number of accepted assignments: 1123
+  Blacklisted 17 transition(s) oscillating between cycles.
+  Accepted assignments: 1123, max energy change in optimization: 0.215414 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 456
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4306, Step2=62, Step3=838, Accepted=1120
+  Iteration 1: Step1=4306, Step2=62, Step3=838, Accepted=1120
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4598 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4306 in Step1, 62 in Step2, 838 in Step3
+  Total number of accepted assignments: 1120
+  Blacklisted 3 transition(s) oscillating between cycles.
+  Accepted assignments: 1120, max energy change in optimization: 0.113944 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 452
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4287, Step2=62, Step3=837, Accepted=1120
+  Iteration 1: Step1=4287, Step2=62, Step3=837, Accepted=1120
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4601 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4287 in Step1, 62 in Step2, 837 in Step3
+  Total number of accepted assignments: 1120
+  Accepted assignments: 1120, max energy change in optimization: 0.000776 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT +6.9 cm^-1 (0.1 min): candidates=5186, accepted=1120 (new=1120, old=0)
+    levels by number of accepted-new lines  1:  61 2:  95 3: 122 4:  84 5:  65 6:  36 7:  27 8:  58   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift +8.300 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by +8.300 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 97
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2699, Step2=38, Step3=220, Accepted=467
+  Iteration 1: Step1=2699, Step2=38, Step3=220, Accepted=467
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2699 in Step1, 38 in Step2, 220 in Step3
+  Total number of accepted assignments: 467
+  Accepted assignments: 467, max energy change in optimization: 2.027891 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 19
+  Total number of conflicting assignments: 1591
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6873, Step2=199, Step3=409, Accepted=1222
+  Iteration 1: Step1=6873, Step2=199, Step3=409, Accepted=1222
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 6873 in Step1, 199 in Step2, 409 in Step3
+  Total number of accepted assignments: 1222
+  Accepted assignments: 1222, max energy change in optimization: 9.348931 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 18
+  Total number of conflicting assignments: 3266
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=9949, Step2=351, Step3=514, Accepted=2053
+  Iteration 1: Step1=9949, Step2=351, Step3=514, Accepted=2053
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 9949 in Step1, 351 in Step2, 514 in Step3
+  Total number of accepted assignments: 2053
+  Blacklisted 1694 transition(s) oscillating between cycles.
+  Accepted assignments: 2053, max energy change in optimization: 7.222746 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 2174
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=8503, Step2=264, Step3=819, Accepted=1808
+  Iteration 1: Step1=8503, Step2=264, Step3=819, Accepted=1808
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1694 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 8503 in Step1, 264 in Step2, 819 in Step3
+  Total number of accepted assignments: 1808
+  Blacklisted 2280 transition(s) oscillating between cycles.
+  Accepted assignments: 1808, max energy change in optimization: 4.230248 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 1263
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6854, Step2=166, Step3=893, Accepted=1529
+  Iteration 1: Step1=6854, Step2=166, Step3=893, Accepted=1529
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 3974 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 6854 in Step1, 166 in Step2, 893 in Step3
+  Total number of accepted assignments: 1529
+  Blacklisted 804 transition(s) oscillating between cycles.
+  Accepted assignments: 1529, max energy change in optimization: 2.000537 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 804
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5641, Step2=120, Step3=896, Accepted=1346
+  Iteration 1: Step1=5641, Step2=120, Step3=896, Accepted=1346
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4778 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5641 in Step1, 120 in Step2, 896 in Step3
+  Total number of accepted assignments: 1346
+  Blacklisted 306 transition(s) oscillating between cycles.
+  Accepted assignments: 1346, max energy change in optimization: 1.206659 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 580
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4995, Step2=77, Step3=851, Accepted=1275
+  Iteration 1: Step1=4995, Step2=77, Step3=851, Accepted=1275
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5084 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4995 in Step1, 77 in Step2, 851 in Step3
+  Total number of accepted assignments: 1275
+  Blacklisted 188 transition(s) oscillating between cycles.
+  Accepted assignments: 1275, max energy change in optimization: 0.838085 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 491
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4617, Step2=64, Step3=849, Accepted=1230
+  Iteration 1: Step1=4617, Step2=64, Step3=849, Accepted=1230
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5272 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4617 in Step1, 64 in Step2, 849 in Step3
+  Total number of accepted assignments: 1230
+  Blacklisted 82 transition(s) oscillating between cycles.
+  Accepted assignments: 1230, max energy change in optimization: 0.878372 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 461
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4500, Step2=59, Step3=854, Accepted=1231
+  Iteration 1: Step1=4500, Step2=59, Step3=854, Accepted=1231
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5354 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4500 in Step1, 59 in Step2, 854 in Step3
+  Total number of accepted assignments: 1231
+  Blacklisted 36 transition(s) oscillating between cycles.
+  Accepted assignments: 1231, max energy change in optimization: 0.480072 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 442
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4431, Step2=57, Step3=855, Accepted=1234
+  Iteration 1: Step1=4431, Step2=57, Step3=855, Accepted=1234
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5390 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4431 in Step1, 57 in Step2, 855 in Step3
+  Total number of accepted assignments: 1234
+  Blacklisted 24 transition(s) oscillating between cycles.
+  Accepted assignments: 1234, max energy change in optimization: 0.571806 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 436
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4379, Step2=56, Step3=872, Accepted=1227
+  Iteration 1: Step1=4379, Step2=56, Step3=872, Accepted=1227
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5414 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4379 in Step1, 56 in Step2, 872 in Step3
+  Total number of accepted assignments: 1227
+  Blacklisted 10 transition(s) oscillating between cycles.
+  Accepted assignments: 1227, max energy change in optimization: 0.269844 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 432
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4385, Step2=52, Step3=876, Accepted=1228
+  Iteration 1: Step1=4385, Step2=52, Step3=876, Accepted=1228
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5424 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4385 in Step1, 52 in Step2, 876 in Step3
+  Total number of accepted assignments: 1228
+  Blacklisted 19 transition(s) oscillating between cycles.
+  Accepted assignments: 1228, max energy change in optimization: 0.279292 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 428
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4375, Step2=47, Step3=868, Accepted=1220
+  Iteration 1: Step1=4375, Step2=47, Step3=868, Accepted=1220
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5443 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4375 in Step1, 47 in Step2, 868 in Step3
+  Total number of accepted assignments: 1220
+  Blacklisted 8 transition(s) oscillating between cycles.
+  Accepted assignments: 1220, max energy change in optimization: 1.406300 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 434
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4349, Step2=47, Step3=868, Accepted=1218
+  Iteration 1: Step1=4349, Step2=47, Step3=868, Accepted=1218
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5451 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4349 in Step1, 47 in Step2, 868 in Step3
+  Total number of accepted assignments: 1218
+  Blacklisted 4 transition(s) oscillating between cycles.
+  Accepted assignments: 1218, max energy change in optimization: 0.118302 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 434
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4349, Step2=47, Step3=867, Accepted=1217
+  Iteration 1: Step1=4349, Step2=47, Step3=867, Accepted=1217
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5455 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4349 in Step1, 47 in Step2, 867 in Step3
+  Total number of accepted assignments: 1217
+  Blacklisted 11 transition(s) oscillating between cycles.
+  Accepted assignments: 1217, max energy change in optimization: 0.037658 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 14
+  Total number of conflicting assignments: 433
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4344, Step2=47, Step3=872, Accepted=1217
+  Iteration 1: Step1=4344, Step2=47, Step3=872, Accepted=1217
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5466 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4344 in Step1, 47 in Step2, 872 in Step3
+  Total number of accepted assignments: 1217
+  Accepted assignments: 1217, max energy change in optimization: 0.000967 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT +8.3 cm^-1 (0.1 min): candidates=5263, accepted=1217 (new=1217, old=0)
+    levels by number of accepted-new lines  1:  53 2:  96 3: 109 4: 104 5:  68 6:  35 7:  32 8:  68   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift +9.700 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by +9.700 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 91
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2557, Step2=35, Step3=247, Accepted=466
+  Iteration 1: Step1=2557, Step2=35, Step3=247, Accepted=466
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2557 in Step1, 35 in Step2, 247 in Step3
+  Total number of accepted assignments: 466
+  Accepted assignments: 466, max energy change in optimization: 2.735984 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 16
+  Total number of conflicting assignments: 1940
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7078, Step2=195, Step3=417, Accepted=1284
+  Iteration 1: Step1=7078, Step2=195, Step3=417, Accepted=1284
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 7078 in Step1, 195 in Step2, 417 in Step3
+  Total number of accepted assignments: 1284
+  Accepted assignments: 1284, max energy change in optimization: 10.251737 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 13
+  Total number of conflicting assignments: 4438
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=11444, Step2=478, Step3=508, Accepted=2323
+  Iteration 1: Step1=11444, Step2=478, Step3=508, Accepted=2323
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 11444 in Step1, 478 in Step2, 508 in Step3
+  Total number of accepted assignments: 2323
+  Blacklisted 1857 transition(s) oscillating between cycles.
+  Accepted assignments: 2323, max energy change in optimization: 3.355379 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 8
+  Total number of conflicting assignments: 2945
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=9673, Step2=340, Step3=912, Accepted=1926
+  Iteration 1: Step1=9673, Step2=340, Step3=912, Accepted=1926
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1857 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 9673 in Step1, 340 in Step2, 912 in Step3
+  Total number of accepted assignments: 1926
+  Blacklisted 2887 transition(s) oscillating between cycles.
+  Accepted assignments: 1926, max energy change in optimization: 2.935304 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 1499
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7379, Step2=206, Step3=994, Accepted=1550
+  Iteration 1: Step1=7379, Step2=206, Step3=994, Accepted=1550
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4744 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7379 in Step1, 206 in Step2, 994 in Step3
+  Total number of accepted assignments: 1550
+  Blacklisted 920 transition(s) oscillating between cycles.
+  Accepted assignments: 1550, max energy change in optimization: 1.312285 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 1035
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6198, Step2=132, Step3=1032, Accepted=1362
+  Iteration 1: Step1=6198, Step2=132, Step3=1032, Accepted=1362
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5664 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 6198 in Step1, 132 in Step2, 1032 in Step3
+  Total number of accepted assignments: 1362
+  Blacklisted 408 transition(s) oscillating between cycles.
+  Accepted assignments: 1362, max energy change in optimization: 1.853862 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 751
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5272, Step2=94, Step3=1024, Accepted=1232
+  Iteration 1: Step1=5272, Step2=94, Step3=1024, Accepted=1232
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6072 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5272 in Step1, 94 in Step2, 1024 in Step3
+  Total number of accepted assignments: 1232
+  Blacklisted 232 transition(s) oscillating between cycles.
+  Accepted assignments: 1232, max energy change in optimization: 1.498258 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 703
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4885, Step2=85, Step3=1074, Accepted=1193
+  Iteration 1: Step1=4885, Step2=85, Step3=1074, Accepted=1193
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6304 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4885 in Step1, 85 in Step2, 1074 in Step3
+  Total number of accepted assignments: 1193
+  Blacklisted 125 transition(s) oscillating between cycles.
+  Accepted assignments: 1193, max energy change in optimization: 0.921312 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 629
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4662, Step2=81, Step3=1115, Accepted=1172
+  Iteration 1: Step1=4662, Step2=81, Step3=1115, Accepted=1172
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6429 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4662 in Step1, 81 in Step2, 1115 in Step3
+  Total number of accepted assignments: 1172
+  Blacklisted 80 transition(s) oscillating between cycles.
+  Accepted assignments: 1172, max energy change in optimization: 0.547879 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 578
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4503, Step2=68, Step3=1110, Accepted=1155
+  Iteration 1: Step1=4503, Step2=68, Step3=1110, Accepted=1155
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6509 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4503 in Step1, 68 in Step2, 1110 in Step3
+  Total number of accepted assignments: 1155
+  Blacklisted 51 transition(s) oscillating between cycles.
+  Accepted assignments: 1155, max energy change in optimization: 0.587195 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 562
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4494, Step2=62, Step3=1111, Accepted=1149
+  Iteration 1: Step1=4494, Step2=62, Step3=1111, Accepted=1149
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6560 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4494 in Step1, 62 in Step2, 1111 in Step3
+  Total number of accepted assignments: 1149
+  Blacklisted 43 transition(s) oscillating between cycles.
+  Accepted assignments: 1149, max energy change in optimization: 1.323343 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 559
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4457, Step2=61, Step3=1103, Accepted=1144
+  Iteration 1: Step1=4457, Step2=61, Step3=1103, Accepted=1144
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6603 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4457 in Step1, 61 in Step2, 1103 in Step3
+  Total number of accepted assignments: 1144
+  Blacklisted 19 transition(s) oscillating between cycles.
+  Accepted assignments: 1144, max energy change in optimization: 0.200464 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 548
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4427, Step2=60, Step3=1095, Accepted=1140
+  Iteration 1: Step1=4427, Step2=60, Step3=1095, Accepted=1140
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6622 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4427 in Step1, 60 in Step2, 1095 in Step3
+  Total number of accepted assignments: 1140
+  Blacklisted 9 transition(s) oscillating between cycles.
+  Accepted assignments: 1140, max energy change in optimization: 1.768194 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 541
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4416, Step2=58, Step3=1089, Accepted=1142
+  Iteration 1: Step1=4416, Step2=58, Step3=1089, Accepted=1142
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6631 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4416 in Step1, 58 in Step2, 1089 in Step3
+  Total number of accepted assignments: 1142
+  Blacklisted 3 transition(s) oscillating between cycles.
+  Accepted assignments: 1142, max energy change in optimization: 0.595096 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 539
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4386, Step2=62, Step3=1081, Accepted=1142
+  Iteration 1: Step1=4386, Step2=62, Step3=1081, Accepted=1142
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6634 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4386 in Step1, 62 in Step2, 1081 in Step3
+  Total number of accepted assignments: 1142
+  Blacklisted 7 transition(s) oscillating between cycles.
+  Accepted assignments: 1142, max energy change in optimization: 0.238977 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 533
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4381, Step2=61, Step3=1083, Accepted=1142
+  Iteration 1: Step1=4381, Step2=61, Step3=1083, Accepted=1142
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6641 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4381 in Step1, 61 in Step2, 1083 in Step3
+  Total number of accepted assignments: 1142
+  Blacklisted 3 transition(s) oscillating between cycles.
+  Accepted assignments: 1142, max energy change in optimization: 0.502070 cm^-1
+Step 5 cycle 17:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 528
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4386, Step2=59, Step3=1060, Accepted=1143
+  Iteration 1: Step1=4386, Step2=59, Step3=1060, Accepted=1143
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6644 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4386 in Step1, 59 in Step2, 1060 in Step3
+  Total number of accepted assignments: 1143
+  Blacklisted 4 transition(s) oscillating between cycles.
+  Accepted assignments: 1143, max energy change in optimization: 0.114307 cm^-1
+Step 5 cycle 18:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 513
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4348, Step2=59, Step3=1050, Accepted=1142
+  Iteration 1: Step1=4348, Step2=59, Step3=1050, Accepted=1142
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6648 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4348 in Step1, 59 in Step2, 1050 in Step3
+  Total number of accepted assignments: 1142
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 1142, max energy change in optimization: 0.031997 cm^-1
+Step 5 cycle 19:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 510
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4327, Step2=59, Step3=1053, Accepted=1143
+  Iteration 1: Step1=4327, Step2=59, Step3=1053, Accepted=1143
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6650 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4327 in Step1, 59 in Step2, 1053 in Step3
+  Total number of accepted assignments: 1143
+  Accepted assignments: 1143, max energy change in optimization: 0.014188 cm^-1
+Step 5 cycle 20:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 5
+  Total number of conflicting assignments: 512
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4319, Step2=61, Step3=1049, Accepted=1145
+  Iteration 1: Step1=4319, Step2=61, Step3=1049, Accepted=1145
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6650 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4319 in Step1, 61 in Step2, 1049 in Step3
+  Total number of accepted assignments: 1145
+  Accepted assignments: 1145, max energy change in optimization: 1.004466 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT +9.7 cm^-1 (0.1 min): candidates=5429, accepted=1145 (new=1145, old=0)
+    levels by number of accepted-new lines  1:  54 2: 112 3: 123 4:  89 5:  63 6:  49 7:  22 8:  55   (8 = 8 or more)
+
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+CHANCE-COINCIDENCE RUN: wavenumber shift +11.300 cm^-1
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  NOTE: all observed wavenumbers shifted by +11.300 cm^-1 (chance-coincidence run)
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 2
+  Total number of conflicting assignments: 83
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=2617, Step2=35, Step3=225, Accepted=463
+  Iteration 1: Step1=2617, Step2=35, Step3=225, Accepted=463
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 2617 in Step1, 35 in Step2, 225 in Step3
+  Total number of accepted assignments: 463
+  Accepted assignments: 463, max energy change in optimization: 1.580231 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 24
+  Total number of conflicting assignments: 2106
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7005, Step2=263, Step3=381, Accepted=1393
+  Iteration 1: Step1=7005, Step2=263, Step3=381, Accepted=1393
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 7005 in Step1, 263 in Step2, 381 in Step3
+  Total number of accepted assignments: 1393
+  Accepted assignments: 1393, max energy change in optimization: 10.524373 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 13
+  Total number of conflicting assignments: 4889
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=11886, Step2=507, Step3=494, Accepted=2469
+  Iteration 1: Step1=11886, Step2=507, Step3=494, Accepted=2469
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 11886 in Step1, 507 in Step2, 494 in Step3
+  Total number of accepted assignments: 2469
+  Blacklisted 1875 transition(s) oscillating between cycles.
+  Accepted assignments: 2469, max energy change in optimization: 3.922786 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 8
+  Total number of conflicting assignments: 2693
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=9535, Step2=309, Step3=734, Accepted=1933
+  Iteration 1: Step1=9535, Step2=309, Step3=734, Accepted=1933
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 1875 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 9535 in Step1, 309 in Step2, 734 in Step3
+  Total number of accepted assignments: 1933
+  Blacklisted 3065 transition(s) oscillating between cycles.
+  Accepted assignments: 1933, max energy change in optimization: 2.608790 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 8
+  Total number of conflicting assignments: 1386
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7200, Step2=173, Step3=863, Accepted=1552
+  Iteration 1: Step1=7200, Step2=173, Step3=863, Accepted=1552
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 4940 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7200 in Step1, 173 in Step2, 863 in Step3
+  Total number of accepted assignments: 1552
+  Blacklisted 736 transition(s) oscillating between cycles.
+  Accepted assignments: 1552, max energy change in optimization: 1.387007 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 8
+  Total number of conflicting assignments: 875
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5922, Step2=109, Step3=814, Accepted=1341
+  Iteration 1: Step1=5922, Step2=109, Step3=814, Accepted=1341
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5676 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5922 in Step1, 109 in Step2, 814 in Step3
+  Total number of accepted assignments: 1341
+  Blacklisted 255 transition(s) oscillating between cycles.
+  Accepted assignments: 1341, max energy change in optimization: 0.613623 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 658
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=5129, Step2=91, Step3=797, Accepted=1262
+  Iteration 1: Step1=5129, Step2=91, Step3=797, Accepted=1262
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 5931 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 5129 in Step1, 91 in Step2, 797 in Step3
+  Total number of accepted assignments: 1262
+  Blacklisted 141 transition(s) oscillating between cycles.
+  Accepted assignments: 1262, max energy change in optimization: 1.133388 cm^-1
+Step 5 cycle 8:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 584
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4724, Step2=82, Step3=842, Accepted=1205
+  Iteration 1: Step1=4724, Step2=82, Step3=842, Accepted=1205
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6072 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4724 in Step1, 82 in Step2, 842 in Step3
+  Total number of accepted assignments: 1205
+  Blacklisted 98 transition(s) oscillating between cycles.
+  Accepted assignments: 1205, max energy change in optimization: 0.757390 cm^-1
+Step 5 cycle 9:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 516
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4496, Step2=70, Step3=821, Accepted=1194
+  Iteration 1: Step1=4496, Step2=70, Step3=821, Accepted=1194
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6170 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4496 in Step1, 70 in Step2, 821 in Step3
+  Total number of accepted assignments: 1194
+  Blacklisted 77 transition(s) oscillating between cycles.
+  Accepted assignments: 1194, max energy change in optimization: 0.221514 cm^-1
+Step 5 cycle 10:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 7
+  Total number of conflicting assignments: 509
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4423, Step2=69, Step3=828, Accepted=1195
+  Iteration 1: Step1=4423, Step2=69, Step3=828, Accepted=1195
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6247 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4423 in Step1, 69 in Step2, 828 in Step3
+  Total number of accepted assignments: 1195
+  Blacklisted 31 transition(s) oscillating between cycles.
+  Accepted assignments: 1195, max energy change in optimization: 0.652317 cm^-1
+Step 5 cycle 11:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 485
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4358, Step2=62, Step3=834, Accepted=1191
+  Iteration 1: Step1=4358, Step2=62, Step3=834, Accepted=1191
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6278 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4358 in Step1, 62 in Step2, 834 in Step3
+  Total number of accepted assignments: 1191
+  Blacklisted 21 transition(s) oscillating between cycles.
+  Accepted assignments: 1191, max energy change in optimization: 0.652060 cm^-1
+Step 5 cycle 12:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 469
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4314, Step2=61, Step3=833, Accepted=1194
+  Iteration 1: Step1=4314, Step2=61, Step3=833, Accepted=1194
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6299 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4314 in Step1, 61 in Step2, 833 in Step3
+  Total number of accepted assignments: 1194
+  Blacklisted 8 transition(s) oscillating between cycles.
+  Accepted assignments: 1194, max energy change in optimization: 0.124108 cm^-1
+Step 5 cycle 13:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 451
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4278, Step2=60, Step3=831, Accepted=1188
+  Iteration 1: Step1=4278, Step2=60, Step3=831, Accepted=1188
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6307 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4278 in Step1, 60 in Step2, 831 in Step3
+  Total number of accepted assignments: 1188
+  Blacklisted 11 transition(s) oscillating between cycles.
+  Accepted assignments: 1188, max energy change in optimization: 0.180005 cm^-1
+Step 5 cycle 14:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 446
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4275, Step2=59, Step3=833, Accepted=1186
+  Iteration 1: Step1=4275, Step2=59, Step3=833, Accepted=1186
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6318 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4275 in Step1, 59 in Step2, 833 in Step3
+  Total number of accepted assignments: 1186
+  Blacklisted 6 transition(s) oscillating between cycles.
+  Accepted assignments: 1186, max energy change in optimization: 0.132915 cm^-1
+Step 5 cycle 15:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 442
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4253, Step2=59, Step3=839, Accepted=1187
+  Iteration 1: Step1=4253, Step2=59, Step3=839, Accepted=1187
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6324 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4253 in Step1, 59 in Step2, 839 in Step3
+  Total number of accepted assignments: 1187
+  Blacklisted 10 transition(s) oscillating between cycles.
+  Accepted assignments: 1187, max energy change in optimization: 0.123256 cm^-1
+Step 5 cycle 16:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 439
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4262, Step2=55, Step3=831, Accepted=1186
+  Iteration 1: Step1=4262, Step2=55, Step3=831, Accepted=1186
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6334 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4262 in Step1, 55 in Step2, 831 in Step3
+  Total number of accepted assignments: 1186
+  Blacklisted 10 transition(s) oscillating between cycles.
+  Accepted assignments: 1186, max energy change in optimization: 0.015029 cm^-1
+Step 5 cycle 17:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 6
+  Total number of conflicting assignments: 440
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=4262, Step2=55, Step3=833, Accepted=1186
+  Iteration 1: Step1=4262, Step2=55, Step3=833, Accepted=1186
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 6344 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 4262 in Step1, 55 in Step2, 833 in Step3
+  Total number of accepted assignments: 1186
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 1186, max energy change in optimization: 0.000609 cm^-1
+  Building output...
+============================================================
+Done.
+============================================================
+
+SHIFT +11.3 cm^-1 (0.1 min): candidates=5150, accepted=1186 (new=1186, old=0)
+    levels by number of accepted-new lines  1:  55 2: 102 3: 121 4:  84 5:  70 6:  47 7:  24 8:  61   (8 = 8 or more)
+
+============================================================
+CHANCE-COINCIDENCE SUMMARY
+============================================================
+shift -11.3: candidates=5117, accepted=1170 (new=1170, old=0)
+    levels by number of accepted-new lines  1:  54 2: 101 3: 124 4:  95 5:  67 6:  32 7:  29 8:  61   (8 = 8 or more)
+shift -9.7: candidates=5165, accepted=1203 (new=1203, old=0)
+    levels by number of accepted-new lines  1:  55 2:  95 3: 129 4:  95 5:  61 6:  39 7:  30 8:  67   (8 = 8 or more)
+shift -8.3: candidates=5329, accepted=1170 (new=1170, old=0)
+    levels by number of accepted-new lines  1:  48 2:  93 3: 135 4: 101 5:  69 6:  38 7:  25 8:  56   (8 = 8 or more)
+shift -6.9: candidates=5267, accepted=1195 (new=1195, old=0)
+    levels by number of accepted-new lines  1:  31 2: 118 3: 135 4: 112 5:  50 6:  38 7:  32 8:  56   (8 = 8 or more)
+shift +6.9: candidates=5186, accepted=1120 (new=1120, old=0)
+    levels by number of accepted-new lines  1:  61 2:  95 3: 122 4:  84 5:  65 6:  36 7:  27 8:  58   (8 = 8 or more)
+shift +8.3: candidates=5263, accepted=1217 (new=1217, old=0)
+    levels by number of accepted-new lines  1:  53 2:  96 3: 109 4: 104 5:  68 6:  35 7:  32 8:  68   (8 = 8 or more)
+shift +9.7: candidates=5429, accepted=1145 (new=1145, old=0)
+    levels by number of accepted-new lines  1:  54 2: 112 3: 123 4:  89 5:  63 6:  49 7:  22 8:  55   (8 = 8 or more)
+shift +11.3: candidates=5150, accepted=1186 (new=1186, old=0)
+    levels by number of accepted-new lines  1:  55 2: 102 3: 121 4:  84 5:  70 6:  47 7:  24 8:  61   (8 = 8 or more)
+
+Chance-accepted NEW classifications per run: mean = 1175.8, std = 31.7, range = 1120..1217
+
+Mean number of levels acquiring n chance-accepted new lines per run:
+  n = 1 :  51.38 levels   (>= 1: 564.38)
+  n = 2 : 101.50 levels   (>= 2: 513.00)
+  n = 3 : 124.75 levels   (>= 3: 411.50)
+  n = 4 :  95.50 levels   (>= 4: 286.75)
+  n = 5 :  64.12 levels   (>= 5: 191.25)
+  n = 6 :  39.25 levels   (>= 6: 127.12)
+  n = 7 :  27.62 levels   (>= 7:  87.88)
+  n = 8+:  60.25 levels   (>= 8:  60.25)
+
+Real (unshifted) run, for comparison [F:\UMD\AI\as-ai\LineClass\line_classifications.csv]:
+real: candidates=7592, accepted=4839 (new=1426, old=3413)
+    levels by number of accepted-new lines  1:  67 2:  87 3:  88 4:  62 5:  66 6:  51 7:  28 8: 116   (8 = 8 or more)
+    levels by number of ALL accepted lines   1:   9 2:  25 3:  37 4:  21 5:  45 6:  27 7:  31 8: 397   (8 = 8 or more)
+
+Written: F:\UMD\AI\as-ai\LineClass\chance_mc_summary.csv (+ .xlsx twin)
+Written: F:\UMD\AI\as-ai\LineClass\chance_mc_levels.csv (+ .xlsx twin)
+Written: F:\UMD\AI\as-ai\LineClass\chance_mc_lines.csv (+ .xlsx twin)

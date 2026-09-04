@@ -88,3 +88,8 @@ implementation_plan.md
 # Claude agent files
 CLAUDE.md
 .claude/
+PLAN*
+LineClass/PLAN*
+
+# Archived reference runs: the CSVs are kept, their Excel twins are derived
+LineClass/baseline/**/*.xlsx

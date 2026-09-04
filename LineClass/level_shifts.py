@@ -335,12 +335,13 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
     """
     import openpyxl
     wb = openpyxl.load_workbook(cl.ICALC_FILE, read_only=True, data_only=True)
-    ws = wb['Sheet1']
+    ws = wb[cl.CFG.icalc.sheet]
+    col = cl.column_index(ws, cl.CFG.icalc, cl.ICALC_FILE)
     rows = []
     for row in ws.iter_rows(min_row=2):
-        id1 = cl.to_str_id(row[0].value)  # lower level
-        id2 = cl.to_str_id(row[1].value)  # upper level
-        icalc = row[5].value              # predicted intensity, observed scale
+        id1 = cl.to_str_id(row[col['id1']].value)  # lower level
+        id2 = cl.to_str_id(row[col['id2']].value)  # upper level
+        icalc = row[col['Icalc']].value            # predicted intensity, observed scale
         if not id1 or not id2 or icalc is None:
             continue
         if id1 not in level_ids or id2 not in level_ids:

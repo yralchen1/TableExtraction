@@ -15,6 +15,7 @@ Steps:
   6. Resolve conflicts & write output
 """
 
+import argparse
 import os
 import math
 from typing import List
@@ -22,21 +23,116 @@ import numpy as np
 import bisect
 import pandas as pd
 import openpyxl
+import config
+import gA_imputation
 from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 
 # ---------------------------------------------------------------------------
-# Paths (relative to this script's directory)
+# Configuration
 # ---------------------------------------------------------------------------
+# Every file name, worksheet name and column name lives in lineclass_config.toml
+# (see config.py).  The module-level names below are kept because the companion
+# scripts (level_shifts.py, chance_mc.py, decoy_mc.py) refer to them as
+# cl.ICALC_FILE, cl.WN_MIN and so on; apply_config() re-derives them whenever a
+# different configuration file is given with --config.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-LEVELS_FILE = os.path.join(SCRIPT_DIR, '..', 'TableExtraction', 'Pr3_lev_Wyart_1999.xlsm')
-LINES_FILE = os.path.join(SCRIPT_DIR, 'Pr3_lines.xlsx')
-ICALC_FILE = os.path.join(SCRIPT_DIR, 'Icalc.xlsx')
-OUTPUT_FILE = os.path.join(SCRIPT_DIR, 'line_classifications.xlsx')
-OUTPUT_CSV = os.path.join(SCRIPT_DIR, 'line_classifications.csv')
 
-# Wavenumber range for possible transitions (cm^{-1})
-WN_MIN = 9327.0
-WN_MAX = 121665.0
+CFG = None          # the config.Config in force
+LEVELS_FILE = ''    # workbook of the adopted energy levels
+LINES_FILE = ''     # workbook of the observed lines
+ICALC_FILE = ''     # workbook of the calculated transitions
+OUTPUT_FILE = ''    # output workbook
+OUTPUT_CSV = ''     # the same table as csv
+WN_MIN = 0.0        # wavenumber range for possible transitions (cm^-1)
+WN_MAX = 0.0
+MISSING_POLICY = 'none'  # missing_gA.policy in force: 'none' or 'impute'
+_IMPUTED = None          # cached imputation constants; see imputed_values()
+
+
+def apply_config(cfg, policy: str = None) -> None:
+    """Adopt `cfg` (a config.Config) as the configuration of this run.
+
+    `policy` overrides missing_gA.policy for this run (the --missing-gA
+    switch); None keeps the value written in the configuration file.
+    """
+    global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
+    global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED
+    CFG = cfg
+    LEVELS_FILE = cfg.levels_file
+    LINES_FILE = cfg.lines_file
+    ICALC_FILE = cfg.icalc_file
+    OUTPUT_FILE = cfg.output_file
+    OUTPUT_CSV = cfg.output_csv
+    WN_MIN = cfg.wn_min
+    WN_MAX = cfg.wn_max
+    MISSING_POLICY = policy if policy is not None else cfg.missing_gA['policy']
+    if MISSING_POLICY not in ('none', 'impute'):
+        raise config.ConfigError(
+            f"missing_gA.policy = {MISSING_POLICY!r}; expected 'none' or 'impute'")
+    _IMPUTED = None     # recalibrate on demand, against the new configuration
+
+
+apply_config(config.load())
+
+
+# ---------------------------------------------------------------------------
+# The intensity given to a transition absent from the calculated-transition file
+# ---------------------------------------------------------------------------
+# Cowan's codes printed a transition only when gA (statistical weight times
+# transition probability, s^-1) reached a cutoff, 1e3 s^-1 here.  A pair of
+# levels missing from Icalc.xlsx is therefore not a transition of unknown
+# strength: it is one known to be weaker than the cutoff.  Under
+# missing_gA.policy = "impute" such a pair is given the intensity implied by a
+# gA just below that cutoff, so that its predicted weakness counts against the
+# identification instead of exempting it from the intensity tests; under
+# policy = "none" it keeps no calculated intensity at all, as before.
+def _imputation_calibration():
+    """The constants used to stand for a censored transition, computed once.
+
+    Returns (gA, u_ln, C, kT): the gA whose upper one-standard-deviation edge
+    sits exactly on the printing cutoff, the uncertainty belonging to it (on
+    the logarithmic scale), and the two constants of the intensity relation
+    Icalc = C*gA*(rwn/1e8)*exp(-Eup/kT) that the file obeys (the predicted
+    intensity is an energy flux, hence proportional to the wavenumber).
+    gA_imputation.py
+    derives all four and explains the choice.
+    """
+    global _IMPUTED
+    if _IMPUTED is None:
+        mg = CFG.missing_gA
+        df = gA_imputation.load_icalc(CFG)
+        gA, u_ln = gA_imputation.estimate_missing_gA(
+            df, CFG.gA_cutoff, mg['u_ln_window'], mg['u_ln_estimator'],
+            mg['self_consistent'], mg['fit_range_decades'])
+        C, kT, _C_fit, _kT_fit, _agrees = gA_imputation.check_intensity_model(df, CFG)
+        _IMPUTED = (gA, u_ln, C, kT)
+        print(f"  Transitions absent from {os.path.basename(ICALC_FILE)} are imputed "
+              f"with gA = {gA:.1f} s^-1 (cutoff {CFG.gA_cutoff:g} s^-1), "
+              f"u_ln = {u_ln:.4f},")
+        print(f"    through Icalc = {C:g} * gA * (rwn/1e8) * exp(-Eup/{kT:g}).")
+    return _IMPUTED
+
+
+def imputed_values(lower: EnergyLevel, upper: EnergyLevel):
+    """(calc_intensity, u_calc) for a level pair absent from that file.
+
+    Returns (None, None) under policy "none", so that the two policies run
+    from the same code.  The intensity depends on the pair through the energy
+    of the upper level and the wavenumber of the transition.
+
+    The imputed gA is the one whose upper one-standard-deviation bound sits on
+    the printing cutoff of the calculation; see the WARNING in
+    `gA_imputation.estimate_missing_gA` for the justification that is correct
+    and the one that is not.
+    """
+    if MISSING_POLICY != 'impute':
+        return None, None
+    gA, u_ln, C, kT = _imputation_calibration()
+    rwn = upper.energy - lower.energy
+    if rwn <= 0:
+        return None, None
+    I_calc = gA_imputation.impute_intensity(gA, upper.energy, rwn, C, kT)
+    return float(I_calc), u_ln
 
 # Atomic mass and plasma temperature for Doppler width calculation
 ATOMIC_MASS = 140.90765  # u, standard mass unit
@@ -88,6 +184,18 @@ def to_str_id(val) -> str:
     return str(val).strip()
 
 
+def column_index(ws, layout, source: str) -> dict:
+    """0-based positions of the columns of `layout` in worksheet `ws`.
+
+    The names are looked up in the header row (row 1) of the worksheet, so the
+    readers do not depend on the order of the columns in the input file.
+    Returns {logical name: index}; raises if a configured column is missing.
+    """
+    header = next(ws.iter_rows(min_row=1, max_row=1))
+    return config.resolve_columns(header, layout.columns,
+                                  f"{os.path.basename(source)}[{layout.sheet}]")
+
+
 # ===========================================================================
 # STEP 1: Read energy levels
 # ===========================================================================
@@ -100,20 +208,20 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
     """
     print("Step 1: Reading energy levels...")
     wb = openpyxl.load_workbook(LEVELS_FILE, read_only=True, data_only=True)
-    ws = wb['Wyart2000']
+    ws = wb[CFG.levels.sheet]
+    col = column_index(ws, CFG.levels, LEVELS_FILE)
 
     levels_dict = {}
     levels_list = []
 
     for row in ws.iter_rows(min_row=2):  # skip header
-        # Column indices are 0-based in openpyxl rows, but spec uses 1-based
-        # J_adopt = col 11 (index 10), E_adopt = col 13 (index 12),
-        # par_ASD = col 14 (index 13), ASD_id = col 23 (index 22)
-        j_str_val = row[10].value   # J_adopt (col 11)
-        e_asd_val = row[11].value   # E_ASD (col 12): blank = level absent from ASD (new in Wyart's list)
-        energy_val = row[12].value  # E_adopt (col 13)
-        parity_val = row[13].value  # par_ASD (col 14)
-        level_id_val = row[22].value  # ASD_id (col 23)
+        j_str_val = row[col['J']].value        # adopted J
+        # An empty E_ASD means the level is absent from the ASD, i.e. new in
+        # Wyart's list.
+        e_asd_val = row[col['E_ASD']].value
+        energy_val = row[col['E']].value       # adopted energy
+        parity_val = row[col['parity']].value
+        level_id_val = row[col['id']].value
 
         # Skip rows with missing essential data
         if energy_val is None or j_str_val is None or level_id_val is None:
@@ -162,15 +270,15 @@ def read_transitions(levels_dict: dict) -> dict:
     """
     print("Step 2: Reading calculated transitions...")
     wb = openpyxl.load_workbook(ICALC_FILE, read_only=True, data_only=True)
-    ws = wb['Sheet1']
+    ws = wb[CFG.icalc.sheet]
+    col = column_index(ws, CFG.icalc, ICALC_FILE)
 
     calc_trans_index = {}
+    n_below = 0
 
     for row in ws.iter_rows(min_row=2):  # skip header
-        # Col 1: id1_W99 (idx 0), Col 2: id2_W99 (idx 1),
-        # Col 5: u%gA (idx 4), Col 6: Icalc (idx 5)
-        id1_val = to_str_id(row[0].value)
-        id2_val = to_str_id(row[1].value)
+        id1_val = to_str_id(row[col['id1']].value)   # lower level
+        id2_val = to_str_id(row[col['id2']].value)   # upper level
 
         if not id1_val or not id2_val:
             continue
@@ -178,8 +286,20 @@ def read_transitions(levels_dict: dict) -> dict:
         if id1_val not in levels_dict or id2_val not in levels_dict:
             continue
 
-        ua_pcnt_val = row[4].value
-        icalc_val = row[5].value
+        # A few rows fall marginally below the printing cutoff of Cowan's codes
+        # after the rescaling to Ritz wavenumbers; the configuration decides
+        # whether they are read like any other row.
+        if not CFG.allow_below_cutoff:
+            gA_val = row[col['gA']].value
+            try:
+                if gA_val is not None and float(gA_val) < CFG.gA_cutoff:
+                    n_below += 1
+                    continue
+            except (ValueError, TypeError):
+                pass
+
+        ua_pcnt_val = row[col['u_pct_gA']].value
+        icalc_val = row[col['Icalc']].value
 
         u_calc = None
         if ua_pcnt_val is not None:
@@ -203,6 +323,9 @@ def read_transitions(levels_dict: dict) -> dict:
 
     wb.close()
     print(f"  Read {len(calc_trans_index)} calculated transitions.")
+    if n_below:
+        print(f"  Skipped {n_below} rows with gA < {CFG.gA_cutoff:g} s^-1 "
+              f"(icalc.completeness.allow_below_cutoff = false).")
     return calc_trans_index
 
 
@@ -335,16 +458,17 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
     if wn_shift != 0.0:
         print(f"  NOTE: all observed wavenumbers shifted by {wn_shift:+.3f} cm^-1 (chance-coincidence run)")
     wb = openpyxl.load_workbook(LINES_FILE, read_only=True, data_only=True)
-    ws = wb['Sheet1']
+    ws = wb[CFG.lines.sheet]
+    col = column_index(ws, CFG.lines, LINES_FILE)
 
     observed_lines = []
     prev_line = None
 
     for row in ws.iter_rows(min_row=2):  # skip header
-        wn_val = row[0].value       # wavenumber
-        unc_val = row[1].value      # wn_uncertainty
-        intens_val = row[2].value   # intensity
-        char_val = row[3].value     # line_character
+        wn_val = row[col['wn']].value            # wavenumber
+        unc_val = row[col['u_wn']].value         # its uncertainty
+        intens_val = row[col['intensity']].value
+        char_val = row[col['character']].value   # line character
 
         if wn_val is None or unc_val is None or intens_val is None:
             continue
@@ -358,8 +482,8 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
 
         line_char = str(char_val).strip() if char_val is not None else ''
 
-        id1_val = to_str_id(row[4].value)  # lower level_id
-        id2_val = to_str_id(row[5].value)  # upper level_id
+        id1_val = to_str_id(row[col['id1']].value)  # lower level_id
+        id2_val = to_str_id(row[col['id2']].value)  # upper level_id
 
         if prev_line is not None and wavenumber == prev_line.wavenumber:
             current_line = prev_line
@@ -378,14 +502,25 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
             upper = levels_dict.get(id2_val)
             if lower is not None and upper is not None:
                 calc_data = calc_trans_index.get((id1_val, id2_val))
+                if calc_data is not None:
+                    i_calc = calc_data['calc_intensity']
+                    u_calc = calc_data['u_calc']
+                    imputed = 0
+                else:
+                    # Absent from the calculated-transition file. A legacy
+                    # identification must meet the same intensity test as a new
+                    # one, so it is imputed by exactly the same rule.
+                    i_calc, u_calc = imputed_values(lower, upper)
+                    imputed = 1 if i_calc is not None else 0
                 tr = Transition(
                     lower_level=lower,
                     upper_level=upper,
-                    calc_intensity=calc_data['calc_intensity'] if calc_data else None,
-                    u_calc=calc_data['u_calc'] if calc_data else None,
+                    calc_intensity=i_calc,
+                    u_calc=u_calc,
                     assigned_to=current_line,
-                    orig_calc_intensity=calc_data['calc_intensity'] if calc_data else None,
-                    orig_u_calc=calc_data['u_calc'] if calc_data else None,
+                    orig_calc_intensity=i_calc,
+                    orig_u_calc=u_calc,
+                    is_imputed=imputed,
                 )
                 current_line.assigned_transitions.append(tr)
                 current_line.original_assignments.append(tr)
@@ -454,9 +589,19 @@ def generate_all_possible_transitions(levels_list: list,
                     orig_u_calc=calc_data['u_calc'],
                 )
             else:
+                # The pair is absent from the calculated-transition file, which
+                # means gA below the printing cutoff. Imputing here rather than
+                # in read_transitions gives decoy pairs the same treatment as
+                # real ones, which keeps the false-positive calibration fair.
+                i_calc, u_calc = imputed_values(lev_lo, lev_up)
                 tr = Transition(
                     lower_level=lev_lo,
-                    upper_level=lev_up
+                    upper_level=lev_up,
+                    calc_intensity=i_calc,
+                    u_calc=u_calc,
+                    orig_calc_intensity=i_calc,
+                    orig_u_calc=u_calc,
+                    is_imputed=1 if i_calc is not None else 0,
                 )
 
             all_possible.append(tr)
@@ -464,6 +609,10 @@ def generate_all_possible_transitions(levels_list: list,
     # Sort by calculated wavenumber
     all_possible.sort(key=lambda t: t.calculated_wavenumber)
     print(f"  Generated {len(all_possible)} possible transitions.")
+    n_imputed = sum(1 for t in all_possible if t.is_imputed)
+    if n_imputed:
+        print(f"  {n_imputed} of them are absent from "
+              f"{os.path.basename(ICALC_FILE)} and were given an imputed intensity.")
     return all_possible
 
 
@@ -589,6 +738,7 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
                         assigned_to=obs_line,
                         orig_calc_intensity=t.orig_calc_intensity,
                         orig_u_calc=t.orig_u_calc,
+                        is_imputed=t.is_imputed,
                     )
                     obs_line.assigned_transitions.append(target_tr)
                 
@@ -766,6 +916,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'calc_intens': np.nan,
             'orig_calc_intens': np.nan,
             'u_calc': np.nan,
+            'imputed': 0,
             'intens_from_f': np.nan,
             'intens_to_f': np.nan,
             'dif_wn_O-C': np.nan,
@@ -807,6 +958,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'calc_intens': tr.calc_intensity,
                     'orig_calc_intens': tr.orig_calc_intensity,
                     'u_calc': tr.u_calc,
+                    'imputed': tr.is_imputed,
                     'intens_from_f': tr.upper_level.intens_from_factor if tr.upper_level else np.nan,
                     'intens_to_f': tr.lower_level.intens_to_factor if tr.lower_level else np.nan,
                     'dif_wn_O-C': wn_diff,
@@ -1050,7 +1202,10 @@ def _compute_factor_for_transition_list(transitions: list, min_n: int=5, offset=
     """Compute a mean intensity adjustment factor from a list of transitions.
 
     Qualifying transitions: accepted == 1, orig_calc_intensity and orig_u_calc > 0,
-    and the parent line has exactly one accepted transition (unblended).
+    the parent line has exactly one accepted transition (unblended), and the
+    calculated intensity is a real one - an imputed intensity is a bound read
+    off the printing cutoff, not a measurement of how well the calculation
+    reproduces this level, so it must not enter the fit.
 
     Args:
         transitions: candidate Transition list (a level's from- or to-list).
@@ -1068,6 +1223,8 @@ def _compute_factor_for_transition_list(transitions: list, min_n: int=5, offset=
     qualifying = []
     for t in transitions:
         if t.accepted != 1:
+            continue
+        if t.is_imputed:
             continue
         if t.orig_calc_intensity is None or t.orig_u_calc is None:
             continue
@@ -2496,5 +2653,27 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     return df
 
 
+def cli(argv=None) -> None:
+    """Command-line entry point."""
+    ap = argparse.ArgumentParser(
+        description='Classify the observed lines of Pr III against all '
+                    'transitions allowed between the known energy levels.')
+    ap.add_argument('--config', default=config.DEFAULT_PATH, metavar='FILE',
+                    help='configuration file (default: %(default)s)')
+    ap.add_argument('--max-cycles', type=int, default=20, metavar='N',
+                    help='maximum number of classify/optimize cycles '
+                         '(default: %(default)s)')
+    ap.add_argument('--missing-gA', choices=('none', 'impute'), default=None,
+                    dest='missing_gA', metavar='{none,impute}',
+                    help='how to treat a candidate transition absent from the '
+                         'calculated-transition file: "none" leaves it without '
+                         'a predicted intensity, "impute" gives it the intensity '
+                         'implied by a gA just below the printing cutoff '
+                         '(default: missing_gA.policy in the configuration)')
+    args = ap.parse_args(argv)
+    apply_config(config.load(args.config), policy=args.missing_gA)
+    main(max_cycles=args.max_cycles)
+
+
 if __name__ == '__main__':
-    main()
+    cli()

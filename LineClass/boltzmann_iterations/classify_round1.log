@@ -1,0 +1,128 @@
+============================================================
+classify_lines.py — Spectral Line Classification for Pr III
+============================================================
+Step 1: Reading energy levels...
+  Read 593 energy levels.
+Step 2: Reading calculated transitions...
+  Read 30206 calculated transitions.
+Step 3: Reading observed spectral lines...
+  Transitions absent from Icalc.xlsx are imputed with gA = 175.8 s^-1 (cutoff 1000 s^-1), u_ln = 1.7383,
+    through Icalc = 134.651 * gA * (rwn/1e8) * exp(-Eup/12915.8).
+  Read 6668 observed lines.
+Step 4: Generating all possible transitions...
+  Generated 30237 possible transitions.
+  1075 of them are absent from Icalc.xlsx and were given an imputed intensity.
+Step 5 cycle 1:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 199
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=6678, Step2=129, Step3=148, Accepted=4716
+  Iteration 1: Step1=6678, Step2=129, Step3=148, Accepted=4716
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 6678 in Step1, 129 in Step2, 148 in Step3
+  Total number of accepted assignments: 4716
+  Accepted assignments: 4716, max energy change in optimization: 1.035541 cm^-1
+Step 5 cycle 2:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 4
+  Total number of conflicting assignments: 282
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7416, Step2=143, Step3=176, Accepted=4893
+  Iteration 1: Step1=7432, Step2=140, Step3=163, Accepted=4890
+  Iteration 1: 3 changes (+0 accepted, -3 rejected)
+  Iteration 2: Step1=7432, Step2=140, Step3=163, Accepted=4890
+  Iteration 2: 0 changes (+0 accepted, -0 rejected)
+  Converged after 2 iteration(s).
+Weeding complete. Decisions made: 7432 in Step1, 140 in Step2, 163 in Step3
+  Total number of accepted assignments: 4890
+  Accepted assignments: 4890, max energy change in optimization: 0.869250 cm^-1
+Step 5 cycle 3:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 244
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7293, Step2=132, Step3=158, Accepted=4891
+  Iteration 1: Step1=7296, Step2=132, Step3=155, Accepted=4891
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+Weeding complete. Decisions made: 7296 in Step1, 132 in Step2, 155 in Step3
+  Total number of accepted assignments: 4891
+  Blacklisted 188 transition(s) oscillating between cycles.
+  Accepted assignments: 4891, max energy change in optimization: 0.597117 cm^-1
+Step 5 cycle 4:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 4
+  Total number of conflicting assignments: 253
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7276, Step2=130, Step3=166, Accepted=4894
+  Iteration 1: Step1=7279, Step2=129, Step3=164, Accepted=4894
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 188 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7279 in Step1, 129 in Step2, 164 in Step3
+  Total number of accepted assignments: 4894
+  Blacklisted 22 transition(s) oscillating between cycles.
+  Accepted assignments: 4894, max energy change in optimization: 0.598482 cm^-1
+Step 5 cycle 5:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 3
+  Total number of conflicting assignments: 246
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7268, Step2=124, Step3=171, Accepted=4891
+  Iteration 1: Step1=7271, Step2=123, Step3=169, Accepted=4891
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 210 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7271 in Step1, 123 in Step2, 169 in Step3
+  Total number of accepted assignments: 4891
+  Blacklisted 2 transition(s) oscillating between cycles.
+  Accepted assignments: 4891, max energy change in optimization: 0.598838 cm^-1
+Step 5 cycle 6:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 4
+  Total number of conflicting assignments: 254
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7266, Step2=125, Step3=178, Accepted=4890
+  Iteration 1: Step1=7269, Step2=124, Step3=176, Accepted=4890
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 212 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7269 in Step1, 124 in Step2, 176 in Step3
+  Total number of accepted assignments: 4890
+  Accepted assignments: 4890, max energy change in optimization: 0.051437 cm^-1
+Step 5 cycle 7:
+Step 5.1: Matching observed lines to transitions & grading...
+  Matching complete.
+Step 5.2: Resolving conflicts...
+  Max number of conflicting assignments: 4
+  Total number of conflicting assignments: 254
+Step 5.3: Weeding assignments (iterative)...
+  Baseline: Step1=7267, Step2=124, Step3=178, Accepted=4890
+  Iteration 1: Step1=7270, Step2=123, Step3=176, Accepted=4890
+  Iteration 1: 0 changes (+0 accepted, -0 rejected)
+  Converged after 1 iteration(s).
+  Blacklisted 212 oscillating transition(s) (cumulative).
+Weeding complete. Decisions made: 7270 in Step1, 123 in Step2, 176 in Step3
+  Total number of accepted assignments: 4890
+  Accepted assignments: 4890, max energy change in optimization: 0.000667 cm^-1
+  Building output...
+  Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.xlsx...
+  Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.csv...
+  Output written: 9085 rows.
+============================================================
+Done.
+============================================================
