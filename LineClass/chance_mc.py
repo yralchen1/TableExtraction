@@ -51,6 +51,7 @@ Usage:
     python chance_mc.py --smoke              # quick plumbing test: one shift, 2 cycles
     python chance_mc.py --missing-gA impute  # override missing_gA.policy
 """
+import csv
 import os
 import sys
 import time
@@ -154,6 +155,12 @@ def read_input_levels() -> pd.DataFrame:
     A level is 'new' (found by Wyart, absent from the ASD compilation) iff its
     E_ASD cell is blank; E_adopt is the energy the pipeline starts from.
     note, J and parity are carried along for reporting.
+
+    A level that the identification work has re-positioned takes its revised
+    energy from the override csv named by files.level_overrides, exactly as
+    classify_lines.py does, so that E_input here is the energy the run under
+    test was actually built on: decoy_mc.py displaces these values to plant
+    its decoys, and every dE of level_shifts.py is measured from them.
     """
     wb = openpyxl.load_workbook(cl.LEVELS_FILE, read_only=True, data_only=True)
     ws = wb[cl.CFG.levels.sheet]
@@ -171,8 +178,31 @@ def read_input_levels() -> pd.DataFrame:
         parity = _text(row[col['parity']].value)
         recs.append((level_id, float(energy_val), is_new, note, j_str, parity))
     wb.close()
-    return pd.DataFrame(recs, columns=['level_id', 'E_input', 'is_new_level',
-                                       'note', 'J', 'parity'])
+    # Levels found since the workbook was published (files.new_levels) exist
+    # in no input file the workbook reader can see, so they must be appended
+    # here as well; without this the validation report would silently omit the
+    # very levels whose reality is least established.  They are new by
+    # definition (is_new_level = 1), which is what puts them among the tested
+    # levels of level_shifts.py and gives them decoys in decoy_mc.py.
+    if getattr(cl, 'NEW_LEVELS', ''):
+        with open(cl.NEW_LEVELS, newline='', encoding='utf-8-sig') as fh:
+            for rec in csv.DictReader(fh):
+                lid = cl.to_str_id(rec.get('level_id'))
+                if not lid:
+                    continue
+                recs.append((lid, float(rec['E']), 1, 'N',
+                             str(rec['J']).strip(), str(rec['parity']).strip()))
+    df = pd.DataFrame(recs, columns=['level_id', 'E_input', 'is_new_level',
+                                     'note', 'J', 'parity'])
+    if cl.LEVEL_OVERRIDES:
+        emap = cl.read_energy_overrides(cl.LEVEL_OVERRIDES)
+        unknown = sorted(set(emap) - set(df['level_id']))
+        if unknown:
+            raise ValueError(f"{os.path.basename(cl.LEVEL_OVERRIDES)}: level "
+                             f"id(s) not in the level list: "
+                             f"{', '.join(unknown)}")
+        df['E_input'] = df['level_id'].map(emap).fillna(df['E_input'])
+    return df
 
 
 def per_level_table(df: pd.DataFrame, levels: pd.DataFrame) -> pd.DataFrame:

@@ -16,6 +16,7 @@ Steps:
 """
 
 import argparse
+import csv
 import os
 import math
 from typing import List
@@ -43,6 +44,7 @@ LINES_FILE = ''     # workbook of the observed lines
 ICALC_FILE = ''     # workbook of the calculated transitions
 OUTPUT_FILE = ''    # output workbook
 OUTPUT_CSV = ''     # the same table as csv
+LEVEL_OVERRIDES = ''  # csv of revised adopted energies, '' if none
 WN_MIN = 0.0        # wavenumber range for possible transitions (cm^-1)
 WN_MAX = 0.0
 MISSING_POLICY = 'none'  # missing_gA.policy in force: 'none' or 'impute'
@@ -56,6 +58,7 @@ def apply_config(cfg, policy: str = None) -> None:
     switch); None keeps the value written in the configuration file.
     """
     global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
+    global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
@@ -63,6 +66,10 @@ def apply_config(cfg, policy: str = None) -> None:
     ICALC_FILE = cfg.icalc_file
     OUTPUT_FILE = cfg.output_file
     OUTPUT_CSV = cfg.output_csv
+    LEVEL_OVERRIDES = cfg.level_overrides
+    LINE_DECISIONS = cfg.line_decisions
+    NEW_LEVELS = cfg.new_levels
+    ICALC_EXTRA = cfg.icalc_extra
     WN_MIN = cfg.wn_min
     WN_MAX = cfg.wn_max
     MISSING_POLICY = policy if policy is not None else cfg.missing_gA['policy']
@@ -254,7 +261,430 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
 
     wb.close()
     print(f"  Read {len(levels_list)} energy levels.")
+    if NEW_LEVELS:
+        add_new_levels(levels_dict, levels_list, NEW_LEVELS)
+    if LEVEL_OVERRIDES:
+        apply_energy_overrides(levels_dict, LEVEL_OVERRIDES)
     return levels_dict, levels_list
+
+
+def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
+    """Append the levels of `path` to the level list read from the workbook.
+
+    A level identified after the adopted level list was published exists in no
+    input file of this pipeline: there is no row for it in the level workbook,
+    which is an external published list and is never edited, and there are no
+    calculated transitions for it in Icalc.xlsx.  Nothing could therefore ever
+    propose an observed line for it, and a line_decisions.csv row accepting one
+    of its lines would rule on a candidate that is never generated.  This file
+    is how such a level enters.
+
+    Columns: level_id, E (cm^-1), J (as written, "7/2" or "3"), parity ("e" or
+    "o"); a comment column, and any other column, are ignored.  The level id
+    is the next one free - the last six digits of the largest id in use, plus
+    one - so that it can never collide with a published one.
+
+    The level is marked is_new = 1, like a level of the published list that is
+    absent from the ASD: it is a level whose reality the work is establishing,
+    so the decoy calibration must treat it as one of the levels under test.
+    is_added = 1 records that it came from here rather than from the workbook.
+    """
+    added = 0
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh)
+        missing = [c for c in ('level_id', 'E', 'J', 'parity')
+                   if c not in (rdr.fieldnames or [])]
+        if missing:
+            raise ValueError(f"{os.path.basename(path)}: missing column(s) "
+                             f"{', '.join(missing)}")
+        for rec in rdr:
+            lid = to_str_id(rec['level_id'])
+            if lid == '':
+                continue
+            if lid in levels_dict:
+                raise ValueError(
+                    f"{os.path.basename(path)}: level id {lid} is already in "
+                    f"the level list; a new level must take the next id free")
+            j_str = str(rec['J']).strip()
+            parity = str(rec['parity']).strip()
+            if parity not in ('e', 'o'):
+                raise ValueError(f"{os.path.basename(path)}: level {lid} has "
+                                 f"parity {parity!r}; expected 'e' or 'o'")
+            lev = EnergyLevel(level_id=lid, energy=float(rec['E']),
+                              parity=parity, J_str=j_str,
+                              J_val=parse_J(j_str), is_new=1, is_added=1)
+            levels_dict[lid] = lev
+            levels_list.append(lev)
+            added += 1
+            print(f"    {lid}  E = {lev.energy:.4f} cm^-1, J = {j_str}, "
+                  f"parity {parity}")
+    if added:
+        print(f"  Added {added} level(s) found since the level list was "
+              f"published, from {os.path.basename(path)}.")
+    return added
+
+
+def read_energy_overrides(path: str) -> dict[str, float]:
+    """The revised adopted energies of a csv, as level_id -> energy (cm^-1).
+
+    The file has a header and the columns level_id and E_input; any further
+    column (a comment recording where the value comes from) is ignored.  It is
+    how a level that the identification work has MOVED enters the pipeline:
+    the candidate transitions, the decoys planted around the level and the
+    starting energy the optimizer is measured against must all use the new
+    position, and the adopted-level workbook - an external, published list -
+    is left untouched.
+    """
+    emap = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh)
+        missing = [c for c in ('level_id', 'E_input')
+                   if c not in (rdr.fieldnames or [])]
+        if missing:
+            raise ValueError(f"{os.path.basename(path)}: missing column(s) "
+                             f"{', '.join(missing)}")
+        for rec in rdr:
+            lid = to_str_id(rec['level_id'])
+            if lid == '':
+                continue
+            emap[lid] = float(rec['E_input'])
+    return emap
+
+
+def apply_energy_overrides(levels_dict: dict, path: str) -> None:
+    """Move the levels listed in `path` to their revised energies, in place.
+
+    Raises if the file names a level that is not in the level list, so that a
+    typo cannot pass silently as "no level was moved".
+    """
+    emap = read_energy_overrides(path)
+    unknown = sorted(set(emap) - set(levels_dict))
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: level id(s) not in the "
+                         f"level list: {', '.join(unknown)}")
+    print(f"  Energies overridden for {len(emap)} level(s) from "
+          f"{os.path.basename(path)}:")
+    for lid, e in sorted(emap.items()):
+        lev = levels_dict[lid]
+        print(f"    {lid}  {lev.energy:.4f} -> {e:.4f} "
+              f"({e - lev.energy:+.4f} cm^-1)")
+        lev.energy = e
+
+
+# ---------------------------------------------------------------------------
+# The decision ledger: the identifications ruled on by hand
+# ---------------------------------------------------------------------------
+# The classification is re-derived from scratch on every run, so without a
+# record of them the verdicts reached by eye - in IDEN2, and in trial LOPT
+# runs - are lost, and a candidate the analyst has already refused is proposed
+# again next round.  The ledger is that record, and it is what lets a run be
+# repeated without the accepted set moving: after all the automatic steps have
+# run, every assignment the ledger names is set to the verdict written there,
+# so only assignments never ruled on can change between rounds.  It is the
+# exact analogue of the revised-energies file: a small csv under the analyst's
+# hand, applied to an input that is never edited.
+DECISIONS_ACCEPT = 'accept'
+DECISIONS_REJECT = 'reject'
+DECISIONS_WN_MATCH = 0.01   # cm^-1; how far a ledger wavenumber may miss its line
+
+
+def read_line_decisions(path: str) -> dict:
+    """The manual verdicts of a csv, as {(wn_obs, low_id, upp_id): (decision, reason)}.
+
+    The file has a header and the columns wn_obs (the observed wavenumber of
+    the line, cm^-1), low_id and upp_id (the two levels of the assignment) and
+    decision ("accept" or "reject").  A `reason` column, and any other column
+    (a date, say), are optional; `reason` is carried into the report so that
+    the ground for the verdict travels with it.  The wavenumber is matched to
+    the nearest observed line within DECISIONS_WN_MATCH, so it may be written
+    to fewer decimals than the line list carries; the closest two observed
+    lines of this spectrum are 0.10 cm^-1 apart, ten times that window, so the
+    match cannot be ambiguous.
+    """
+    dmap = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh)
+        fields = rdr.fieldnames or []
+        missing = [c for c in ('wn_obs', 'low_id', 'upp_id', 'decision')
+                   if c not in fields]
+        if missing:
+            raise ValueError(f"{os.path.basename(path)}: missing column(s) "
+                             f"{', '.join(missing)}")
+        for n, rec in enumerate(rdr, start=2):
+            if not (rec.get('wn_obs') or '').strip():
+                continue
+            decision = (rec['decision'] or '').strip().lower()
+            if decision not in (DECISIONS_ACCEPT, DECISIONS_REJECT):
+                raise ValueError(f"{os.path.basename(path)} line {n}: decision "
+                                 f"= {rec['decision']!r}; expected "
+                                 f"'{DECISIONS_ACCEPT}' or '{DECISIONS_REJECT}'")
+            key = (float(rec['wn_obs']),
+                   to_str_id(rec['low_id']), to_str_id(rec['upp_id']))
+            if key in dmap and dmap[key][0] != decision:
+                raise ValueError(f"{os.path.basename(path)} line {n}: "
+                                 f"contradicts an earlier row on the same "
+                                 f"assignment {key[1]}-{key[2]} at {key[0]}")
+            dmap[key] = (decision, (rec.get('reason') or '').strip())
+    return dmap
+
+
+def attach_line_decisions(observed_lines: list, path: str) -> dict:
+    """Hang the verdicts of `path` on the observed lines they rule on.
+
+    Raises if a row names a wavenumber that is not an observed line, so that a
+    mistyped wavenumber cannot pass silently as "no assignment was ruled on".
+    A row whose two levels never come up as a candidate for that line is legal
+    - the assignment may have moved out of matching range - and is reported at
+    the end of the run by report_unapplied_decisions().
+
+    Returns the verdicts as a list of (key, line, verdict) triples, key being
+    (wn_obs, low_id, upp_id) as written in the file.
+    """
+    dmap = read_line_decisions(path)
+    lines_sorted = sorted(observed_lines, key=lambda l: l.wavenumber)
+    wns = [l.wavenumber for l in lines_sorted]
+
+    def _line_at(wn):
+        j = bisect.bisect_left(wns, wn)
+        best, best_d = None, DECISIONS_WN_MATCH
+        for k in (j - 1, j):
+            if 0 <= k < len(wns) and abs(wns[k] - wn) <= best_d:
+                best, best_d = lines_sorted[k], abs(wns[k] - wn)
+        return best
+
+    sites, unknown = [], []
+    n_acc = n_rej = 0
+    for key, verdict in dmap.items():
+        wn, low, upp = key
+        line = _line_at(wn)
+        if line is None:
+            unknown.append(wn)
+            continue
+        line.decisions[(low, upp)] = verdict
+        sites.append((key, line, verdict))
+        if verdict[0] == DECISIONS_ACCEPT:
+            n_acc += 1
+        else:
+            n_rej += 1
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: no observed line within "
+                         f"{DECISIONS_WN_MATCH} cm^-1 of "
+                         + ', '.join(f"{w:.4f}" for w in sorted(set(unknown)))
+                         + " cm^-1")
+    print(f"  Read {len(sites)} manual decision(s) from "
+          f"{os.path.basename(path)}: {n_acc} accepted, {n_rej} rejected.")
+    return sites
+
+
+def manual_verdict(transition, line=None):
+    """The ledger's verdict on `transition`, or None if it does not rule on it."""
+    line = line if line is not None else transition.assigned_to
+    if line is None or not line.decisions:
+        return None
+    if not (transition.lower_level and transition.upper_level):
+        return None
+    return line.decisions.get((transition.lower_level.level_id,
+                               transition.upper_level.level_id))
+
+
+def apply_line_decisions(line) -> None:
+    """Overwrite this line's decisions with the verdicts of the ledger.
+
+    Called at the very end of the weeding of a line, after Steps 1-3 and after
+    the oscillation blacklist, so that the ledger is the last word on every
+    assignment it names - which is what makes a rerun reproduce the analyst's
+    accepted set instead of re-deriving a slightly different one.  The
+    automatic verdict it replaces is kept in notes2, so the disagreements can
+    be read off the output.
+    """
+    if not line.decisions:
+        return
+    for t in line.assigned_transitions:
+        if t is UNASSIGNED:
+            continue
+        verdict = manual_verdict(t, line)
+        if verdict is None:
+            continue
+        decision, reason = verdict
+        want = 1 if decision == DECISIONS_ACCEPT else 0
+        word = 'Accepted' if want else 'Rejected'
+        t.manual = decision
+        if t.accepted == want:
+            t.notes2 = f"Manual {word} (agrees): {t.notes2}"
+        else:
+            t.notes2 = f"Manual {word} (overrides): {t.notes2}"
+        t.accepted = want
+
+
+def report_unapplied_decisions(sites: list) -> int:
+    """Print the ledger rows that never met the assignment they rule on.
+
+    Since an "accept" row creates its assignment (force_ledger_assignments),
+    only "reject" rows should turn up here: a rejected pair can fall outside
+    the matching tolerance when its levels move, or lose the transition to
+    another line in the conflict resolution, and either way the verdict is
+    moot because the assignment is not in the run to begin with.  A stale
+    "accept" would mean the analyst's identification is NOT in this run's
+    output; it should no longer be possible, and is still reported - and
+    counted separately - in case it becomes so again.
+    """
+    missing = []
+    for key, line, verdict in sorted(sites):
+        pair = (key[1], key[2])
+        if not any(t is not UNASSIGNED
+                   and (t.lower_level.level_id, t.upper_level.level_id) == pair
+                   for t in line.assigned_transitions):
+            missing.append((key, verdict))
+    if not missing:
+        return 0
+    lost = [k for k, v in missing if v[0] == DECISIONS_ACCEPT]
+    print(f"  Warning: {len(missing)} manual decision(s) matched no candidate "
+          f"of this run ({len(lost)} of them acceptances):")
+    for (wn, low, upp), (decision, reason) in missing:
+        print(f"    {wn:12.4f}  {low}-{upp}  {decision}"
+              + (f"  ({reason})" if reason else ""))
+    return len(missing)
+
+
+def check_forced_decisions(sites: list, levels_dict: dict) -> None:
+    """Abort if a ledger row cannot be carried out exactly as it is written.
+
+    An "accept" row is an order: the assignment it names is put into the run
+    whether or not the automatic matching ever proposes it (see
+    force_ledger_assignments).  An order that cannot be obeyed must therefore
+    stop the run rather than be quietly dropped, and two orders that
+    contradict each other must stop it as well.  The cases:
+
+      * a level id that is not in the level list - a typo, or a level that has
+        been renumbered; this is an error for a "reject" row too, since such a
+        row can never rule on anything;
+      * an accepted pair that breaks the electric-dipole selection rules used
+        to generate candidates (opposite parity, |J(upper) - J(lower)| <= 1,
+        not both J = 0), or whose Ritz wavenumber E(upper) - E(lower) falls
+        outside the range [WN_MIN, WN_MAX] the run covers - no such transition
+        can exist, so the row is a mistake;
+      * the same pair of levels accepted on two different observed lines - one
+        transition can belong to only one line, so the two orders contradict
+        each other.
+
+    (Two rows that accept and reject the same pair on the SAME line are caught
+    earlier, in read_line_decisions.  Accepting a pair on one line while
+    rejecting it on another is not a contradiction: that is how an assignment
+    is moved from one line to another, and both rows are obeyed.)
+
+    All the faults are collected and reported together, so a file with several
+    mistakes in it is fixed in one pass instead of one row per run.
+    """
+    faults = []
+    accepted_at = {}
+    for (wn, low, upp), line, (decision, _reason) in sorted(sites):
+        lev_lo, lev_up = levels_dict.get(low), levels_dict.get(upp)
+        for lid, lev in ((low, lev_lo), (upp, lev_up)):
+            if lev is None:
+                faults.append(f"{wn:12.4f}  {low}-{upp}  {decision}: "
+                              f"level {lid} is not in the level list")
+        if decision != DECISIONS_ACCEPT or lev_lo is None or lev_up is None:
+            continue
+        if lev_lo.parity == lev_up.parity:
+            faults.append(f"{wn:12.4f}  {low}-{upp}  accept: both levels have "
+                          f"parity {lev_lo.parity!r}; an electric-dipole "
+                          f"transition connects opposite parities only")
+        dj = abs(lev_up.J_val - lev_lo.J_val)
+        if dj > 1.5:
+            faults.append(f"{wn:12.4f}  {low}-{upp}  accept: "
+                          f"|J(upper) - J(lower)| = {dj:g} > 1")
+        elif lev_up.J_val == 0.0 and lev_lo.J_val == 0.0:
+            faults.append(f"{wn:12.4f}  {low}-{upp}  accept: J = 0 on both "
+                          f"levels; 0 - 0 is forbidden")
+        ritz = lev_up.energy - lev_lo.energy
+        if not (WN_MIN <= ritz <= WN_MAX):
+            faults.append(f"{wn:12.4f}  {low}-{upp}  accept: the Ritz "
+                          f"wavenumber {ritz:.4f} cm^-1 is outside the range "
+                          f"[{WN_MIN:g}, {WN_MAX:g}] cm^-1 of this run")
+        seen = accepted_at.get((low, upp))
+        if seen is not None:
+            faults.append(f"{wn:12.4f}  {low}-{upp}  accept: this pair is "
+                          f"already accepted on the line at {seen:.4f} cm^-1; "
+                          f"one transition cannot belong to two lines")
+        else:
+            accepted_at[(low, upp)] = wn
+    if faults:
+        raise ValueError("the decision ledger cannot be carried out:\n    "
+                         + "\n    ".join(faults))
+
+
+def force_ledger_assignments(obs_line, matches: list, proto: dict,
+                             n_forced: list = None) -> list:
+    """Put the assignments the ledger orders onto `obs_line`, and return them.
+
+    The automatic matching proposes a pair only when the observed wavenumber
+    sits within 5.5 combined standard deviations of the Ritz wavenumber
+    E(upper) - E(lower).  An identification made by eye can be further out
+    than that - the analyst has evidence the matching does not use (the
+    appearance of the line on the plate, the branch structure of the level,
+    the behaviour of a trial LOPT fit), and a hand-made identification is
+    frequently what pulls a level back to where it belongs.  Such a pair was
+    previously unreachable: with no candidate on the line there was nothing
+    for the "accept" verdict to be applied to, and the row was reported as
+    unapplied at the end of the run.
+
+    So an "accept" row now CREATES the assignment when the matching does not
+    propose it.  `proto` holds one Transition per ordered pair, taken from the
+    generated candidate list, from which the calculated intensity and its
+    uncertainty are copied; the new Transition is appended to the line and
+    returned among the matches, so it is graded, takes part in the conflict
+    resolution (where a manual acceptance wins the pair outright) and is set
+    to accepted by apply_line_decisions at the end of the weeding, exactly
+    like any other candidate the ledger rules on.
+    """
+    n_forced = [0] if n_forced is None else n_forced
+    if not obs_line.decisions:
+        return matches
+    have = {(t.lower_level.level_id, t.upper_level.level_id)
+            for t in obs_line.assigned_transitions if t is not UNASSIGNED}
+    have |= {(t.lower_level.level_id, t.upper_level.level_id) for t in matches}
+    for pair, (decision, _reason) in obs_line.decisions.items():
+        if decision != DECISIONS_ACCEPT or pair in have:
+            continue
+        t = proto.get(pair)
+        if t is None:                 # checked by check_forced_decisions
+            continue
+        forced = Transition(
+            lower_level=t.lower_level,
+            upper_level=t.upper_level,
+            calc_intensity=t.calc_intensity,
+            u_calc=t.u_calc,
+            assigned_to=obs_line,
+            orig_calc_intensity=t.orig_calc_intensity,
+            orig_u_calc=t.orig_u_calc,
+            is_imputed=t.is_imputed,
+        )
+        obs_line.assigned_transitions.append(forced)
+        matches.append(forced)
+        n_forced[0] += 1
+    return matches
+
+
+def forced_pair_prototypes(observed_lines: list,
+                           all_possible_transitions: list) -> dict:
+    """{(low_id, upp_id): Transition} for every pair the ledger accepts.
+
+    One pass over the generated candidates, so that force_ledger_assignments
+    can build its transitions without searching the list again for each line.
+    """
+    wanted = set()
+    for lin in observed_lines:
+        for pair, (decision, _reason) in lin.decisions.items():
+            if decision == DECISIONS_ACCEPT:
+                wanted.add(pair)
+    if not wanted:
+        return {}
+    proto = {}
+    for t in all_possible_transitions:
+        pair = (t.lower_level.level_id, t.upper_level.level_id)
+        if pair in wanted:
+            proto[pair] = t
+    return proto
 
 
 # ===========================================================================
@@ -326,7 +756,87 @@ def read_transitions(levels_dict: dict) -> dict:
     if n_below:
         print(f"  Skipped {n_below} rows with gA < {CFG.gA_cutoff:g} s^-1 "
               f"(icalc.completeness.allow_below_cutoff = false).")
+    if ICALC_EXTRA:
+        read_extra_transitions(levels_dict, calc_trans_index, ICALC_EXTRA)
     return calc_trans_index
+
+
+def read_extra_transitions(levels_dict: dict, calc_trans_index: dict,
+                           path: str) -> int:
+    """Merge the calculated transitions of a supplementary workbook.
+
+    A level added by files.new_levels has no rows in Icalc.xlsx, so its
+    transitions are supplied separately, in the same layout (the same
+    worksheet name and the same column names).  Only the pairs involving such
+    a level need be listed: a pair present in neither file is treated by the
+    completeness rule exactly as before, as one whose gA falls below the
+    printing cutoff of Cowan's codes.
+
+    THE PREDICTED INTENSITY IS RECOMPUTED HERE, from gA, by the same relation
+    the main file obeys,
+
+        Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT) ,
+
+    with C and kT taken from [intensity_model] of the configuration.  It is
+    not read from the Icalc column of the supplementary file.  The reason is
+    that the main file's Icalc column is rewritten by tools/fit_boltzmann.py
+    every time C and kT move, and this file is not: reading its column would
+    put a handful of transitions on a stale intensity scale, which is exactly
+    the sort of silent inconsistency the intensity tests would then blame on
+    the identification.  Recomputing costs nothing and cannot drift.
+
+    Returns the number of rows merged.
+    """
+    C = float(CFG.intensity_model['C'])
+    kT = float(CFG.intensity_model['kT'])
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = wb[CFG.icalc.sheet]
+    col = column_index(ws, CFG.icalc, path)
+
+    n, n_skipped, n_replaced = 0, 0, 0
+    for row in ws.iter_rows(min_row=2):
+        id1_val = to_str_id(row[col['id1']].value)
+        id2_val = to_str_id(row[col['id2']].value)
+        if not id1_val or not id2_val:
+            continue
+        if id1_val not in levels_dict or id2_val not in levels_dict:
+            n_skipped += 1
+            continue
+
+        u_calc = None
+        ua_pcnt_val = row[col['u_pct_gA']].value
+        if ua_pcnt_val is not None:
+            try:
+                u_calc = math.log(float(ua_pcnt_val) / 100.0 + 1.0)
+            except (ValueError, TypeError):
+                pass
+
+        calc_intensity = None
+        try:
+            gA = float(row[col['gA']].value)
+            rwn = float(row[col['rwn']].value)
+            Eup = float(row[col['Eup']].value)
+            calc_intensity = C * gA * (rwn / 1e8) * math.exp(-Eup / kT)
+        except (ValueError, TypeError):
+            pass
+
+        if (id1_val, id2_val) in calc_trans_index:
+            n_replaced += 1
+        calc_trans_index[(id1_val, id2_val)] = {
+            'calc_intensity': calc_intensity,
+            'u_calc': u_calc,
+            'assigned_to': None
+        }
+        n += 1
+    wb.close()
+    print(f"  Read {n} further calculated transitions from "
+          f"{os.path.basename(path)} (Icalc recomputed from gA with "
+          f"C = {C:.6g}, kT = {kT:.6g} cm^-1).")
+    if n_replaced:
+        print(f"    {n_replaced} of them replaced a row of the main file.")
+    if n_skipped:
+        print(f"    {n_skipped} row(s) skipped: a level id not in the level list.")
+    return n
 
 
 # ===========================================================================
@@ -702,6 +1212,11 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
     # Track all assignments: (lower_id, upper_id) -> [(transition, line, wn_diff)]
     transition_assignments = {}
 
+    # The pairs the decision ledger orders into the run even when the matching
+    # tolerance does not reach them (see force_ledger_assignments).
+    proto = forced_pair_prototypes(observed_lines, all_possible_transitions)
+    n_forced = [0]
+
     for line_idx, obs_line in enumerate(observed_lines):
         # if (line_idx + 1) % 1000 == 0:
         #     print(f"  Processing line {line_idx + 1}/{len(observed_lines)}...")
@@ -744,6 +1259,13 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
                 
                 matches.append(target_tr)
 
+        # The analyst's own identifications, which the tolerance above may
+        # not reach, are put on the line here so that everything downstream
+        # treats them as ordinary candidates.
+        if proto:
+            matches = force_ledger_assignments(obs_line, matches, proto,
+                                               n_forced)
+
         # Grade all candidates on this line: the fresh matches plus any seeded
         # original assignments whose Ritz wavenumber fell outside the matching
         # window this cycle. The latter still take part in the weeding (e.g.
@@ -760,7 +1282,11 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
                     transition_assignments[key] = []
                 transition_assignments[key].append((m, obs_line, abs(obs_line.wavenumber - m.calculated_wavenumber)))
 
-    if verbose: print(f"  Matching complete.")
+    if verbose:
+        print(f"  Matching complete.")
+        if n_forced[0]:
+            print(f"  {n_forced[0]} assignment(s) created from the decision "
+                  f"ledger that the matching tolerance does not reach.")
     return transition_assignments
 
 
@@ -868,7 +1394,14 @@ def resolve_conflicts(transition_assignments: dict, verbose: bool = False):
             z, int_err = _get_z_and_int_err(t, lin, wn_diff_abs)
             tier = 2 if z <= 2 else 3 if z <= 3 else 4 if z <= 4 else 5
             is_new = t.new if t.new is not None else 0
-            return is_new, wn_diff_abs, tier, z, int_err
+            # A pair the decision ledger accepts wins the transition outright,
+            # one it rejects gives it up: a manual verdict could not be
+            # honoured later by weed_assignments_line() if the transition were
+            # taken away from the line here, before the weeding ever sees it.
+            verdict = manual_verdict(t, lin)
+            manual = 0 if verdict is None else (
+                -1 if verdict[0] == DECISIONS_ACCEPT else 1)
+            return manual, is_new, wn_diff_abs, tier, z, int_err
 
         sort_key = sort_key_conservative
 
@@ -923,6 +1456,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'grade': '',
             'notes1': '',
             'notes2': '',
+            'manual': '',
             'new': '',
             'accepted': np.nan,
             'n_accepted': n_accepted_line,
@@ -965,6 +1499,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'grade': tr.grade if tr.grade else '',
                     'notes1': tr.notes1,
                     'notes2': tr.notes2 if tr.notes2 else '',
+                    'manual': tr.manual,
                     'new': tr.new if tr.new is not None else '',
                     'accepted': tr.accepted if tr.accepted is not None else np.nan,
                     'n_accepted': n_accepted_line,
@@ -1037,6 +1572,49 @@ def write_output(df: pd.DataFrame):
     print(f"  Output written: {len(df)} rows.")
 
 
+def write_unstable_report(observed_lines: list, blacklist, path: str) -> int:
+    """Write the assignments withdrawn for oscillating, one row each.
+
+    These are the only rejections the pipeline makes on no evidence about the
+    identification itself: the transition was withdrawn because its acceptance
+    would not settle, which keeps the iteration from cycling but says nothing
+    about whether the identification is right.  They therefore have to be
+    visible, so they can be looked at in IDEN2 and settled for good in the
+    decision ledger.  Returns the number of rows written.
+    """
+    info = getattr(blacklist, 'info', {})
+    rows = []
+    for line in observed_lines:
+        for t in line.assigned_transitions:
+            if t is UNASSIGNED:
+                continue
+            key = trans_key(t)
+            if key not in blacklist:
+                continue
+            states, source = info.get(key, ((None, None, None), ''))
+            rows.append({
+                'wn_obs': line.wavenumber,
+                'low_id': t.lower_level.level_id,
+                'upp_id': t.upper_level.level_id,
+                'obs_intens': line.intensity,
+                'calc_intens': t.calc_intensity,
+                'grade': t.grade or '',
+                'new': t.new if t.new is not None else '',
+                'oscillated_between': source,
+                'states': '->'.join('-' if v is None else str(v) for v in states),
+                'accepted': t.accepted if t.accepted is not None else '',
+                'notes2': t.notes2 or '',
+            })
+    rows.sort(key=lambda r: -r['wn_obs'])
+    print(f"  Writing {len(rows)} unstable candidate(s) to "
+          f"{os.path.basename(path)}...")
+    pd.DataFrame(rows, columns=['wn_obs', 'low_id', 'upp_id', 'obs_intens',
+                                'calc_intens', 'grade', 'new',
+                                'oscillated_between', 'states', 'accepted',
+                                'notes2']).to_csv(path, index=False)
+    return len(rows)
+
+
 def build_level_transition_lists(levels_dict: dict, observed_lines: list) -> None:
     """Populate from_transitions and to_transitions on each EnergyLevel.
 
@@ -1063,6 +1641,7 @@ def reset_weeding_state(observed_lines: list) -> None:
                 continue
             t.accepted = None
             t.notes2 = ""
+            t.manual = ""
 
 
 def trans_key(t) -> tuple:
@@ -1498,6 +2077,63 @@ def print_factor_stability(iteration: int, level_details: dict, prev_factors: di
             print(f"    ... and {len(changed) - 20} more")
     else:
         print(f"  --- Factor stability (iter {iteration}): all levels stable (<0.05) ---")
+
+
+class Blacklist(set):
+    """The transitions withdrawn for oscillating, with the evidence for each.
+
+    A plain set of trans_key() tuples - `key in blacklist` works as before -
+    that also remembers, in `info`, why each key was put in: the three
+    successive acceptance states that made it an oscillator and whether they
+    were seen between weeding iterations or between outer cycles.  That is
+    what write_unstable_report() prints, so that a withdrawal made on
+    stability grounds alone (no evidence about the identification itself) is
+    visible and can be overruled through the decision ledger.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.info = {}
+
+    def record(self, key, states: tuple, source: str) -> None:
+        self.add(key)
+        self.info[key] = (states, source)
+
+
+def _find_oscillations(snapshots: list, blacklist: set, source: str) -> int:
+    """Blacklist the transitions whose acceptance goes A->B->A over the last
+    three of `snapshots`, and return how many were newly blacklisted.
+
+    A -> B -> A is the whole criterion.  A transition that changes its state
+    once and keeps the new one has not oscillated: the surrounding loop is a
+    damped fixed-point iteration, so a single flip is what convergence looks
+    like from close up, and withdrawing on that alone would kill any candidate
+    that happens to sit near a decision threshold while the intensity factors
+    are still settling - a set that depends on every other transition in the
+    run, and therefore changes from run to run.
+
+    Absence from a snapshot means the transition was not a candidate at all
+    that time - the levels had moved and it fell outside the matching
+    tolerance - which is not a wavering decision but a missing one, so a key
+    absent from any of the three is passed over.  Counting absence as a state
+    (as this did before 2026-09-03) blacklisted 168 transitions in the third
+    cycle of a normal run, while the level energies were still moving by of
+    the order of 1 cm^-1 and candidates were coming and going for that reason
+    alone.
+    """
+    if len(snapshots) < 3:
+        return 0
+    s1, s2, s3 = snapshots[-3], snapshots[-2], snapshots[-1]
+    n_new = 0
+    for key in set(s1) & set(s2) & set(s3):
+        v1, v2, v3 = s1[key], s2[key], s3[key]
+        if v1 == v3 and v2 != v1 and key not in blacklist:
+            if isinstance(blacklist, Blacklist):
+                blacklist.record(key, (v1, v2, v3), source)
+            else:
+                blacklist.add(key)
+            n_new += 1
+    return n_new
 
 
 def detect_oscillations(accepted_history: list, trans_map: dict, verbose: bool=False):
@@ -2387,6 +3023,9 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                     trans.notes2 = "Step3 Accepted: old, no solid evidence for rejection"
                 num_undecided = num_undecided - 1
 
+    # The analyst's own verdicts are the last word (see apply_line_decisions).
+    apply_line_decisions(line)
+
     num_decided_step1 = 0
     num_decided_step2 = 0
     num_decided_step3 = 0
@@ -2505,13 +3144,15 @@ def weed_assignments(observed_lines: list, levels_dict: dict, blacklist: set,
             print(f"  Iteration {iteration}: {n_changed} changes "
                   f"(+{n_newly_accepted} accepted, -{n_newly_rejected} rejected)")
 
-        # Blacklist transitions that flipped acceptance state
-        if iteration > 2:
-            for tid in prev_snapshot:
-                if (tid in curr_snapshot and prev_snapshot[tid] != curr_snapshot[tid]) or (
-                        tid not in curr_snapshot and prev_snapshot[tid] == 1):
-                    if tid not in blacklist:
-                        blacklist.add(tid)
+        # Blacklist the transitions that genuinely oscillate, A->B->A, over the
+        # last three iterations.  Before 2026-09-03 a single flip between two
+        # consecutive iterations was enough, which withdrew candidates for
+        # nothing worse than sitting near a threshold while the damped
+        # intensity factors settled; see _find_oscillations().
+        n_new_bl = _find_oscillations(accepted_history, blacklist, 'weeding iterations')
+        if n_new_bl and verbose:
+            print(f"  Blacklisted {n_new_bl} transition(s) oscillating "
+                  f"between weeding iterations.")
 
         if n_changed == 0:
             if verbose: print(f"  Converged after {iteration} iteration(s).")
@@ -2543,16 +3184,7 @@ def blacklist_cycle_oscillations(cycle_snapshots: list, blacklist: set) -> int:
 
     Returns the number of newly blacklisted transitions.
     """
-    if len(cycle_snapshots) < 3:
-        return 0
-    s1, s2, s3 = cycle_snapshots[-3], cycle_snapshots[-2], cycle_snapshots[-1]
-    n_new = 0
-    for key in set(s1) | set(s2) | set(s3):
-        v1, v2, v3 = s1.get(key), s2.get(key), s3.get(key)
-        if v1 == v3 and v2 != v1 and key not in blacklist:
-            blacklist.add(key)
-            n_new += 1
-    return n_new
+    return _find_oscillations(cycle_snapshots, blacklist, 'Step-5 cycles')
 
 
 def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict,
@@ -2780,13 +3412,26 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     observed_lines = read_observed_lines(levels_dict, calc_trans_index, wn_shift=wn_shift,
                                          drop_legacy=(wn_shift != 0.0))
 
+    # The manual verdicts.  A calibration run (a chance-coincidence shift or a
+    # decoy planting) measures what the ALGORITHM does with an input it should
+    # find nothing in, so the analyst's own decisions must not be laid over it;
+    # they are read only for the real classification.
+    decisions = {}
+    if LINE_DECISIONS and wn_shift == 0.0 and decoy_shift == 0.0:
+        decisions = attach_line_decisions(observed_lines, LINE_DECISIONS)
+
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
+
+    # A ledger row that cannot be obeyed stops the run here, before any of the
+    # work is done, rather than being reported as unapplied at the end of it.
+    if decisions:
+        check_forced_decisions(decisions, levels_dict)
 
     levels_history = []  # List of level snapshots per cycle
     i, na_prev, num_accepted, max_lev_change = 0, 0, 0, 0.0
     weights = {}
-    blacklist = set()  # oscillating transitions, keyed by trans_key(); persists across cycles
+    blacklist = Blacklist()  # oscillating transitions, keyed by trans_key(); persists across cycles
     cycle_snapshots = []  # end-of-cycle acceptance snapshots for cross-cycle oscillation detection
     # Step 5 - Main cycle: match & grade, resolve conflicts, weed assignments, optimize levels
     for i in range(max_cycles):
@@ -2810,8 +3455,13 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
     df = build_output(observed_lines, weights)
+    if decisions:
+        report_unapplied_decisions(decisions)
     if write_files:
         write_output(df)
+        write_unstable_report(observed_lines, blacklist,
+                              os.path.join(os.path.dirname(OUTPUT_CSV),
+                                           'unstable_candidates.csv'))
 
     print("=" * 60)
     print("Done.")

@@ -116,6 +116,8 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | `Pr3_lev_Wyart_1999.xlsm`           | `../TableExtraction/` (`LEVELS_FILE`) | `Wyart2000` | Energy levels (Wyart 1999 adopted values). Shared with `TableExtraction`. |
 | `Icalc.xlsx`                        | `LineClass/` (`files.icalc`)          | `Icalc`     | Calculated (theoretical) transition intensities and their uncertainties.  |
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
+| `revised_level_energies.csv`        | `LineClass/` (`files.level_overrides`, optional) | csv | Adopted energies revised by the identification work, as `level_id,E_input` plus a free comment column. A level listed here is read at that energy instead of the workbook value; see [Revised level energies](#revised-level-energies). |
+| `line_decisions.csv`                | `LineClass/` (`files.line_decisions`, optional) | csv | The verdicts reached by hand on individual assignments, as `wn_obs,low_id,upp_id,decision` plus free `date`/`reason` columns. Applied after every automatic step, so it has the last word; an `accept` row is an order and *creates* its assignment when the matching never proposes it, and a row that cannot be carried out stops the run. See [The decision ledger](#the-decision-ledger-identifications-ruled-on-by-hand). |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
 ### Column mapping (as read by the code)
@@ -169,6 +171,198 @@ Consecutive rows with the **same wavenumber** are folded into a single `Spectral
 
 ---
 
+
+### Revised level energies
+
+Wyart's workbook is an external, published list and is never edited. When the
+identification work concludes that one of his levels sits at a different
+energy, the new value is declared instead in the csv named by
+`files.level_overrides` in `lineclass_config.toml`:
+
+```
+level_id,E_input,comment
+059003.000565,118967.3776,"re-positioned from 119225.52; weighted mean of ..."
+```
+
+Three readers consult it, so the whole pipeline sees one energy for the level:
+
+* `classify_lines.read_energy_levels()` generates the level's candidate
+  transitions at the new energy;
+* `chance_mc.read_input_levels()` supplies `E_input`, which `decoy_mc.py`
+  displaces to plant the level's decoys and from which `level_shifts.py`
+  measures every `dE`;
+* `level_shifts.py --e-input <csv>` still exists and now merely repeats the
+  same substitution; use it only to test a position that is *not* the adopted
+  one.
+
+A level in the file that is absent from the workbook raises an error rather
+than passing silently as "nothing was moved". Comment the `level_overrides`
+line out of the configuration to run on Wyart's energies unchanged.
+
+The point of routing the revision through this file rather than through the
+workbook is that the level then re-enters the probabilistic validation: its
+decoys are planted around the position actually being claimed, so it is tested
+on the same footing as every other new level. Note the limit this leaves: when
+the revised energy was derived as the mean of the Ritz energies of the level's
+own lines, its `dE` mainly measures internal consistency. That is the same
+circularity Wyart's own new levels carry, which is why the two are comparable —
+but the intensity-pattern test and the decoy tail remain the real evidence.
+
+Do **not** feed LOPT's optimized energies back in as the next run's input
+energies and iterate: that loop has no fixed point to defend. Set the input
+energies once, from the Ritz-derived values, and report LOPT's optimized output
+as the result.
+
+### Levels found since the level list was published
+
+`revised_level_energies.csv` can move a level Wyart already has. It cannot
+create one. A level found in IDEN2 after the adopted list was published exists
+in no input file of this pipeline at all: it has no row in the level workbook,
+which is an external published list and is never edited, and it has no
+calculated transitions in `Icalc.xlsx`. Nothing could therefore ever propose an
+observed line for it, and a `line_decisions.csv` row accepting one of its lines
+would be ruling on a candidate that is never generated — a silent no-op.
+
+Two further files, both named in `[files]`, are how such a level enters.
+
+**`files.new_levels`** (`new_levels.csv`) — one row per level:
+
+```
+level_id,E,J,parity,comment
+059003.000623,132958.176,7/2,o,"Found in IDEN2; 7 lines (2 doubly classified …)"
+```
+
+`level_id` is the next one free: the last six digits of the largest identifier
+in use, plus one. The level enters the run marked `is_new = 1`, exactly like a
+level of the published list that is absent from the ASD — it is a level whose
+reality the work is establishing, so the decoy calibration must test it on the
+same footing as the others — and `is_added = 1` records that it came from here
+rather than from the workbook. Reusing an identifier that is already in the
+level list is an error, not a silent overwrite.
+
+**`files.icalc_extra`** (`icalc_new.xlsx`) — the calculated transitions of
+those levels, in the layout of `Icalc.xlsx` (same worksheet name, same column
+names). Only the pairs involving a new level need be listed. The complete
+calculated table for the ion, including every level not yet identified, is far
+too large to carry here; and a pair absent from *both* files is treated by the
+completeness rule exactly as before, as one whose `gA` falls below the printing
+cutoff of Cowan's codes (see *Transitions missing from `Icalc.xlsx`*).
+
+**The `Icalc` column of the supplementary file is not read.** The predicted
+intensity is recomputed from `gA` by the same relation the main file obeys,
+
+```
+Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT)
+```
+
+with `C` and `kT` taken from `[intensity_model]`. The reason is that
+`tools/fit_boltzmann.py` rewrites the `Icalc` column of the main file every
+time `C` and `kT` move, and does not touch this one: reading its column would
+leave a handful of transitions on a stale intensity scale, and the intensity
+tests would then blame the resulting disagreement on the identification.
+Recomputing costs nothing and cannot drift.
+
+With both files in place, the new level's transitions are ordinary candidates:
+they are matched, graded, weeded and ruled on by the ledger like any others.
+
+Comment either line out of the configuration to run without them.
+
+### The decision ledger: identifications ruled on by hand
+
+The classification is re-derived from scratch on every run, so a verdict
+reached by eye — in IDEN2, or by watching what a trial LOPT run does to the
+residuals — is lost unless it is written down. Without such a record a
+candidate that was refused last round is proposed again this round, hand-made
+identifications disappear from a freshly generated LOPT input, and the accepted
+set keeps moving for reasons that have nothing to do with any new evidence.
+The **decision ledger** is that record: the csv named by `files.line_decisions`
+in `lineclass_config.toml`.
+
+```
+wn_obs,low_id,upp_id,decision,date,reason
+40047.2789,059003.000218,059003.000337,accept,2026-09-03,"well supported by the pattern of observed lines seen in IDEN2"
+44022.4591,059003.000105,059003.000245,reject,2026-09-03,"firmly rejected, stays so"
+```
+
+* `wn_obs` — the observed wavenumber of the line, cm⁻¹. It is matched to the
+  nearest observed line within `DECISIONS_WN_MATCH` = 0.01 cm⁻¹, so it may be
+  written to fewer decimals than the line list carries; the closest two
+  observed lines of this spectrum are 0.10 cm⁻¹ apart, so the match cannot be
+  ambiguous. A wavenumber that matches no line stops the run.
+* `low_id`, `upp_id` — the two levels of the assignment being ruled on. One
+  line may carry several rows, one per assignment.
+* `decision` — `accept` or `reject`. Anything else stops the run, as does one
+  row contradicting another.
+* `date`, `reason` — free columns. `reason` is echoed in the reports.
+
+**An `accept` row is an order, not a vote.** The automatic matching proposes a
+pair only when the observed wavenumber lies within 5.5 combined standard
+deviations of the Ritz wavenumber *E*(upper) − *E*(lower). An identification
+made by eye can be further out than that: the analyst has evidence the matching
+does not use — the appearance of the line on the plate, the branch structure of
+the level, what a trial LOPT fit does with it — and a hand-made identification
+is frequently the very thing that pulls a level back to where it belongs. Six of
+the present ones sit at *O*−*C* ≈ 0.3 cm⁻¹, several times the matching window.
+Such a pair used to be unreachable: with no candidate on the line there was
+nothing for the verdict to be applied to, and the row was merely reported as
+unapplied at the end of the run.
+
+So `force_ledger_assignments()` now **creates** the assignment when the matching
+does not propose it. The calculated intensity and its uncertainty are copied
+from the generated candidate for that pair, and the new transition is graded,
+takes part in the conflict resolution and is accepted at the end of the weeding
+exactly like any other — the only difference is where it came from. It is
+rebuilt at the start of every cycle, so it survives the level optimization
+moving its levels around.
+
+Because an order that cannot be obeyed must not be silently dropped,
+`check_forced_decisions()` runs before any of the work and stops the run,
+listing **every** fault it found rather than the first, if:
+
+* a row names a level id that is not in the level list (a typo, or a level that
+  has been renumbered) — an error for a `reject` row too, since such a row can
+  never rule on anything;
+* an accepted pair breaks the electric-dipole selection rules used to generate
+  candidates (opposite parity, |Δ*J*| ≤ 1, not both *J* = 0), or its Ritz
+  wavenumber falls outside `[wn_min, wn_max]` — no such transition can exist;
+* the same pair of levels is accepted on two different observed lines — one
+  transition can belong to only one line, so the two orders contradict each
+  other. (Accepting a pair on one line while rejecting it on another is *not* a
+  contradiction: that is how an assignment is moved from one line to another,
+  and both rows are obeyed. Two rows that accept and reject the same pair on the
+  *same* line are caught earlier, when the file is read.)
+
+With this in force, only `reject` rows should ever be reported as unapplied at
+the end of a run — a rejected pair can still fall out of the matching window
+when its levels move, which makes the verdict moot rather than lost.
+
+`apply_line_decisions()` runs at the end of the weeding of each line, after
+Steps 1–3 and after the oscillation blacklist, so the ledger has the **last
+word** on every assignment it names. Two further places respect it:
+`resolve_conflicts()` gives an accepted pair the transition outright (a verdict
+could not be honoured later if the transition were taken away from the line
+first), and the automatic verdict it replaces is kept in `notes2`, prefixed
+`Manual Accepted (overrides)` / `(agrees)`, so the disagreements can be read
+off the output. The `manual` output column holds `accept`/`reject` for the
+rows the ledger rules on.
+
+This is what makes a rerun reproducible in the only sense that matters here:
+**only assignments the ledger does not name can move between two rounds.**
+When the remaining movement is adjudicated and written into the ledger, the
+output stops changing and the data files can be frozen.
+
+Chance-coincidence and decoy runs ignore the ledger (`classify_lines.main()`
+reads it only when `wn_shift` and `decoy_shift` are both zero): those runs
+measure what the algorithm alone does with an input it should find nothing in,
+and laying human verdicts over them would corrupt the false-positive rate.
+
+A row whose two levels never come up as a candidate for that line is legal —
+the levels may have moved far enough for the assignment to fall outside the
+matching tolerance — and is listed at the end of the run by
+`report_unapplied_decisions()`. A stale `reject` is harmless; a stale `accept`
+means the identification is **not** in this run's output, which is why it is
+printed.
+
 ## Output
 
 Two files are written to the `LineClass/` directory (`OUTPUT_FILE`, `OUTPUT_CSV`):
@@ -180,7 +374,7 @@ Two files are written to the `LineClass/` directory (`OUTPUT_FILE`, `OUTPUT_CSV`
 
 Rows are sorted by **decreasing observed wavenumber** (`wn_obs`), then decreasing Ritz wavenumber (`rwn`), then increasing `grade` for ties (`build_output`). Unclassified observed lines still appear, as a single blank-classification row.
 
-### Output Columns (22)
+### Output Columns (24)
 
 | #  | Column             | Description                                                                |
 |----|--------------------|----------------------------------------------------------------------------|
@@ -193,19 +387,21 @@ Rows are sorted by **decreasing observed wavenumber** (`wn_obs`), then decreasin
 | 7  | `calc_intens`      | Adjusted calculated intensity (after per-level factors)                    |
 | 8  | `orig_calc_intens` | Original theoretical intensity from `Icalc.xlsx`                           |
 | 9  | `u_calc`           | Adjusted log-uncertainty of `calc_intens`                                  |
-| 10 | `intens_from_f`    | Upper-level intensity correction factor (ln scale)                         |
-| 11 | `intens_to_f`      | Lower-level intensity correction factor (ln scale)                         |
-| 12 | `dif_wn_O-C`       | Observed − Ritz wavenumber (cm⁻¹)                                          |
-| 13 | `grade`            | 2D grade: tier (`2`–`5`) + subgrade (`A`–`E`, `G`); see *Grading*          |
-| 14 | `notes1`           | Conflict flags: `F` (conflicting), `R` (revised)                           |
-| 15 | `notes2`           | Per-transition decision trace from weeding (`Step1`/`Step2`/`Step3` label) |
-| 16 | `new`              | `1` = new classification, `0` = original Sugar, blank = unclassified       |
-| 17 | `accepted`         | `1` = accepted by weeding, `0` = rejected, blank = unclassified line       |
-| 18 | `n_accepted`       | Number of accepted classifications of this observed line (0, 1, 2, …)      |
-| 19 | `low_E`            | Lower level energy (cm⁻¹)                                                  |
-| 20 | `upp_E`            | Upper level energy (cm⁻¹)                                                  |
-| 21 | `rwn`              | Ritz wavenumber = `upp_E − low_E` (cm⁻¹)                                   |
-| 22 | `BF`               | Branching fraction of this component (0 if not accepted)                   |
+| 10 | `imputed`          | `1` = the pair is absent from `Icalc.xlsx` and its intensity was imputed   |
+| 11 | `intens_from_f`    | Upper-level intensity correction factor (ln scale)                         |
+| 12 | `intens_to_f`      | Lower-level intensity correction factor (ln scale)                         |
+| 13 | `dif_wn_O-C`       | Observed − Ritz wavenumber (cm⁻¹)                                          |
+| 14 | `grade`            | 2D grade: tier (`2`–`5`) + subgrade (`A`–`E`, `G`); see *Grading*          |
+| 15 | `notes1`           | Conflict flags: `F` (conflicting), `R` (revised)                           |
+| 16 | `notes2`           | Per-transition decision trace from weeding (`Step1`/`Step2`/`Step3` label) |
+| 17 | `manual`           | `accept`/`reject` if the decision ledger rules on this assignment          |
+| 18 | `new`              | `1` = new classification, `0` = original Sugar, blank = unclassified       |
+| 19 | `accepted`         | `1` = accepted by weeding, `0` = rejected, blank = unclassified line       |
+| 20 | `n_accepted`       | Number of accepted classifications of this observed line (0, 1, 2, …)      |
+| 21 | `low_E`            | Lower level energy (cm⁻¹)                                                  |
+| 22 | `upp_E`            | Upper level energy (cm⁻¹)                                                  |
+| 23 | `rwn`              | Ritz wavenumber = `upp_E − low_E` (cm⁻¹)                                   |
+| 24 | `BF`               | Branching fraction of this component (0 if not accepted)                   |
 
 > **`BF` and why it is not called "weight".** The output column is the **branching fraction** `BF` of the component, which is exactly what LOPT takes as input: LOPT (centroid model) squares `BF` internally to form the weight, so you feed it `BF`, not `BF²`. The column is named `BF` rather than "weight" to avoid confusion with the script's own internal `weights` dictionary (`calc_weights()`), which stores the *squared* branching fractions `BF² / σ²` used for the internal level optimization. For a single accepted transition on a line, `BF = 1`. Rows with `accepted = 1` and their `BF` values form the input for LOPT. See `calc_weights()` and the `bf` computation in `build_output()`.
 
@@ -270,10 +466,10 @@ For each observed line, a **bisection** over the sorted transition wavenumbers s
 When one transition is matched to several observed lines, the candidates are sorted and the best is kept. Four scoring approaches are present in the source; **Approach D — "Conservative Sort" is ACTIVE**, the other three (Lexicographic, chi², Rank-based) are commented out. The conservative key is:
 
 ```
-(is_new, |Obs − Ritz|, tier, z, int_err)
+(manual, is_new, |Obs − Ritz|, tier, z, int_err)
 ```
 
-so legacy assignments are favored, then the smallest wavenumber mismatch, then tier, then z (σ residual), then intensity mismatch. The winner is flagged **`F`** (conflicting); if any *original* (legacy) assignment lost, the winner is also flagged **`R`** (revised). Losing transitions are removed from their lines; a line that loses its only classification (and had originals) receives the `UNASSIGNED` sentinel.
+`manual` is `−1` when the decision ledger accepts this (line, transition) pair, `+1` when it rejects it, `0` otherwise, so a hand-ruled pair wins or gives up the transition outright — a verdict could not be honoured later in the weeding if the transition were taken away from the line here. Below it, legacy assignments are favored, then the smallest wavenumber mismatch, then tier, then z (σ residual), then intensity mismatch. The winner is flagged **`F`** (conflicting); if any *original* (legacy) assignment lost, the winner is also flagged **`R`** (revised). Losing transitions are removed from their lines; a line that loses its only classification (and had originals) receives the `UNASSIGNED` sentinel.
 
 **5.3 Iterative intensity weeding** (`weed_assignments`) — see *Weeding* below.
 
@@ -323,14 +519,24 @@ Weeding decides, for each observed line, which candidate transitions to **accept
    - **Apply** to every transition: `I_adj = I_orig × exp(f_from + f_to)`; uncertainty adds in quadrature. Originals are never mutated, preventing feedback amplification.
    - **Reset** all decisions (`reset_weeding_state`) and re-weed.
 3. **Convergence:** stop when no transition changes acceptance state between passes, else after `max_iterations` (`assignment_cycle` passes `max_iterations = 100`; the function's own default is 59).
-4. **Oscillation blacklist:** the blacklist is created once in `main()` and passed into `weed_assignments`, so it **persists across the outer cycles**. A transition enters it in two ways: (a) it flips acceptance state between consecutive weeding passes within a cycle; (b) its end-of-cycle acceptance state alternates between outer cycles (A→B→A over the last three cycle snapshots, detected by `blacklist_cycle_oscillations` in `main()`). Blacklisted transitions are permanently **rejected** in Step 3 ("decisions oscillate between weeding iterations or cycles") — an oscillating decision is treated as evidence of an unreliable assignment. Blacklist keys are `trans_key()` tuples (lower id, upper id, identity of the assigned line), which remain stable when transition objects are recreated between cycles.
+4. **Oscillation blacklist:** the blacklist is created once in `main()` and passed into `weed_assignments`, so it **persists across the outer cycles**. A transition enters it when its acceptance goes **A→B→A** over the last three snapshots — either three consecutive weeding passes within a cycle, or three end-of-cycle snapshots (`blacklist_cycle_oscillations` in `main()`); both call the one detector, `_find_oscillations`. Blacklisted transitions are **rejected** in Step 3 ("decisions oscillate between weeding iterations or cycles"). Blacklist keys are `trans_key()` tuples (lower id, upper id, identity of the assigned line), which remain stable when transition objects are recreated between cycles.
+
+   **A→B→A is the whole criterion, and it was not always so.** Until 2026-09-03 a *single* flip between two consecutive weeding passes was enough, and absence from a snapshot counted as a state of its own. Both are wrong, and both were destabilizing:
+
+   - the weeding loop is a damped fixed-point iteration on the per-level intensity factors, so a single flip is what convergence looks like from close up. Blacklisting on it withdrew whatever candidate happened to sit near a decision threshold at pass 3 — a set that depends on every other transition in the run, so a small change in the input (one level moved by a fraction of a cm⁻¹) reshuffled it and moved identifications that had nothing to do with the change;
+   - absence from a snapshot means the transition was not a candidate that cycle at all, because the levels had moved and it fell outside the matching tolerance. That is a missing decision, not a wavering one. Counting it blacklisted **168** transitions in the third cycle of a normal run, while the energies were still moving by of the order of 1 cm⁻¹.
+
+   With the genuine criterion the same run blacklists **18** transitions in total, of which 17 are still candidates at the end.
+
+   Because a blacklisting is the one rejection the pipeline makes on **no evidence about the identification itself** — the transition was dropped because its acceptance would not settle, which says nothing about whether it is right — it must not be silent. `write_unstable_report()` writes every one of them to **`unstable_candidates.csv`** (observed wavenumber, both level ids, intensities, grade, which loop it oscillated in, and the three states) so they can be looked at in IDEN2 and settled for good in the decision ledger, which overrides the blacklist.
 
 ### Per-line 3-step decision (`weed_assignments_line`)
 Candidates are sorted by decreasing `calc_intensity`, then by Ritz σ.
 
 - **Step 1 — clear-cut decisions.** New transitions with Ritz mismatch `> 3 σ_comb` are rejected outright, and (for legacy candidates with no theoretical intensity) mismatch `> 5 σ_comb` is likewise an outright rejection — `σ_comb` is the same combined line+level-uncertainty sigma used for matching (`_ritz_sigma`, see *Match & grade* above and *Level-Energy Uncertainty Estimation* below). A **relative-intensity filter** (`_apply_relative_intensity_filter`) rejects new candidates contributing `< 10 %` of the accepted cumulative intensity, and applies conservative tests to legacy candidates around the `4 %` / `2 %` thresholds (`check_internal_significance` guarantees rejection of statistically-insignificant legacy lines). Surviving candidates are tested by **asymmetric z-score** against `I_obs` — thresholds are looser when the prediction is *too strong* and for **resonance** lower levels (ids ending `001`, via `_fudge_factor_for_asym_intensity`), stricter when *too weak*. Decisions are tagged `Step1…` in `notes2`.
 - **Step 2 — grouping & late arbitration.** Undecided candidates are tested for **pair** and **triple** acceptance (`_try_pair_stage`, `_try_triple_stage`): a group passes if its intensity-weighted **center of gravity** matches the observed wavenumber and its **effective spread** — the Doppler width (full width at half maximum, `sqrt(8·ln2·kT/m)/c` = 8.22×10⁻⁶ of the wavenumber for Pr at `T = 1.6 eV`, `ATOMIC_MASS = 140.90765 u`) convolved with the measurement σ (`_effective_spread_combined`) — is consistent with the line profile. For `h`/`w` (and other broadened) characters the thresholds are relaxed by a broadening multiplier (`_broadening_multiplier`). A CoG-sensitivity test rejects candidates that *worsen* the group CoG by more than 1 σ. Finally, still-undecided **new** candidates carrying `F`/`R` in `notes1` are rejected. Decisions are tagged `Step2…`.
-- **Step 3 — defaults.** Any remaining undecided **new** candidate is rejected ("no solid evidence for acceptance"); any remaining **legacy** candidate is accepted ("no solid evidence for rejection"). Blacklisted transitions land here and are annotated "decisions oscillate in iterations". Decisions are tagged `Step3…`.
+- **Step 3 — defaults.** Any remaining undecided **new** candidate is rejected ("no solid evidence for acceptance"); any remaining **legacy** candidate is accepted ("no solid evidence for rejection"). Blacklisted transitions land here and are annotated "decisions oscillate between weeding iterations or cycles". Decisions are tagged `Step3…`.
+- **Last word — the decision ledger.** `apply_line_decisions(line)` then sets every assignment named in `files.line_decisions` to the verdict written there, whatever Steps 1–3 and the blacklist concluded, and records the overruled verdict in `notes2`. See *The decision ledger* above.
 
 ---
 
@@ -947,7 +1153,223 @@ between 50% and 90% spurious probability, for a most probable **3.5** spurious l
 the 208 (95% range 0.0-10.8). The state before this change is archived in
 `baseline/before_coverage_gaps/`.
 
+### The short-wavelength failure, and the refit that cured it (2026-09-05)
+
+The correction above was wrong below about 1000 A, badly, and the way it showed up is
+worth recording because the diagnostic is general.
+
+**The symptom.** Level `059003.000533` has three strong lines that IDEN2 shows aligning
+cleanly with it — 121229.786, 120101.207 and 118982.601 cm⁻¹ (824.9, 832.6 and 840.5 A).
+On the log scale IDEN2 displays, `I_log = 10*ln(I_lin)`, their predicted intensities are
+97, 93 and 97 and their observed ones 91, 86 and 97: agreement to a few tenths in `ln`.
+But `line_classifications.csv` gave observed intensities of 211, 169 and 604 against
+calculated 11143, 7591 and 11816 — the observed values too small by factors of 20 to 50.
+
+**The cause.** Region 1 ran 821.92 to 1522.49 A and was fitted with a **cubic**,
+
+```
+P = -93.735889568457 + 0.227980354340891*lam - 1.80299782559081e-4*lam^2
+    + 4.57997976538457e-8*lam^3
+```
+
+whose value at 824.9 A is **-2.654**, against **+0.938** for the hand-made linear fit of
+the same region — a factor `exp(3.59) = 36` in the corrected intensity, which is exactly
+the shortfall observed. Two things went wrong together:
+
+* The region was fitted on 879.44-1522.49 A but had to *cover* 821.92-1522.49 A, so the
+  last 57 A were pure extrapolation, and a cubic extrapolates violently.
+* Nothing caught it. The existing guard, `--max-swing`, asks how far `P` goes outside the
+  band the region's own lines occupy — their 1st to 99th percentile of `dlnI`. That band
+  is about two units wide in `ln`, because `gA` is a calculated quantity and scatters, so
+  a three-unit dive at the edge sat comfortably inside it. Swing was 0.00.
+
+**The fix, in two parts.**
+
+`--max-extrap` (new, default 0.5 in natural logarithms) measures the *right* thing: how far
+`P` moves, over the stretched part of a region, away from the value it takes at the
+outermost line that was actually fitted. That is not scatter — it is one systematic factor
+applied to every corrected intensity out there — and `_tame()` now lowers the degree of an
+edge region until both this and `--max-swing` are satisfied. Region 1 became a parabola.
+
+`--dln-cut` (changed) now takes a **schedule**, by default `4 3 2`, one value per pass of
+outlier stage 2. On the first pass the correction is still the rough stage-1 shape, and a
+line whose only fault is that it sits where the shape has not been found yet was being
+condemned on the strength of an error the fit was about to remove. Loosening the early
+passes and tightening as the fit settles is what was always done by hand. It keeps more
+lines: 432 dropped at stage 2 out of 3486, where the fixed cut of 2 had dropped more, and
+region 1 is now fitted on 808 lines instead of 641.
+
+**The result.** 8 regions, `C` = 0.2671, `kT` = 12081.4 cm⁻¹, rms `dlnI` = 0.8356:
+
+| region | from (A) | to (A) | degree | lines | rms dlnI |
+|---|---|---|---|---|---|
+| 1 | 821.92 | 1522.49 | 2 | 808 | 0.850 |
+| | *coverage gap* | | | | |
+| 2 | 1529.85 | 2103.46 | 1 | 416 | 0.890 |
+| | *coverage gap* | | | | |
+| 3 | 2107.92 | 2450.71 | 3 | 523 | 0.797 |
+| 4 | 2450.71 | 2801.04 | 2 | 413 | 0.814 |
+| 5 | 2801.04 | 3833.82 | 3 | 429 | 0.906 |
+| 6 | 3833.82 | 4865.93 | 2 | 145 | 0.830 |
+| 7 | 4865.93 | 6877.19 | 2 | 124 | 0.636 |
+| 8 | 6877.19 | 10721.57 | 4 | 169 | 0.741 |
+
+At 824.9 A the new `P` is **-0.378** against the old **-2.654**: the three lines of
+`000533` gained a factor 9.7, 8.3 and 7.1 and now read
+
+| line (cm⁻¹) | I_obs before | I_obs now | I_calc | grade |
+|---|---|---|---|---|
+| 121229.786 | 211 | 2056 | 11113 | 2G |
+| 120101.207 | 169 | 1402 | 7571 | 2C |
+| 118982.601 | 604 | 4297 | 11785 | 2B |
+
+Everywhere else the change is small: adopting it moved the median line by a factor 0.998,
+the middle 90% by 0.86 to 1.35, and the largest single line by 10.4. The Boltzmann
+iteration closed in **one** round (`--tol 0.005`) at
+
+```
+C = 269.980,  kT = 12233.07 cm^-1,  rms |ln(Icalc/Iobs)| = 0.876
+```
+
+with no calculated intensity moving by more than 0.47%.
+
+**What is still not settled below 1000 A, and cannot be.** The fitted region-1 lines are
+almost all longward of 1000 A: 5 lines lie below 950 A and 52 below 1000 A, out of 808.
+The remaining disagreement with the hand-made linear correction — about 1.3 in `ln`, a
+factor 4, at 825 A, where elsewhere the two agree to 0.2-0.5 — is therefore not a defect
+of either fit but the honest width of what five lines can determine. The residual
+`ln(Icalc/Iobs)` of the three `000533` lines is now 1.69, 1.68 and 1.01 against a region
+rms of 0.85, i.e. about two standard deviations: no longer an anomaly, but a hint that the
+straight line may still be the better shape out there. Anyone who needs intensities below
+1000 A should treat them as uncertain by a factor of a few, whichever correction is in
+force.
+
 ---
+
+### The noise level and signal-to-noise ratios: `tools/estimate_snr.py`
+
+The plate calibration says how the intensity *scale* varies with wavelength. It does not
+say how faint a line could be and still have been recorded. That second number — the
+detection threshold — is what decides whether a predicted transition that the line list
+does not contain is genuinely absent or merely too weak to have appeared, and IDEN2 has no
+way to show it: its display carries intensities, so a screen full of predicted transitions
+that could never have been seen looks exactly like a screen full of real candidates.
+
+`tools/estimate_snr.py` estimates the threshold and turns both files into signal-to-noise
+ratios. It is standalone, like `calibrate_intensities.py`, whose region-fitting machinery
+it reuses.
+
+```bash
+python tools/estimate_snr.py                                  # estimate only
+python tools/estimate_snr.py --iden2-dir IDEN2 --out-dir IDEN2_snr --plot noise_level.png
+```
+
+**How the threshold is estimated.** A line list is a censored sample: everything in it was
+above the threshold and everything below it is missing, so the weakest lines present sit
+just above the threshold and it can be read off as their lower envelope. The lines are
+sorted by wavelength and cut at the coverage gaps (the same `1522.49-1529.85` and
+`2103.46-2107.92` A: nothing ties the noise levels of two plates that never shared a line);
+a window of `--window` (default 20) consecutive lines is slid along each block, and the
+weakest line in each window is the noise there, attributed to the window's median
+wavelength. Windows do not overlap by default, because the region-finding charges for each
+breakpoint against the number of points and repeated minima would make it believe it has
+far more evidence than it does. `ln N` is then fitted against wavelength by the same
+piecewise low-degree polynomials, written out in the same `lo hi c0;c1;...` format.
+
+Outlier rejection is **asymmetric**, and that is the one place the algorithm departs from
+the intensity calibration. A window whose weakest line sits far *above* the curve is a
+window where the lines happened to be sparse, so its minimum overestimates the threshold:
+it is dropped beyond `--high-cut` (1.0). A window whose minimum sits *below* the curve
+caught a line very close to the threshold, which is the quantity being estimated: it is
+kept unless it is absurd, beyond `--low-cut` (2.5). Rejecting both sides equally would pull
+the estimate up toward the middle of the intensity distribution, which is not what a
+threshold is.
+
+**What it found for this list, and why the answer is not what one expects.** On Sugar's
+*reported* scale the threshold is nearly flat: 84% of the windows have their weakest line
+at intensity 1, the smallest value the list uses at all, and the fitted `N` runs between
+1.0 and 2.3 across the whole spectrum. That is not a failure of the estimate — it is the
+correct answer, and it says something about the line list. Sugar graded each exposure from
+its own weakest visible line upward, so his reported intensity *already is* a per-plate
+scale whose floor is the local threshold. The whole wavelength dependence of detectability
+therefore sits in the plate calibration, and
+
+> the SNR of an *observed* line is essentially its reported intensity; the useful half of
+> the exercise is the other one — bringing a *predicted* intensity down onto that scale.
+
+**Rewriting the IDEN2 files.** Both `dlv.dat` (one row per observed line, intensity in
+columns 1-5, wavenumber in columns 6-18) and `TRANS.DAT` (one row per predicted transition)
+carry `v = 10*ln(Icor)`, with `Icor = 1000 * Iorig * exp(P(lambda))` and `P` the
+calibration in force *when the files were made*. That this is exactly the relation was
+checked by regressing the `dlv.dat` integers on `ln(Icor)`: slope 10.016, intercept -0.19,
+scatter 0.10 in `ln`, i.e. rounding. So `--trans-correction` must name the correction the
+files were made with — `intensity_correction_manual.txt` here — not the one now in force:
+the old one is baked into the numbers and has to come out again.
+
+A `TRANS.DAT` row carries **two** intensities and **two** wavenumbers, and the conversion
+depends on telling them apart:
+
+| columns | contents |
+|---|---|
+| 6-10 | the **predicted** intensity of the transition |
+| 11-22 | the energy of the level at the other end of it |
+| 23-24 | an asterisk when that level's energy is experimentally known |
+| 25-38 | the wavenumber of the **predicted transition** |
+| 39-43 | the intensity of the **observed line** identified with it, if any |
+| 45-57 | the wavenumber of that observed line |
+| 69-74 | its row number in `dlv.dat`, `0` when the prediction is unidentified |
+
+The asterisk in columns 23-24 means the row cannot be taken apart by splitting on spaces;
+the fields have to be cut at their fixed positions. The wavelength at which the plate
+calibration and the noise are evaluated is `1e8 / wn` from **columns 25-38**. Both
+intensity columns are rewritten: the predicted one by
+
+```
+Icor_pred  = exp(v/10)
+Iorig_pred = Icor_pred / (1000 * exp(P(lambda)))
+SNR_pred   = Iorig_pred / N(lambda) * exp(z)
+```
+
+and the observed one by looking up its own line in the list, exactly as `dlv.dat` is. The
+two columns sit side by side on the screen and are read against each other, so leaving one
+of them on the plate scale would show a difference of some sixty units at the
+short-wavelength end that is an artefact of the two scales and no part of any disagreement
+between the prediction and the measurement.
+
+The zero point `z` is there because calculated intensities carry an arbitrary overall
+normalisation, so without it "SNR = 1" would sit anywhere. `--trans-zero auto` (the
+default) measures it on the rows `TRANS.DAT` itself marks as identified — each names the
+observed line assigned to it, so no matching of our own is needed — and takes the median
+difference in logarithms; for the current files it rests on 5197 comparisons, 4948 of them
+identified in the file, and the predicted scale ran a factor 1.39 high. That median is
+biased upward — a
+prediction is likelier to have found a line when it is strong — so the zero point is
+conservative: it calls a transition unobservable slightly more readily than the truth
+warrants. Pass a number to override it, or `0` to leave the predicted scale alone.
+
+The number written is linear if every observed line falls between 1 and 999, so the column
+reads directly as "how many times the noise", and `round(10*ln(SNR))` otherwise
+(`--scale`). For this list the observed SNR runs from 0.46 to 4550, so the log scale is
+chosen. Nothing else on a row is touched — the fixed-width layout is preserved byte for
+byte — and the rewritten files go to `--out-dir`, never over the originals.
+
+**What this buys.** Of the 104271 predicted transitions in `TRANS.DAT`, **70% fall below
+SNR 0.1** and a further 18% below SNR 1; only 12% could have been recorded at all. Those
+are the rows that can be dropped from the display and from the column ordering. On the
+4948 rows that *are* identified, the predicted SNR now sits a median 1 unit (0.1 in `ln`)
+above the observed SNR of the line, in every wavelength decade from 822 to 16500 A.
+
+**What the estimate is not.** `N` is a detection threshold read off the line list, not a
+measurement of the noise on the plate. Where the compiler of the list stopped measuring
+weak lines, `N` rises whether or not the plate was noisier there; where the spectrum is
+crowded, the weakest recorded line is closer to the true threshold than where it is empty.
+It is the right quantity for "could this predicted transition have appeared in *this*
+list", and it should not be quoted as anything else.
+
+Outputs: `noise_level.txt` (the fitted `ln N` region by region), `line_snr.csv` (per line:
+wavenumber, wavelength, reported intensity, noise, SNR, and the integer IDEN2 would carry),
+`noise_windows.csv` (the window minima the fit rests on, and which were dropped), and
+optionally a plot.
 
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
@@ -1151,8 +1573,8 @@ Running `python level_shifts.py` produces the full analysis:
    - `p_spur_pattern` — from the intensity pattern alone;
    - `p_spur` — both folded together (the final value).
    
-   With the current inputs (converged model, 208 tested levels): S = 0.0 [0.0–8.0 at 95% confidence] from the energy shifts alone (36.8 [19.5–53.8] under the alternative small-n assumption — poorly determined), 4.8 [0.0–13.0] from the pattern alone, and **3.5 [0.0–10.8] folded** (9.0 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 8 levels; the 200 unmarked levels then carry a summed probability of only 0.7 expected spurious levels, while the marked group is expected to contain ~2.9 spurious and ~5.2 genuine members (a "questionable" mark is a caution, not a verdict).
-5. **Masking check (adjudication of the questionable marks).** Two things put a tested level up for examination: the probabilities question it (`p_spur ≥ 0.1`), or its strongest predicted transition is absent from the accepted lines and would have been recorded had it been there (`top1` reads `missing`; a branch too faint to have been recorded reads `faint` and does not put the level up for examination). A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every such level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared — provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`) **and** the strongest branch is not itself among the unexplained absences. A missing, unmasked strongest branch keeps the mark whatever the probabilities say. The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs, 20 levels are examined (8 flagged by `p_spur`, 16 by a missing strongest branch, 4 by both); 1 is cleared (059003.000457, 96% of its missing predicted intensity masked), leaving 19 questionable — 16 because their strongest predicted transition is absent and nothing hides it, 3 with no reason to clear.
+   With the current inputs (converged model, 208 tested levels, run of 2026-09-05): S = 0.0 [0.0–10.8 at 95% confidence] from the energy shifts alone (26.5 [17.0–42.8] under the alternative small-n assumption — poorly determined), 2.8 [0.0–9.0] from the pattern alone, and **2.0 [0.0–7.2] folded** (4.2 in the robustness variant) — the pattern evidence removes the model sensitivity. The sum of `p_spur` over the tested levels reproduces S, and the expected number of false confirmations under any cut equals the sum of `p_spur` over the levels passing it. Marking levels with `p_spur ≥ 0.1` as questionable flags 2 levels, both of them supported by a single line; the 206 unmarked levels then carry a summed probability of only 0.45 expected spurious levels, while the marked pair is expected to contain ~1.55 spurious and ~0.45 genuine members (a "questionable" mark is a caution, not a verdict).
+5. **Masking check (adjudication of the questionable marks).** Two things put a tested level up for examination: the probabilities question it (`p_spur ≥ 0.1`), or its strongest predicted transition is absent from the accepted lines and would have been recorded had it been there (`top1` reads `missing`; a branch too faint to have been recorded reads `faint` and does not put the level up for examination). A strong predicted transition may be absent from the accepted lines simply because a nearby **stronger** observed line hides it — on the photographic plates, a weaker line close to a much stronger one cannot be measured. Every such level is therefore re-examined. The test uses the **effective line width** (full width at half maximum): the instrumental width `INSTR_FWHM_A` (0.035 Å, estimated from the closest measured line pairs; the spectrograph resolution is nearly constant in wavelength) convolved with the Doppler width, which grows with wavelength. For each missing prediction among the level's strongest ten, an observed line hides it in either of two regimes: **within one effective width** the two lines are not resolved, so a line of at least `MASK_STRENGTH` (0.5) times the predicted intensity absorbs it; **beyond one width**, a Gaussian profile of the effective width is applied to the observed line, and the prediction counts as hidden if the profile intensity at its position still exceeds the predicted intensity — so the masking reach of a much stronger line extends into its wings, growing with the intensity ratio. (The manually verified masking cases show separations up to 0.029 Å, inside one width.) If at least `MASK_CLEAR_FRACTION` (90%) of the *missing predicted intensity* is hidden — i.e. the dominant missing predictions are masked, while a small residue of weak ones is tolerated (the theory is least reliable for weak transitions) — the bad pattern score carries no evidence, and the questionable mark is cleared — provided the energy-shift evidence alone is not suspect (`p_spur_decoys < 0.1`) **and** the strongest branch is not itself among the unexplained absences. A missing, unmasked strongest branch keeps the mark whatever the probabilities say. The outcome goes into two report columns: `question_status` (`removed` = mark cleared, `retained` = mark kept) and `reason` (e.g. "strong missing transitions are masked by nearby stronger lines", "no reason to clear", "no theoretical predictions (pattern check not applicable)", "masking found, but the energy shift alone remains suspect"). With the current inputs (2026-09-05), 15 levels are examined (2 flagged by `p_spur`, 14 by a missing strongest branch, 059003.000589 by both); 1 is cleared (059003.000615, 96% of its missing predicted intensity masked), leaving **14** questionable, all of them because their strongest predicted transition is absent and nothing hides it.
 6. **Report file** — `level_shift_report.csv/.xlsx`, one row per level: `level_id`, `is_new_level` (absent from ASD), `new_star` (tested), `note`, `J`, `parity`, `E_input`, `E_final`, `dE`, `n_old`, `n_new`, `n_tot`, `d`, `n_pred`, `n_top10`, `top10_found`, `top1`, `pattern_C`, `pattern_V`, `n_acc_below_noise`, `p_spur_decoys`, `p_spur_pattern`, `p_spur`, `question_status`, `reason` (the probabilities and the adjudication columns are filled only where applicable).
 
 **Single-level inspection:** `python level_shifts.py --detail <level_id> …` prints one level's predicted transitions (strongest first) with the fate of each in the real run — accepted (with the observed line), rejected (with the weeding note), or not matched by any observed line — plus the accepted lines that have no theoretical prediction. This is the working tool for judging individual questionable levels.
@@ -1243,6 +1665,7 @@ accepted lines changes that environment by well under a percent.
 - **Recovery, not physical proof.** A small ΔE certifies that the accepted lines reproduce the energy encoded in Wyart's input value — i.e. that his identifications were recovered. If Wyart himself was misled by chance coincidences, our run re-finds the same coincidences with a small ΔE; only the intensity pattern (and physics arguments: theory, g-factors, term structure) can catch that case.
 - **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. In the converged run all 5 marked levels do have observable predictions (in earlier runs a sizeable part of them did not, and there `p_spur` rests on the energy shift and the support count alone). A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
 - **Decoys can accidentally be real.** A displaced decoy may land on a real, previously unknown level (most likely a neighboring-J member of the same term at high energies) or on the true position of a level misassigned in the underlying Cowan-code fit. Both effects make some decoy "false positives" actually real, so the decoy-based false rates are slight overestimates — the bias is in the safe direction. The fraction of supported decoy trials showing three or more of their top-10 predictions accepted (~6%) is an upper bound on this contamination.
+- **A bad intensity pattern can be hidden by the folding.** `p_spur` folds the energy-shift evidence with the pattern evidence, and a level whose strongest predicted branch is *masked* by a nearby stronger line has that half of the pattern evidence withdrawn — correctly, since a masked branch says nothing. But a level can then keep a very poor pattern score and still come out with a small `p_spur` and no questionable mark. In the run of 2026-09-05 the worst intensity pattern of all 208 tested levels belongs to `059003.000572` (`pattern_V` = 0.122, 4 of its top 10 predictions accepted), which carries `p_spur` = 0.033 and is not marked; its configuration, `4f.5d.6p`, is the one whose calculated positions deviate most from the observed ones in the Cowan-code fit, so a misidentification of the level with the wrong theoretical partner is exactly what one would expect there. **`pattern_V` is worth reading directly, not only through `p_spur`.** Detecting the specific failure — two levels of the same parity and `J`, close in energy, whose sets of observed lines have been interchanged — needs a tool that does not yet exist: one that refits `ln(I_obs)` against `ln(I_calc)` for the pair as assigned and again under the swapped assumption, and prefers the interpretation whose slopes are consistently nearer 1. The energy window for such a search should come from the rms of `E_obs − E_calc` of the level's own dominant configuration, not from a global number.
 - **Lines omitted as blends with other ionization stages.** Sugar assigned lines to Pr II, III, or IV by comparing exposures at different degrees of excitation; a Pr III line nearly coinciding with a stronger Pr II or Pr IV line could not be assigned confidently and was omitted from his Pr III list. Such omissions are invisible to the masking check (the search covers only Sugar's Pr III lines), so some "missing" strong predictions are excusable in a way the automation cannot see. Statistically the effect is absorbed — the old (genuine) reference levels suffer the same omissions, so the pattern-score comparison between the classes stays fair — but the per-level adjudication is conservative: a questionable mark that an expert would clear on this ground stays retained. Automating this excuse would require Pr II and Pr IV line lists.
 
 ### Excel-friendly output files
@@ -1257,6 +1680,21 @@ python decoy_mc.py           # 2. eight decoy runs → decoy_mc_*.csv/.xlsx
 python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → chance_mc_*.csv/.xlsx
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
 ```
+
+When the **observed intensities** have to be recalibrated — a new intensity column, or a
+correction found to be wrong — three more steps come first, and they invalidate everything
+downstream, so the four above must all be repeated afterwards:
+
+```
+python tools/calibrate_intensities.py --col-intensity Iorig --cover 821.92 10721.57        --out-functions intensity_correction_sugar.txt --plot intensity_calibration.png
+python tools/apply_calibration.py --orig-col Iorig --scale 1000        --old intensity_correction_functions.txt --new intensity_correction_sugar.txt
+cp intensity_correction_sugar.txt intensity_correction_functions.txt   # adopt it
+python tools/iterate_boltzmann.py --tol 0.005     # re-converge C, kT; rewrites Icalc.xlsx
+```
+
+`tools/estimate_snr.py` stands outside this chain: it reads the line list and the
+correction and writes only its own outputs, so it can be run whenever, but its numbers are
+only as good as the calibration in force when it ran.
 
 After identifications have been revised by hand and LOPT re-run on them, step 4 is
 repeated against the revised run, reusing the calibrations of steps 2–3:
@@ -1286,7 +1724,7 @@ Relative paths are taken relative to the directory holding the configuration fil
 
 | section                     | what it fixes                                                                     |
 |-----------------------------|-----------------------------------------------------------------------------------|
-| `[files]`                   | the four input/output workbook names                                                |
+| `[files]`                   | the input/output workbook names, plus four optional overlays: `level_overrides` (revised adopted energies), `line_decisions` (the decision ledger), `new_levels` (levels found since the level list was published) and `icalc_extra` (their calculated transitions) |
 | `[range]`                   | `wn_min`, `wn_max`: the wavenumber interval (cm⁻¹) in which candidate transitions are generated |
 | `[levels.layout]`, `[lines.layout]`, `[icalc.layout]` | worksheet name and column names of each input file            |
 | `[icalc.completeness]`      | `gA_cutoff`: the printing threshold of Cowan's codes, 1000 s⁻¹ — the basis of the censoring correction above |
@@ -1307,6 +1745,7 @@ module constants and function defaults in `classify_lines.py`:
 | `USE_INTENSITY_ADJUSTMENT` | `0`                  | Per-level intensity factors off (`1` enables them)             |
 | `FACTOR_WEIGHTING`         | `'unweighted'`       | Factor averaging when enabled (`'mandel_paule'` optional)      |
 | `alpha`                    | `0.5`                | Factor-update damping in `weed_assignments`                    |
+| `DECISIONS_WN_MATCH`       | `0.01` cm⁻¹          | How far a decision-ledger wavenumber may miss its observed line |
 | `min_n`                    | `10`                 | Min. qualifying transitions per level factor                   |
 | `CLAMP`                    | `5.0`                | Max. magnitude of a per-level ln-factor                        |
 | `max_iterations`           | `100` (weeding)      | Inner weeding iteration cap                                    |
@@ -1341,7 +1780,10 @@ LineClass/
 │                                 #   apply_calibration.py (takes the intensity column
 │                                 #   from one such correction to another),
 │                                 #   attach_sugar_intensities.py (copies Sugar's printed
-│                                 #   intensities into the line list as the column Iorig)
+│                                 #   intensities into the line list as the column Iorig),
+│                                 #   estimate_snr.py (standalone: the detection threshold
+│                                 #   of the line list, and the IDEN2 files rewritten with
+│                                 #   signal-to-noise ratios in place of intensities)
 ├── baseline/                     # Archived reference runs (policy_none/, policy_impute/,
 │                                 #   boltzmann_model/, boltzmann_converged/,
 │                                 #   before_intensity_recalibration/,
@@ -1355,6 +1797,19 @@ LineClass/
 ├── Pr3_Sugar69_extracted_*.xlsm  # Source: the checked extraction of Sugar 1969, Table 1
 ├── Pr_3_Sugar74_Table1_*.xlsm    # Source: the checked extraction of Sugar 1974, Table 1
 ├── intensity_correction_functions.txt  # Input (optional): Sugar plate-intensity calibration
+├── new_levels.csv                # Input (optional): levels found since the level list
+│                                 #   was published (level_id, E, J, parity, comment)
+├── icalc_new.xlsx                # Input (optional): their calculated transitions,
+│                                 #   in the layout of Icalc.xlsx
+├── revised_level_energies.csv    # Input (optional): revised adopted energies
+├── line_decisions.csv            # Input (optional): the decision ledger
+├── IDEN2/                        # The IDEN2 working files as last saved (dlv.dat,
+│                                 #   TRANS.DAT, enlev.dat, numset.dat)
+├── IDEN2_snr/                    # The same, with signal-to-noise ratios in place of
+│                                 #   intensities (tools/estimate_snr.py)
+├── noise_level.txt               # Output: the fitted detection threshold ln N(lambda)
+├── line_snr.csv                  # Output: per-line noise level and SNR
+├── noise_windows.csv             # Output: the window minima the noise fit rests on
 ├── line_classifications.xlsx     # Output: classification table (LOPT-ready)
 ├── line_classifications.csv      # Output: same data as CSV
 ├── level_shift_report.csv/.xlsx  # Output: per-level validation table (dE, pattern scores, p_spur)

@@ -24,7 +24,7 @@ calculated intensities themselves, and not on C and kT:
 
     max over all transitions of | Icalc_now / Icalc_previous - 1 |  <  tol
 
-with tol = 0.01 by default, i.e. no calculated intensity in the file moved by
+with tol = 0.0001 by default, i.e. no calculated intensity in the file moved by
 as much as one per cent in the last round.  (C and kT can shift and still
 leave Icalc almost unchanged, because a larger C compensates a smaller kT over
 the energy range where most of the lines are; the criterion above cannot be

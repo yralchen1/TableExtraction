@@ -1,0 +1,184 @@
+wn_obs,low_id,upp_id,decision,date,reason
+12326.2201,059003.000339,059003.000479,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+12407.099,059003.000315,059003.000463,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+12493.1929,059003.000337,059003.000481,reject,9/3/2026,among the weakest predicted transitions of the level while many stronger branches are missing (also outside the low-sensitivity regions); accepting it would make the line look taken in IDEN2 and impair the search for further levels
+13013.4904,059003.000339,059003.000400,reject,9/3/2026,lost with the old position of 000400; the line stays unassigned
+13044.1198,059003.000338,059003.000400,accept,9/3/2026,"with 20733.358, re-positions 000400: two perfectly agreeing precisely measured lines beat the one arbitrarily chosen precise line the old position rested on"
+16106.0229,059003.000469,059003.000420,accept,9/3/2026,"second assignment of this line, kept as before"
+16106.0229,059003.000481,059003.000427,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+18142.6871,059003.000430,059003.000186,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+20733.358,059003.000400,059003.000610,accept,9/3/2026,"with 13044.1198, re-positions 000400 (see there)"
+22950.2839,059003.000189,059003.000269,reject,9/3/2026,rejected on inspection of the branch pattern in IDEN2
+23081.7787,059003.000366,059003.000600,reject,9/3/2026,rejected on inspection of the branch pattern in IDEN2
+23085.1621,059003.000366,059003.000603,reject,9/3/2026,"a violent move of the level, not firmly justified; large level movements are allowed only on very convincing evidence"
+23115.6787,059003.000383,059003.000608,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+24107.7175,059003.000374,059003.000616,reject,9/3/2026,"the line is already taken by a much better-agreeing transition; far from the Ritz wavenumber, it would move the level without justification and improves nothing"
+31240.2591,059003.000454,059003.000565,reject,9/3/2026,"rejected, so that 54966.4344, 68025.1235 and 70613.2326 stay with 000454"
+32844.439,059003.000341,059003.000534,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+38410.3097,059003.000084,059003.000196,accept,9/3/2026,the line stays assigned to both 000084-000196 and 000115-000218
+38410.3097,059003.000115,059003.000218,accept,9/3/2026,the line stays assigned to both 000084-000196 and 000115-000218; classify rejects it on Ritz mismatch alone
+40047.2789,059003.000218,059003.000337,accept,9/3/2026,well supported by the pattern of observed lines seen in IDEN2; classify withdrew it as oscillating
+42664.1202,059003.000196,059003.000327,accept,9/3/2026,stays with this pair
+42664.1202,059003.000203,059003.000337,reject,9/3/2026,"a weak second assignment of this line; it did little harm, but there is no reason to keep it"
+44022.4591,059003.000105,059003.000245,reject,9/3/2026,"firmly rejected, stays so"
+49280.699,059003.000189,059003.000457,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+52349.389,059003.000447,059003.000602,reject,9/3/2026,"firmly rejected, stays so"
+52989.1149,059003.000141,059003.000452,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+54966.4344,059003.000139,059003.000454,accept,9/3/2026,stays with 000454 now that 31240.26 is rejected
+55750.835,059003.000125,059003.000446,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+57209.9065,059003.000139,059003.000455,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+60205.3864,059003.000172,059003.000457,accept,9/3/2026,accepted now
+68025.1235,059003.000072,059003.000454,accept,9/3/2026,stays with 000454 now that 31240.26 is rejected
+68213.5741,059003.000064,059003.000452,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+68213.5741,059003.000084,059003.000455,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+68654.2434,059003.000240,059003.000602,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+68730.562,059003.000079,059003.000455,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+70613.2326,059003.000057,059003.000454,accept,9/3/2026,stays with 000454 now that 31240.26 is rejected
+70780.1796,059003.000197,059003.000420,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+83118.1971,059003.000167,059003.000496,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+87610.2293,059003.000058,059003.000338,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+88418.2801,059003.000123,059003.000386,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
+94058.9743,059003.000095,059003.000483,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+96174.3869,059003.000081,059003.000483,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+120168.6067,059003.000064,059003.000534,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+22715.367,059003.000090,059003.000182,reject,9/3/2026,"not supported in IDEN2: the line is taken by 000179-000236 with much greater predicted intensity, agreeing with the calculated one"
+27399.033,059003.000452,059003.000563,reject,9/3/2026,not justified in IDEN2: no solid support from other transitions
+60205.386,059003.000258,059003.000421,reject,9/3/2026,Not even present in IDEN2: much too weak predicted intensity; several tens stronger ones are not detected.
+71303.387,059003.000041,059003.000446,reject,9/3/2026,"No solid support in IDEN2; the line is taken by 000099-000312 with much greater predicted intensity, agreeing with the calculated one"
+92215.428,059003.000083,059003.000371,reject,9/3/2026,No solid support in IDEN2; the line is taken by 000178-000423 with much greater predicted intensity
+11890.65678713296,059003.000546,059003.000479,accept,9/3/2026,Consistent with other assignments of 000479. Keep for stability.
+32592.701,059003.000546,059003.000532,accept,9/3/2026,Excellent agreement of observed relative intensities with calculation; the only line within range defined by the strongest assigned.
+14077.102,059003.000430,059003.000179,accept,9/3/2026,Hand-made decision in IDEN2 on iter21
+38746.751,059003.000179,059003.000295,accept,9/3/2026,Hand-made decision in IDEN2 on iter21
+21433.918,059003.000092,059003.000179,accept,9/3/2026,Hand-made decision in IDEN2 on iter21
+37863.34865254375,059003.000230,059003.000335,accept,9/3/2026,Good c.g. on two assignments of comparable predicted intensity; wide char consistent with spread of two assignments.
+49467.138,059003.000063,059003.000238,accept,9/3/2026,Good c.g. on two assignments of comparable predicted intensity; both assignments are well within linewidth and have comparable predicted intensities.
+51165.161,059003.000148,059003.000452,accept,9/3/2026,Strongest predicted transition from 000452; verified OK with IDEN2
+65939.881,059003.000063,059003.000446,accept,9/3/2026,Hand-made decision in IDEN2
+89353.29249412326,059003.000084,059003.000354,accept,9/3/2026,"The transition is probably masked by the other, stronger blending transition 000115-000384. C.g. is excellent; intensity is significant to keep as a blend."
+94537.327,059003.000095,059003.000484,accept,9/3/2026,"The transition is probably masked by the other, stronger blending transition 000123-000496. C.g. is goodt; intensity is significant to keep as a blend."
+70936.681,059003.000047,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+69846.499,059003.000053,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+69466.629,059003.000054,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+67770.79,059003.000063,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+66109.928,059003.000073,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+65822.085,059003.000074,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+57582.253,059003.000125,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+52321.755,059003.000142,059003.000450,accept,9/3/2026,Strong pattern evidence in IDEN2 despite large Ritz mismatch
+42056.029,059003.000223,059003.000559,accept,9/3/2026,"Strong pattern evidence in IDEN2, moderate Ritz mismatch"
+39452.939,059003.000246,059003.000559,accept,9/3/2026,"Strong pattern evidence in IDEN2, moderate Ritz mismatch"
+38570.05,059003.000252,059003.000559,accept,9/3/2026,"Strong pattern evidence in IDEN2, moderate Ritz mismatch"
+38000.57,059003.000256,059003.000559,accept,9/3/2026,"Strong pattern evidence in IDEN2, moderate Ritz mismatch"
+71650.79,059003.000197,059003.000577,accept,9/3/2026,577 revised in IDEN2
+68253.61,059003.000212,059003.000577,accept,9/3/2026,577 revised in IDEN2
+67919.47,059003.000213,059003.000577,accept,9/3/2026,577 revised in IDEN2
+67855.5,059003.000214,059003.000577,accept,9/3/2026,577 revised in IDEN2
+16976.07,059003.000469,059003.000577,accept,9/3/2026,577 revised in IDEN2
+86093.196,059003.000106,059003.000352,reject,9/4/2026,Way too weak predicted; reassigned to revised 000503 
+96306.091,059003.000155,059003.000503,reject,9/4/2026,000503 revised
+95038.792,059003.000160,059003.000503,reject,9/4/2026,000503 revised
+88054.993,059003.000180,059003.000503,reject,9/4/2026,000503 revised
+84212.636,059003.000186,059003.000503,reject,9/4/2026,000503 revised
+98356.09,059003.000144,059003.000503,accept,9/4/2026,000503 revised
+96222.98,059003.000155,059003.000503,accept,9/4/2026,000503 revised
+94957.3,059003.000160,059003.000503,accept,9/4/2026,000503 revised
+92777.2,059003.000175,059003.000503,accept,9/4/2026,000503 revised
+87973.28,059003.000180,059003.000503,accept,9/4/2026,000503 revised
+87070.61,059003.000181,059003.000503,accept,9/4/2026,000503 revised
+86093.196,059003.000184,059003.000503,accept,9/4/2026,000503 revised
+84131.02,059003.000186,059003.000503,accept,9/4/2026,000503 revised
+94650.523,059003.000164,059003.000424,reject,9/4/2026,000424 revised
+94376.397,059003.000164,059003.000424,accept,9/4/2026,000424 revised
+93352.109,059003.000171,059003.000424,accept,9/4/2026,000424 revised
+109430.117,059003.000096,059003.000424,accept,9/4/2026,000424 revised
+117625.49,059003.000049,059003.000424,accept,9/4/2026,000424 revised
+109902.905,059003.000091,059003.000424,accept,9/4/2026,000424 revised
+33025.64,059003.000316,059003.000511,reject,9/4/2026,Alternate assignment is better both for intensity and Ritz agreement
+33025.259,059003.000316,059003.000511,accept,9/4/2026,This assignment is better both for intensity and Ritz agreement
+118921.606,059003.000049,059003.000518,reject,9/4/2026,000518 revised
+32695.148,059003.000323,059003.000518,reject,9/4/2026,000518 revised
+119048.309,059003.000049,059003.000518,accept,9/4/2026,000518 revised
+97860.292,059003.000154,059003.000518,accept,9/4/2026,000518 revised
+32822.419,059003.000323,059003.000518,reject,9/4/2026,000518 revised
+117389.206,059003.000057,059003.000518,accept,9/4/2026,000518 revised
+115142.39,059003.000070,059003.000518,accept,9/4/2026,000518 revised
+24110.24,059003.000349,059003.000581,accept,9/4/2026,manual with IDEN2/LOPT
+24092.413,059003.000350,059003.000582,accept,9/4/2026,manual with IDEN2/LOPT
+24071.937,059003.000350,059003.000581,accept,9/4/2026,manual with IDEN2/LOPT
+23138.292,059003.000357,059003.000588,accept,9/4/2026,manual with IDEN2/LOPT
+23112.328,059003.000357,059003.000586,accept,9/4/2026,manual with IDEN2/LOPT
+23063.18,059003.000357,059003.000581,accept,9/4/2026,manual with IDEN2/LOPT
+22986.157,059003.000358,059003.000588,accept,9/4/2026,manual with IDEN2/LOPT
+22960.2,059003.000358,059003.000586,accept,9/4/2026,manual with IDEN2/LOPT
+22931.423,059003.000358,059003.000582,accept,9/4/2026,manual with IDEN2/LOPT
+22907.652,059003.000458,059003.000582,accept,9/4/2026,manual with IDEN2/LOPT
+22708.122,059003.000460,059003.000588,accept,9/4/2026,manual with IDEN2/LOPT
+22523.003,059003.000462,059003.000582,accept,9/4/2026,manual with IDEN2/LOPT
+22433.029,059003.000359,059003.000582,accept,9/4/2026,manual with IDEN2/LOPT
+22412.47,059003.000359,059003.000581,accept,9/4/2026,manual with IDEN2/LOPT
+20923.934,059003.000366,059003.000588,accept,9/4/2026,manual with IDEN2/LOPT
+23323.462,059003.000354,059003.000584,accept,9/4/2026,manual with IDEN2/LOPT
+23098.54,059003.000356,059003.000584,accept,9/4/2026,manual with IDEN2/LOPT
+21663.892,059003.000361,059003.000584,accept,9/4/2026,manual with IDEN2/LOPT
+20833.406,059003.000367,059003.000584,accept,9/4/2026,manual with IDEN2/LOPT
+23819.773,059003.000361,059003.000599,accept,9/4/2026,manual with IDEN2/LOPT
+22989.243,059003.000367,059003.000599,accept,9/4/2026,manual with IDEN2/LOPT
+121229.786,059003.000057,059003.000533,accept,9/4/2026,manual with IDEN2
+23380.158,059003.000378,059003.000607,reject,9/4/2026,manual with IDEN2
+23111.242,059003.000383,059003.000607,reject,9/4/2026,manual with IDEN2
+23385.397,059003.000378,059003.000607,accept,9/4/2026,manual with IDEN2
+23380.158,059003.000379,059003.000607,accept,9/4/2026,manual with IDEN2
+22479.4,059003.000388,059003.000607,accept,9/4/2026,manual with IDEN2
+23116.299,059003.000383,059003.000607,accept,9/4/2026,manual with IDEN2
+23569.929,059003.000471,059003.000607,accept,9/4/2026,manual with IDEN2
+22855.419,059003.000385,059003.000607,accept,9/4/2026,manual with IDEN2
+22709.98,059003.000476,059003.000607,accept,9/4/2026,manual with IDEN2
+45268.70093734932,059003.000540,059003.000232,reject,9/5/2026,manual with IDEN2; too strong observed and too far from Ritz; may include the ID in published line list but exclude from LOPT
+42921.88915648893,059003.000111,059003.000243,accept,9/5/2026,Stronger than the second assigned; Ritz OK in LOPT
+45268.70093734932,059003.000095,059003.000248,reject,9/5/2026,Much too strong observed compared to calc; likely belongs to something else - leave free to take.
+40256.76055421358,059003.000170,059003.000287,reject,9/5/2026,Taken by stronger transition with better Ritz match
+41473.79906049907,059003.000199,059003.000327,accept,9/5/2026,"Equal predicted intens, Ritz cg improves; wide char supports blend"
+41094.49080623562,059003.000203,059003.000330,reject,9/5/2026,Taken by other transition with better intensity and Ritz match
+91572.405,059003.000039,059003.000330,reject,9/5/2026,Taken by stronger transition with better Ritz match
+38052.91849266707,059003.000230,059003.000336,reject,9/5/2026,manual with IDEN2; may include the ID in published line list but exclude from LOPT
+91330.20364856097,059003.000105,059003.000384,reject,9/5/2026,Taken by other transition with better intensity and Ritz match
+94950.80068530583,059003.000076,059003.000384,reject,9/5/2026,manual with IDEN2; may include the ID in published line list but exclude from LOPT
+94964.88221321533,059003.000085,059003.000392,reject,9/3/2026,manual with IDEN2
+12578.06547257848,059003.000546,059003.000400,reject,9/5/2026,Incompatible with other assignments; checked with LOPT.
+11890.16746003981,059003.000318,059003.000463,reject,9/5/2026,Taken by stronger transition with better Ritz match
+83162.62841792723,059003.000133,059003.000468,reject,9/5/2026,manual with IDEN2; may include the ID in published line list but exclude from LOPT
+12227.9514,059003.000034,059003.000540,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+12658.4415,059003.000324,059003.000469,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+17725.5608,059003.000459,059003.000572,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+21949.5512,059003.000180,059003.000231,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+23419.0979,059003.000378,059003.000614,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+36468.7598,059003.000225,059003.000324,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+42747.4303,059003.000091,059003.000223,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+44680.8801,059003.000099,059003.000246,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+46233.5598,059003.000091,059003.000252,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+56289.985,059003.000125,059003.000448,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+56289.985,059003.000242,059003.000568,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+96727.9907,059003.000047,059003.000460,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+49399.839,059003.000148,059003.000448,reject,9/5/2026,Too large Ritz mismatch after LOPT. May include in published line list but exclude from LOPT
+55805.502,059003.000127,059003.000448,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+53957.044,059003.000111,059003.000285,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+53957.044,059003.000133,059003.000448,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+98015.0001,059003.000070,059003.000479,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+113798.1142,059003.000087,059003.000525,reject,9/5/2026,Correction of previous error. Iobs too small to explain Icalc.
+13013.49,059003.000339,059003.000400,accept,9/5/2026,manual with IDEN2; acceptabe Ritz mismatch after LOPT.
+11003.5322,059003.000552,059003.000481,accept,9/4/2026,Manual fix
+11765.6227,059003.000342,059003.000481,accept,9/4/2026,Manual fix
+12786.1747,059003.000335,059003.000480,accept,9/4/2026,Manual fix
+16007.8025,059003.000480,059003.000426,accept,9/4/2026,Manual fix
+17314.2806,059003.000476,059003.000426,accept,9/4/2026,Manual fix
+17425.1438,059003.000476,059003.000427,accept,9/4/2026,Manual fix
+94263.406,059003.000163,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+88054.993,059003.000180,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+84212.636,059003.000186,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+96306.091,059003.000155,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+95946.284,059003.000158,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+95038.792,059003.000160,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+95038.792,059003.000099,059003.000488,accept,9/5/2026,To stabilize; the blend is 50/45
+92858.977,059003.000175,059003.000623,accept,9/5/2026,"New level 000623, found in IDEN2"
+92858.977,059003.000062,059003.000353,accept,9/5/2026,To stabilize; this is the dominant component
+92858.977,059003.000106,059003.000397,accept,9/5/2026,To stabilize; this is the weakest component

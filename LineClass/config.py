@@ -49,9 +49,16 @@ _ENUMS = {
     'missing_gA.u_ln_estimator': ('rms', 'mean', 'median'),
 }
 
+# Keys the configuration file may leave out; they take the default written
+# into load() below.
+_OPTIONAL = {'files.level_overrides', 'files.line_decisions',
+             'files.new_levels', 'files.icalc_extra'}
+
 _SCHEMA = {
     'files': {'levels': str, 'lines': str, 'icalc': str,
-              'output': str, 'output_csv': str},
+              'output': str, 'output_csv': str, 'level_overrides': str,
+              'line_decisions': str, 'new_levels': str,
+              'icalc_extra': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -73,6 +80,8 @@ def _validate(node, schema, path=''):
     for key, expected in schema.items():
         full = path + key
         if key not in node:
+            if full in _OPTIONAL:
+                continue
             raise ConfigError(f"missing key '{full}'")
         val = node[key]
         if isinstance(expected, dict):
@@ -126,6 +135,10 @@ class Config:
     icalc_file: str           # workbook of the calculated transitions
     output_file: str          # output workbook
     output_csv: str           # the same table as csv
+    level_overrides: str      # csv of revised adopted energies, '' if none
+    line_decisions: str       # csv of manual accept/reject verdicts, '' if none
+    new_levels: str           # csv of levels found since the level list, '' if none
+    icalc_extra: str          # workbook of their calculated transitions, '' if none
     wn_min: float             # lower end of the observed range, cm^-1
     wn_max: float             # upper end of the observed range, cm^-1
     levels: Layout
@@ -161,6 +174,14 @@ def load(path: str = None) -> Config:
         icalc_file=_p('icalc'),
         output_file=_p('output'),
         output_csv=_p('output_csv'),
+        level_overrides=(_p('level_overrides')
+                         if raw['files'].get('level_overrides') else ''),
+        line_decisions=(_p('line_decisions')
+                        if raw['files'].get('line_decisions') else ''),
+        new_levels=(_p('new_levels')
+                    if raw['files'].get('new_levels') else ''),
+        icalc_extra=(_p('icalc_extra')
+                     if raw['files'].get('icalc_extra') else ''),
         wn_min=raw['range']['wn_min'],
         wn_max=raw['range']['wn_max'],
         levels=Layout(**raw['levels']['layout']),

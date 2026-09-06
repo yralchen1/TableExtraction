@@ -174,6 +174,22 @@ the whole wavelength range of the line list, and their degree is lowered until
 the polynomial no longer runs away over the stretched part, where no line holds
 it down.
 
+Two different measures of "runs away" are applied there, and both must pass:
+
+  --max-swing   how far P goes outside the band the region's own lines occupy
+                (their 1st to 99th percentile of dlnI).
+  --max-extrap  how far P MOVES, over the stretched part, away from the value
+                it takes at the outermost line that was actually fitted.
+
+The second is the one that bites at the ends of the spectrum.  The scatter of
+dlnI is a unit or two in natural logarithms - gA being a calculated quantity -
+so a curved fit can dive by two units past its last point and still sit inside
+the band that --max-swing compares it with.  That dive is not scatter: it is
+the same systematic factor applied to every corrected intensity out there.
+--max-extrap measures it directly and lowers the degree until it is small,
+which in practice means a straight line over an edge region, as it should be:
+where there are no lines there is nothing to justify a curve.
+
 
 5.  How outliers are removed
 ----------------------------
@@ -186,9 +202,9 @@ time, with the whole fit repeated after each:
   stage 2  BAD CALCULATED INTENSITIES.  gA comes from a calculation and has
            its own uncertainty, quoted in percent; in logarithms that
            uncertainty is u_ln = ln(1 + u/100), directly comparable with dlnI.
-           Among the lines with |dlnI| > --dln-cut (default 2, i.e. a factor
-           e^2 = 7.4 in either direction), those are dropped for which the
-           calculation is a sufficient explanation of the disagreement, namely
+           Among the lines with |dlnI| > the cut of this pass, those are
+           dropped for which the calculation is a sufficient explanation of
+           the disagreement, namely
            |dlnI| <= --u-sigma * u_ln (default 2 uncertainties).  Such lines
            say nothing about the plate.  A flat threshold on the uncertainty
            itself - "drop everything beyond the cut whose gA is uncertain by
@@ -201,6 +217,16 @@ time, with the whole fit repeated after each:
            The stage looks again after the fit has moved, up to --max-passes
            times, since a line can become an outlier only once the correction
            has changed shape.
+           THE CUT IS STAGED.  --dln-cut takes a list, by default 4 3 2: the
+           first pass condemns only lines beyond a factor e^4 = 55, the second
+           beyond e^3 = 20, and every later pass - and stages 3 and 4 - beyond
+           e^2 = 7.4.  The reason is that on the first pass the correction is
+           still the rough stage-1 one, and a line whose only fault is that it
+           sits where the correction has not yet found its shape would be
+           thrown out on the strength of an error the fit was about to
+           remove.  Loosening the early passes lets the shape settle first and
+           leaves the tight cut to judge lines against a correction that is
+           nearly final.  Give a single value for a fixed cut.
   stage 3  SELF-ABSORBED LINES.  A photon emitted deep in the source can be
            reabsorbed by an atom in the same lower level before it leaves,
            which makes the line look weaker than it is.  This bites hardest
@@ -651,20 +677,54 @@ def gap_blocks(x, gaps, log=None):
     return blocks
 
 
-def _tame(region, x, y, max_swing):
+def _extrapolation(region, x):
+    """How far P moves over the parts of a region beyond its outermost lines.
+
+    A region stretched to a gap edge or to the end of the spectrum is
+    evaluated where no line holds the polynomial down.  What matters there is
+    not how far P goes beyond the SCATTER of the region (that is swing, and a
+    region whose lines scatter by two units in ln can hide a two-unit
+    excursion inside it) but how far P MOVES away from the last value the
+    lines actually determined.  That distance is returned, in natural
+    logarithms; it is 0 for a region that is not stretched at all.
+    """
+    lo_fit, hi_fit = float(np.min(x)), float(np.max(x))
+    worst = 0.0
+    for edge, g in ((lo_fit, np.linspace(region.lo, lo_fit, 200)),
+                    (hi_fit, np.linspace(hi_fit, region.hi, 200))):
+        if g[-1] - g[0] <= 0:
+            continue
+        ref = float(region.poly(edge))
+        worst = max(worst, float(np.abs(region.poly(g) - ref).max()))
+    return worst
+
+
+def _tame(region, x, y, max_swing, max_extrap=float('inf')):
     """Lower the degree of a stretched region until it stops running away.
 
     A region whose end was pushed out to a gap edge or to the end of the
     spectrum is fitted over a wider interval than its lines cover, and a
     polynomial is held down only where there are points.  The degree is
-    lowered until the polynomial stays within max_swing of what its own lines
-    ask for over the whole stretched interval.
+    lowered until BOTH of the following hold over the whole stretched
+    interval:
+
+      * the polynomial stays within max_swing of what its own lines ask for
+        (the 1st to 99th percentile band of their dlnI), and
+      * it moves by no more than max_extrap away from the value it takes at
+        the outermost line of the region (see _extrapolation).
+
+    The second test is the one that matters at the ends of the spectrum.  The
+    first compares the polynomial with the SCATTER of the region, and where
+    that scatter is a unit or two in ln - which it is, gA being what it is -
+    an excursion of the same size passes it unnoticed even though it is a
+    systematic error in every corrected intensity out there, not scatter.
     """
     g = np.linspace(region.lo, region.hi, 400)
     while region.degree > 0:
         p = region.poly(g)
-        if max(p.max() - np.percentile(y, 99),
-               np.percentile(y, 1) - p.min()) <= max_swing:
+        within = max(p.max() - np.percentile(y, 99),
+                     np.percentile(y, 1) - p.min()) <= max_swing
+        if within and _extrapolation(region, x) <= max_extrap:
             break
         region.poly = _fit(x, y, region.degree - 1)[0]
         region.coef = np.asarray(region.poly.convert().coef, float)
@@ -712,7 +772,8 @@ def build_regions(lam, dln, opt, full_range=None, log=None):
         r_last.hi = (float(hi_edge) if hi_edge is not None
                      else max(r_last.hi, float(hi_end)) + 1e-6)
         for r, (a, b) in ((r_first, pieces[0][:2]), (r_last, pieces[-1][:2])):
-            _tame(r, xb[a:b], yb[a:b], opt.max_swing)
+            _tame(r, xb[a:b], yb[a:b], opt.max_swing,
+                  getattr(opt, 'max_extrap', float('inf')))
     if not regions:
         raise SystemExit('no lines left to fit the correction to')
     return regions
@@ -932,26 +993,38 @@ def run(opt, log):
     log('stage 1 - first correction, nothing removed (%d lines)' % use.sum())
     fit = calibrate(d, use, opt, opt.tol, log)
 
+    cuts = ([float(c) for c in opt.dln_cut]
+            if isinstance(opt.dln_cut, (list, tuple)) else [float(opt.dln_cut)])
+    final_cut = cuts[-1]
+
+    def cut_of(npass):
+        return cuts[min(npass, len(cuts)) - 1]
+
     log('')
+    sched = ('|dlnI| > %s in successive passes' % ', '.join('%.2f' % c for c in cuts)
+             if len(cuts) > 1 else '|dlnI| > %.2f' % final_cut)
     if opt.u_rule == 'percent':
-        log('stage 2 - dropping lines with |dlnI| > %.2f whose calculated gA '
-            'is uncertain by more than %.0f%%' % (opt.dln_cut, opt.u_cut))
+        log('stage 2 - dropping lines with %s whose calculated gA '
+            'is uncertain by more than %.0f%%' % (sched, opt.u_cut))
     else:
-        log('stage 2 - dropping lines with |dlnI| > %.2f whose disagreement '
+        log('stage 2 - dropping lines with %s whose disagreement '
             'is within %.1f uncertainties of their own calculated gA'
-            % (opt.dln_cut, opt.u_sigma))
+            % (sched, opt.u_sigma))
     for npass in range(1, opt.max_passes + 1):
-        beyond = use & (np.abs(fit.dln) > opt.dln_cut)
+        cut = cut_of(npass)
+        beyond = use & (np.abs(fit.dln) > cut)
         u_ln = np.log1p(d['u'] / 100.0)          # gA uncertainty in logarithms
         by_pct = beyond & (d['u'] > opt.u_cut)
         by_sig = beyond & (np.abs(fit.dln) <= opt.u_sigma * u_ln)
         bad = by_pct if opt.u_rule == 'percent' else by_sig
-        log('    pass %d: %d lines beyond the cut; the percentage rule would '
-            'drop %d of them, the uncertainty rule %d; %d dropped'
-            % (npass, int(beyond.sum()), int(by_pct.sum()), int(by_sig.sum()),
-               int(bad.sum())))
-        if not bad.any():
+        log('    pass %d (cut %.2f): %d lines beyond it; the percentage rule '
+            'would drop %d of them, the uncertainty rule %d; %d dropped'
+            % (npass, cut, int(beyond.sum()), int(by_pct.sum()),
+               int(by_sig.sum()), int(bad.sum())))
+        if not bad.any() and cut == final_cut:
             break
+        if not bad.any():
+            continue
         use &= ~bad
         dropped[bad] = 2
         fit = calibrate(d, use, opt, opt.tol, log)
@@ -961,13 +1034,13 @@ def run(opt, log):
         'or below %.0f cm^-1 (self-absorption)' % opt.self_abs_elow)
     log('    lines still too weak by more than the cut, by the energy of the '
         'level they end on:')
-    weak = use & (fit.dln > opt.dln_cut)
+    weak = use & (fit.dln > final_cut)
     for e in (0.0, 1000.0, 2000.0, 5000.0, 10000.0):
         log('        lower level <= %6.0f cm^-1 : %4d of the %d such lines '
             'are that weak' % (e, int((weak & (d['Elow'] <= e)).sum()),
                                int((use & (d['Elow'] <= e)).sum())))
     for npass in range(1, opt.max_passes + 1):
-        sa = use & (fit.dln > opt.dln_cut) & (d['Elow'] <= opt.self_abs_elow)
+        sa = use & (fit.dln > final_cut) & (d['Elow'] <= opt.self_abs_elow)
         log('    pass %d: %d lines dropped as self-absorbed' % (npass, int(sa.sum())))
         if not sa.any():
             break
@@ -976,8 +1049,8 @@ def run(opt, log):
         fit = calibrate(d, use, opt, opt.tol, log)
 
     log('')
-    log('stage 4 - what is left beyond |dlnI| > %.2f' % opt.dln_cut)
-    out = use & (np.abs(fit.dln) > opt.dln_cut)
+    log('stage 4 - what is left beyond |dlnI| > %.2f' % final_cut)
+    out = use & (np.abs(fit.dln) > final_cut)
     reg = region_of(fit.regions, d['lam'])
     safe = True
     for k, r in enumerate(fit.regions):
@@ -1204,8 +1277,18 @@ def parse_args(argv):
     g.add_argument('--tol-final', type=float, default=0.002,
                    help='the same, for the final iteration')
     g.add_argument('--max-rounds', type=int, default=25)
-    g.add_argument('--dln-cut', type=float, default=2.0,
-                   help='|ln(Icalc/Iobs)| beyond which a line is an outlier')
+    g.add_argument('--dln-cut', type=float, nargs='+', default=[4.0, 3.0, 2.0],
+                   metavar='CUT',
+                   help='|ln(Icalc/Iobs)| beyond which a line is an '
+                        'outlier.  Several values are a SCHEDULE, one '
+                        'per pass of stage 2: the first pass uses the '
+                        'first, the second the second, and every later '
+                        'pass and stages 3 and 4 use the last.  The '
+                        'default 4 3 2 removes only the wildest lines '
+                        'while the correction is still rough and '
+                        'tightens as it settles, so that a line is not '
+                        'condemned by a shape the fit has not found '
+                        'yet.  Give one value for a fixed cut.')
     g.add_argument('--u-rule', choices=('percent', 'sigma'), default='percent',
                    help="which outliers are blamed on the calculated gA: "
                         "'sigma' drops those whose |dlnI| is no larger than "
@@ -1218,13 +1301,24 @@ def parse_args(argv):
                         'being a sufficient explanation')
     g.add_argument('--u-cut', type=float, default=50.0,
                    help="uncertainty of gA, in percent, for --u-rule percent")
-    g.add_argument('--max-passes', type=int, default=4,
+    g.add_argument('--max-passes', type=int, default=6,
                    help='how many times a removal stage may look again after '
                         'the fit has moved')
     g.add_argument('--self-abs-elow', type=float, default=0.0,
                    help='lower-level energy, cm^-1, at or below which a '
                         'too-weak line is taken to be self-absorbed; 0 means '
                         'the ground level only (resonance lines)')
+    g.add_argument('--max-extrap', type=float, default=0.5,
+                   help='how far P may move, in natural logarithms, '
+                        'over the part of a region that reaches '
+                        'beyond its outermost line - a gap edge, or '
+                        'the end of the spectrum.  Out there nothing '
+                        'holds the polynomial down, so a curved fit '
+                        'is free to dive or climb; the degree is '
+                        'lowered until it does not.  0.5 in ln is a '
+                        'factor 1.6 in intensity.  Use inf to switch '
+                        'the test off and keep the older behaviour, '
+                        'which policed only --max-swing.')
     g.add_argument('--max-swing', type=float, default=1.0,
                    help='how far, in natural logarithms, a fitted polynomial '
                         'may go beyond what the lines of its own region ask '

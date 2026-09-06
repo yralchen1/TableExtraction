@@ -11,6 +11,8 @@ class EnergyLevel:
     J_val: float
     is_new: int = 0                        # 1 = level absent from ASD (found by Wyart), 0 = previously known
     is_decoy: int = 0                      # 1 = decoy (shadow) copy used for false-positive calibration
+    is_added: int = 0                      # 1 = level found since the adopted level list was published,
+                                           #     read from files.new_levels rather than from the workbook
     intens_from_factor: float = 0.0        # weighted mean of ln(I_obs/I_calc) for transitions FROM this level (upper)
     u_intens_from_factor: float = 0.0      # uncertainty (chi²-inflated)
     intens_to_factor: float = 0.0          # same, for transitions TO this level (lower)
@@ -33,6 +35,11 @@ class SpectralLine:
     line_character: str
     assigned_transitions: List['Transition'] = field(default_factory=list)
     original_assignments: List['Transition'] = field(default_factory=list)
+    decisions: Dict[tuple, tuple] = field(default_factory=dict)
+    # The manual verdicts on this line, (lower_id, upper_id) ->
+    # ('accept'|'reject', reason), read from the decision ledger by
+    # classify_lines.attach_line_decisions().  Empty unless the ledger names
+    # this line.
 
 
 @dataclass
@@ -50,6 +57,8 @@ class Transition:
     accepted: Optional[int] = None            # 1 = accepted, 0 = rejected, None = undecided
     orig_calc_intensity: Optional[float] = None   # original I_calc from input, never modified
     orig_u_calc: Optional[float] = None           # original u_calc from input, never modified
+    manual: str = ""                          # 'accept' / 'reject' if the decision ledger rules on
+                                              #     this assignment, '' if it does not
     is_imputed: int = 0                       # 1 = the pair is absent from the calculated-transition
                                               #     file, so its intensity was imputed from the
                                               #     printing cutoff of gA (see gA_imputation.py);

@@ -68,6 +68,8 @@ coverage.xml
 # ========================================
 # Output files (generated extraction results)
 output/
+# Auxiliary files not for distribution
+*.pdf
 
 # Excel lock files
 ~$*.xlsx

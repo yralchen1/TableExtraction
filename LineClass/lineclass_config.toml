@@ -13,6 +13,41 @@ lines      = "Pr3_lines.xlsx"                              # observed spectral l
 icalc      = "Icalc.xlsx"                                  # calculated transitions
 output     = "line_classifications.xlsx"                   # main output workbook
 output_csv = "line_classifications.csv"                    # the same table as csv
+# Revised adopted energies (columns level_id, E_input, and a free comment
+# column recording where each value comes from).  A level listed here is read
+# at that energy instead of the one in the levels workbook, which is an
+# external published list and is never edited.  This is how a level that the
+# identification work has re-positioned enters the pipeline: its candidate
+# transitions are generated at the new energy, decoy_mc.py plants its decoys
+# around the new energy, and level_shifts.py measures dE from it.  Comment the
+# line out to run on Wyart's energies unchanged.
+level_overrides = "revised_level_energies.csv"
+# The decision ledger (columns wn_obs, low_id, upp_id, decision, and the free
+# columns date and reason).  Each row is a verdict reached by hand - in IDEN2,
+# or in a trial LOPT run - on one assignment of one observed line: "accept" or
+# "reject".  It is applied after every automatic step, so it has the last word
+# on the assignments it names, and only assignments it does not name can move
+# between two runs.  Chance-coincidence and decoy runs ignore it: they measure
+# what the algorithm alone does.  Comment the line out to see the unaided
+# classification.
+line_decisions = "line_decisions.csv"
+# Levels identified since the adopted level list was published (columns
+# level_id, E, J, parity, and a free comment).  A level found in IDEN2 does
+# not exist in any input file: it has no row in the level workbook and no
+# calculated transitions in Icalc.xlsx, so nothing in the pipeline could ever
+# propose a line for it.  These two files are how it enters, and they are the
+# exact analogue of revised_level_energies.csv - small csv/xlsx files under
+# the analyst's hand, added to inputs that are never edited.  The level id is
+# the next one free: the last six digits of the largest id in use, plus one.
+new_levels = "new_levels.csv"
+# The calculated transitions of those levels, in the layout of Icalc.xlsx.
+# Only the pairs involving a new level need be listed; the full calculated
+# table for the whole ion is far too large to carry, and every pair absent
+# from both files is treated by the completeness rule exactly as before (gA
+# below the printing cutoff of Cowan's codes).  The Icalc column is RECOMPUTED
+# from gA with the C and kT of [intensity_model] on reading, so that these
+# rows sit on the same intensity scale as Icalc.xlsx however they were made.
+icalc_extra = "icalc_new.xlsx"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions
@@ -162,8 +197,8 @@ fit_range_decades = [3.0, 6.0]  # log10(gA) range used by that fit
 #                            now jumps by exp(3.45) at the first gap and
 #                            exp(6.76) at the second.  Accepted
 #                            identifications: 4874 -> 4891 (2026-08-31).
-C  = 268.526879
-kT = 12241.809476
+C  = 269.979733
+kT = 12233.068631
 # Warn if a re-fit on the file disagrees with C or kT by more than this
 # fraction, instead of silently adopting the new values.
 verify_tolerance = 0.01

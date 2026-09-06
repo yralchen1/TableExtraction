@@ -242,3 +242,47 @@ def test_restore_undoes_a_correction(tmp_path):
     opt = cal.parse_args(['--restore-from', path])
     got = cal.restore_originals(d, opt, lambda m: None)
     assert np.allclose(got, original)
+
+
+# ---------------------------------------------------------------------------
+# the edge of the spectrum: extrapolation
+# ---------------------------------------------------------------------------
+
+
+def test_extrapolation_is_measured_from_the_outermost_fitted_point():
+    """_extrapolation reports how far P moves past the last line, not the scatter."""
+    x = np.linspace(1000.0, 2000.0, 50)
+    poly = np.polynomial.Polynomial.fit(x, 1e-6 * (x - 1500.0) ** 2, 2)
+    r = cal.Region(1000.0, 2000.0, poly)
+    assert cal._extrapolation(r, x) == pytest.approx(0.0, abs=1e-9)
+    r_stretched = cal.Region(500.0, 2000.0, poly)
+    moved = cal._extrapolation(r_stretched, x)
+    assert moved == pytest.approx(abs(poly(500.0) - poly(1000.0)), rel=1e-6)
+    assert moved > 0.5
+
+
+def test_a_stretched_region_is_flattened_until_it_stops_moving():
+    """The degree of a stretched region falls until --max-extrap is satisfied.
+
+    The points say "a parabola"; the region has to cover far more than they
+    span, and out there the parabola climbs steeply.  With the guard on, the
+    degree must come down; with it off, the parabola survives - which is the
+    behaviour that let a cubic dive by three units below 900 A.
+    """
+    x = np.linspace(1000.0, 2000.0, 60)
+    y = 1e-6 * (x - 2000.0) ** 2
+    poly, _ = cal._fit(x, y, 2)
+    for max_extrap, expect in ((0.1, 1), (float('inf'), 2)):
+        r = cal.Region(200.0, 2000.0, poly, len(x))
+        cal._tame(r, x, y, max_swing=10.0, max_extrap=max_extrap)
+        assert r.degree <= expect
+    r = cal.Region(200.0, 2000.0, poly, len(x))
+    cal._tame(r, x, y, max_swing=10.0, max_extrap=0.1)
+    assert cal._extrapolation(r, x) <= 0.1 + 1e-9
+
+
+def test_the_outlier_cut_is_a_schedule_by_default():
+    """--dln-cut takes a list; one value still means a fixed cut."""
+    assert cal.parse_args(['--no-gaps']).dln_cut == [4.0, 3.0, 2.0]
+    assert cal.parse_args(['--no-gaps', '--dln-cut', '2']).dln_cut == [2.0]
+    assert cal.parse_args(['--no-gaps', '--dln-cut', '5', '2']).dln_cut == [5.0, 2.0]

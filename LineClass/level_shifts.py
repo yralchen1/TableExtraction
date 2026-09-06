@@ -556,11 +556,33 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
     predicted intensity is present, and the Ritz wavenumber (from the final
     optimized energies) lies inside the observed range [WN_MIN, WN_MAX].
     Returns a DataFrame with columns lo_id, up_id, I_pred.
+
+    The supplementary file files.icalc_extra is read after the main one, so
+    that a level added by files.new_levels has predicted transitions here too.
+    Without it such a level would arrive at the intensity-pattern test with no
+    predictions at all, and the test - which asks how much of what theory
+    expects to see was in fact found - would return nothing for precisely the
+    level whose reality is least established.  Its Icalc is recomputed from gA
+    for the same reason as in classify_lines.read_extra_transitions(): the
+    column of that file is not rewritten when C and kT move.
     """
     import openpyxl
-    wb = openpyxl.load_workbook(cl.ICALC_FILE, read_only=True, data_only=True)
+    rows = []
+    files = [(cl.ICALC_FILE, False)]
+    if getattr(cl, 'ICALC_EXTRA', ''):
+        files.append((cl.ICALC_EXTRA, True))
+    for path, recompute in files:
+        rows.extend(_read_predictions(path, level_ids, e_final, recompute))
+    return pd.DataFrame(rows, columns=['lo_id', 'up_id', 'I_pred'])
+
+
+def _read_predictions(path, level_ids, e_final, recompute):
+    import openpyxl
+    C = float(cl.CFG.intensity_model['C'])
+    kT = float(cl.CFG.intensity_model['kT'])
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = wb[cl.CFG.icalc.sheet]
-    col = cl.column_index(ws, cl.CFG.icalc, cl.ICALC_FILE)
+    col = cl.column_index(ws, cl.CFG.icalc, path)
     rows = []
     for row in ws.iter_rows(min_row=2):
         id1 = cl.to_str_id(row[col['id1']].value)  # lower level
@@ -571,7 +593,12 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
         if id1 not in level_ids or id2 not in level_ids:
             continue
         try:
-            i_pred = float(icalc)
+            if recompute:
+                i_pred = (C * float(row[col['gA']].value)
+                          * (float(row[col['rwn']].value) / 1e8)
+                          * math.exp(-float(row[col['Eup']].value) / kT))
+            else:
+                i_pred = float(icalc)
         except (TypeError, ValueError):
             continue
         if i_pred <= 0:
@@ -581,7 +608,7 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
             continue
         rows.append((id1, id2, i_pred))
     wb.close()
-    return pd.DataFrame(rows, columns=['lo_id', 'up_id', 'I_pred'])
+    return rows
 
 
 def pattern_scores(level_ids, accepted_pairs: set, preds: pd.DataFrame) -> dict:
@@ -796,13 +823,13 @@ def read_energy_overrides(path: str, levels: pd.DataFrame) -> pd.DataFrame:
     for, so for a level deliberately re-positioned the starting energy is the
     new hypothesised one, not the value in the adopted-level workbook.  Levels
     absent from the file keep their workbook energy.
+
+    Once the same file is declared as files.level_overrides in the
+    configuration, chance_mc.read_input_levels() has already applied it and
+    --e-input only repeats the substitution (and prints it); it is then the
+    way to test a position that is NOT the adopted one.
     """
-    ov = pd.read_csv(path, dtype={'level_id': str})
-    missing = [c for c in ('level_id', 'E_input') if c not in ov.columns]
-    if missing:
-        raise ValueError(f"{os.path.basename(path)}: missing column(s) "
-                         f"{', '.join(missing)}")
-    emap = dict(zip(ov['level_id'].astype(str), ov['E_input'].astype(float)))
+    emap = cl.read_energy_overrides(path)
     known = set(levels['level_id'])
     unknown = sorted(set(emap) - known)
     if unknown:
