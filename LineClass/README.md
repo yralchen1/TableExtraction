@@ -25,7 +25,7 @@ Given these data for observed lines and energy levels, the pipeline performs the
 
 The output is a classification table ready to be fed to the **LOPT** level-optimization program.
 
-The classification is accompanied by a **statistical validation suite** (`decoy_mc.py`, `level_shifts.py`, with shared utilities in `chance_mc.py`) that measures how often the pipeline would confirm a level that is *not* real, and assigns to every tested level a probability of being spurious. See **Validation of the classification** below.
+The classification is accompanied by a **statistical validation suite** (`decoy_mc.py`, `level_shifts.py`, `level_interchange.py`, with shared utilities in `chance_mc.py`) that measures how often the pipeline would confirm a level that is *not* real, assigns to every tested level a probability of being spurious, and looks for pairs of levels whose theoretical identities may have been interchanged. See **Validation of the classification** below.
 
 This module is the deterministic successor to the LLM-based post-processing that previously followed the [`TableExtraction`](../TableExtraction/README.md) OCR pipeline. It shares one input file (the Wyart 1999 energy levels) with `TableExtraction`.
 
@@ -102,6 +102,7 @@ The validation scripts are run from the same directory:
 python decoy_mc.py             # decoy runs (add --smoke for a quick plumbing test)
 python level_shifts.py         # the validation report and level_shift_report.csv/.xlsx
 python level_shifts.py --detail 059003.000483   # inspect one level in depth
+python level_interchange.py    # interchanged theoretical identities
 python chance_mc.py            # optional: shifted-wavenumber cross-check runs
 ```
 
@@ -1523,7 +1524,7 @@ identifications and the same energy shift.
 
 ---
 
-## Validation of the classification (`decoy_mc.py`, `level_shifts.py`)
+## Validation of the classification (`decoy_mc.py`, `level_shifts.py`, `level_interchange.py`)
 
 ### The problem
 
@@ -1660,12 +1661,158 @@ approximation is that the null was measured in an environment where the pipeline
 assignments consumed the observed lines; a revision that changes a handful of the ~4900
 accepted lines changes that environment by well under a percent.
 
+### Interchanged identities: `level_interchange.py`
+
+Every level here carries two things established separately. Its **energy** is a number in
+cm⁻¹ measured from the observed lines and fixed by the least-squares optimization to about
+a hundredth of a cm⁻¹. Its **theoretical identity** — which level of the Cowan-code
+calculation it is — is a label (a configuration such as `4f².5d` and a term such as `³H`),
+and that label carries with it the whole set of calculated transition probabilities *gA*
+of the level, i.e. the predicted intensity of every line it can emit. The predictions live
+in `Icalc.xlsx` keyed by level id; the label itself lives in IDEN2's `enlev.dat`.
+
+The identity is assigned by matching the observed energy to a calculated one, and the
+calculated energies of Pr III are not accurate. **How inaccurate depends strongly on the
+configuration.** Over the levels whose energies are experimentally known, the rms of
+`E_obs − E_calc` runs from 22 cm⁻¹ for `4f².5g` to 404 cm⁻¹ for `4f.5d.6p`:
+
+| config | levels | rms (cm⁻¹) | max ǀO−Cǀ | | config | levels | rms (cm⁻¹) | max ǀO−Cǀ |
+|---|---:|---:|---:|---|---|---:|---:|---:|
+| `fd6p` | 9 | 404.2 | 827.4 | | `f27d` | 5 | 87.9 | 122.3 |
+| `f5d2` | 66 | 207.6 | 623.8 | | `f28s` | 8 | 74.5 | 125.6 |
+| `f5d6s` | 19 | 184.1 | 607.5 | | `f26d` | 45 | 61.0 | 152.5 |
+| `f25d` | 105 | 147.8 | 532.8 | | `f27s` | 12 | 58.6 | 88.0 |
+| `f26p` | 62 | 114.3 | 287.2 | | `f26f` | 23 | 45.4 | 93.2 |
+| `f25f` | 117 | 104.2 | 362.4 | | `f27p` | 15 | 32.2 | 68.6 |
+| `f26s` | 22 | 98.6 | 207.5 | | `f25g` | 45 | 22.2 | 60.0 |
+| `4f3` | 40 | 97.3 | 234.0 | | | | | |
+
+(`enlev.dat`'s own abbreviations: `f25g` = 4f².5g, `fd6p` = 4f.5d.6p, `f5d6s` = 4f.5d.6s.)
+
+Wherever two calculated levels of the **same parity** and the **same J** lie closer
+together than that error, the energy match cannot tell which is which, and the two
+identities may have been **interchanged**: level A wears B's label and B's *gA* values, and
+B wears A's.
+
+**Why no other test sees it.** Under an interchange the energies stay right — they were
+measured from the lines, and no line moves — so ΔE says nothing at all. What breaks is the
+intensities: each level is judged against the branching pattern of the other.
+`level_shifts.py` sees that only through `pattern_V`, one ingredient of a folded
+probability, and a level can keep a small `p_spur` with a bad pattern.
+
+#### The test
+
+For a candidate pair (A, B) nothing moves; only which set of *gA* values belongs to which
+level is exchanged. Under the two hypotheses — **assigned** (A keeps A's *gA*, B keeps B's)
+and **swapped** (A is scored against B's *gA*, B against A's) — every accepted line of both
+levels is given the intensity that hypothesis predicts for it,
+
+```
+I_calc = C · gA(identity, partner) · (wn/1e8) · exp(−E_up/kT)
+```
+
+with the observed wavenumber and the observed upper-level energy of the line — both
+untouched by the swap — and the pipeline's own `C` and `kT`. A level pair absent from
+`Icalc.xlsx` gets the imputed *gA* of `gA_imputation.py` (175.8 s⁻¹ here), so a hypothesis
+that predicts nothing where a strong line is observed is penalized rather than excused.
+
+Two numbers compare the hypotheses.
+
+- **The slope.** `ln(I_obs)` fitted against `ln(I_calc)` by least squares, per level. A
+  correct identity gives a slope near 1; a wrong one gives a slope near 0, because the
+  predicted pattern then carries no information about the observed one. All four slopes
+  are reported (each level under each hypothesis).
+- **The likelihood ratio**, which decides. The slope ignores the *scale* — predictions ten
+  times too large can still have slope 1. Under a correct identity the residual
+  `r = ln(I_obs) − ln(I_calc · f(λ))` is centred on zero with a known spread, where `f` and
+  the spread are the band scale factor and the sd of `ln(I_obs/I_pred)` that
+  `level_shifts.intensity_scale_bias` measures on the same run (this is what removes the
+  far-ultraviolet scale error of the calculated intensities). Summing `−r²/(2·sd²)` over
+  both levels' lines under each hypothesis gives
+
+  ```
+  lnR = ln L(assigned) − ln L(swapped)
+  ```
+
+  positive when the assignment fits better, negative when the swap does. It is a difference
+  of two fits to the *same* observed intensities, so the plate calibration, the Boltzmann
+  factor and the observed scale all cancel. `lnR_A` and `lnR_B` split it into the two
+  levels' own contributions: a genuine interchange should improve **both** sides, whereas a
+  large gain on one level alone says that level's label is wrong while the other's true
+  identity may be a third level — possibly one not yet observed, which this test cannot
+  reach.
+
+**The search window.** A pair is a candidate when its separation is at most `--window`
+(default 1.0) times the larger of the two levels' configuration rms above — the error of
+the calculated energies *there*, not a global number. The report also gives how far the
+swap would move each level from its **new** calculated position, in units of that same rms
+(`omc_swap_A_sigma`, `omc_swap_B_sigma`): a swap that leaves both within about one rms is
+energetically as good as the assignment; one that pushes a level to three rms is not,
+whatever the intensities say.
+
+**How large an `lnR` is large.** It is calibrated the way the rest of this validation
+calibrates everything — against swaps that are false by construction. Every same-parity,
+same-J pair separated by *more* than the window but less than `--null-window` (default 10)
+times the rms gets the same `lnR`; those levels are still in the same part of the spectrum,
+so their *gA* values are of comparable magnitude, but the energies rule the swap out. Each
+candidate's `p_null` is the fraction of that sample lying at or below its own `lnR`.
+
+#### The run of 2026-09-05
+
+594 levels, 593 of them matched to a labelled level of `enlev.dat` by energy (the exception
+is `059003.000623`, which has no calculated counterpart; it still takes part, borrowing its
+partner's window). **18 candidate pairs**, against **394 calibration swaps** whose `lnR` has
+median +81, 5th percentile +16, 1st percentile +2.8 — only **3 of 394 (0.8%)** favour the
+swap at all, which is this test's rate of accidental preference. Applying the whole
+flagging rule to those false swaps flags **0.25%** of them, so among 18 candidates
+**0.05 false flags** are expected.
+
+Two pairs are flagged (`lnR` < 0, both slopes nearer 1 under the swap, `p_null` ≤ 0.05):
+
+| A | B | J, par | sep (cm⁻¹) | window | slopes A | slopes B | rms | `lnR` | `p_null` |
+|---|---|---|---:|---:|---|---|---|---:|---:|
+| `059003.000483` `f25f ~3F2F` | `059003.000398` `f25f ~3F4D` | 5/2 o | 93.5 | 104.2 | +0.55 → +0.60 | +0.34 → +0.54 | 2.37 → 1.83 | −17.3 | 0.003 |
+| `059003.000447` `f26p ~3P2D` | `059003.000298` `f5d6s ~3F4F` | 3/2 o | 139.4 | 184.1 | +0.49 → +0.60 | +0.30 → +0.34 | 1.62 → 1.38 | −3.5 | 0.008 |
+
+The first is the stronger case by an order of magnitude, and it corroborates independently:
+`059003.000483` is the tested level with the **largest** energy shift of the whole run
+(ΔE = +0.77 cm⁻¹, `d` = +10.7, top of the `level_shifts.py` worst-shift list), and the swap
+would leave both levels within 1.1 and 1.4 rms of their calculated positions. Its
+line-by-line table (`--detail`) shows the reason plainly: for `059003.000398`,
+`ln(I_obs/I_calc)` runs +4.11, +2.72, +3.50, +4.03 as assigned and +0.46, −0.93, +0.05,
++0.17 under the swap.
+
+`059003.000572` — the `4f.5d.6p` level with the worst `pattern_V` of the run, the case that
+motivated this tool — appears among the 18 candidates twice (paired with `059003.000419`
+and with `059003.000573`) and is **not** flagged: `lnR` = +24.6 and +37.3, and either swap
+would push it to 4.9 or 4.4 rms of its calculated position. Its bad pattern is therefore
+not an interchange with an observed neighbour. That leaves the two possibilities this test
+cannot separate: its true partner is a calculated level not yet found experimentally, or
+the `4f.5d.6p` eigenvectors are simply too poor there to predict branching at all.
+
+A flag asks for a look in IDEN2; it does not relabel a level. Relabelling changes no energy
+and no identification — only which theoretical level the published table names — so it is a
+decision for the analyst, taken with the term structure and *g*-factors in hand.
+
+#### Usage
+
+```
+python level_interchange.py                       # the report, over the pipeline run
+python level_interchange.py --lopt LOPT_output_lines_revised.txt --e-input revised_level_energies.csv
+python level_interchange.py --detail 059003.000483 059003.000398
+python level_interchange.py --window 1.5 --min-lines 2
+```
+
+`--detail` prints the two levels' accepted lines with the intensity each hypothesis
+predicts for each — the table to read before accepting or dismissing a flag. Output:
+`level_interchange.csv` (+ `.xlsx` twin), one row per candidate pair.
+
 ### Limits of the validation (to be stated alongside the results)
 
 - **Recovery, not physical proof.** A small ΔE certifies that the accepted lines reproduce the energy encoded in Wyart's input value — i.e. that his identifications were recovered. If Wyart himself was misled by chance coincidences, our run re-finds the same coincidences with a small ΔE; only the intensity pattern (and physics arguments: theory, g-factors, term structure) can catch that case.
 - **Theory-fault sensitivity.** A bad pattern score can mean a spurious level *or* a level whose theoretical description is wrong; levels whose accepted lines are mostly uncovered by theory (intensity grade `G`) get weak-quality pattern verdicts. In the converged run all 5 marked levels do have observable predictions (in earlier runs a sizeable part of them did not, and there `p_spur` rests on the energy shift and the support count alone). A related caution: for a few marked levels every observable prediction lies within a factor ~3 of the local noise — there a bad pattern score means little, because the predicted intensities themselves scatter by a factor ~2.5 against the observed ones.
 - **Decoys can accidentally be real.** A displaced decoy may land on a real, previously unknown level (most likely a neighboring-J member of the same term at high energies) or on the true position of a level misassigned in the underlying Cowan-code fit. Both effects make some decoy "false positives" actually real, so the decoy-based false rates are slight overestimates — the bias is in the safe direction. The fraction of supported decoy trials showing three or more of their top-10 predictions accepted (~6%) is an upper bound on this contamination.
-- **A bad intensity pattern can be hidden by the folding.** `p_spur` folds the energy-shift evidence with the pattern evidence, and a level whose strongest predicted branch is *masked* by a nearby stronger line has that half of the pattern evidence withdrawn — correctly, since a masked branch says nothing. But a level can then keep a very poor pattern score and still come out with a small `p_spur` and no questionable mark. In the run of 2026-09-05 the worst intensity pattern of all 208 tested levels belongs to `059003.000572` (`pattern_V` = 0.122, 4 of its top 10 predictions accepted), which carries `p_spur` = 0.033 and is not marked; its configuration, `4f.5d.6p`, is the one whose calculated positions deviate most from the observed ones in the Cowan-code fit, so a misidentification of the level with the wrong theoretical partner is exactly what one would expect there. **`pattern_V` is worth reading directly, not only through `p_spur`.** Detecting the specific failure — two levels of the same parity and `J`, close in energy, whose sets of observed lines have been interchanged — needs a tool that does not yet exist: one that refits `ln(I_obs)` against `ln(I_calc)` for the pair as assigned and again under the swapped assumption, and prefers the interpretation whose slopes are consistently nearer 1. The energy window for such a search should come from the rms of `E_obs − E_calc` of the level's own dominant configuration, not from a global number.
+- **A bad intensity pattern can be hidden by the folding.** `p_spur` folds the energy-shift evidence with the pattern evidence, and a level whose strongest predicted branch is *masked* by a nearby stronger line has that half of the pattern evidence withdrawn — correctly, since a masked branch says nothing. But a level can then keep a very poor pattern score and still come out with a small `p_spur` and no questionable mark. In the run of 2026-09-05 the worst intensity pattern of all 208 tested levels belongs to `059003.000572` (`pattern_V` = 0.122, 4 of its top 10 predictions accepted), which carries `p_spur` = 0.033 and is not marked; its configuration, `4f.5d.6p`, is the one whose calculated positions deviate most from the observed ones in the Cowan-code fit, so a misidentification of the level with the wrong theoretical partner is exactly what one would expect there. **`pattern_V` is worth reading directly, not only through `p_spur`.** The specific failure — two levels of the same parity and `J`, close in energy, whose theoretical identities have been interchanged — is what `level_interchange.py` looks for (next section); it is a separate test because an interchange leaves every energy right and so is invisible to ΔE.
 - **Lines omitted as blends with other ionization stages.** Sugar assigned lines to Pr II, III, or IV by comparing exposures at different degrees of excitation; a Pr III line nearly coinciding with a stronger Pr II or Pr IV line could not be assigned confidently and was omitted from his Pr III list. Such omissions are invisible to the masking check (the search covers only Sugar's Pr III lines), so some "missing" strong predictions are excusable in a way the automation cannot see. Statistically the effect is absorbed — the old (genuine) reference levels suffer the same omissions, so the pattern-score comparison between the classes stays fair — but the per-level adjudication is conservative: a questionable mark that an expert would clear on this ground stays retained. Automating this excuse would require Pr II and Pr IV line lists.
 
 ### Excel-friendly output files
@@ -1679,6 +1826,7 @@ python classify_lines.py     # 1. the real classification → line_classificatio
 python decoy_mc.py           # 2. eight decoy runs → decoy_mc_*.csv/.xlsx
 python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → chance_mc_*.csv/.xlsx
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
+python level_interchange.py  # 5. interchanged identities → level_interchange.csv/.xlsx
 ```
 
 When the **observed intensities** have to be recalibrated — a new intensity column, or a
@@ -1710,7 +1858,7 @@ The first three accept `--missing-gA {none,impute}`, which overrides `missing_gA
 the configuration file. Steps 1 and 2 must be run under the **same** policy, since step 2
 calibrates step 1.
 
-Step 2 reads the baseline output of step 1 (to define the tested levels and the perturbation reference), so the order matters. Each full validation run takes a few minutes.
+Step 2 reads the baseline output of step 1 (to define the tested levels and the perturbation reference), so the order matters. Each full validation run takes a few minutes. Step 5 needs only step 1 and `IDEN2/enlev.dat` — it uses no decoys — and takes a few seconds; it accepts the same `--lopt` / `--e-input` switches as step 4.
 
 ---
 
@@ -1764,6 +1912,8 @@ LineClass/
 ├── models.py                     # Dataclasses: EnergyLevel, SpectralLine, Transition, UNASSIGNED
 ├── decoy_mc.py                   # Validation: decoy (shadow-level) runs → false-confirmation rates in situ
 ├── level_shifts.py               # Validation: calibrations, criterion grids, pattern scores, p_spur; --detail mode
+├── level_interchange.py          # Validation: are two levels of one parity and J wearing each
+│                                 #   other's calculated intensities?  --detail mode
 ├── chance_mc.py                  # Shared utilities (read_input_levels, per_level_table, save_table,
 │                                 #   apply_policy_option); run directly for the optional
 │                                 #   shifted-wavenumber cross-check
