@@ -103,6 +103,10 @@ python decoy_mc.py             # decoy runs (add --smoke for a quick plumbing te
 python level_shifts.py         # the validation report and level_shift_report.csv/.xlsx
 python level_shifts.py --detail 059003.000483   # inspect one level in depth
 python level_interchange.py    # interchanged theoretical identities
+python swap_line_assignments.py id1 id2        # repair one: all three files below at once
+python swap_line_assignments_LOPT.py id1 id2   #   the LOPT transitions file
+python swap_line_assignments_IDEN.py id1 id2   #   the IDEN2 working files
+python swap_line_assignments_pipeline.py id1 id2  #   the overlay the pipeline reads
 python chance_mc.py            # optional: shifted-wavenumber cross-check runs
 ```
 
@@ -1562,7 +1566,7 @@ Running `python level_shifts.py` produces the full analysis:
 
 1. **Old-level calibration** — the |ΔE| percentiles quoted above, and the per-support behavior of d.
 2. **Criterion grids** — for every combination of `N` (minimum number of supporting lines) and `T` (largest allowed |ΔE|), the number of tested levels passing the cut `n ≥ N and |ΔE| ≤ T` against the expected number of false passes (decoy calibration, and the shifted-wavenumber upper bound).
-3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). A third correction enters that comparison. `Icalc` is meant to be on the same linear scale as the observed intensities, and from 1000 Å upward it is — the median of `I_obs/I_pred` over the accepted identifications is within about 30 % of 1. Below 900 Å it is not: the median falls to 0.09 (83 accepted lines), and the ratio of the band totals — all observed intensities over all predicted ones, which does not depend on which lines were classified — agrees at 0.16. A prediction there is therefore about ten times fainter on the plate than its `I_pred` says. `intensity_scale_bias` measures that factor band by band (`SCALE_BIAS_BANDS_A`, at least `SCALE_BIAS_MIN_N` = 10 accepted lines, correction applied only where the factor is below `SCALE_BIAS_MAX_FACTOR` = 0.5) together with the scatter of `ln(I_obs/I_pred)`, and the corrected intensity `I_pred·f(λ)` is what has to clear the noise level. This is a fault of the calculated intensities, not of the plates: Sugar's plates reach his intensity 1 everywhere, and Pr III lines of intensity 1 are recorded and classified down to the short-wavelength edge at 821.9 Å. With the current inputs 113 predictions are excluded in the gaps and 21178 below the noise level, of 29162 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
+3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). A third correction enters that comparison. `Icalc` is meant to be on the same linear scale as the observed intensities, and from 1000 Å upward it is — the median of `I_obs/I_pred` over the accepted identifications is within about 30 % of 1. Below 900 Å it is not: the median falls to 0.09 (83 accepted lines), and the ratio of the band totals — all observed intensities over all predicted ones, which does not depend on which lines were classified — agrees at 0.16. A prediction there is therefore about ten times fainter on the plate than its `I_pred` says. `intensity_scale_bias` measures that factor band by band (`SCALE_BIAS_BANDS_A`, at least `SCALE_BIAS_MIN_N` = 10 accepted lines, correction applied only where the factor is below `SCALE_BIAS_MAX_FACTOR` = 0.5) together with the scatter of `ln(I_obs/I_pred)`. A blended line enters this comparison with the share of its measured intensity the component being compared carries — its `BF` — for the reason given under `level_interchange.py` below: the whole feature measured against one component's prediction would put a blended line above the scale by the reciprocal of its share. Splitting the blends moves the measured factors of the run of 2026-09-05 from 0.482 to **0.414** below 900 Å and from 0.735 to **0.567** in 900–1000 Å, and tightens the scatter elsewhere from sd 1.32 to **1.25**. The corrected intensity `I_pred·f(λ)` is what has to clear the noise level. This is a fault of the calculated intensities, not of the plates: Sugar's plates reach his intensity 1 everywhere, and Pr III lines of intensity 1 are recorded and classified down to the short-wavelength edge at 821.9 Å. With the current inputs 113 predictions are excluded in the gaps and 21178 below the noise level, of 29162 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
    - `top10_found` — how many of the 10 strongest predictions are among the accepted lines (`n_top10` = how many were available);
    - `pattern_C` — intensity-weighted completeness: the sum of predicted intensities over the accepted transitions divided by the sum over all predicted observable ones;
    - `pattern_V` — C divided by the largest C achievable with the level's number of matched lines. V = 1 means the accepted lines are exactly the strongest predictions; V = 0 means predictions exist but none was found. Unlike C, V does not punish a level for accepted lines that theory does not cover, and it is nearly independent of n.
@@ -1683,7 +1687,7 @@ configuration.** Over the levels whose energies are experimentally known, the rm
 | `f5d6s` | 19 | 184.1 | 607.5 | | `f26d` | 45 | 61.0 | 152.5 |
 | `f25d` | 105 | 147.8 | 532.8 | | `f27s` | 12 | 58.6 | 88.0 |
 | `f26p` | 62 | 114.3 | 287.2 | | `f26f` | 23 | 45.4 | 93.2 |
-| `f25f` | 117 | 104.2 | 362.4 | | `f27p` | 15 | 32.2 | 68.6 |
+| `f25f` | 118 | 104.1 | 362.4 | | `f27p` | 15 | 32.2 | 68.6 |
 | `f26s` | 22 | 98.6 | 207.5 | | `f25g` | 45 | 22.2 | 60.0 |
 | `4f3` | 40 | 97.3 | 234.0 | | | | | |
 
@@ -1716,6 +1720,36 @@ untouched by the swap — and the pipeline's own `C` and `kT`. A level pair abse
 `Icalc.xlsx` gets the imputed *gA* of `gA_imputation.py` (175.8 s⁻¹ here), so a hypothesis
 that predicts nothing where a strong line is observed is penalized rather than excused.
 
+**Blended lines are split, and split under each hypothesis separately.** One measured line
+is often produced by several predicted transitions falling together, and the classification
+then assigns all of them to it; every one of those rows carries the same measured
+intensity, that of the whole feature. What is compared with *one* transition's prediction
+is that transition's share of the feature,
+
+```
+share = I_calc(this component) / Σ I_calc(all accepted components of the line)
+```
+
+which is the branching fraction the pipeline already stores in the `BF` column of
+`line_classifications.csv` and squares to weight blend components in the least squares.
+Giving a component the whole feature instead would overstate its observed intensity by
+`1/share` — a factor of 25 for a component calculated to carry 4 % of it. In the run of
+2026-09-05, **906 of the 4939 accepted lines are blend components**, 478 of them with a
+share below ½ and 211 below ⅕, and the levels of the two flagged pairs are among the worst
+affected: 8 of the 14 lines of `059003.000483` are blend components (shares down to 0.09)
+and 5 of the 13 of `059003.000398` (down to 0.03).
+
+The share is recomputed **inside each hypothesis**, not read from the file: the stored `BF`
+was worked out under the assigned identities, and a hypothesis that makes a component
+fainter also makes it take a smaller piece of the blend. Using the stored value on both
+sides would divide the two hypotheses by the same number and cancel out. So the component
+whose identity the swap changes gets its `I_calc` from that hypothesis's *gA* while its
+neighbours in the blend, untouched by the swap, keep theirs. (The band scale factor `f(λ)`
+below is common to a blend and cancels in the ratio.) A component of a blend one of whose
+members has no calculated intensity at all is given an even split, `1/n`, which is the same
+fallback `classify_lines.calc_weights` uses. See `blend_share()` and
+`accepted_lines_by_level()`.
+
 Two numbers compare the hypotheses.
 
 - **The slope.** `ln(I_obs)` fitted against `ln(I_calc)` by least squares, per level. A
@@ -1742,6 +1776,24 @@ Two numbers compare the hypotheses.
   identity may be a third level — possibly one not yet observed, which this test cannot
   reach.
 
+**Which row of `enlev.dat` a level is.** The run's level list and `enlev.dat` share no
+identifier, so a level is tied to its row by **energy**: the nearest row within
+`ENLEV_MATCH_TOL` = 0.5 cm⁻¹, which is far coarser than the agreement the two files
+actually have. Only the rows IDEN2 marks **found** — the asterisk in columns 39–40 — are
+searched, because in an unfound row the observed-energy field holds a copy of the
+calculated energy, a position nobody has measured, and matching against it would be
+meaningless. The asterisk is the *only* thing consulted. In particular the uncertainty
+column is **not** a second opinion on it: the value there starts life as a placeholder
+written for every level by the conversion from the Cowan-code output, and IDEN2 changes it
+only when the user orders that change for that level, so a level that has been found may
+still be carrying the placeholder. Reading the uncertainty instead lost `059003.000623` in
+the run of 2026-09-05 — the level was in the file, row 474, starred, at the right energy,
+and was reported as having no calculated counterpart. A level of the run that matches
+nothing is now printed together with the nearest row of `enlev.dat` whether that row is
+starred or not (`nearest_enlev_row()`), because a row sitting at the right energy but
+unstarred means the two files are out of step, which is a likelier cause than a level the
+calculation does not contain.
+
 **The search window.** A pair is a candidate when its separation is at most `--window`
 (default 1.0) times the larger of the two levels' configuration rms above — the error of
 the calculated energies *there*, not a global number. The report also gives how far the
@@ -1759,32 +1811,34 @@ candidate's `p_null` is the fraction of that sample lying at or below its own `l
 
 #### The run of 2026-09-05
 
-594 levels, 593 of them matched to a labelled level of `enlev.dat` by energy (the exception
-is `059003.000623`, which has no calculated counterpart; it still takes part, borrowing its
-partner's window). **18 candidate pairs**, against **394 calibration swaps** whose `lnR` has
-median +81, 5th percentile +16, 1st percentile +2.8 — only **3 of 394 (0.8%)** favour the
-swap at all, which is this test's rate of accidental preference. Applying the whole
-flagging rule to those false swaps flags **0.25%** of them, so among 18 candidates
-**0.05 false flags** are expected.
+594 levels, **all 594** matched to a labelled level of `enlev.dat` by energy. **18 candidate
+pairs**, against **395 calibration swaps** whose `lnR` has median +71, 5th percentile +7.7,
+1st percentile −5.8 — only **8 of 395 (2.0%)** favour the swap at all, which is this test's
+rate of accidental preference. Applying the whole flagging rule to those false swaps flags
+**1.27%** of them, so among 18 candidates **0.23 false flags** are expected.
 
 Two pairs are flagged (`lnR` < 0, both slopes nearer 1 under the swap, `p_null` ≤ 0.05):
 
 | A | B | J, par | sep (cm⁻¹) | window | slopes A | slopes B | rms | `lnR` | `p_null` |
 |---|---|---|---:|---:|---|---|---|---:|---:|
-| `059003.000483` `f25f ~3F2F` | `059003.000398` `f25f ~3F4D` | 5/2 o | 93.5 | 104.2 | +0.55 → +0.60 | +0.34 → +0.54 | 2.37 → 1.83 | −17.3 | 0.003 |
-| `059003.000447` `f26p ~3P2D` | `059003.000298` `f5d6s ~3F4F` | 3/2 o | 139.4 | 184.1 | +0.49 → +0.60 | +0.30 → +0.34 | 1.62 → 1.38 | −3.5 | 0.008 |
+| `059003.000483` `f25f ~3F2F` | `059003.000398` `f25f ~3F4D` | 5/2 o | 93.5 | 104.1 | +0.46 → +0.92 | +0.54 → +0.94 | 2.10 → 0.91 | −30.9 | 0.003 |
+| `059003.000447` `f26p ~3P2D` | `059003.000298` `f5d6s ~3F4F` | 3/2 o | 139.4 | 184.1 | +0.48 → +0.61 | +0.30 → +0.34 | 1.63 → 1.38 | −4.1 | 0.015 |
 
 The first is the stronger case by an order of magnitude, and it corroborates independently:
 `059003.000483` is the tested level with the **largest** energy shift of the whole run
 (ΔE = +0.77 cm⁻¹, `d` = +10.7, top of the `level_shifts.py` worst-shift list), and the swap
 would leave both levels within 1.1 and 1.4 rms of their calculated positions. Its
-line-by-line table (`--detail`) shows the reason plainly: for `059003.000398`,
-`ln(I_obs/I_calc)` runs +4.11, +2.72, +3.50, +4.03 as assigned and +0.46, −0.93, +0.05,
-+0.17 under the swap.
+line-by-line table (`--detail`) shows the reason plainly. Under the swap the 27 lines of
+the two levels fall onto their predicted intensities: the rms of `ln(I_obs/I_calc)` drops
+from 2.10 to **0.91**, which is the scatter of the intensity scale itself (sd 1.25 over the
+whole run), and both slopes go from about ½ to about 1. The individual outliers go with it
+— for `059003.000398` the two worst lines read `ln(I_obs/I_calc)` = +4.11 and +4.03 as
+assigned and +0.46 and +0.17 under the swap; for `059003.000483`, +6.67 and +4.02 as
+assigned and −0.56 and −2.13 under the swap.
 
 `059003.000572` — the `4f.5d.6p` level with the worst `pattern_V` of the run, the case that
 motivated this tool — appears among the 18 candidates twice (paired with `059003.000419`
-and with `059003.000573`) and is **not** flagged: `lnR` = +24.6 and +37.3, and either swap
+and with `059003.000573`) and is **not** flagged: `lnR` = +27.4 and +41.5, and either swap
 would push it to 4.9 or 4.4 rms of its calculated position. Its bad pattern is therefore
 not an interchange with an observed neighbour. That leaves the two possibilities this test
 cannot separate: its true partner is a calculated level not yet found experimentally, or
@@ -1792,7 +1846,8 @@ the `4f.5d.6p` eigenvectors are simply too poor there to predict branching at al
 
 A flag asks for a look in IDEN2; it does not relabel a level. Relabelling changes no energy
 and no identification — only which theoretical level the published table names — so it is a
-decision for the analyst, taken with the term structure and *g*-factors in hand.
+decision for the analyst, taken with the term structure and *g*-factors in hand. When the
+decision is made, `swap_line_assignments.py` (next section) carries it out.
 
 #### Usage
 
@@ -1804,8 +1859,323 @@ python level_interchange.py --window 1.5 --min-lines 2
 ```
 
 `--detail` prints the two levels' accepted lines with the intensity each hypothesis
-predicts for each — the table to read before accepting or dismissing a flag. Output:
+predicts for each — the table to read before accepting or dismissing a flag. Its `n` column
+is how many accepted transitions share the measured line, and `share as` / `share sw` are
+the fraction of the measured intensity the line contributes under each hypothesis, so a
+blended line can be read for what it is. Output:
 `level_interchange.csv` (+ `.xlsx` twin), one row per candidate pair.
+
+### Making the exchange: `swap_line_assignments.py` and its three steps
+
+A flag from `level_interchange.py` says that two levels' **theoretical identities** were
+interchanged: both measured energies are right, but each was attached to the wrong
+calculated level — the wrong configuration, the wrong term, and with them the wrong set of
+calculated transition probabilities.
+
+The obvious repair is to exchange the two **level identifiers** (`059003.000483` and the
+like). That is the one thing that cannot be done cheaply. An identifier is only a name, but
+it appears in the classification tables, in the LOPT input, in the Cowan-code bookkeeping
+kept in a different folder from the experimental analysis, in lookup tables that translate
+between the two, and in copies of some of those files in this repository. Nothing keeps
+them in step. And IDEN2 cannot follow at all: it knows a level by its **row number in
+`enlev.dat`**, that file is sorted by *calculated* energy, so a row number is a statement
+about the calculation and cannot move without re-sorting the file and invalidating every
+reference to a row by number.
+
+The cheap repair is the mirror image. **Keep both identifiers exactly where they are and
+exchange everything the measurement gave them:** their observed energies, and every
+observed line assigned to them. The result is the same table — level A is now the
+theoretical level B used to be, with B's calculated intensities and B's old energy — and
+nothing outside these files has to be told about it.
+
+Three scripts do it, one per place the exchange has to be made, and none of the three can
+see the other two. `swap_line_assignments.py` runs them in order and is the ordinary way in.
+All four take the two identifiers as their only mandatory arguments, report before they
+write, keep the previous contents of every file in `<file>.bak`, and have `--dry-run`.
+
+```
+python swap_line_assignments.py 059003.000483 059003.000398 --dry-run
+python swap_line_assignments.py 059003.000483 059003.000398
+```
+
+| script | what it rewrites |
+|---|---|
+| `swap_line_assignments_LOPT.py` | `LOPT_input_lines.txt`, `LOPT_fixlev.txt` |
+| `swap_line_assignments_IDEN.py` | `IDEN2/enlev.dat`, `IDEN2/trans.dat` |
+| `swap_line_assignments_pipeline.py` | `revised_level_energies.csv`, `line_decisions.csv` |
+
+Nothing in `Icalc.xlsx`, in `icalc_new.xlsx` or in the published line workbook changes. The
+calculated transitions are keyed by the **pair of level identifiers**, and an identifier
+keeps its configuration, its term and its calculated transition probabilities through the
+exchange — what moves is the measurement. `classify_lines.py` reads only the `Icalc` and
+`u%gA` columns of that file, so a level's calculated intensities do not depend on where the
+level sits at all; the predicted wavenumbers are computed from the level energies, which is
+exactly what the third script changes.
+
+**Where the files are looked for.** Every default file name is looked for first in the
+directory the command was run from and then in the directory holding the scripts
+(`swap_paths.working_path`). Working in an iteration folder therefore acts on that folder's
+copies, while the files that exist in only one place — the decision ledger, the level
+overrides — are still found. Each script names the file it settled on, and says which of the
+two directories it came from, before it writes anything.
+
+#### `swap_line_assignments_LOPT.py`
+
+LOPT does not read level energies; it computes them from the lines assigned to each
+identifier. Exchanging the lines therefore exchanges the energies, and nothing else needs
+saying. In `LOPT_input_lines.txt` every record naming `id1` at either end is rewritten to
+name `id2`, and the other way round. The columns of the two identifier fields are read
+from `LOPT.par` (`--par`, or `--columns` to override), so a re-arranged layout is followed
+automatically; every other character of every record — wavenumber, weight, flags, spacing,
+DOS line endings — is preserved byte for byte, and a difference of the before and after
+files shows those two columns and nothing else.
+
+Three things stop it before anything is written: an identifier that does not occur in the
+file at all (a typo would otherwise produce a silently unchanged file); a record joining
+the two levels to each other, which the exchange would turn into a transition of a level
+with itself; and a duplicate created by the exchange, i.e. one observed line ending up
+assigned twice to the same pair of levels.
+
+`LOPT_fixlev.txt` holds the levels whose energies are held fixed. A fixed energy belongs to
+a position in the spectrum, not to a name, so if both levels are fixed their values are
+exchanged with them. If only one of the two is fixed the script stops: that is a decision
+about the analysis, not something to guess. (Neither level of either flagged pair is
+fixed — only the ground level is.)
+
+`line_decisions.csv`, the ledger of hand-made orders, is **reported on but never
+rewritten**. Every order naming one of the two levels is printed together with the
+identifier it would have to become. They are left alone deliberately: each order carries a
+reason written in prose, and after an exchange that reason usually has to be re-worded, not
+merely re-keyed.
+
+One more thing the script says at the end and that is worth repeating here:
+`LOPT_input_lines.txt` is *generated* from `line_classifications.csv` by
+`make_LOPT_input.py`, so re-running the classification pipeline rebuilds it and undoes the
+exchange. The exchange is a statement about which theoretical level each measured energy
+belongs to, and to survive a rebuild it has to be recorded where the pipeline reads it —
+in the calculated-intensity bookkeeping.
+
+#### `swap_line_assignments_IDEN.py`
+
+Here the energies are written down, so they have to be moved by hand along with the lines.
+
+`enlev.dat` — one row per calculated level, fixed-column:
+
+| columns | contents |
+|---|---|
+| 1–4 | the row number, which is what IDEN2 calls the level |
+| 5–16 | the calculated energy |
+| 17–26 | the uncertainty of the observed energy |
+| 27–38 | the observed energy |
+| 39–40 | `" *"` when the level has been observed at all — the **only** marker of that; the uncertainty column is a placeholder until someone changes it |
+| 41–52 | observed minus calculated |
+| 53–57 | J |
+| 58– | the label: configuration, separator, term |
+
+The uncertainty, the observed energy and the asterisk belong to the measurement and change
+places. The calculated energy and the label belong to the calculation and stay. Observed
+minus calculated is then recomputed for each row from **its own** calculated energy, and
+what comes out is worth looking at — it is the O−C the exchange implies.
+
+`trans.dat` — the predicted transitions, written in blocks. A header row beginning with
+`$` names a level; the rows under it are that level's predicted transitions to levels lower
+down the file, one row each:
+
+| columns | contents |
+|---|---|
+| 1 | always `+` |
+| 2–5 | the row number of the level at the other end |
+| 6–10 | the predicted intensity of the transition |
+| 11–22 | the observed energy of that other level |
+| 23–24 | `" *"` when it has been observed |
+| 25–37 | the predicted wavenumber, \|E(this) − E(other)\| |
+| 38–43 | the intensity of the observed line assigned to it, `0` if none |
+| 44–55 | the wavenumber of that observed line |
+| 56–66 | observed minus predicted |
+| 67–72 | the row of that line in `dlv.dat`, `0` if none |
+
+Each predicted transition appears exactly once, in the block of whichever of its two levels
+stands higher in the file. The last four fields are the **assignment**, and they are what
+moves: for every level `p`, the assignment of the transition `(n1, p)` and that of `(n2, p)`
+are exchanged. Then every row that mentions either level has its observed-energy field, its
+asterisk and its predicted wavenumber recomputed, and its observed-minus-predicted with
+them. `dlv.dat` and `numset.dat` carry no level information and are not touched.
+
+**A self-check that comes for free.** A line assigned to `(n1, p)` sat at some
+observed-minus-predicted value. After the exchange it is assigned to `(n2, p)`, and `n2`
+now holds the energy `n1` used to hold, so its new row predicts the same wavenumber as its
+old one. **Every transferred line must therefore keep its O−C exactly**, and the script
+verifies this line by line and stops if any of them changes: that would mean the files were
+not in the state the rewrite assumes.
+
+**Lines that cannot be transferred.** A predicted transition is in `trans.dat` only if the
+calculation gave it an intensity above the printing threshold, and the two levels being
+exchanged do not have the same set of predicted transitions. A level `p` may therefore be
+connected to `n1` in the file and not to `n2`; an observed line assigned to such a
+transition has nowhere to go. Those lines are listed one by one — the transition they were
+on, their wavenumber, their row in `dlv.dat` — and their assignment is removed, because
+leaving it would file the line under the wrong level, which is the mistake being repaired.
+They are not lost: they are still in `dlv.dat` and can be re-identified by hand. Read this
+part of the report. A level that loses several strong lines this way is a sign that the
+exchange needs a second look. (Neither of the two flagged pairs loses any.)
+
+**Naming the two levels.** Each of the two arguments is **either** an experimental
+identifier **or** the level's row number in `enlev.dat`, which is what IDEN2 itself calls
+the level. A bare run of digits is read as a row number and anything else as an identifier,
+so the two forms need no flag to tell them apart and may be mixed:
+
+```
+python swap_line_assignments_IDEN.py 721 723                        # IDEN2's own numbers
+python swap_line_assignments_IDEN.py 059003.000483 059003.000398    # identifiers
+```
+
+A row number needs no translation, and is the shortest way to name a level with IDEN2 open
+in front of you. Identifiers are accepted because this script is the companion of the other
+two, which can be given nothing else — the LOPT files and the pipeline know levels only by
+identifier — and because `swap_line_assignments.py` drives all three from one pair of
+arguments. An identifier has to be translated, and there are three ways, in order of
+precedence: `--index N1 N2` gives both row numbers directly; `--map FILE` reads one of the
+lookup tables kept alongside the analysis (a column of identifiers and a column of numbers,
+header optional); and by default the identifier is looked up in a table of experimental
+energies (`--levels`, LOPT's output level list) and matched to the row of `enlev.dat` whose
+observed energy agrees to within `--tol` (0.5 cm⁻¹), the match having to be unique.
+
+The energy route reads the state **before** the exchange, so run the script once, on the
+files as IDEN2 last left them; naming the rows by number avoids the question entirely. Two
+guards catch the usual mistakes: it stops if the two rows do not have the same J, and — when
+the rows were named directly rather than found by energy — if they already hold each other's
+energies, which is what a second run looks like.
+
+`--iden2-dir` points at the directory (so `IDEN2_snr`, the copy carrying signal-to-noise
+ratios in place of intensities, can be given the same exchange), and `--out-dir` writes the
+rewritten files somewhere else instead of over the originals.
+
+#### `swap_line_assignments_pipeline.py`
+
+The other two scripts rewrite **working files**. Neither is an input of the classification.
+`make_LOPT_input.py` writes the LOPT transitions file out of `line_classifications.csv`,
+which `classify_lines.py` produces from the published level list, the observed line list and
+the calculated transitions — so re-running the pipeline rebuilds the transitions file from
+those and the exchange is gone. This script is what makes it stay, and it writes three
+things into the two small files that are under the analyst's hand.
+
+**The two energies**, into `revised_level_energies.csv`. `classify_lines.py` gives every
+level the energy of the published list, overridden by this file, and generates that level's
+candidate transitions there. The exchange moved both energies, so both belong here: one row
+each, the identifier keeping its own calculated identity and taking the other's measured
+position. A level already listed keeps its row and has its energy replaced — a second row
+for the same level would be read as a contradiction.
+
+**The orders already in the ledger.** `line_decisions.csv` keys each verdict by an observed
+wavenumber and the two level identifiers, written out, so every order naming one of the
+exchanged levels now points at the wrong one. Each is re-keyed, and the reason it carries is
+kept and annotated — `; Lines belonging to levels A and B were swapped on <date>.` — rather
+than rewritten, because the reason is prose about a measured line and the line has not
+changed, only which identifier it is filed under.
+
+**The identifications of the published line list.** This is the part that is easy to miss.
+An identification that is Sugar's own — the rows `line_classifications.csv` marks `new` = 0
+— names its two levels explicitly in the line workbook, an input file that is never edited.
+Step 3 keeps such an identification unless something rejects it ("old, no solid evidence for
+rejection"), and it goes on naming its level after the exchange has moved that level a
+hundred wavenumbers away; the level is then fitted between its true lines and its stale
+legacy ones. That is what pulled `059003.000424` 81 cm⁻¹ off its LOPT position on
+2026-09-05. So for each of them the script writes two orders: a `reject` where the line
+stands and an `accept` under the other identifier, which is the level that now sits where
+the line is. `--rejects-only` writes only the first and leaves the rest to the
+classification. An order that would contradict one already in the ledger stops the script,
+because `classify_lines.py` aborts on two rows ruling differently on the same assignment —
+better here than on the next run.
+
+**Where the new energies come from.** From `LOPT_output_levels.txt`, and a LOPT run made
+either before or after the exchange will do. An exchange does not invent energies: both were
+measured already, and what changes is which identifier each belongs to, so the two numbers to
+be written are the two the level table holds, the other way round. A LOPT run made after the
+exchange has already written them that way — each identifier refitted with the other's lines,
+which differs from the plain exchange of the two old numbers by a few thousandths of a
+wavenumber — and then they are taken as they stand.
+
+Which of the two cases it is in, the script works out, by comparing the table with the
+energies the pipeline currently has (the `low_E` / `upp_E` columns of
+`line_classifications.csv`):
+
+| the level table | means | what is written |
+|---|---|---|
+| still agrees with the pipeline | LOPT has not been re-run | those two energies, exchanged here |
+| has them **crossed** | LOPT has been re-run | those two energies as they stand |
+| agrees with neither | something else moved these levels | nothing; the script stops |
+
+`--exchange` and `--as-fitted` force one of the two readings, which is needed only when the
+pipeline has no energy for either level and the comparison cannot be made.
+
+Running it twice does not undo the first run. Every row it writes or annotates says in plain
+words that these two levels have been exchanged, and a row that already says so is left
+alone. So running it once before the LOPT run and again after it is the ordinary way to
+work: the second run replaces the two override energies with the fitted ones and changes
+nothing else.
+
+#### `swap_line_assignments.py`
+
+Runs the three in the order above and stops at the first that refuses, so that a pair the
+LOPT step rejects — a typo in an identifier, a line joining the two levels, a fixed energy
+on one of them only — never reaches the other two. `--dry-run` runs all three as reports.
+
+Between the first step and the third it also tries to run LOPT itself: the command `lopt`
+(`--lopt-command`, `--no-lopt-run` to skip it), in the directory the LOPT files it has just
+rewritten were found in — LOPT reads `LOPT.par` from the directory it is started in, and that
+file names the transitions file. The refit is not needed to record the exchange, but it turns
+the two exchanged numbers into least-squares energies fitted with every other level, and it
+is the check that the rewritten transitions file is one LOPT will still read.
+
+If the command is not there or returns an error, that is a **warning** and the run continues:
+the third step then sees a level table that does not yet know about the exchange, says so,
+and exchanges the two energies itself. Running LOPT by hand afterwards and then
+`swap_line_assignments.py id1 id2 --after-lopt` replaces those two energies with the fitted
+ones and leaves everything else alone — worth running after any later LOPT run that has moved
+the two levels.
+
+`--only lopt,iden` and the like select steps, and `--index N1 N2` passes IDEN2's row numbers
+straight to the second step.
+
+```
+python swap_line_assignments.py 059003.000483 059003.000398 --dry-run
+python swap_line_assignments.py 059003.000483 059003.000398   # runs lopt itself
+python swap_line_assignments.py 059003.000483 059003.000398 --after-lopt   # if it did not
+python classify_lines.py
+```
+
+Afterwards check in `lopt_vs_classify_levels.csv` that each of the two levels came out at
+the energy that was written for it. A level fitted between two groups of lines has kept an
+identification at its old position.
+
+#### The two flagged pairs
+
+Both exchanges were checked with `--dry-run` against the files of 2026-09-05. In each the
+calculated order and the observed order of the two levels are **inverted** as assigned, and
+the exchange puts them back in the same order — an argument independent of the intensities,
+and the reason the inversion had to be retained in the least-squares fit as long as the
+published compositions were trusted.
+
+| | `059003.000483` / `059003.000398` | `059003.000447` / `059003.000298` |
+|---|---|---|
+| IDEN2 rows | 721, 723 | 943, 945 |
+| labels | `f25f ~3F2F`, `f25f ~3F4D` | `f26p ~3P2D`, `f5d6s~3F4F` |
+| E(calc) | 117545.0, 117478.9 | 84331.8, 84184.2 |
+| E(obs) as assigned | 117592.99, 117686.46 | 84270.53, 84409.90 |
+| O−C as assigned | +47.99, +207.56 | −61.27, +225.70 |
+| O−C after the exchange | +141.46, +114.09 | +78.10, +86.33 |
+| records rewritten in `LOPT_input_lines.txt` | 45 | 29 |
+| observed lines moved in `trans.dat` | 27 (13 ↔ 14) | 17 (10 ↔ 7) |
+| lines that could not be transferred | none | none |
+| orders in `line_decisions.csv` to re-word | 2 | 1 |
+
+The exchange does not make either level's O−C small — these are `4f².5f`, `4f².6p` and
+`4f.5d.6s` levels, whose calculated energies are good to 104, 114 and 184 cm⁻¹ rms — but it
+takes the pair from one level near its calculated position and one far from it to two levels
+about equally close, which is what a correct pair of identities looks like. In the first
+pair the two O−C values become 1.4 and 1.1 times the rms of `4f².5f`; in the second, 0.7
+of the `4f².6p` rms and 0.5 of the `4f.5d.6s` rms.
+
 
 ### Limits of the validation (to be stated alongside the results)
 
@@ -1827,6 +2197,13 @@ python decoy_mc.py           # 2. eight decoy runs → decoy_mc_*.csv/.xlsx
 python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → chance_mc_*.csv/.xlsx
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
 python level_interchange.py  # 5. interchanged identities → level_interchange.csv/.xlsx
+```
+
+Repairing an interchange that step 5 flags is a separate act, done once and by hand:
+
+```
+python swap_line_assignments.py id1 id2        # LOPT files, IDEN2 files, lopt, pipeline overlay
+python swap_line_assignments.py id1 id2 --after-lopt   # only if lopt did not run above
 ```
 
 When the **observed intensities** have to be recalibrated — a new intensity column, or a
@@ -1914,6 +2291,15 @@ LineClass/
 ├── level_shifts.py               # Validation: calibrations, criterion grids, pattern scores, p_spur; --detail mode
 ├── level_interchange.py          # Validation: are two levels of one parity and J wearing each
 │                                 #   other's calculated intensities?  --detail mode
+├── swap_line_assignments.py      # Repair: run the three scripts below in order
+├── swap_line_assignments_LOPT.py # Repair: exchange two levels' lines in the LOPT transitions
+│                                 #   file, keeping both level identifiers where they are
+├── swap_line_assignments_IDEN.py # Repair: exchange two levels' observed energies and lines in
+│                                 #   enlev.dat and trans.dat, keeping IDEN2's numbering
+├── swap_line_assignments_pipeline.py  # Repair: record the exchange in the level overrides and
+│                                 #   the decision ledger, so a pipeline re-run keeps it
+├── swap_paths.py                 # Where the four scripts above look for their files:
+│                                 #   the current directory first, then the project
 ├── chance_mc.py                  # Shared utilities (read_input_levels, per_level_table, save_table,
 │                                 #   apply_policy_option); run directly for the optional
 │                                 #   shifted-wavenumber cross-check

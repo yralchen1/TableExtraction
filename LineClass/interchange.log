@@ -1,9 +1,9 @@
 Interchanged-identity check: are two levels of the same parity and J wearing
 each other's calculated intensities?  Scale of the predicted intensities,
 as level_shifts.py measures it on this run:
-  intensity scale 0-900 A: median I_obs/I_pred = 0.482 (sd of ln = 1.02) over 83 accepted lines
-  intensity scale 900-1000 A: median I_obs/I_pred = 0.735 (sd of ln = 0.96) over 80 accepted lines  - no correction
-  intensity scale elsewhere: no correction (sd of ln = 1.32 over 4772 accepted lines)
+  intensity scale 0-900 A: median I_obs/I_pred = 0.414 (sd of ln = 1.02) over 83 accepted lines
+  intensity scale 900-1000 A: median I_obs/I_pred = 0.567 (sd of ln = 0.85) over 80 accepted lines  - no correction
+  intensity scale elsewhere: no correction (sd of ln = 1.25 over 4772 accepted lines)
 ==========================================================================
 CALCULATED-ENERGY ERROR PER CONFIGURATION (from enlev.dat)
 ==========================================================================
@@ -17,7 +17,7 @@ energies, and are candidates for an interchange.
   f5d6s         19     184.1      607.5     184.1
   f25d         105     147.8      532.8     147.8
   f26p          62     114.3      287.2     114.3
-  f25f         117     104.2      362.4     104.2
+  f25f         118     104.1      362.4     104.1
   f26s          22      98.6      207.5      98.6
   4f3           40      97.3      234.0      97.3
   f27d           5      87.9      122.3      87.9
@@ -28,18 +28,16 @@ energies, and are candidates for an interchange.
   f27p          15      32.2       68.6      32.2
   f25g          45      22.2       60.0      22.2
 
-Levels in the run: 594; matched to a known level of enlev.dat: 593
-  no match within 0.5 cm^-1, so no label and no calculated position: 059003.000623
-    such a level still takes part - the swap exchanges gA values, which it has - but it borrows its partner's window and its calculated-position column is blank
+Levels in the run: 594; matched to a known level of enlev.dat: 594
   a level pair absent from the calculated file is given the imputed gA = 175.8 s^-1
 
 Candidate pairs (same parity and J, separated by at most 1 x the configuration rms,
   both levels with at least 3 accepted lines): 18
-Calibration pairs (the same, but separated by more than the window and at most 10 x the rms - swaps the energies rule out): 394
+Calibration pairs (the same, but separated by more than the window and at most 10 x the rms - swaps the energies rule out): 395
 
-  lnR of the 394 calibration swaps: median +81.1, p05 +15.9, p01 +2.8, min -99.2
-  3 of them (0.8%) favour the swap at all, which is the rate of accidental preference this test carries.
-  the same rule applied to those false swaps flags 0.25% of them, so among 18 candidates 0.05 false flags are expected.
+  lnR of the 395 calibration swaps: median +71.2, p05 +7.7, p01 -5.8, min -123.6
+  8 of them (2.0%) favour the swap at all, which is the rate of accidental preference this test carries.
+  the same rule applied to those false swaps flags 1.27% of them, so among 18 candidates 0.23 false flags are expected.
 
 ==========================================================================
 CANDIDATE PAIRS (18), most swap-favouring first
@@ -47,130 +45,132 @@ CANDIDATE PAIRS (18), most swap-favouring first
 
   059003.000483 (f25f ~3F2F, E = 117592.966, 14 lines)
   059003.000398 (f25f ~3F4D, E = 117686.488, 13 lines)
-    J = 5/2o, separation 93.52 cm^-1, window 104.2 cm^-1 <== FLAGGED
-    slope of ln I_obs on ln I_calc  A: +0.55 -> +0.60   B: +0.34 -> +0.54   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  2.37 -> 1.83;  lnR = -17.3  (-5.1 from A, -12.2 from B; negative favours the swap);  p_null = 0.003
+    J = 5/2o, separation 93.52 cm^-1, window 104.1 cm^-1 <== FLAGGED
+    slope of ln I_obs on ln I_calc  A: +0.46 -> +0.92   B: +0.54 -> +0.94   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  2.10 -> 0.91;  lnR = -30.9  (-19.7 from A, -11.2 from B; negative favours the swap);  p_null = 0.003
     the swap would put A at +1.1 and B at +1.4 rms of its calculated position
 
   059003.000447 (f26p ~3P2D, E = 84270.530, 7 lines)
   059003.000298 (f5d6s ~3F4F, E = 84409.910, 10 lines)
     J = 3/2o, separation 139.38 cm^-1, window 184.1 cm^-1 <== FLAGGED
-    slope of ln I_obs on ln I_calc  A: +0.49 -> +0.60   B: +0.30 -> +0.34   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.62 -> 1.38;  lnR = -3.5  (-0.7 from A, -2.9 from B; negative favours the swap);  p_null = 0.008
+    slope of ln I_obs on ln I_calc  A: +0.48 -> +0.61   B: +0.30 -> +0.34   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.63 -> 1.38;  lnR = -4.1  (-0.9 from A, -3.2 from B; negative favours the swap);  p_null = 0.015
     the swap would put A at +0.5 and B at +0.7 rms of its calculated position
+
+  059003.000402 (f25f ~3F4F, E = 118201.523, 10 lines)
+  059003.000485 (f25f ~3F4F, E = 118224.082, 9 lines)
+    J = 3/2o, separation 22.56 cm^-1, window 104.1 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.63 -> +0.91   B: +0.37 -> +0.21   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.75 -> 1.71;  lnR = -0.9  (-5.6 from A, +4.6 from B; negative favours the swap);  p_null = 0.020
+    the swap would put A at +1.6 and B at +1.1 rms of its calculated position
 
   059003.000593 (f25g _3H4I, E = 136555.526, 5 lines)
   059003.000596 (f25g _3H4H, E = 136570.844, 5 lines)
     J = 11/2e, separation 15.32 cm^-1, window 22.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.80 -> -0.15   B: +0.63 -> -0.07   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  0.58 -> 1.55;  lnR = +5.9  (+1.0 from A, +5.0 from B; negative favours the swap);  p_null = 0.018
+    slope of ln I_obs on ln I_calc  A: +0.74 -> +0.00   B: +0.63 -> -0.07   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  0.66 -> 1.58;  lnR = +6.6  (+1.1 from A, +5.5 from B; negative favours the swap);  p_null = 0.043
     the swap would put A at +0.1 and B at +2.1 rms of its calculated position
+
+  059003.000513 (f25f ~3P4G, E = 134008.089, 4 lines)
+  059003.000514 (f26f ~3H2I, E = 134069.400, 5 lines)
+    J = 11/2o, separation 61.31 cm^-1, window 104.1 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.40 -> +1.34   B: +1.27 -> +0.47   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.52 -> 2.07;  lnR = +6.8  (-2.1 from A, +8.9 from B; negative favours the swap);  p_null = 0.043
+    the swap would put A at -1.8 and B at -2.1 rms of its calculated position
 
   059003.000607 (f25g _3H2I, E = 138788.599, 7 lines)
   059003.000611 (f25g _3H4H, E = 138799.437, 3 lines)
     J = 13/2e, separation 10.84 cm^-1, window 22.2 cm^-1
     slope of ln I_obs on ln I_calc  A: +0.60 -> +0.20   B: +0.42 -> -0.41   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  0.75 -> 2.02;  lnR = +10.1  (+9.1 from A, +1.0 from B; negative favours the swap);  p_null = 0.033
+    rms of ln(I_obs/I_calc)  0.75 -> 2.02;  lnR = +11.2  (+10.1 from A, +1.1 from B; negative favours the swap);  p_null = 0.068
     the swap would put A at +0.2 and B at +1.6 rms of its calculated position
 
-  059003.000402 (f25f ~3F4F, E = 118201.523, 10 lines)
-  059003.000485 (f25f ~3F4F, E = 118224.082, 9 lines)
-    J = 3/2o, separation 22.56 cm^-1, window 104.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.63 -> +0.17   B: +0.21 -> +0.19   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.82 -> 2.37;  lnR = +12.5  (+9.3 from A, +3.2 from B; negative favours the swap);  p_null = 0.041
-    the swap would put A at +1.6 and B at +1.1 rms of its calculated position
-
-  059003.000513 (f25f ~3P4G, E = 134008.089, 4 lines)
-  059003.000514 (f26f ~3H2I, E = 134069.400, 5 lines)
-    J = 11/2o, separation 61.31 cm^-1, window 104.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.34 -> +0.25   B: +1.26 -> +0.21   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.59 -> 2.70;  lnR = +13.7  (+3.1 from A, +10.6 from B; negative favours the swap);  p_null = 0.048
-    the swap would put A at -1.8 and B at -2.1 rms of its calculated position
+  059003.000394 (f25f ~3F4I, E = 117322.975, 11 lines)
+  059003.000480 (f27p ~3H4G, E = 117385.077, 13 lines)
+    J = 11/2o, separation 62.10 cm^-1, window 104.1 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.95 -> +1.03   B: +0.81 -> +0.49   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  0.90 -> 1.60;  lnR = +13.5  (+4.6 from A, +9.0 from B; negative favours the swap);  p_null = 0.086
+    the swap would put A at -2.0 and B at +0.9 rms of its calculated position
 
   059003.000608 (f25g _3H4I, E = 138787.955, 5 lines)
   059003.000609 (f25g _3H2K, E = 138794.604, 4 lines)
     J = 15/2e, separation 6.65 cm^-1, window 22.2 cm^-1
     slope of ln I_obs on ln I_calc  A: +1.04 -> +0.08   B: +0.76 -> +0.78   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  0.71 -> 2.67;  lnR = +17.1  (+17.0 from A, +0.1 from B; negative favours the swap);  p_null = 0.058
+    rms of ln(I_obs/I_calc)  0.71 -> 2.67;  lnR = +19.1  (+18.9 from A, +0.1 from B; negative favours the swap);  p_null = 0.111
     the swap would put A at +1.0 and B at +1.5 rms of its calculated position
 
   059003.000225 (f5d2 ~3F4I, E = 65967.118, 18 lines)
   059003.000226 (f5d2 ~3F4H, E = 66148.351, 30 lines)
     J = 13/2o, separation 181.23 cm^-1, window 207.6 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.72 -> +0.34   B: +0.48 -> +0.46   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.70 -> 2.07;  lnR = +19.1  (+21.6 from A, -2.5 from B; negative favours the swap);  p_null = 0.071
+    slope of ln I_obs on ln I_calc  A: +0.72 -> +0.33   B: +0.49 -> +0.47   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.72 -> 2.10;  lnR = +21.7  (+24.0 from A, -2.2 from B; negative favours the swap);  p_null = 0.122
     the swap would put A at -0.3 and B at +0.9 rms of its calculated position
+
+  059003.000503 (f25f ~3P4G, E = 132876.570, 8 lines)
+  059003.000623 (f25f ~3P4D, E = 132958.179, 7 lines)
+    J = 7/2o, separation 81.61 cm^-1, window 104.1 cm^-1
+    slope of ln I_obs on ln I_calc  A: +1.07 -> -0.04   B: +2.30 -> +0.47   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  0.86 -> 2.42;  lnR = +24.4  (+18.6 from A, +5.7 from B; negative favours the swap);  p_null = 0.154
+    the swap would put A at -1.7 and B at +1.2 rms of its calculated position
 
   059003.000419 (f28s _3H2H, E = 129105.934, 7 lines)
   059003.000572 (fd6p _1F2G, E = 129454.506, 5 lines)
     J = 9/2e, separation 348.57 cm^-1, window 404.2 cm^-1
     slope of ln I_obs on ln I_calc  A: +1.34 -> +0.49   B: +0.82 -> +0.36   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.07 -> 2.88;  lnR = +24.6  (+23.1 from A, +1.5 from B; negative favours the swap);  p_null = 0.104
+    rms of ln(I_obs/I_calc)  1.07 -> 2.88;  lnR = +27.4  (+25.8 from A, +1.6 from B; negative favours the swap);  p_null = 0.172
     the swap would put A at -0.7 and B at +4.9 rms of its calculated position
 
-  059003.000503 (f25f ~3P4G, E = 132876.570, 8 lines)
-  059003.000623 ( , E = 132958.179, 7 lines)
-    J = 7/2o, separation 81.61 cm^-1, window 104.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +1.42 -> +0.02   B: +1.82 -> -0.27   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.03 -> 2.93;  lnR = +32.3  (+18.1 from A, +14.2 from B; negative favours the swap);  p_null = 0.142
-    the swap would put A at +nan and B at +1.2 rms of its calculated position
-
-  059003.000394 (f25f ~3F4I, E = 117322.975, 11 lines)
-  059003.000480 (f27p ~3H4G, E = 117385.077, 13 lines)
-    J = 11/2o, separation 62.10 cm^-1, window 104.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.49 -> +0.19   B: +0.81 -> +0.49   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.37 -> 2.66;  lnR = +35.7  (+26.8 from A, +8.9 from B; negative favours the swap);  p_null = 0.175
-    the swap would put A at -2.0 and B at +0.9 rms of its calculated position
+  059003.000243 (f5d2 ~3F4F, E = 68331.735, 37 lines)
+  059003.000245 (f26p ~3F4F, E = 68492.431, 31 lines)
+    J = 7/2o, separation 160.70 cm^-1, window 207.6 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.65 -> +0.72   B: +0.51 -> +0.43   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.89 -> 2.23;  lnR = +30.4  (-0.0 from A, +30.5 from B; negative favours the swap);  p_null = 0.192
+    the swap would put A at +0.3 and B at +0.2 rms of its calculated position
 
   059003.000572 (fd6p _1F2G, E = 129454.506, 5 lines)
   059003.000573 (f27d _3H2H, E = 129744.109, 5 lines)
     J = 9/2e, separation 289.60 cm^-1, window 404.2 cm^-1
     slope of ln I_obs on ln I_calc  A: +0.82 -> +0.23   B: +0.16 -> +0.13   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.25 -> 3.82;  lnR = +37.3  (+18.0 from A, +19.3 from B; negative favours the swap);  p_null = 0.180
+    rms of ln(I_obs/I_calc)  1.25 -> 3.82;  lnR = +41.5  (+20.0 from A, +21.5 from B; negative favours the swap);  p_null = 0.276
     the swap would put A at -4.4 and B at +0.9 rms of its calculated position
+
+  059003.000101 (f25d _3F4F, E = 24250.616, 23 lines)
+  059003.000102 (f25d _3F2P, E = 24309.198, 25 lines)
+    J = 3/2e, separation 58.58 cm^-1, window 147.8 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.60 -> +0.39   B: +0.48 -> +0.94   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.52 -> 2.28;  lnR = +44.2  (+42.9 from A, +1.3 from B; negative favours the swap);  p_null = 0.299
+    the swap would put A at -2.1 and B at -0.3 rms of its calculated position
 
   059003.000274 (f5d2 ~3F2D, E = 75560.720, 15 lines)
   059003.000275 (f26p ~1D2F, E = 75614.791, 20 lines)
     J = 5/2o, separation 54.07 cm^-1, window 207.6 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.42 -> +0.13   B: +0.49 -> +0.04   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.57 -> 2.98;  lnR = +64.3  (+32.0 from A, +32.3 from B; negative favours the swap);  p_null = 0.373
+    slope of ln I_obs on ln I_calc  A: +0.41 -> +0.15   B: +0.59 -> +0.43   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.50 -> 2.73;  lnR = +57.9  (+32.6 from A, +25.3 from B; negative favours the swap);  p_null = 0.405
     the swap would put A at -1.2 and B at +1.0 rms of its calculated position
-
-  059003.000243 (f5d2 ~3F4F, E = 68331.735, 37 lines)
-  059003.000245 (f26p ~3F4F, E = 68492.431, 31 lines)
-    J = 7/2o, separation 160.70 cm^-1, window 207.6 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.56 -> +0.25   B: +0.52 -> +0.39   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  2.12 -> 2.87;  lnR = +72.9  (+38.5 from A, +34.4 from B; negative favours the swap);  p_null = 0.437
-    the swap would put A at +0.3 and B at +0.2 rms of its calculated position
 
   059003.000380 (f25f ~3H4D, E = 115420.899, 21 lines)
   059003.000472 (f27p ~3H4G, E = 115489.801, 11 lines)
-    J = 7/2o, separation 68.90 cm^-1, window 104.2 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.58 -> +0.16   B: +0.20 -> +0.31   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.70 -> 3.51;  lnR = +85.9  (+74.2 from A, +11.7 from B; negative favours the swap);  p_null = 0.520
+    J = 7/2o, separation 68.90 cm^-1, window 104.1 cm^-1
+    slope of ln I_obs on ln I_calc  A: +0.67 -> +0.27   B: +0.18 -> +0.27   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.66 -> 3.18;  lnR = +73.6  (+61.5 from A, +12.1 from B; negative favours the swap);  p_null = 0.527
     the swap would put A at -2.0 and B at +1.6 rms of its calculated position
 
   059003.000244 (f26p ~1G2H, E = 68374.541, 35 lines)
   059003.000247 (f5d2 ~3F4G, E = 68544.167, 28 lines)
     J = 9/2o, separation 169.63 cm^-1, window 207.6 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.84 -> +0.27   B: +0.61 -> +0.31   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.43 -> 2.83;  lnR = +107.7  (+83.9 from A, +23.8 from B; negative favours the swap);  p_null = 0.622
+    slope of ln I_obs on ln I_calc  A: +0.80 -> +0.23   B: +0.69 -> +0.50   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.30 -> 2.63;  lnR = +105.0  (+88.8 from A, +16.2 from B; negative favours the swap);  p_null = 0.666
     the swap would put A at -1.6 and B at +0.7 rms of its calculated position
-
-  059003.000101 (f25d _3F4F, E = 24250.616, 23 lines)
-  059003.000102 (f25d _3F2P, E = 24309.198, 25 lines)
-    J = 3/2e, separation 58.58 cm^-1, window 147.8 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.51 -> +0.14   B: +0.46 -> +0.15   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.61 -> 3.37;  lnR = +119.7  (+62.6 from A, +57.1 from B; negative favours the swap);  p_null = 0.662
-    the swap would put A at -2.1 and B at -0.3 rms of its calculated position
 
   059003.000248 (f26p ~3F2F, E = 68801.647, 36 lines)
   059003.000250 (f5d2 ~3F4F, E = 68987.046, 33 lines)
     J = 7/2o, separation 185.40 cm^-1, window 207.6 cm^-1
-    slope of ln I_obs on ln I_calc  A: +0.65 -> +0.32   B: +0.24 -> +0.14   (assigned -> swapped)
-    rms of ln(I_obs/I_calc)  1.72 -> 3.64;  lnR = +203.4  (+144.6 from A, +58.8 from B; negative favours the swap);  p_null = 0.893
+    slope of ln I_obs on ln I_calc  A: +0.65 -> +0.44   B: +0.27 -> +0.20   (assigned -> swapped)
+    rms of ln(I_obs/I_calc)  1.71 -> 3.44;  lnR = +196.7  (+134.5 from A, +62.2 from B; negative favours the swap);  p_null = 0.919
     the swap would put A at -0.6 and B at +1.6 rms of its calculated position
 
 Flagged: 2 of 18 candidate pairs (lnR < 0, both slopes nearer 1 under the swap, p_null <= 0.05).
 A flag asks for a look in IDEN2; it does not relabel a level.
+To carry out an exchange once it has been decided on, use swap_line_assignments_LOPT.py
+and swap_line_assignments_IDEN.py, which keep both level identifiers where they are.
 Written: F:\UMD\AI\as-ai\LineClass\level_interchange.csv (+ .xlsx twin)

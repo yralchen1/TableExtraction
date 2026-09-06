@@ -222,11 +222,10 @@ def read_enlev(path: str = ENLEV) -> pd.DataFrame:
 
         columns   1-5   running index
                   6-16  E_calc, the calculated energy (cm^-1)
-                 17-27  the uncertainty of the observed energy; 5000 marks a
-                        level that has not been found experimentally
+                 17-27  the uncertainty of the observed energy
                  28-39  E_obs, the observed energy (a copy of E_calc when the
-                        level is unknown)
-                 40-41  ' *' when the energy is experimentally known
+                        level has not been found)
+                 39-40  ' *' when the level has been found experimentally
                  42-53  E_obs - E_calc
                  54-    J, then the label between slashes, e.g. "f25g _3H4G"
                         or "p5f3d_4I6Ga": the configuration in IDEN2's own
@@ -239,6 +238,15 @@ def read_enlev(path: str = ENLEV) -> pd.DataFrame:
 
     Returns the columns idx, E_calc, u_obs, E_obs, omc, J, label, cfg, term,
     known.
+
+    `known` - has this level been found experimentally? - is read from the STAR
+    ALONE.  That is the flag IDEN2 itself sets and reads, and the flag its own
+    tools write when a level is fixed.  The uncertainty column is not a second
+    opinion on it: 5000 cm^-1 there is the placeholder the conversion from
+    Cowan's output writes for every level, and IDEN2 changes it only when the
+    user orders that level by level, so a level that has been found may still
+    be carrying the placeholder.  Reading the uncertainty instead of the star
+    silently loses such a level (059003.000623 in the run of 2026-09-05).
     """
     recs = []
     with open(path, encoding='latin-1') as fh:
@@ -259,7 +267,7 @@ def read_enlev(path: str = ENLEV) -> pd.DataFrame:
             label = rest.split('/')[1].strip()
             cfg, term = split_label(label)
             recs.append((idx, e_calc, u_obs, e_obs, omc, j, label,
-                         cfg, term, u_obs < 1000.0))
+                         cfg, term, '*' in line[38:40]))
     df = pd.DataFrame(recs, columns=['idx', 'E_calc', 'u_obs', 'E_obs', 'omc',
                                      'J', 'label', 'cfg', 'term', 'known'])
     if df.empty:
@@ -285,9 +293,12 @@ def attach_identities(levels: pd.DataFrame, en: pd.DataFrame,
     """Give every level of the run its configuration, E_calc and window.
 
     The two lists share no key, so they are tied by energy: enlev.dat holds
-    the observed energies of the same identification work.  Returns the levels
-    with the columns cfg, term, E_calc, omc and W added, and the list of level
-    ids that no row of enlev.dat matches.
+    the observed energies of the same identification work.  Only the rows
+    marked found - the starred ones - carry a real observed energy; in the rest
+    E_obs is a copy of E_calc, and matching against those would tie a level of
+    the run to a position nobody has measured.  Returns the levels with the
+    columns cfg, term, E_calc, omc and W added, and the list of level ids that
+    no row of enlev.dat matches.
     """
     known = en[en['known']].sort_values('E_obs').reset_index(drop=True)
     e_arr = known['E_obs'].to_numpy()
@@ -313,6 +324,20 @@ def attach_identities(levels: pd.DataFrame, en: pd.DataFrame,
     out['omc'] = omc
     out['W'] = out['cfg'].map(windows)
     return out, unmatched
+
+
+def nearest_enlev_row(en: pd.DataFrame, e: float):
+    """(row, |difference|) of the enlev.dat row nearest in E_obs to `e`.
+
+    Starred or not - which is the point.  A level of the run that matched
+    nothing is reported with this row beside it, because the two files coming
+    out of step is a far likelier cause than a level the calculation does not
+    have at all: a row sitting at the right energy but not starred means IDEN2
+    has not been told the level was found.
+    """
+    d = (en['E_obs'] - float(e)).abs().to_numpy()
+    i = int(np.argmin(d))
+    return en.iloc[i], float(d[i])
 
 
 # ---------------------------------------------------------------------------
@@ -375,15 +400,43 @@ def imputed_gA() -> float:
 # The observed side
 # ---------------------------------------------------------------------------
 def accepted_lines_by_level(real: pd.DataFrame, e_final: dict) -> dict:
-    """{level_id: [(partner id, wn_obs, I_obs, E_up), ...]} of accepted lines.
+    """{level_id: [(partner id, wn_obs, I_obs, E_up, n_blend, sib), ...]}.
 
-    E_up is the observed energy of the upper of the two levels, which the
-    intensity model needs and which an interchange does not touch.
+    One entry per accepted assignment of one level, holding what the intensity
+    comparison needs about it.  E_up is the observed energy of the upper of the
+    two levels, which the intensity model needs and which an interchange does
+    not touch.
+
+    The last two entries describe the BLEND the assignment belongs to.  One
+    measured line is often produced by several predicted transitions falling at
+    the same wavenumber; the classification then assigns all of them to it, and
+    every one of those rows carries the SAME measured intensity, that of the
+    whole feature.  Crediting each of them with the whole of it would say that
+    every component is as strong as the feature - which, for a component the
+    calculation makes a twentieth of it, overstates the measurement twentyfold.
+
+    `n_blend` is how many accepted transitions share the measured line (1 when
+    it is not blended), and `sib` is the sum of the CALCULATED intensities of
+    the OTHER components, or None when one of them has no calculated intensity
+    at all.  From those two, level_residuals works out the share of the measured
+    intensity the component being scored should be given - separately under each
+    hypothesis, because a hypothesis that changes a component's calculated
+    intensity changes its share of the blend with it.  See blend_share.
     """
     acc = real[real['accepted'] == 1]
+    # The components of one blend are the accepted rows carrying the same
+    # printed wavenumber; that grouping reproduces the n_accepted and BF
+    # columns classify_lines.py writes, exactly.
+    key = acc['wn_obs'].astype(str)
+    ci = pd.to_numeric(acc['calc_intens'], errors='coerce')
+    grp = ci.groupby(key)
+    n_bl = key.map(key.value_counts())
+    tot = grp.transform('sum')
+    bad = grp.transform(lambda c: (~(c > 0)).any())
     out = {}
-    for lo, up, wn, i_obs in zip(acc['low_id'], acc['upp_id'],
-                                 acc['wn_obs'], acc['obs_intens']):
+    for lo, up, wn, i_obs, own, nb, tt, ms in zip(
+            acc['low_id'], acc['upp_id'], acc['wn_obs'], acc['obs_intens'],
+            ci, n_bl, tot, bad):
         lo, up = str(lo), str(up)
         if lo not in e_final or up not in e_final:
             continue
@@ -394,9 +447,11 @@ def accepted_lines_by_level(real: pd.DataFrame, e_final: dict) -> dict:
             continue
         if not (wn > 0 and i_obs > 0):
             continue
+        nb = int(nb)
+        sib = None if (nb > 1 and bool(ms)) else float(tt) - float(own)
         e_up = max(e_final[lo], e_final[up])
-        out.setdefault(lo, []).append((up, wn, i_obs, e_up))
-        out.setdefault(up, []).append((lo, wn, i_obs, e_up))
+        out.setdefault(lo, []).append((up, wn, i_obs, e_up, nb, sib))
+        out.setdefault(up, []).append((lo, wn, i_obs, e_up, nb, sib))
     return out
 
 
@@ -414,30 +469,67 @@ def predicted_intensity(g: float, wn: float, e_up: float,
     return C * g * (wn / 1.0e8) * math.exp(-e_up / kT)
 
 
+def blend_share(i_calc: float, n_blend: int, sib) -> float:
+    """The share of a blended line's measured intensity one component carries.
+
+    A measured line to which several transitions are assigned has one measured
+    intensity for the lot of them.  The share given to one component is what
+    the calculation says it contributes:
+
+        share = I_calc(this component) / sum of I_calc over all components
+
+    which is the quantity the pipeline stores in the BF column of
+    line_classifications.csv and squares to weight blend components in the
+    least-squares fit.  `sib` is the sum over the OTHER components, so the
+    denominator here is i_calc + sib.  When one of the others has no calculated
+    intensity there is nothing to compare it with and the line is split evenly,
+    1/n_blend each - the same fallback the pipeline uses.
+
+    `i_calc` is the value under the hypothesis being scored, not the one in the
+    file: a hypothesis that makes a component fainter also makes it take a
+    smaller piece of the blend, and that is part of what is being tested.  The
+    scale correction of the wavelength band is common to all components and
+    cancels in the ratio, so it is left out.
+    """
+    if n_blend <= 1:
+        return 1.0
+    if sib is None:
+        return 1.0 / float(n_blend)
+    den = i_calc + sib
+    return (i_calc / den) if den > 0 else 1.0 / float(n_blend)
+
+
 def level_residuals(lines, identity: str, gA: dict, g_imp: float,
                     bias: dict, C: float, kT: float):
     """The intensity evidence of one level's lines under one identity.
 
-    `lines` are that level's accepted lines as (partner, wn, I_obs, E_up);
-    `identity` is the level id whose gA values are used, which is the level
-    itself under the ASSIGNED hypothesis and its partner in the pair under the
-    SWAPPED one.
+    `lines` are that level's accepted lines as (partner, wn, I_obs, E_up,
+    n_blend, sib); `identity` is the level id whose gA values are used, which is
+    the level itself under the ASSIGNED hypothesis and its partner in the pair
+    under the SWAPPED one.
+
+    A line that several transitions share contributes only the share of its
+    measured intensity this component is calculated to carry, worked out under
+    THIS hypothesis - see blend_share.
 
     Returns (x, y, r, w): the logarithm of the predicted intensity, the
     logarithm of the observed one, the residual y - x, and 1/sd^2 of the
     wavelength band, one entry per line.
     """
     x, y, r, w = [], [], [], []
-    for partner, wn, i_obs, e_up in lines:
+    for partner, wn, i_obs, e_up, n_bl, sib in lines:
         g = gA.get(tuple(sorted((identity, partner))), g_imp)
         if not (g > 0):
             continue
         i_calc = predicted_intensity(g, wn, e_up, C, kT)
         if not (i_calc > 0):
             continue
+        i_own = i_obs * blend_share(i_calc, n_bl, sib)
+        if not (i_own > 0):
+            continue
         f, sd = ls.scale_bias(wn, bias)
         lx = math.log(i_calc * f)
-        ly = math.log(i_obs)
+        ly = math.log(i_own)
         x.append(lx)
         y.append(ly)
         r.append(ly - lx)
@@ -456,9 +548,9 @@ def common_lines(lines, id_a: str, id_b: str, gA: dict, g_imp: float):
     that IS one of the pair, whose own gA would change under the swap.
     """
     def usable(identity):
-        return {p for p, _wn, _i, _e in lines
-                if p not in (id_a, id_b)
-                and gA.get(tuple(sorted((identity, p))), g_imp) > 0}
+        return {t[0] for t in lines
+                if t[0] not in (id_a, id_b)
+                and gA.get(tuple(sorted((identity, t[0]))), g_imp) > 0}
 
     ok = usable(id_a) & usable(id_b)
     return [t for t in lines if t[0] in ok]
@@ -697,19 +789,24 @@ def print_detail(id_a: str, id_b: str, by_level, gA, g_imp, bias, C, kT):
         if not lines:
             continue
         print(f"    {'partner':>14s} {'wn_obs':>12s} {'lambda':>9s} "
-              f"{'I_obs':>10s} {'I_calc(as)':>11s} {'I_calc(sw)':>11s} "
+              f"{'I_obs':>10s} {'n':>2s} {'share as':>9s} {'share sw':>9s} "
+              f"{'I_calc(as)':>11s} {'I_calc(sw)':>11s} "
               f"{'ln ratio as':>12s} {'ln ratio sw':>12s}")
         rows = sorted(lines, key=lambda t: -t[2])
-        for partner, wn, i_obs, e_up in rows:
+        for partner, wn, i_obs, e_up, n_bl, sib in rows:
             g_as = gA.get(tuple(sorted((lid, partner))), g_imp)
             g_sw = gA.get(tuple(sorted((other, partner))), g_imp)
             f, _sd = ls.scale_bias(wn, bias)
-            i_as = predicted_intensity(g_as, wn, e_up, C, kT) * f
-            i_sw = predicted_intensity(g_sw, wn, e_up, C, kT) * f
+            p_as = predicted_intensity(g_as, wn, e_up, C, kT)
+            p_sw = predicted_intensity(g_sw, wn, e_up, C, kT)
+            b_as = blend_share(p_as, n_bl, sib)
+            b_sw = blend_share(p_sw, n_bl, sib)
+            i_as, i_sw = p_as * f, p_sw * f
             print(f'    {partner:>14s} {wn:12.3f} {1.0e8 / wn:9.1f} '
-                  f'{i_obs:10.2f} {i_as:11.2f} {i_sw:11.2f} '
-                  f'{math.log(i_obs / i_as):12.2f} '
-                  f'{math.log(i_obs / i_sw):12.2f}')
+                  f'{i_obs:10.2f} {n_bl:2d} {b_as:9.3f} {b_sw:9.3f} '
+                  f'{i_as:11.2f} {i_sw:11.2f} '
+                  f'{math.log(i_obs * b_as / i_as):12.2f} '
+                  f'{math.log(i_obs * b_sw / i_sw):12.2f}')
 
 
 # ---------------------------------------------------------------------------
@@ -802,8 +899,21 @@ def main(argv=None) -> int:
     print(f"Levels in the run: {len(per)}; matched to a known level of "
           f"{os.path.basename(args.enlev)}: {len(per) - len(unmatched)}")
     if unmatched:
-        print(f"  no match within {ENLEV_MATCH_TOL} cm^-1, so no label and no "
-              f"calculated position: {', '.join(unmatched)}")
+        base = os.path.basename(args.enlev)
+        print(f"  no level marked found (*) in {base} lies within "
+              f"{ENLEV_MATCH_TOL} cm^-1, so no label and no calculated "
+              f"position:")
+        e_of = dict(zip(per['level_id'], per['E_final']))
+        for lid in unmatched:
+            e = float(e_of[lid])
+            row, d = nearest_enlev_row(en, e)
+            mark = 'found (*)' if row['known'] else 'NOT marked found (*)'
+            print(f"    {lid}  E = {e:.3f};  nearest row of {base} is "
+                  f"{int(row['idx'])} {row['label']} at E_obs = "
+                  f"{row['E_obs']:.3f} ({row['E_obs'] - e:+.3f}), {mark}")
+        print("    a row at the right energy that is NOT marked found means "
+              "the two files are out of step - fix enlev.dat rather than "
+              "reading past this")
         print("    such a level still takes part - the swap exchanges gA "
               "values, which it has - but it borrows its partner's window and "
               "its calculated-position column is blank")
@@ -873,6 +983,10 @@ def main(argv=None) -> int:
           f"p_null <= {args.p_flag:g}).")
     if n_flag:
         print("A flag asks for a look in IDEN2; it does not relabel a level.")
+        print("To carry out an exchange once it has been decided on, use "
+              "swap_line_assignments_LOPT.py")
+        print("and swap_line_assignments_IDEN.py, which keep both level "
+              "identifiers where they are.")
 
     if rows:
         out = pd.DataFrame(rows)

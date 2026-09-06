@@ -1,7 +1,7 @@
-LOPT_input_lines.txt          ; TRANSITIONS input file name; Explanations are below!
-LOPT_fixlev.txt                       ; FIXED LEVELS input file name
-LOPT_output_levels.txt         ; Levels OUTPUT file name
-LOPT_output_lines.txt          ; Transitions OUTPUT file name
+LOPT_input_lines.txt      ; TRANSITIONS input file name; Explanations are below!
+LOPT_fixlev.txt                   ; FIXED LEVELS input file name
+LOPT_output_levels.txt     ; Levels OUTPUT file name
+LOPT_output_lines.txt      ; Transitions OUTPUT file name
 N                 ; OMIT calc. wavelengths in ANGSTROMS in the output (Y/N)?
 Y                 ; TUNE single-line levels (Y/N)?
 N                 ; Print listing of correlated-lines uncert. effects (Y/N)?

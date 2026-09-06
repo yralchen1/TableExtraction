@@ -444,14 +444,27 @@ def intensity_scale_bias(real: pd.DataFrame, preds: pd.DataFrame,
     ip = {tuple(sorted((lo, up))): v
           for lo, up, v in preds.itertuples(index=False)}
     acc = real[real['accepted'] == 1]
+    # A measured line that several transitions share carries one intensity for
+    # all of them.  What is compared with ONE transition's predicted intensity
+    # is that transition's share of it - the branching fraction the pipeline
+    # stores in the BF column (1 for an unblended line, and where the column is
+    # missing, as in a run rebuilt from LOPT output alone).  Comparing the whole
+    # feature with one component would put a blended line above the scale by the
+    # reciprocal of its share, which for the faint components of a blend is a
+    # factor of ten or more.
+    bf_col = (pd.to_numeric(acc['BF'], errors='coerce').fillna(1.0)
+              if 'BF' in acc.columns else pd.Series(1.0, index=acc.index))
     lam, res = [], []
-    for lo, up, wn, io_ in zip(acc['low_id'], acc['upp_id'],
-                               acc['wn_obs'], acc['obs_intens']):
+    for lo, up, wn, io_, bf in zip(acc['low_id'], acc['upp_id'],
+                                   acc['wn_obs'], acc['obs_intens'], bf_col):
         v = ip.get(tuple(sorted((str(lo), str(up)))))
         if v is None or not (v > 0) or not (io_ > 0):
             continue
+        bf = float(bf)
+        if not (bf > 0):
+            bf = 1.0
         lam.append(1.0e8 / float(wn))
-        res.append(math.log(float(io_) / float(v)))
+        res.append(math.log(float(io_) * bf / float(v)))
     lam = np.asarray(lam, dtype=float)
     res = np.asarray(res, dtype=float)
     out, covered = {}, np.zeros(len(lam), dtype=bool)

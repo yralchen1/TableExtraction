@@ -36,6 +36,13 @@ UNKNOWN = '   1  149995.300  5000.000  149995.300         0.000  1.5 / f5d6d~3D4
 KNOWN = '1253      82.000     0.004       0.000 *     -82.000  4.5 / 4f3  ~4I4I/'
 TIGHT = '  10  149651.900     0.500  149671.900 *      20.000  5.5 /p5f3d_4I6Ga/'
 
+# A level that HAS been found - it is starred - but whose uncertainty column
+# still holds the 5000 placeholder the conversion from Cowan's output writes
+# and IDEN2 changes only when the user orders it, level by level.  This is the
+# real row 474 as it stood on 2026-09-05.
+STARRED_PLACEHOLDER = (
+    ' 474  133050.400  5000.000  132958.176 *     -92.224  3.5 / f25f ~3P4D/')
+
 
 @pytest.fixture
 def enlev(tmp_path):
@@ -65,7 +72,7 @@ def test_enlev_fields_and_the_known_flag(enlev):
 
     unknown = en.loc[1]
     assert unknown['E_calc'] == pytest.approx(149995.3)
-    assert not unknown['known']          # uncertainty 5000: never observed
+    assert not unknown['known']          # no star: never observed
     assert unknown['cfg'] == 'f5d6d'
 
     ground = en.loc[1253]
@@ -75,6 +82,64 @@ def test_enlev_fields_and_the_known_flag(enlev):
     assert ground['omc'] == pytest.approx(-82.0)   # E_obs - E_calc
     assert ground['J'] == pytest.approx(4.5)
     assert (ground['cfg'], ground['term']) == ('4f3', '~4I4I')
+
+
+def test_the_star_alone_says_the_level_has_been_found(tmp_path):
+    """The uncertainty column is not a second opinion on the star: a level
+    IDEN2 has been told about is starred whatever the uncertainty says."""
+    p = tmp_path / 'enlev.dat'
+    p.write_text(STARRED_PLACEHOLDER + '\n', encoding='latin-1')
+    row = li.read_enlev(str(p)).iloc[0]
+    assert row['u_obs'] == pytest.approx(5000.0)      # the placeholder
+    assert row['known']                               # and yet: found
+    assert row['E_obs'] == pytest.approx(132958.176)
+    assert (row['cfg'], row['term']) == ('f25f', '~3P4D')
+
+
+def test_a_found_level_carrying_the_placeholder_is_still_matched(tmp_path):
+    """The regression this cost: the level was in the file all along, and the
+    run reported it as having no calculated counterpart."""
+    p = tmp_path / 'enlev.dat'
+    p.write_text('\n'.join((UNKNOWN, STARRED_PLACEHOLDER)) + '\n',
+                 encoding='latin-1')
+    en = li.read_enlev(str(p))
+    levels = pd.DataFrame({'level_id': ['059003.000623'],
+                           'E_final': [132958.179]})
+    out, unmatched = li.attach_identities(levels, en,
+                                          li.configuration_windows(en))
+    assert unmatched == []
+    assert out.loc[0, 'cfg'] == 'f25f'
+    assert out.loc[0, 'E_calc'] == pytest.approx(133050.400)
+
+
+def test_an_unstarred_level_is_not_matched_however_tight_its_uncertainty():
+    """The other direction: E_obs of an unstarred row is a copy of E_calc, a
+    position nobody has measured, and must not be matched against."""
+    row = '  99  120000.000     0.200  120000.000         0.000  2.5 /f25f _3P4D/'
+    import tempfile
+    with tempfile.NamedTemporaryFile('w', suffix='.dat', delete=False,
+                                     encoding='latin-1') as fh:
+        fh.write(KNOWN + '\n' + row + '\n')
+        path = fh.name
+    en = li.read_enlev(path)
+    os.unlink(path)
+    assert not bool(en[en['idx'] == 99]['known'].iloc[0])
+    levels = pd.DataFrame({'level_id': ['L'], 'E_final': [120000.0]})
+    _out, unmatched = li.attach_identities(levels, en,
+                                           li.configuration_windows(en))
+    assert unmatched == ['L']
+
+
+def test_the_nearest_row_is_reported_starred_or_not(enlev):
+    """What the report prints beside a level it could not match, so that a
+    file out of step is told apart from a level the calculation lacks."""
+    en = li.read_enlev(enlev)
+    row, d = li.nearest_enlev_row(en, 149995.0)
+    assert int(row['idx']) == 1 and not row['known']
+    assert d == pytest.approx(0.3)
+    row, d = li.nearest_enlev_row(en, 0.5)
+    assert int(row['idx']) == 1253 and row['known']
+    assert d == pytest.approx(0.5)
 
 
 def test_a_label_flush_against_the_slash_keeps_its_configuration(enlev):
@@ -146,7 +211,7 @@ def test_the_intensity_model_is_the_pipeline_relation():
 
 def test_residuals_are_ln_iobs_minus_ln_icalc_with_the_band_weight():
     gA = {('A', 'X'): 7.0}
-    lines = [('X', 5.0e4, 3.0, 4.0e4)]
+    lines = [('X', 5.0e4, 3.0, 4.0e4, 1, 0.0)]
     x, y, r, w = li.level_residuals(lines, 'A', gA, 0.0,
                                     {None: (1.0, 2.0)}, C, KT)
     i_calc = i_of(7.0, 5.0e4, 4.0e4)
@@ -158,11 +223,99 @@ def test_residuals_are_ln_iobs_minus_ln_icalc_with_the_band_weight():
 
 def test_the_band_scale_factor_multiplies_the_prediction():
     gA = {('A', 'X'): 7.0}
-    lines = [('X', 5.0e4, 3.0, 4.0e4)]
+    lines = [('X', 5.0e4, 3.0, 4.0e4, 1, 0.0)]
     plain = li.level_residuals(lines, 'A', gA, 0.0, NO_BIAS, C, KT)[2][0]
     tenth = li.level_residuals(lines, 'A', gA, 0.0, {None: (0.1, 1.0)},
                                C, KT)[2][0]
     assert tenth - plain == pytest.approx(math.log(10.0))
+
+
+# ---------------------------------------------------------------------------
+# Blended lines
+# ---------------------------------------------------------------------------
+def test_an_unblended_line_keeps_the_whole_measured_intensity():
+    assert li.blend_share(5.0, 1, None) == 1.0
+    assert li.blend_share(5.0, 1, 95.0) == 1.0
+
+
+def test_a_blend_is_split_by_the_calculated_intensities():
+    """Two transitions on one measured line, the other calculated three times
+    as strong: this one is given a quarter of what was measured."""
+    assert li.blend_share(10.0, 2, 30.0) == pytest.approx(0.25)
+
+
+def test_a_blend_with_an_uncalculated_component_is_split_evenly():
+    """`sib` is None when one of the other components has no calculated
+    intensity: there is nothing to compare with, so each takes 1/n."""
+    assert li.blend_share(10.0, 4, None) == pytest.approx(0.25)
+    assert li.blend_share(10.0, 2, 0.0) == pytest.approx(1.0)
+
+
+def test_the_split_follows_the_hypothesis_being_scored():
+    """The same measured line under two identities.  The OTHER component of the
+    blend is not touched by the swap, so its calculated intensity stays put; the
+    component being scored takes a tenth of the feature under the identity that
+    makes it nine times fainter than its neighbour, and half under the identity
+    that makes it equal - the share moves with the hypothesis."""
+    gA = {('A', 'X'): 1.0, ('B', 'X'): 9.0}
+    sib = i_of(9.0, 5.0e4, 4.0e4)           # the other component, unchanged
+    lines = [('X', 5.0e4, 100.0, 4.0e4, 2, sib)]
+    y_a = li.level_residuals(lines, 'A', gA, 0.0, NO_BIAS, C, KT)[1][0]
+    y_b = li.level_residuals(lines, 'B', gA, 0.0, NO_BIAS, C, KT)[1][0]
+    assert y_a == pytest.approx(math.log(100.0 * 0.1))
+    assert y_b == pytest.approx(math.log(100.0 * 0.5))
+
+
+def test_a_blend_component_is_no_longer_given_the_whole_feature():
+    """The point of the split: an unblended line and a blend component of the
+    same measured intensity must not enter with the same observed value."""
+    gA = {('A', 'X'): 1.0}
+    i_calc = i_of(1.0, 5.0e4, 4.0e4)
+    alone = li.level_residuals([('X', 5.0e4, 100.0, 4.0e4, 1, 0.0)],
+                               'A', gA, 0.0, NO_BIAS, C, KT)[1][0]
+    shared = li.level_residuals([('X', 5.0e4, 100.0, 4.0e4, 2, i_calc)],
+                                'A', gA, 0.0, NO_BIAS, C, KT)[1][0]
+    assert alone - shared == pytest.approx(math.log(2.0))
+
+
+def test_accepted_lines_by_level_reads_the_blend_off_the_table():
+    """Two accepted rows at one wavenumber are one blend; a row at another
+    wavenumber is alone.  Both rows of the blend get the sibling's calculated
+    intensity, and the shares they imply are the BF column of the pipeline."""
+    real = pd.DataFrame({
+        'accepted': [1, 1, 1],
+        'low_id': ['L1', 'L2', 'L3'],
+        'upp_id': ['U1', 'U1', 'U2'],
+        'wn_obs': ['1000.0', '1000.0', '2000.0'],
+        'obs_intens': [100.0, 100.0, 50.0],
+        'calc_intens': [30.0, 10.0, 7.0],
+    })
+    e_final = {k: 0.0 for k in ('L1', 'L2', 'L3')}
+    e_final.update({'U1': 1000.0, 'U2': 2000.0})
+    by = li.accepted_lines_by_level(real, e_final)
+    (_p, _wn, _i, _e, n1, sib1), = by['L1']
+    (_p, _wn, _i, _e, n2, sib2), = by['L2']
+    (_p, _wn, _i, _e, n3, sib3), = by['L3']
+    assert (n1, sib1) == (2, 10.0)      # L1's sibling carries 10
+    assert (n2, sib2) == (2, 30.0)      # L2's carries 30
+    assert (n3, sib3) == (1, 0.0)       # nothing shares that line
+    assert li.blend_share(30.0, n1, sib1) == pytest.approx(0.75)
+    assert li.blend_share(10.0, n2, sib2) == pytest.approx(0.25)
+
+
+def test_a_missing_calculated_intensity_makes_the_whole_blend_even():
+    real = pd.DataFrame({
+        'accepted': [1, 1],
+        'low_id': ['L1', 'L2'],
+        'upp_id': ['U1', 'U1'],
+        'wn_obs': ['1000.0', '1000.0'],
+        'obs_intens': [100.0, 100.0],
+        'calc_intens': [30.0, np.nan],
+    })
+    e_final = {'L1': 0.0, 'L2': 0.0, 'U1': 1000.0}
+    by = li.accepted_lines_by_level(real, e_final)
+    assert all(t[4] == 2 and t[5] is None
+               for lid in ('L1', 'L2') for t in by[lid])
 
 
 def test_the_slope_of_a_perfect_prediction_is_one():
@@ -180,7 +333,8 @@ def test_common_lines_drops_what_one_hypothesis_cannot_score():
     # under policy "none" (g_imp = 0) a pair absent from the calculated file
     # has no predicted intensity at all, so the line is left out of BOTH sides
     gA = {('A', 'X'): 1.0, ('B', 'X'): 1.0, ('A', 'Y'): 1.0}
-    lines = [('X', 1.0e4, 1.0, 1.0e4), ('Y', 1.0e4, 1.0, 1.0e4)]
+    lines = [('X', 1.0e4, 1.0, 1.0e4, 1, 0.0),
+             ('Y', 1.0e4, 1.0, 1.0e4, 1, 0.0)]
     assert [t[0] for t in li.common_lines(lines, 'A', 'B', gA, 0.0)] == ['X']
     # with imputation both sides can score Y, so nothing is dropped
     assert [t[0] for t in li.common_lines(lines, 'A', 'B', gA, 1.0)] == \
@@ -191,7 +345,8 @@ def test_common_lines_drops_a_partner_that_is_the_other_level_of_the_pair():
     """Such a line would have its own gA exchanged by the same swap, so it
     cannot be used to judge it (and cannot exist: the two share a parity)."""
     gA = {('A', 'B'): 1.0, ('A', 'X'): 1.0, ('B', 'X'): 1.0}
-    lines = [('B', 1.0e4, 1.0, 1.0e4), ('X', 1.0e4, 1.0, 1.0e4)]
+    lines = [('B', 1.0e4, 1.0, 1.0e4, 1, 0.0),
+             ('X', 1.0e4, 1.0, 1.0e4, 1, 0.0)]
     assert [t[0] for t in li.common_lines(lines, 'A', 'B', gA, 1.0)] == ['X']
 
 
@@ -211,7 +366,8 @@ GA.update({tuple(sorted(('B', p))): GA_B[p] for p in PARTNERS})
 
 
 def lines_following(ga_of_partner):
-    return [(p, WN, i_of(ga_of_partner[p], WN, E_UP), E_UP) for p in PARTNERS]
+    return [(p, WN, i_of(ga_of_partner[p], WN, E_UP), E_UP, 1, 0.0)
+            for p in PARTNERS]
 
 
 def test_an_interchange_is_preferred_and_shows_it_in_every_column():
