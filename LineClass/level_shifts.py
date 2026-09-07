@@ -107,13 +107,20 @@ times fainter on the plate than its I_pred says. intensity_scale_bias
 measures that factor band by band, together with the scatter of
 ln(I_obs/I_pred), which is of order 1 (a factor e either way) even where the
 scale is right. The corrected intensity is what the observability filter
-compares with the noise level, and detection_probability turns the pair into
-the probability that the line would have been recorded at all: a missing
-strongest branch counts as evidence (top1 = 'missing') only above
-DETECT_CONFIDENCE, and reads 'faint' below it. Sugar's plates do reach his
-intensity 1 everywhere - lines of intensity 1 are recorded and classified
-down to the short-wavelength edge at 821.9 A - so this is a fault of the
-calculated intensities, not of the plates.
+compares with the noise level. Sugar's plates do reach his intensity 1
+everywhere - lines of intensity 1 are recorded and classified down to the
+short-wavelength edge at 821.9 A - so this is a fault of the calculated
+intensities, not of the plates.
+
+Whether a predicted line would have been seen at all is observation_probability
+= c(lambda) x D(z), both factors measured on this run rather than assumed:
+c from tools/coverage_map.py, the probability that the plate was exposed and
+measured at that wavelength, and D from tools/obscuration_rate.py, the observed
+fraction of predictions of that strength that were recorded where the plate is
+open. D has a ceiling at 1 - epsilon = 0.965, because about one predicted line
+in thirty is lost to a grain flaw or a single impurity line wherever it falls.
+A missing strongest branch counts as evidence (top1 = 'missing') only above
+DETECT_CONFIDENCE, and reads 'faint' below it.
 
 Intensity-pattern check. Independently of the energy shifts, a real level
 must reproduce the PATTERN of theoretically predicted intensities: its
@@ -200,7 +207,8 @@ computed from the very lines the revision assigns to them: their evidence is
 the intensity pattern and the residual spread, not dE.
 
 Outputs: level_shift_report.csv/.xlsx (one row per level: energies, dE, d,
-support counts, new* flag, p_spur, pattern scores, top1) and the printed
+support counts, new* flag, p_spur, pattern scores, top1, and the two
+observability columns top1_pobs and n_obs_expected) and the printed
 calibration tables. With --lopt the report is named after the LOPT file
 (LOPT_output_lines_revised.txt -> level_shift_report_revised.csv) so that it
 never overwrites the pipeline's own; --report overrides the name.
@@ -259,13 +267,59 @@ MASK_STRENGTH = 0.5   # within one effective line width the two lines are not
 MASK_CLEAR_FRACTION = 0.9  # share of the MISSING predicted intensity that must be
                            # masked for the questionable mark to be cleared
 CALIB_FILE = os.path.join(HERE, 'intensity_correction_functions.txt')
-# Wavelength intervals (vacuum angstroms) with no exposures in Sugar's data:
-# no line falling inside them could have been observed. The edges coincide
-# with the seams of the intensity-calibration regions, where the intensity
-# scales of the bordering exposures could not be reconciled.
-# They are also the forced region boundaries of the intensity calibration
-# (DEFAULT_GAPS_A in tools/calibrate_intensities.py): keep the two lists equal.
-COVERAGE_GAPS_A = [(1522.49, 1529.85), (2103.46, 2107.92)]
+# --- where a predicted line could have been seen ---------------------------
+# Two separate things keep a predicted transition out of the line list, and
+# both are now measured rather than assumed.
+#
+# COVERAGE, c(lambda): whether the plate was exposed and measured at that
+# wavelength at all.  tools/coverage_map.py fits a hidden Markov model to the
+# density of the observed lines against a smooth baseline and returns, bin by
+# bin, the posterior probability that the record is open there; the result is
+# coverage_map.csv, and coverage() below reads it.  It replaces the two
+# hand-entered intervals that used to stand here, which came from the seams of
+# the intensity calibration and are far too narrow for this purpose: the map
+# finds ten blind stretches totalling 1078 A, and the two longest of them run
+# out to 1663.82 A and 2190.91 A rather than stopping at 1529.85 A and
+# 2107.92 A.  The old pair survives below only as the fallback used when
+# coverage_map.csv is absent.  The same two numbers are also the forced region
+# boundaries of the intensity calibration (DEFAULT_GAPS_A in
+# tools/calibrate_intensities.py), and for THAT purpose - where the intensity
+# scales of the bordering exposures could not be reconciled - they are right as
+# they stand.  The two lists answer different questions and must not be kept
+# equal.
+#
+# DETECTION, D(z): whether a line of that strength would have been recorded
+# where the plate is open, with z = ln(I_pred x scale factor / noise level).
+# tools/obscuration_rate.py measures it on the predicted transitions between
+# two established levels, removing chance coincidences and dividing out the
+# mapped blind stretches, and writes it into obscuration_rate.txt.  Its plateau
+# is 1 - epsilon = 0.965: about one predicted line in thirty is lost even when
+# it is bright and the plate is open, to a grain flaw or a single impurity
+# line, and no map of any kind can say which one.
+#
+# The probability that a prediction would have been observed at all is the
+# product
+#     P_obs = c(lambda) x D(z)
+# which is what observation_probability() returns.  The two factors do not
+# double-count: D is measured only where c >= 0.95, so it describes the open
+# plate and c carries everything else.
+#
+# When several branches of one level are absent, P_obs applies once per branch
+# and not once for the level: tools/obscuration_length.py measures the
+# obscuration to be 0.067 A wide, one resolution element, while the closest two
+# branches of any established level ever come is 0.446 A.  The exception the
+# same tool lists - two branches of one level closer together than 0.067 A - is
+# one test and not two.
+COVERAGE_FILE = os.path.join(HERE, 'coverage_map.csv')
+DETECTION_FILE = os.path.join(HERE, 'obscuration_rate.txt')
+COVERAGE_MIN = 0.5    # below this posterior the record is blind and a
+                      # prediction there is dropped from the observable set.
+                      # It is the threshold tools/coverage_map.py itself uses
+                      # to list the blind stretches in coverage_gaps.txt, and
+                      # the map is decisive nearly everywhere: three quarters
+                      # of its bins are above 0.98 and half above 0.999, so
+                      # little rides on the exact value.
+COVERAGE_GAPS_A = [(1522.49, 1529.85), (2103.46, 2107.92)]  # fallback only
 
 # Wavelength bands in which the predicted intensities are checked against the
 # observed ones for a scale error (see intensity_scale_bias).  Sugar's plates
@@ -277,7 +331,20 @@ SCALE_BIAS_BANDS_A = [(0.0, 900.0), (900.0, 1000.0)]
 SCALE_BIAS_MIN_N = 10          # accepted lines needed to measure a band
 SCALE_BIAS_MAX_FACTOR = 0.5    # only a bias this strong is worth correcting
 # A missing strongest branch counts as evidence against a level only if the
-# line would have been recorded with at least this probability (top1_status).
+# line would have been observed with at least this probability (top1_status).
+#
+# The probability is observation_probability below - the coverage of the plate
+# times the MEASURED detection curve - and no longer the log-normal around the
+# noise level that used to stand here.  That raises the bar a long way, which
+# is the point of the change.  The log-normal was fitted to the ACCEPTED lines,
+# whose lower tail the noise has already removed, so it was optimistic exactly
+# where it mattered: it put the recording probability at 0.99 by ten times the
+# noise level, where the measured rate is 0.81.  The measured D does not reach
+# 0.9 until about sixty times the noise level, so this threshold now selects
+# what it always claimed to select - branches whose absence really is
+# unexplained - instead of admitting lines that go unrecorded one time in five.
+# It cannot be raised much further: D has a ceiling at 1 - epsilon = 0.965, and
+# a threshold above that would make the test unpassable at any brightness.
 DETECT_CONFIDENCE = 0.9
 
 
@@ -406,11 +473,53 @@ def noise_threshold_linear(wn: float, calib) -> float | None:
     return float(np.exp(p))*1000
 
 
-def in_coverage_gap(wn: float) -> bool:
-    """True if the vacuum wavelength of this wavenumber falls inside one of
-    Sugar's coverage gaps (no exposures - nothing there could be observed)."""
+_coverage_map = None    # (bin centres, coverage) of coverage_map.csv, cached
+
+
+def read_coverage_map(path: str = COVERAGE_FILE):
+    """The coverage function c(lambda) as (bin centres, coverage).
+
+    coverage_map.csv is written by tools/coverage_map.py: one row per
+    wavelength bin, with the posterior probability that the record is open
+    there.  Returns () if the file is absent, which sends coverage() back to
+    the two hand-entered intervals of COVERAGE_GAPS_A.
+    """
+    global _coverage_map
+    if _coverage_map is None:
+        if os.path.exists(path):
+            m = pd.read_csv(path)
+            _coverage_map = (0.5 * (m['lam_lo'] + m['lam_hi']).to_numpy(),
+                             m['coverage'].to_numpy(dtype=float))
+        else:
+            _coverage_map = ()
+            print(f"WARNING: {os.path.basename(path)} not found - falling back "
+                  f"on COVERAGE_GAPS_A, which understates the blind stretches "
+                  f"by a factor of ninety in total width; run "
+                  f"tools/coverage_map.py")
+    return _coverage_map
+
+
+def coverage(wn: float) -> float:
+    """c(lambda): the probability that the record is open at the vacuum
+    wavelength of this wavenumber.
+
+    Linearly interpolated between the bin centres of the map and held at the
+    end values outside its range, which runs 822 - 10719 A, the extremes of the
+    observed line list.  Without the map this degrades to 0 inside
+    COVERAGE_GAPS_A and 1 outside it.
+    """
     lam = 1.0e8 / wn
-    return any(lo <= lam <= hi for lo, hi in COVERAGE_GAPS_A)
+    m = read_coverage_map()
+    if not m:
+        return 0.0 if any(lo <= lam <= hi for lo, hi in COVERAGE_GAPS_A) else 1.0
+    return float(np.interp(lam, m[0], m[1]))
+
+
+def in_coverage_gap(wn: float) -> bool:
+    """True where the record is blind - coverage below COVERAGE_MIN - so that
+    nothing at this wavelength could have been observed and the absence of a
+    predicted line there says nothing at all."""
+    return coverage(wn) < COVERAGE_MIN
 
 
 def intensity_scale_bias(real: pd.DataFrame, preds: pd.DataFrame,
@@ -508,14 +617,74 @@ def scale_bias_factor(wn: float, bias: dict) -> float:
     return scale_bias(wn, bias)[0]
 
 
+_detection_curve = None    # (z anchors, D anchors) of obscuration_rate.txt
+
+
+def read_detection_curve(path: str = DETECTION_FILE):
+    """The measured detection curve D(z) as (z anchors, D anchors).
+
+    obscuration_rate.txt gives D in eight bins of z = ln(I_pred / noise level),
+    the chance- and coverage-corrected fraction of predicted transitions that
+    were recorded or masked.  Each bounded bin is anchored at its midpoint and
+    the two open end bins at their finite edge; detection_probability
+    interpolates linearly between the anchors and holds the end values beyond
+    them, so D is flat at the measured plateau above a hundred times the noise
+    level and flat at the measured floor a tenth of it.  Returns () if the file
+    is absent or carries no curve.
+    """
+    global _detection_curve
+    if _detection_curve is not None:
+        return _detection_curve
+    _detection_curve = ()
+    if not os.path.exists(path):
+        print(f"WARNING: {os.path.basename(path)} not found - falling back on "
+              f"the log-normal detection model, which is optimistic at the "
+              f"faint end; run tools/obscuration_rate.py")
+        return _detection_curve
+    z, d, inside = [], [], False
+    with open(path) as fh:
+        for line in fh:
+            t = line.strip()
+            if t.startswith('# the detection curve'):
+                inside = True
+            elif inside and not t:
+                break
+            elif inside and not t.startswith('#'):
+                w = t.split()
+                if len(w) < 5:
+                    continue
+                lo, hi, dz = float(w[0]), float(w[1]), float(w[-2])
+                # the strength range in the middle carries spaces of its own,
+                # so the numbers are taken from the two ends of the row
+                z.append(hi if lo == -math.inf else
+                         lo if hi == math.inf else 0.5 * (lo + hi))
+                d.append(min(max(dz, 0.0), 1.0))
+    if len(z) >= 2:
+        o = np.argsort(z)
+        _detection_curve = (np.asarray(z)[o], np.asarray(d)[o])
+    return _detection_curve
+
+
 def detection_probability(wn: float, i_pred: float, calib, bias: dict) -> float:
-    """Probability that a predicted line would have been recorded at all.
+    """Probability that a line this bright would have been recorded WHERE THE
+    PLATE IS OPEN - the second factor of observation_probability.
 
     The line reaches the plate with intensity I_pred times the scale factor of
-    its band, and the spread of that estimate is the measured sd of
-    ln(I_obs/I_pred).  The probability is the mass of that log-normal above
-    the noise level (Sugar's intensity 1) at the same wavelength.  Returns 1.0
-    where there is no calibration to compare with.
+    its band, and z = ln(that / the noise level at the same wavelength).  The
+    answer is the measured curve of read_detection_curve, whose ceiling is
+    1 - epsilon = 0.965 rather than 1: even a line a thousand times the noise
+    level is lost about one time in thirty.
+
+    The scale factor is applied here but was not applied when the curve was
+    measured, and the two agree because the factor is 1 above 1000 A and the
+    curve is a curve for that region: the 243 predictions below 1000 A in the
+    measurement move no bin of it by as much as one standard error.  Correcting
+    z here therefore maps a far-ultraviolet prediction onto the same curve
+    instead of reading it at a z that is too high by ln(10).
+
+    Falls back on the old log-normal around the noise level, of width the
+    measured sd of ln(I_obs/I_pred), when obscuration_rate.txt is not there.
+    Returns 1.0 where there is no calibration to compare with.
     """
     if calib is None:
         return 1.0
@@ -523,18 +692,38 @@ def detection_probability(wn: float, i_pred: float, calib, bias: dict) -> float:
     if thr is None or thr <= 0 or i_pred <= 0:
         return 1.0
     f, sd = scale_bias(wn, bias)
+    z = math.log(i_pred * f / thr)
+    cur = read_detection_curve()
+    if cur:
+        return float(np.interp(z, cur[0], cur[1]))
     if not (sd > 0):
-        return 1.0 if i_pred * f >= thr else 0.0
-    z = math.log(i_pred * f / thr) / sd
-    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+        return 1.0 if z >= 0.0 else 0.0
+    return 0.5 * (1.0 + math.erf(z / (sd * math.sqrt(2.0))))
+
+
+def observation_probability(wn: float, i_pred: float, calib,
+                            bias: dict) -> float:
+    """P_obs = c(lambda) x D(z): the probability that this predicted transition
+    would have appeared in the observed line list at all.
+
+    Both factors are measured - the coverage by tools/coverage_map.py, the
+    detection curve by tools/obscuration_rate.py - and they are independent by
+    construction, the curve having been measured only where the coverage is at
+    least 0.95.  This is the quantity a missing-line term needs: the absence of
+    a prediction is evidence against a level in proportion to how surely it
+    would have been seen, and it is no evidence at all where the plate is blind
+    or the line is at the noise.
+    """
+    return coverage(wn) * detection_probability(wn, i_pred, calib, bias)
 
 
 def filter_observable(preds: pd.DataFrame, e_final: dict, calib,
                       bias: dict | None = None):
     """Drop predicted transitions that could not have been observed.
 
-    Two causes: (a) the Ritz wavelength falls inside one of Sugar's coverage
-    gaps (COVERAGE_GAPS_A); (b) the Sugar-scale intensity
+    Two causes: (a) the Ritz wavelength falls where the record is blind, that
+    is where the measured coverage is below COVERAGE_MIN; (b) the Sugar-scale
+    intensity
     I_pred/exp(P(lambda)) is below the noise level 1, i.e. I_pred is below
     the linear noise threshold at the Ritz wavelength (requires the
     calibration; predictions outside the calibrated range are kept).
@@ -941,6 +1130,14 @@ def main():
     per['top1'] = per['level_id'].map(
         top1_status(per['level_id'], by_level, real_pairs, obs_lines,
                     calib, bias))
+    # how surely the level's branches would have been seen: the observation
+    # probability of the strongest one (what makes top1 read 'faint') and the
+    # expected number over all of them (what a missing-line term weighs the
+    # accepted count against).  n_pred counts the same branches without asking
+    # how visible they were, so n_obs_expected is always the smaller.
+    obs = observability(per['level_id'], by_level, calib, bias)
+    per['top1_pobs'] = [obs[l][0] for l in per['level_id']]
+    per['n_obs_expected'] = [obs[l][1] for l in per['level_id']]
     # accepted lines whose predicted intensity is below Sugar's noise level
     # (kept in the support count n; this column only makes them visible)
     below_cnt = {}
@@ -955,11 +1152,11 @@ def main():
           f"old (reference): {len(per) - n_tested}")
     if calib is not None:
         print(f"Predicted transitions loaded: {n_pred_all}; observable: "
-              f"{len(preds)} (excluded: {n_gap} in coverage gaps, "
+              f"{len(preds)} (excluded: {n_gap} in blind stretches, "
               f"{len(preds_below)} below Sugar's noise level)")
     else:
         print(f"Predicted transitions loaded: {n_pred_all}; observable: "
-              f"{len(preds)} ({n_gap} in coverage gaps excluded; "
+              f"{len(preds)} ({n_gap} in blind stretches excluded; "
               f"intensity_correction_functions.txt not found - no noise-level "
               f"cut applied)")
     tab = per.groupby(['is_new_level', 'new_star']).size()
@@ -1265,12 +1462,14 @@ def main():
         lambda lid: qstat.get(lid, ('', ''))[1])
     cols = ['level_id', 'is_new_level', 'new_star', 'note', 'J', 'parity',
             'E_input', 'E_final', 'dE', 'n_old', 'n_new', 'n_tot', 'd',
-            'n_pred', 'n_top10', 'top10_found', 'top1', 'pattern_C', 'pattern_V',
+            'n_pred', 'n_obs_expected', 'n_top10', 'top10_found', 'top1',
+            'top1_pobs', 'pattern_C', 'pattern_V',
             'n_acc_below_noise', 'p_spur_decoys', 'p_spur_pattern', 'p_spur',
             'question_status', 'reason']
     print()
     mc.save_table(out[cols], REPORT_CSV,
                   decimals={'E_input': 4, 'E_final': 4, 'dE': 4, 'd': 3,
+                            'n_obs_expected': 2, 'top1_pobs': 3,
                             'pattern_C': 3, 'pattern_V': 3, 'p_spur_decoys': 3,
                             'p_spur_pattern': 3, 'p_spur': 3})
 
@@ -1342,6 +1541,33 @@ def predictions_by_level(preds: pd.DataFrame, e_final_map: dict) -> dict:
     return by_level
 
 
+def observability(level_ids, by_level: dict, calib=None,
+                  bias: dict | None = None) -> dict:
+    """{level_id: (P_obs of the strongest prediction, sum of P_obs)}.
+
+    The second number is how many of the level's predicted branches should
+    have appeared in the line list at all - the expected count, against which
+    the number actually accepted is what a missing-line term has to weigh.  It
+    is well below n_pred for most levels, because most predicted branches sit
+    near the noise: of the 7391 predictions that survive the observability
+    filter of the run, the great majority are between one and ten times the
+    noise level, where the measured detection curve stands at 0.4 to 0.8.
+
+    The first number says why a level's strongest branch was called 'faint':
+    it is the quantity compared with DETECT_CONFIDENCE in top1_status.
+    """
+    out = {}
+    for lid in level_ids:
+        plist = by_level.get(lid, [])
+        if not plist:
+            out[lid] = (np.nan, 0.0)
+            continue
+        po = [observation_probability(ritz, ip, calib, bias)
+              for ip, _, ritz in plist]
+        out[lid] = (po[0], float(sum(po)))
+    return out
+
+
 def top1_status(level_ids, by_level: dict, accepted_pairs: set,
                 obs_lines: pd.DataFrame, calib=None,
                 bias: dict | None = None) -> dict:
@@ -1352,12 +1578,13 @@ def top1_status(level_ids, by_level: dict, accepted_pairs: set,
                 to hide it stands at its predicted position, so its absence
                 from the line list is explained;
     'faint'   - it is not, nothing hides it, but the line would not reliably
-                have been recorded in the first place: its intensity on the
-                plate, I_pred corrected by the scale factor of its band, is
-                too close to the noise level for its absence to mean
-                anything (detection_probability below DETECT_CONFIDENCE).
-                This is what happens in the far ultraviolet, where the
-                calculated intensities are an order of magnitude too large;
+                have been observed in the first place: the measured chance of
+                seeing it, the coverage of the plate there times the measured
+                detection curve at its intensity, is below DETECT_CONFIDENCE
+                (observation_probability).  That covers both the far
+                ultraviolet, where the calculated intensities are an order of
+                magnitude too large and the line is at the noise, and the
+                half-blind stretches, where the plate is thinly exposed;
     'missing' - it is not, nothing hides it, and it should have been
                 recorded: the branch the theory makes the level's brightest
                 is simply not there;
@@ -1389,7 +1616,7 @@ def top1_status(level_ids, by_level: dict, accepted_pairs: set,
             out[lid] = 'found'
         elif _hidden_by_a_stronger_line(ritz, ip, wn_arr, int_arr, dop):
             out[lid] = 'masked'
-        elif detection_probability(ritz, ip, calib, bias) < DETECT_CONFIDENCE:
+        elif observation_probability(ritz, ip, calib, bias) < DETECT_CONFIDENCE:
             out[lid] = 'faint'
         else:
             out[lid] = 'missing'
@@ -1540,22 +1767,27 @@ def print_level_detail(level_id: str):
                 fate = "ACCEPTED  " + base
             else:
                 fate = "REJECTED  " + base + _opt(cr['notes2'], '  ', 55)
-        if in_coverage_gap(wn_ritz):
-            fate += "  [in coverage gap - not observable]"
+        cov = coverage(wn_ritz)
+        if cov < COVERAGE_MIN:
+            fate += f"  [blind stretch, coverage {cov:.2f} - not observable]"
         elif calib is not None:
             thr = noise_threshold_linear(wn_ritz, calib)
             f = scale_bias_factor(wn_ritz, bias)
-            pdet = detection_probability(wn_ritz, p['I_pred'], calib, bias)
+            pobs = observation_probability(wn_ritz, p['I_pred'], calib, bias)
             if thr is not None and p['I_pred'] * f < thr:
                 fate += ("  [below noise level]" if f == 1.0 else
                          f"  [below noise level on the plate: I_pred x {f:.2f}"
                          f" = {p['I_pred'] * f:.0f} vs {thr:.0f}]")
-            elif pdet < DETECT_CONFIDENCE:
-                fate += (f"  [at the noise level on the plate: "
+            elif pobs < DETECT_CONFIDENCE:
+                # printed for accepted lines too - that a line which WAS seen
+                # was only marginally likely to be is worth knowing - so the
+                # wording has to read as a probability, not as a verdict
+                fate += (f"  [P(seen) = {pobs:.2f}: "
                          + (f"I_pred x {f:.2f} = {p['I_pred'] * f:.0f}"
                             if f != 1.0 else f"I_pred = {p['I_pred']:.0f}")
-                         + f" vs {thr:.0f}, recorded with probability "
-                           f"{pdet:.2f}]")
+                         + f" vs noise {thr:.0f}"
+                         + (f", coverage {cov:.2f}" if cov < 0.99 else "")
+                         + "]")
         print(f"  {partner:>16} {wn_ritz:11.3f} {p['I_pred']:10.1f}  {fate}")
 
     pred_pairs = {tuple(sorted((p['lo_id'], p['up_id'])))

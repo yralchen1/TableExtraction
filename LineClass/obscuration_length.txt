@@ -1,0 +1,106 @@
+# correlation length of the residual obscuration
+# produced by tools/obscuration_length.py
+#
+# phi(d) = correlation coefficient of the obscuration at
+#          separation d: 1 if two positions d apart always share
+#          the fate of one obscuring event, 0 if their fates are
+#          independent.  L is the width of phi.
+#
+# population: 13709 predicted transitions between
+#             two established levels, all pairs closer than 5 A
+
+epsilon_used     0.0350   # from the same run, tools/obscuration_rate.py
+n_pairs          276567
+n_pairs_fitted   55231   # separation <= 1 A
+L                0.0669   # angstrom, top-hat width
+L_lo95           0.0272
+L_hi95           0.1316
+L_leave_one_out  0.0598 - 0.0669   # refitting without any one wavelength block
+floor_phi0       +0.290   # unremoved baseline correlation; the method's systematic
+significance     14.0   # 2 dNLL against no correlation, 1 degree of freedom
+fwhm_at_1500A    0.0371   # effective resolution there, for comparison with L
+
+# epsilon measured a second time, from the clustering amplitude
+epsilon_pairs    0.0690
+epsilon_pairs_lo 0.0371
+epsilon_pairs_hi 0.1450
+
+# phi(d) in bins, inverse-variance weighted; the error is a
+# jackknife over the wavelength blocks.  The floor above has NOT
+# been subtracted here.
+#    d_lo     d_hi    pairs       phi     error
+     0.000    0.015      775     2.157     1.204
+     0.015    0.030      786     0.092     0.099
+     0.030    0.050     1098     0.353     0.288
+     0.050    0.080     1596     0.015     0.103
+     0.080    0.120     2255     0.107     0.123
+     0.120    0.180     3318     0.004     0.099
+     0.180    0.280     5447     0.221     0.222
+     0.280    0.450     9474    -0.029     0.048
+     0.450    0.800    19330     0.126     0.052
+     0.800    1.500    38914     0.080     0.037
+     1.500    3.000    82995     0.069     0.031
+     3.000    5.000   110579     0.101     0.048
+
+# the control check: the same statistic at the displaced
+# positions, where nothing was expected.  Its excess below one
+# window width is the coincidence artefact, and it is divided
+# out of phi above.
+#    d_lo     d_hi    pairs   R_control
+     0.000    0.010      499       1.176
+     0.010    0.020      550       1.165
+     0.020    0.030      512       1.128
+     0.030    0.050     1098       1.091
+     0.050    0.080     1596       1.029
+     0.080    0.150     3877       0.990
+     0.150    0.400    13850       0.989
+     0.400    5.000   254585       0.999
+
+# how far apart the predicted branches of one level fall, on
+# which the whole practical consequence turns
+#  I/noise   predictions   branch pairs   closest   median   closer than L=0.067 A
+         1          4879           9157     0.044     28.6           11
+        10          1840           3163     0.055     49.5            4
+       100           335            379     0.446    206.4            0
+
+# branches of one level closer than L, at 10 x the noise level or stronger:
+# these are one test and not two, and their joint absence costs
+# epsilon, not epsilon squared
+#      level    via     lam_1      lam_2     dlam   I/noise_1   I/noise_2   outcome
+  059003.000064  lower  1029.1573  1029.2123   0.0550        62.7       135.8   seen/seen
+  059003.000069  lower  1040.5883  1040.6445   0.0562       117.6        78.2   seen/seen
+  059003.000070  lower  1041.1426  1041.1989   0.0563       124.4        39.7   seen/seen
+  059003.000079  lower  1061.9134  1061.9720   0.0586        16.2        22.4   seen/seen
+
+# jointly absent pairs, both at least 5 x the noise level, within 0.25 A
+#     lam_1      lam_2     dlam   I/noise_1   I/noise_2  cov  same level
+   3185.6465  3185.6516   0.0051        14.6        38.3 0.996  no
+   3011.4051  3011.4123   0.0072        17.2        69.2 1.000  no
+   2055.2647  2055.2737   0.0090      1418.4        69.9 0.999  no
+   1046.3848  1046.3943   0.0094        76.1        46.4 1.000  no
+   2026.1193  2026.1293   0.0100       177.2         7.4 1.000  no
+   1122.9306  1122.9551   0.0246         9.9        38.9 1.000  no
+   2066.0007  2066.0256   0.0249         9.7        14.3 1.000  no
+   1046.3432  1046.3848   0.0416         5.4        76.1 1.000  no
+   1862.7458  1862.7923   0.0464        27.7         5.1 1.000  no
+   1912.2176  1912.2642   0.0466         7.8        30.7 1.000  no
+   1044.6998  1044.7469   0.0470         7.8        91.7 1.000  no
+   3710.1176  3710.1677   0.0501        37.2         5.8 0.999  no
+   1046.3432  1046.3943   0.0511         5.4        46.4 1.000  no
+   2777.5980  2777.6575   0.0595        38.1        40.9 1.000  no
+   1065.8998  1065.9876   0.0878       105.7         7.9 1.000  no
+   2100.6070  2100.7043   0.0974         6.4       133.9 0.759  no
+   2100.7043  2100.8123   0.1080       133.9         8.4 0.754  no
+   1492.6418  1492.7506   0.1089        37.5        10.1 1.000  no
+   3496.4026  3496.5165   0.1139         7.8        18.3 0.997  no
+   1116.0976  1116.2140   0.1165         5.4         8.1 1.000  no
+   1109.9017  1110.0249   0.1232         7.2        13.7 1.000  no
+   1104.8963  1105.0441   0.1478         7.1        10.0 1.000  no
+   2094.3391  2094.4958   0.1568         5.9        13.4 1.000  no
+   7465.6435  7465.8140   0.1704       498.6         6.4 1.000  no
+   1852.1694  1852.3545   0.1851         5.9         5.2 1.000  no
+   2076.6068  2076.7972   0.1904         7.7        22.0 1.000  no
+   2100.6070  2100.8123   0.2054         6.4         8.4 0.759  yes
+   4172.2814  4172.5053   0.2239        13.1        10.6 1.000  no
+   1450.6748  1450.9101   0.2354        45.1        11.5 1.000  no
+   3678.9915  3679.2321   0.2407        30.8        80.4 1.000  no

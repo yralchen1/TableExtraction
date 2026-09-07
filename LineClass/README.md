@@ -1111,7 +1111,10 @@ with a cubic (`-816142; 1141.6; -0.532; 8.3e-5`), smearing a true discontinuity 
 whole neighbourhood.
 
 The gaps are now given to `calibrate_intensities.py` in advance (`--gap LO HI`, defaults
-`DEFAULT_GAPS_A`, the same numbers as `COVERAGE_GAPS_A` in `level_shifts.py`) and cut the
+`DEFAULT_GAPS_A`; they were also the starting numbers of `COVERAGE_GAPS_A` in
+`level_shifts.py`, which now uses the measured coverage function instead and keeps that list
+only as a fallback — the two answer different questions and are no longer the same,
+see [Where the plates were blind](#where-the-plates-were-blind-toolscoverage_mappy)) and cut the
 lines into blocks *before* any fitting, so the two sides of a gap are segmented and fitted
 independently and the step between them is unconstrained. The refit gives 8 regions,
 `C` = 0.2622, `kT` = 12226.9 cm^-1, rms `dlnI` = 0.8175:
@@ -1376,6 +1379,522 @@ wavenumber, wavelength, reported intensity, noise, SNR, and the integer IDEN2 wo
 `noise_windows.csv` (the window minima the fit rests on, and which were dropped), and
 optionally a plot.
 
+### Where the plates were blind: `tools/coverage_map.py`
+
+**The question.** A predicted transition that theory says should be strong, and that the
+line list does not contain, is evidence against whatever identification predicted it — but
+only if a line *could* have been recorded where it falls. Three things stop that, and none
+of them has anything to do with the atom: the wavelength fell between two exposures; a
+defect of the emulsion sat on it; a line of another species sat on it. For this spectrum we
+have a record of none of the three. Sugar made hundreds of exposures with varying plate
+positions, sources and spectrographs, and their boundaries were never published; the
+defects were never catalogued; the impurity spectra were never listed. The two intervals
+this project used to carry hard-coded (`COVERAGE_GAPS_A` in `level_shifts.py`,
+`DEFAULT_GAPS_A` in `tools/calibrate_intensities.py`) were an informed guess.
+
+**The idea.** The record is not needed. All three causes have the same observable
+consequence: *wherever they act, the line list is empty* — not merely of the transition we
+care about, but of every line of every species that would otherwise have been recorded
+there. So the line list maps its own blind spots, and it does so without our having to know
+which of the three causes was at work.
+
+What the tool produces is a **coverage function**
+
+    c(lambda) = P(a line the spectrum really contains at vacuum wavelength lambda, bright
+                  enough to be recorded, was in fact recorded), relative to how well that
+                  is done in a typical part of the spectrum.
+
+It is deliberately *relative*. The absolute part — how bright a line must be — is the noise
+level `N(lambda)` of the previous section. The two multiply and neither can replace the
+other: `N` is smooth in wavelength and says how faint a line may be before it is lost; `c`
+is sharp and local and says where a line of *any* brightness is lost.
+
+**The model.** Work is done in `u = ln lambda`, so that a bin of fixed width is a fixed
+*fraction* of the wavelength — necessary because the list spans 822–10720 Å and the density
+of recorded lines falls by more than a factor of ten across it. The default bin is
+`--bin 2e-4`, 0.02 % in wavelength: 0.16 Å at 822 Å, 2.1 Å at 10700 Å. Each bin `b` is in
+one of two hidden states, *covered* or *blocked*, and the number of lines it holds is
+Poisson:
+
+    covered:   n_b ~ Poisson(R_b)
+    blocked:   n_b ~ Poisson(r0 * R_b)
+
+with `R_b` the lines the bin would hold if covered and `r0` the **leak-through**, the
+fraction that still gets recorded in a blocked bin — not zero, because obscuration is
+rarely total (a scratch hides part of a bin, an impurity line hides only what it overlaps)
+and because an exact zero would let one stray line veto an otherwise unmistakable hole.
+Blocking comes in runs, so the states follow a two-state Markov chain with
+`a = P(covered→blocked)` and `b = P(blocked→covered)` per bin; the standard
+forward-backward recursion then returns `c_b = P(bin b is covered | the whole line list)`.
+Because the recursion sees the whole list at once, an empty bin inside a populated stretch
+is a fluctuation and keeps `c ≈ 1`, while an empty bin inside a desert is condemned by the
+company it keeps.
+
+**Why the baseline comes from theory.** `R_b` cannot be estimated from the observed list
+alone. The density of recorded lines in this spectrum swings by a factor of twenty between
+neighbouring stretches — real structure, since transition arrays cluster in wavelength — and
+a smooth curve fitted through it either follows that structure (and then bends into a gap,
+hiding it) or does not (and then hands the real structure to the blocked state). Both
+failures were observed in practice. The way out is that the **calculated** transitions know
+the structure and know nothing about the plates. `TRANS.DAT` holds 104271 predicted
+transitions; their density per unit `u`, blurred by `--pred-blur` (default 0.002 in
+`ln lambda`, a few Å in the ultraviolet, for the error of a calculated wavelength) gives the
+baseline its *shape*. What is left for a fitted curve is only the slow **efficiency** — what
+fraction of the calculated lines a covered plate actually recorded, which also absorbs the
+non-Pr III part of the list — and that is fitted as a penalized cubic spline in `u` by
+Poisson regression with the current coverage as an exposure offset, so that blocked bins do
+not drag it down. `--no-pred` falls back to a spline-only baseline.
+
+The check that justifies this: across every candidate blind stretch the predicted density is
+flat while the observed density collapses. In 1530–1570 Å theory predicts 28.4 transitions
+per Å against 34.0 per Å in the dense 1450–1516 Å next door, a difference of 16 %; the
+observed density falls from 3.92 per Å to 0.05, a factor of **65**. Nothing atomic happens
+there. The same holds at 2110–2150 Å (predicted 21.1 vs 21.9 per Å; observed 0.80 vs 2.64)
+and at 890–960 Å (predicted 57.4 vs 64.0; observed 0.27 vs 2.32).
+
+**How flexible the efficiency curve is allowed to be** is not left to taste, because the
+answer depends on it: a stiff curve blames the atom's structure on the plates, a flexible
+one bends into the holes and hides them. `--knots` is set generously (200) and the curvature
+penalty `--smooth` — which is what really controls the flexibility — is chosen by BIC over
+`--smooth-grid`, charging `ln(number of bins)` for every *effective* parameter the spline
+spends (the trace of the smoother matrix, not the coefficient count). With the current
+inputs the criterion picks penalty 1000, an effective **28.7 parameters** over the whole
+range, and the leak-through settles at `r0 = 0.23`.
+
+**What it finds.** Ten stretches with `c < 0.5`, holding 13.2 % of the wavelength range but
+only 2.6 % of the observed lines and 2.7 % of the accepted classifications:
+
+| λ range, Å (vac) | width, Å | lines expected | observed | lost | mean c |
+|---|---:|---:|---:|---:|---:|
+| 821.94 – 827.88 | 5.9 | 48.6 | 9 | 38.6 | 0.075 |
+| 887.73 – 966.49 | 78.8 | 130.4 | 24 | 104.2 | 0.030 |
+| 1164.29 – 1174.82 | 10.5 | 24.4 | 7 | 13.5 | 0.233 |
+| **1522.75 – 1663.82** | **141.1** | 206.2 | 25 | 179.9 | 0.011 |
+| **2103.32 – 2190.91** | **87.6** | 271.2 | 71 | 198.8 | 0.009 |
+| 2781.29 – 2808.68 | 27.4 | 41.5 | 15 | 22.6 | 0.178 |
+| 3211.42 – 3256.05 | 44.6 | 32.3 | 9 | 19.9 | 0.142 |
+| 4935.80 – 5067.84 | 132.0 | 19.0 | 3 | 13.8 | 0.132 |
+| 8755.78 – 9033.27 | 277.5 | 32.4 | 10 | 20.0 | 0.119 |
+| 10447.00 – 10720.04 | 273.0 | 8.0 | 1 | 5.9 | 0.260 |
+
+**Both hard-coded gaps are real, and both are truncated.** 1522.49–1529.85 Å and
+2103.46–2107.92 Å come out blind (mean `c` = 0.06 in each), and their *lower* edges are
+right to a fraction of an angstrom — 1522.49 against a measured 1522.75, 2103.46 against
+2103.32. Their upper edges are not: each declared gap covers about 5 % of the blind stretch
+it begins. Where the record actually resumes is 1663.8 Å and 2190.9 Å. The pattern is the
+same in both cases and suggests how the numbers were arrived at: the start of each gap was
+identified correctly and the recovery point was read off far too early.
+
+Two blind stretches of comparable weight were not declared at all: 887.7–966.5 Å (130
+expected lines, 24 recorded) and 1164.3–1174.8 Å. The stretch at the very short-wavelength
+end, 821.9–827.9 Å, is the edge of the survey itself rather than a hole inside it.
+
+**The intensity calibration keeps the narrow gaps, and that is a result, not an oversight.**
+`tools/calibrate_intensities.py` forces a region boundary at each of these same two places
+(`DEFAULT_GAPS_A`), for a different reason: across a seam between two exposures no line was
+recorded on both plates, so nothing ties the two intensity scales together, and a polynomial
+fitted through the seam would smear a real, unknown step over the whole neighbourhood. The
+obvious move, once the blind stretches were measured, was to widen those two boundaries from
+1522.49–1529.85 Å and 2103.46–2107.92 Å to the measured 1522.75–1663.82 and
+2103.32–2190.91 Å. It was tried, and it is wrong.
+
+A blind stretch is where *few lines were recorded*; a calibration gap is where *the
+intensity scale breaks*; the two have different lengths. Past a seam the new plate is far
+less sensitive near its own short-wavelength edge, so it registers few lines for some way —
+which is exactly why the coverage map calls the stretch blind — but the lines it does
+register are on the new plate's scale, and a polynomial that starts at the seam corrects
+them correctly. The direct test is the residual left by the correction now in force:
+
+| blind stretch, Å | median ln(Icalc/Icorrected), below / inside / above |
+|---|---|
+| 887.7 – 966.5 | — / +0.16 / +0.03 |
+| 1522.7 – 1663.8 | +0.03 / +0.51 / +0.04 |
+| 2103.3 – 2190.9 | 0.00 / −0.05 / +0.01 |
+| 2781.3 – 2808.7 | +0.11 / −0.49 / −0.08 |
+| 3211.4 – 3256.0 | −0.06 / −0.24 / −0.13 |
+| 8755.8 – 9033.3 | +0.27 / −0.10 / −0.27 |
+
+Inside every one of them the correction is already right, to better than 0.5 in natural
+logarithms against a line-to-line scatter of about 1.2. Widening the two gaps instead throws
+the 27 lines the fit was using inside them out of the fit and replaces their correction by
+the clamped value of the neighbouring region: the lines at 2103–2191 Å come out a median
+factor of 3 too faint, and the first of them, at 2110.6 Å, a factor of 700. Forcing all
+eight measured stretches as boundaries fails the tool's own safety check outright — the cut
+at 8755.8–9033.3 Å leaves 35 lines beyond it, below `--min-points`.
+
+**The intensity scale is what tells the two causes of blindness apart.** Across these two
+seams the median of ln(Icalc/Iobserved) steps by +4.4 and +3.7 — from −0.45 to +3.99 at
+2103 Å, from −2.52 to +1.18 at 1523 Å — while the scatter inside the stretch stays no larger
+than outside it. That is a new plate on its own scale, not a scatter of randomly obscured
+lines. Across the other six measured stretches the median does not step at all. So the two
+stretches the coverage map confirms are the two exposure seams, and the six it adds are
+emulsion defects and impurity lines *inside* one exposure: they hide lines, which is what
+the observability term needs to know, and they break no scale, which is what the calibration
+needs to know. The declared edges are not guesses either — each is exactly the empty
+interval between the last line recorded before the seam and the first one after it
+(1522.489 → 1529.851, 2103.455 → 2107.918).
+
+**What it is not.** The table is a measurement of where the record is thin, not a list of
+plate boundaries: it says *that* something was in the way, never *which* of the three causes
+it was. At the red end especially, a low-density stretch may be a genuinely empty piece of
+spectrum. The table is meant to be consumed as the continuous function `c`, which weakens
+the evidence of a missing line in proportion to how thin the record is; read as a set of
+hard on/off boundaries it would throw that proportion away.
+
+**Weight of the correction.** About **15 %** of the predicted transitions above the noise
+fall where `c < 0.5` — roughly one predicted branch in seven that is currently counted as
+missing evidence is missing for instrumental reasons. Against the 14 levels whose
+questionable mark rests on an absent strongest branch (`top1 = missing`,
+`question_status = retained`), the map changes nothing: every one of the 14 has its
+strongest branch in a fully covered region (`c` ≥ 0.997). It does move weaker branches of
+those levels — for instance 059003.000447 has a predicted intensity 2744 branch at
+1642.66 Å with `c = 0.000`, and 059003.000575 one of intensity 2070 at 952.62 Å, also
+`c = 0.000` — which used to be counted against them and no longer are.
+
+`level_shifts.py` now reads this file. `coverage()` interpolates `c` between the bin centres,
+`in_coverage_gap()` is `c < COVERAGE_MIN` = 0.5, and `observation_probability()` multiplies `c`
+by the measured detection curve of the next section. The count of predictions dropped as
+unobservable rises from **111** under the two hand-entered intervals to **3813** of 29260, and
+1271 more sit in the half-lit band 0.5 ≤ `c` < 0.95, kept but discounted by their `c` wherever
+a probability rather than a filter is wanted.
+
+Usage and outputs:
+
+```bash
+python tools/coverage_map.py            # defaults; from inside LineClass/
+python tools/coverage_map.py --no-pred  # spline-only baseline, for comparison
+```
+
+`coverage_map.csv` (one row per bin: wavelength range, lines recorded, lines expected, `c`),
+`coverage_gaps.txt` (the segment table above), `coverage_map.log` (the BIC scan and the
+fitted `r0`, `a`, `b`) and `coverage_map.png` (recorded density, baseline and `c`, in five
+panels).
+
+### How often a line is lost where the map says the plate was looking: `tools/obscuration_rate.py`
+
+**What the coverage function cannot see.** `c(λ)` is measured by asking where the line list
+is *empty over a stretch of wavelength*, and it has to be: one empty bin proves nothing, a
+hundred consecutive ones prove a great deal. That makes it blind, by construction, to
+obscuration that acts on a single line — a grain flaw a few tenths of an angstrom across, one
+impurity line, a scratch narrower than the model's own resolution. Such an event thins the
+record by one line, which no statistical model can distinguish from a fluctuation, and it
+leaves no mark: nothing in the line list says where a line should have been and was not.
+
+That matters more than it sounds, because the missing branches the validation actually argues
+about are almost never in a mapped blind stretch. Of the 14 levels whose questionable mark
+rests on an absent strongest branch, **every one has that branch at `c` ≥ 0.997** — in a part
+of the spectrum the map calls fully covered. For those levels `c` contributes nothing, and
+what is needed instead is a *rate*:
+
+    ε(λ) = P(a line that was certainly bright enough to be recorded, at a wavelength
+             the coverage map calls covered, was nevertheless not recorded)
+
+so that the observability of a predicted transition factorizes as
+
+    P(recorded) = c(λ) · (1 − ε(λ)) · D(I_pred / N(λ))
+
+with `N(λ)` the noise level of `tools/estimate_snr.py` and `D` the probability that a line of
+that predicted strength clears it. `c` is measured where the record is thin, ε where it is
+not; neither substitutes for the other.
+
+**How ε is measured.** Not on the levels under test — for those, whether a predicted line is
+really missing is the very question in dispute. It is measured on the **established levels**:
+supported by more old than new identifications *and* present in the ASD compilation, 384 of
+the 594 in the current run. Their energies are certain to a few thousandths of a wavenumber,
+so their predicted transitions fall at known places, and an absence there is the plate's doing
+and not the identification's. Each of the 13709 predicted transitions between two such levels
+is asked three questions.
+
+*Where would it fall?* At the Ritz wavelength λ = 10⁸/(E_upper − E_lower), vacuum angstroms.
+
+*How bright would it be?* `I_pred` from `Icalc.xlsx`, against the noise level at that
+wavelength — the linear intensity corresponding to Sugar's plate intensity 1. Only the ratio
+`I_pred / N(λ)` is used; it already absorbs the wavelength dependence of the plate's
+sensitivity.
+
+*Was anything recorded there?* Three outcomes. **Recorded** — a measured line lies within
+`W = 5.5·σ_λ` of the Ritz wavelength, where σ_λ is the local median wavelength uncertainty of
+the measured lines (0.003–0.009 Å over the whole range, so W ≈ 0.022 Å; 5.5 is the pipeline's
+own matching factor). The line need not be classified as this transition, or as Pr III at all
+— the question is only whether the plate registered anything there. **Masked** — nothing
+within W, but a recorded line close enough and strong enough to swallow the prediction, by the
+same test `level_shifts.py` uses for its own masking check. **Absent** — neither. Recorded and
+masked together count as *explained*; ε is measured on the rest.
+
+**The correction the measurement lives or dies by.** The window is 0.022 Å wide and in the
+crowded ultraviolet the recorded lines are 0.13 Å apart, so about one predicted position in
+eight lands on a recorded line by pure coincidence; left uncorrected that would hide a fifth of
+the obscuration. The chance rate is measured, not modelled: every prediction is re-tested at
+18 control positions displaced by ±6, ±9, … ±30 window widths, and the fraction of *those* that
+come out explained is that prediction's chance rate `f`. Displacing in units of the window
+keeps the controls inside the same local line density at every wavelength. The check: the
+share of controls that land on a recorded line, 0.0831, matches the Poisson estimate
+`1 − exp(−2Wρ)` from the local line density ρ, 0.0819. With `y_i = 1` for explained,
+
+    ε = 1 − (Σ y_i − Σ f_i) / Σ (1 − f_i)·c_i
+
+and the interval comes from the profile likelihood of `p_i = f_i + (1 − f_i)·c_i·(1 − ε)`.
+
+**Why only the strongest predictions count, and why that is itself a result.** The absence of a
+*weak* predicted line means nothing; absence becomes informative only where `D` — the
+probability of clearing the noise — is 1. The honest way to find that place is not to model `D`
+but to watch where the measured absence rate stops falling:
+
+| I_pred / noise | predictions | ε |
+|---|---:|---:|
+| 10¹·⁵ – 10² | 526 | 0.110 |
+| 10² – 10²·⁵ | 232 | 0.028 |
+| 10²·⁵ – 10³ | 73 | 0.058 |
+| 10³ – 10³·⁵ | 27 | 0.037 |
+
+It stops at a **hundred times** the noise level. That sounds extravagant, and the reason it is
+needed is worth stating. Model `D` as a log-normal — the predicted intensity times a scatter
+factor whose spread is measured on the accepted identifications, sd of ln(I_obs·BF / I_pred)
+= 1.30 over 3689 established-level lines, with BF the branching fraction that splits a blended
+feature among its components — and `D` reaches 0.99 already at *ten* times the noise, so the
+absence rate there should be 0.01. It is 0.14. The log-normal is far too optimistic at the
+faint end for the obvious reason: it is fitted to lines that *were* recorded, so its lower tail
+has been cut off by the very effect it is being asked to predict. Fitting the tail and ε
+together does not rescue it — the two are degenerate, and a free fit puts the sd at 2.4 and ε
+at 0, attributing every absence to the tail. What breaks the degeneracy is that at a hundred
+times the noise a log-normal of *any* plausible width predicts essentially no loss, so whatever
+is left there is not the intensity model.
+
+The consequence for the likelihood is that its missing-line term must use the **measured**
+detection curve and not a log-normal around the noise level, and `level_shifts.py` now does:
+`detection_probability()` reads this table out of `obscuration_rate.txt` and interpolates it,
+anchoring each bounded bin at its midpoint in `z = ln(I_pred/noise)` and the two open end bins
+at their finite edge. The scale factor `f(λ)` of the far ultraviolet is applied to `I_pred`
+before the lookup although it was not applied when the curve was measured; the two are
+consistent because `f` is 1 above 1000 Å and the curve is a curve for that region — the 243
+predictions below 1000 Å in the measurement move no bin of it by as much as one standard
+error — so correcting `z` maps a far-ultraviolet prediction onto the same curve instead of
+reading it at a `z` too high by ln 10.
+
+| I_pred / noise | predictions | D = P(recorded or masked) |
+|---|---:|---:|
+| below 0.1 | 3763 | 0.015 ± 0.008 |
+| 0.1 – 0.32 | 1360 | 0.043 ± 0.013 |
+| 0.32 – 1 | 1693 | 0.155 ± 0.013 |
+| 1 – 3.2 | 1690 | 0.376 ± 0.015 |
+| 3.2 – 10 | 1348 | 0.630 ± 0.015 |
+| 10 – 32 | 979 | 0.812 ± 0.014 |
+| 32 – 100 | 526 | 0.890 ± 0.015 |
+| above 100 | 336 | 0.965 ± 0.011 |
+
+(chance- and coverage-corrected; the plateau is 1 − ε).
+
+**The result.** Of the 335 predicted transitions between established levels that are at least a
+hundred times the noise level and fall where `c ≥ 0.95`: 317 recorded, 7 masked, 11 absent,
+against a chance-match rate of 0.116. That gives
+
+**ε = 0.035, 95 % interval 0.018 – 0.061** — about one predicted line in thirty is lost to
+something too small for the coverage map to see.
+
+And the rate is the same everywhere. Per wavelength band, at matched predicted strength:
+
+| λ range, Å | strong predictions | absent | ε | 95 % interval |
+|---|---:|---:|---:|---|
+| 800 – 1200 | 66 | 1 | 0.022 | 0.001 – 0.095 |
+| 1700 – 2300 | 85 | 4 | 0.054 | 0.017 – 0.122 |
+| 2300 – 3000 | 18 | 0 | 0.000 | 0.000 – 0.115 |
+| 3000 – 4500 | 49 | 1 | 0.022 | 0.001 – 0.093 |
+| 4500 – 7000 | 51 | 0 | 0.000 | 0.000 – 0.037 |
+| 7000 – 11000 | 65 | 5 | 0.072 | 0.024 – 0.154 |
+
+A single constant fits them (likelihood ratio 7.8 on 5 degrees of freedom, p = 0.17). The
+1200–1700 Å band holds only one strong prediction and is not reported. Nor does the answer
+depend much on the cuts: ε is 0.054 at a 50× strength threshold, 0.035 at 100× and at 200×,
+0.061 at 400× (on 83 predictions), and 0.039, 0.035, 0.035 for `c ≥ 0.90`, 0.95, 0.99.
+
+**Do not read ε(λ) off a fit that uses the weak predictions too.** Such a fit has to assume the
+detection curve has the same *shape* in every band, and it does not — the noise level is a
+fitted polynomial, and a small error in it at one end shifts the whole curve there. Fitted that
+way the 7000–11000 Å band comes out at 0.26 against the 0.072 measured on its own strong
+predictions. The strong subsample is the measurement; everything else is the diagnostic that
+justifies it.
+
+**What ε is not.** It is a rate, not a map: it says how often a line is lost, never where. In
+the likelihood it weakens the evidence of one absent branch by the factor 1 − ε = 0.965, which
+is small for a single line and decisive only when several of a level's branches are absent at
+once — and there it has to be combined with the **correlation length** of the obscuration, which
+`tools/obscuration_length.py` measures in the next section: L = 0.067 Å, one resolution element,
+so that two absences of one level are independent events unless the two predictions fall closer
+together than that, which among predictions strong enough for ε to apply to them never happens.
+
+Usage and outputs:
+
+```bash
+python tools/obscuration_rate.py                 # defaults; from inside LineClass/
+python tools/obscuration_rate.py --strong 200    # a stricter definition of "certainly visible"
+python tools/obscuration_rate.py --lopt LOPT_output_lines.txt   # measure a LOPT run instead
+```
+
+`obscuration_rate.txt` (the headline number, the band table, the detection curve, and the list
+of absent strong predictions), `obscuration_rate.csv` (one row per prediction, with position,
+strength, noise level, coverage, matching window, the three outcomes and the chance rate),
+`obscuration_rate.png` (the detection curve, ε per band, and where the absent strong
+predictions fall) and `obscuration_rate.log`.
+
+### How wide is the thing that hides a line: `tools/obscuration_length.py`
+
+**Why a rate is not enough for two absences.** ε says that about one predicted line in thirty
+is lost where the coverage map calls the plate covered. For a single absent branch that is the
+whole story. For two it is not. If the two absences are independent events, the missing-line
+term multiplies them: ε² ≈ 1 chance in 800, and the level is in serious trouble. If one grain
+flaw took both, the penalty is paid once: ε ≈ 1 chance in 30, and the level is merely
+unlucky. Between those readings lies a factor of thirty in the evidence, which is enough to
+decide a level on its own.
+
+What separates them is a length. An obscuring agent — an impurity line, a scratch, a flaw in
+the emulsion — occupies a stretch of plate, and two predicted lines inside the same stretch are
+lost together. So the quantity to measure is
+
+    φ(d) = the correlation coefficient of the obscuration at separation d
+         = 1 if two positions d apart always share the fate of one event,
+           0 if their fates are independent
+
+and the correlation length **L** is the width of φ. Two branches closer than L are one absence;
+two farther apart are two.
+
+**How it is measured.** On exactly the population ε was measured on — the 13709 predicted
+transitions between two established levels — but now pairwise: every pair of predictions closer
+than 5 Å, 276 567 of them, asked whether *both* are absent, with absent meaning what it means
+in `obscuration_rate.py` (no measured line within the matching window, and no recorded line
+close and strong enough to have swallowed it). Joint absence has to be compared with something,
+and three separate effects make nearby predictions look jointly absent when nothing hid them.
+
+*The lines are faint.* Most predicted transitions are far below the noise, and two faint
+predictions are jointly absent for no interesting reason. Each prediction therefore carries a
+modelled absence probability `q`, fitted to the run: a logistic model of the outcome in the
+predicted strength ln(I_pred/noise) and the wavelength, of the structural form
+`P(explained) = f + (1 − f)·c·D` with `f` the prediction's own chance rate and `c` its coverage,
+then raked so the modelled and observed absence rates agree in each of 40 wavelength blocks and
+10 strength bins. The comparison is between the observed joint absences and Σ q_i q_j.
+
+*The two positions see the same piece of plate by coincidence.* With a 0.022 Å window and, in
+the crowded ultraviolet, a recorded line every 0.13 Å, two predictions a hundredth of an
+angstrom apart are explained or not explained together about one time in six by chance alone.
+That is removed the way ε removes it: the entire pair analysis is repeated at the 18 control
+positions, each prediction displaced by ±6, 9, … 30 window widths — which preserves every
+pair's separation, both members' predicted strengths and the local line density, and changes
+only that the position is no longer one where a line was expected. The controls show the
+artefact plainly, and it is confined to the window:
+
+| separation, Å | joint absence ÷ independent, at the controls |
+|---|---:|
+| 0 – 0.01 | 1.176 |
+| 0.01 – 0.02 | 1.165 |
+| 0.02 – 0.03 | 1.128 |
+| 0.03 – 0.05 | 1.091 |
+| 0.05 – 0.08 | 1.029 |
+| beyond 0.08 | 0.99 – 1.00 |
+
+*The baseline is imperfect.* Any error in the model that varies slowly with wavelength makes
+nearby predictions look correlated at every separation. With a baseline having no wavelength
+dependence at all the raw correlation of the absences sits at 0.09 flat out to 20 Å; letting
+the fit follow the wavelength on a 300 Å scale drives it to 0.00, and finer than that begins to
+subtract real signal. Whatever survives is fitted as a floor, never assumed to be zero.
+
+**The estimator, and what limits it.** Writing `A` for absent, `O` for obscured (probability ε)
+and `F` for lost independently (probability d), so that `A = O or F` and `q = ε + (1 − ε)d`,
+
+    P(A_i A_j) − q_i q_j = ε(1 − ε)·φ(d)·(1 − d_i)(1 − d_j) + O(ε²)
+
+    φ(d) = (1 − ε)/ε · [ Σ A_iA_j − R_c(d)·Σ q_iq_j ] / Σ (1 − q_i)(1 − q_j)
+
+with `R_c(d)` the chance factor from the controls. Two consequences. First, **no strength cut is
+needed**: a pair of faint predictions has (1 − q_i)(1 − q_j) near zero and so carries almost no
+weight, which is correct, because a faint prediction's absence says nothing about the plate. The
+measurement is made on the strong pairs without anyone having to choose a threshold for them.
+Second, the factor (1 − ε)/ε = 28 amplifies the systematic errors along with the signal: half a
+percent of error in the modelled joint absence rate shows up as φ = 0.14. That, and not counting
+statistics, is the limit of the method.
+
+**The result.** Fitting the overlap of two positions with one obscuring stretch of width L,
+φ(d) = (1 − d/L)₊, over all pairs closer than 1 Å with the floor free:
+
+**L = 0.067 Å, 95 % interval 0.027 – 0.132 Å** — favoured over no correlation at all by
+2 ΔNLL = 14.0 on one degree of freedom, unchanged if the pair range is 0.5, 3 or 5 Å or if ε is
+set anywhere in its own interval, and 0.060 – 0.067 Å when any one of the 40 wavelength blocks
+is left out. Nearly all the close pairs lie between 1000 and 2800 Å, where the effective line
+width — the instrumental 0.035 Å convolved with the Doppler width — is 0.037 Å. **The
+obscuration is the width of a line and no wider.** In bins, before the floor (+0.29) is
+subtracted:
+
+| separation, Å | pairs | φ | jackknife error |
+|---|---:|---:|---:|
+| 0 – 0.015 | 775 | 2.16 | 1.20 |
+| 0.015 – 0.03 | 786 | 0.09 | 0.10 |
+| 0.03 – 0.05 | 1098 | 0.35 | 0.29 |
+| 0.05 – 0.08 | 1596 | 0.02 | 0.10 |
+| 0.08 – 0.12 | 2255 | 0.11 | 0.12 |
+| 0.12 – 0.18 | 3318 | 0.00 | 0.10 |
+| 0.18 – 0.28 | 5447 | 0.22 | 0.22 |
+| 0.28 – 5 | 261 292 | 0.08 | 0.04 |
+
+The single bin below one window width carries the measurement, as it must: that is the only
+separation at which two predictions are inside the same defect often enough to show.
+
+The clustering has a second use. Its *amplitude* is proportional to ε, so fitting ε and L
+together to the pairs alone measures ε again, by a statistic sharing nothing with the rate
+measurement but the outcomes themselves: **ε = 0.069 (0.037 – 0.145)** against the rate's
+0.035 (0.018 – 0.061). The intervals overlap and the central values differ by two, in the
+direction of *more* obscuration among the close pairs — which is where more would be expected,
+since almost all of them lie in the 1000–2800 Å region where the rate measurement itself puts
+ε at 0.054 rather than 0.022.
+
+The individual cases are worth looking at, and the tool lists them. Of the eleven strong
+predictions that ε is measured on and that are absent, four have another absent prediction
+within 0.2 Å — including the strongest absence in the whole set, 2055.265 Å at 1418 times the
+noise level, which has a companion at 2055.274 Å, 0.009 Å away and 70 times the noise, absent
+with it. Thirty such jointly absent pairs exist within 0.25 Å with both members at least five
+times the noise, and only one of the thirty is a pair of branches of the same level.
+
+**What it means in practice: almost always nothing, and that is the useful part.** The branches
+of one level go to different lower levels, and different lower levels are hundreds or thousands
+of wavenumbers apart, so the branches land far apart on the plate:
+
+| strength cut | predictions | branch pairs | closest | median | closer than L |
+|---|---:|---:|---:|---:|---:|
+| I ≥ 1 × noise | 4879 | 9157 | 0.044 Å | 29 Å | 11 |
+| I ≥ 10 × noise | 1840 | 3163 | 0.055 Å | 50 Å | 4 |
+| I ≥ 100 × noise | 335 | 379 | 0.446 Å | 206 Å | 0 |
+
+Among the predictions strong enough for ε to apply to them at all, the closest two branches of
+any established level ever come is 0.446 Å, six times L. **Absences of one level's branches may
+therefore be multiplied as independent events**, which is what the missing-line term already
+does — the correction this measurement was made to supply turns out not to be needed.
+
+The exception deserves the warning that goes with it, because where it does apply it is large.
+Two predicted branches of one level closer than about 0.1 Å are one test and not two: their
+joint absence costs ε and not ε², and treating them as independent overstates the case against
+the level by a factor of 1/ε = 29. Four such pairs exist among predictions ten times the noise
+or stronger, and `obscuration_length.txt` names them — as it happens both members of all four
+were recorded, so none of them costs anything today, but the check has to be made rather than
+assumed.
+
+**What this is not.** It is not a measurement of how obscuration is distributed above an
+angstrom. The systematic floor sets the sensitivity at |φ| ≈ 0.15, so a weak large-scale
+modulation — a plate slightly fogged over tens of angstroms — would not be seen here, and
+`coverage_map.csv` remains the only handle on structure at that scale. Nor does it separate the
+agents: an impurity line, a grain flaw and a scratch all produce the same statistic, and the
+measured width is close enough to the resolution element that the data cannot tell an emulsion
+defect from a line of some other species too weak to have been measured.
+
+Usage and outputs:
+
+```bash
+python tools/obscuration_length.py                # defaults; from inside LineClass/
+python tools/obscuration_length.py --dfit 0.5     # fit the length on closer pairs only
+python tools/obscuration_length.py --epsilon 0.05 # impose a rate instead of measuring it
+```
+
+`obscuration_length.txt` (the fitted length, φ(d) in bins, the control check, the branch
+separations and the jointly absent close pairs), `obscuration_length.csv` (one row per jointly
+absent close pair), `obscuration_length.png` (φ(d) with the fit, the coincidence artefact, and
+the branch separations against L) and `obscuration_length.log`.
+
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
 ### What the absence of a transition means
@@ -1566,11 +2085,17 @@ Running `python level_shifts.py` produces the full analysis:
 
 1. **Old-level calibration** — the |ΔE| percentiles quoted above, and the per-support behavior of d.
 2. **Criterion grids** — for every combination of `N` (minimum number of supporting lines) and `T` (largest allowed |ΔE|), the number of tested levels passing the cut `n ≥ N and |ΔE| ≤ T` against the expected number of false passes (decoy calibration, and the shifted-wavenumber upper bound).
-3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). A third correction enters that comparison. `Icalc` is meant to be on the same linear scale as the observed intensities, and from 1000 Å upward it is — the median of `I_obs/I_pred` over the accepted identifications is within about 30 % of 1. Below 900 Å it is not: the median falls to 0.09 (83 accepted lines), and the ratio of the band totals — all observed intensities over all predicted ones, which does not depend on which lines were classified — agrees at 0.16. A prediction there is therefore about ten times fainter on the plate than its `I_pred` says. `intensity_scale_bias` measures that factor band by band (`SCALE_BIAS_BANDS_A`, at least `SCALE_BIAS_MIN_N` = 10 accepted lines, correction applied only where the factor is below `SCALE_BIAS_MAX_FACTOR` = 0.5) together with the scatter of `ln(I_obs/I_pred)`. A blended line enters this comparison with the share of its measured intensity the component being compared carries — its `BF` — for the reason given under `level_interchange.py` below: the whole feature measured against one component's prediction would put a blended line above the scale by the reciprocal of its share. Splitting the blends moves the measured factors of the run of 2026-09-05 from 0.482 to **0.414** below 900 Å and from 0.735 to **0.567** in 900–1000 Å, and tightens the scatter elsewhere from sd 1.32 to **1.25**. The corrected intensity `I_pred·f(λ)` is what has to clear the noise level. This is a fault of the calculated intensities, not of the plates: Sugar's plates reach his intensity 1 everywhere, and Pr III lines of intensity 1 are recorded and classified down to the short-wavelength edge at 821.9 Å. With the current inputs 113 predictions are excluded in the gaps and 21178 below the noise level, of 29162 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
+3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls where **the record is blind** — where the measured coverage `c(λ)` of `coverage_map.csv` is below `COVERAGE_MIN` = 0.5, the same threshold `tools/coverage_map.py` uses to list its blind stretches. This replaced the two hand-entered intervals (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum, the seams of the intensity-calibration regions), which were far too narrow for this purpose: the map finds ten blind stretches totalling 1078 Å, and the two longest run out to 1663.82 and 2190.91 Å rather than stopping at 1529.85 and 2107.92 Å. The old pair survives only as the fallback used when `coverage_map.csv` is absent; (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). A third correction enters that comparison. `Icalc` is meant to be on the same linear scale as the observed intensities, and from 1000 Å upward it is — the median of `I_obs/I_pred` over the accepted identifications is within about 30 % of 1. Below 900 Å it is not: the median falls to 0.09 (83 accepted lines), and the ratio of the band totals — all observed intensities over all predicted ones, which does not depend on which lines were classified — agrees at 0.16. A prediction there is therefore about ten times fainter on the plate than its `I_pred` says. `intensity_scale_bias` measures that factor band by band (`SCALE_BIAS_BANDS_A`, at least `SCALE_BIAS_MIN_N` = 10 accepted lines, correction applied only where the factor is below `SCALE_BIAS_MAX_FACTOR` = 0.5) together with the scatter of `ln(I_obs/I_pred)`. A blended line enters this comparison with the share of its measured intensity the component being compared carries — its `BF` — for the reason given under `level_interchange.py` below: the whole feature measured against one component's prediction would put a blended line above the scale by the reciprocal of its share. Splitting the blends moves the measured factors of the run of 2026-09-05 from 0.482 to **0.414** below 900 Å and from 0.735 to **0.567** in 900–1000 Å, and tightens the scatter elsewhere from sd 1.32 to **1.25**. The corrected intensity `I_pred·f(λ)` is what has to clear the noise level. This is a fault of the calculated intensities, not of the plates: Sugar's plates reach his intensity 1 everywhere, and Pr III lines of intensity 1 are recorded and classified down to the short-wavelength edge at 821.9 Å. With the current inputs 3813 predictions are excluded as falling in the blind stretches (111 under the old hand-entered pair) and 18056 below the noise level, of 29260 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
    - `top10_found` — how many of the 10 strongest predictions are among the accepted lines (`n_top10` = how many were available);
    - `pattern_C` — intensity-weighted completeness: the sum of predicted intensities over the accepted transitions divided by the sum over all predicted observable ones;
    - `pattern_V` — C divided by the largest C achievable with the level's number of matched lines. V = 1 means the accepted lines are exactly the strongest predictions; V = 0 means predictions exist but none was found. Unlike C, V does not punish a level for accepted lines that theory does not cover, and it is nearly independent of n.
-   - `top1` — the fate of the level's **strongest** predicted observable transition on its own: `found` (it is among the accepted lines), `masked` (absent, but an observed line hides it — see the masking test in item 5), `faint` (absent, nothing hides it, but the line would not reliably have been recorded anyway — see below), `missing` (absent and unexplained), or blank (no observable prediction). This is scored separately because `pattern_V` cannot catch it: V asks whether the *accepted* lines are the strongest of the predictions, so a level whose two accepted lines are ranked 2 and 3 reaches V ≈ 1 with rank 1 missing. A missing, unmasked strongest branch is the most direct evidence there is against a level — but only where the line would have been seen. `detection_probability` turns the corrected intensity and the measured scatter of `ln(I_obs/I_pred)` into the probability that the branch would have been recorded at all (a log-normal centred on `I_pred·f(λ)` with that scatter, integrated above the noise level); below `DETECT_CONFIDENCE` = 0.9 the absence carries no information and `top1` reads `faint` instead of `missing`. The two classes separate cleanly — with the current inputs every branch still called `missing` would have been recorded with probability ≥ 0.94, and every `faint` one with 0.85 or less — so the exact cut does not matter. Of the 208 tested levels, 180 have their strongest branch accepted, 10 have it masked, 2 have it faint and 16 have it missing.
+   - `top1` — the fate of the level's **strongest** predicted observable transition on its own: `found` (it is among the accepted lines), `masked` (absent, but an observed line hides it — see the masking test in item 5), `faint` (absent, nothing hides it, but the line would not reliably have been recorded anyway — see below), `missing` (absent and unexplained), or blank (no observable prediction). This is scored separately because `pattern_V` cannot catch it: V asks whether the *accepted* lines are the strongest of the predictions, so a level whose two accepted lines are ranked 2 and 3 reaches V ≈ 1 with rank 1 missing. A missing, unmasked strongest branch is the most direct evidence there is against a level — but only where the line would have been seen, and how surely it would have been seen is now measured rather than modelled. `observation_probability` returns **P_obs = c(λ)·D(z)**: the coverage of the plate at that wavelength times the measured detection curve at that strength, `z = ln(I_pred·f(λ) / noise level)`. `D` comes from `obscuration_rate.txt` — the observed fraction of predictions of each strength that were recorded where the plate is open — and has a ceiling at `1 − ε` = 0.965, because about one predicted line in thirty is lost to a grain flaw or a single impurity line wherever it falls. Below `DETECT_CONFIDENCE` = 0.9 the absence carries no information and `top1` reads `faint` instead of `missing`. Two report columns expose the quantity: `top1_pobs`, the P_obs of the strongest branch, which is what the threshold is applied to, and `n_obs_expected`, the sum of P_obs over all of a level's observable predictions — how many of its branches should have appeared at all, which is the number a missing-line term has to weigh the accepted count against. It is well below `n_pred`: the median ratio over the 594 levels is 0.60, because most predicted branches sit between one and ten times the noise, where `D` stands at 0.4 to 0.8.
+
+     This replaced a log-normal centred on `I_pred·f(λ)` with the measured scatter of `ln(I_obs/I_pred)`, integrated above the noise level. That model was fitted to the **accepted** lines, whose lower tail the noise has already removed, so it was optimistic exactly where it mattered: it put the recording probability at 0.99 by ten times the noise level, where the measured rate is 0.81, and it reached 0.9 at about five times the noise where the measured curve does not reach it until sixty. The bar therefore rose by a factor of twelve in strength, and the effect is large. Running the pipeline twice on identical inputs, once with `coverage_map.csv` and `obscuration_rate.txt` in place and once with them hidden so that the old model is used, `top1 = missing` falls over all 594 levels from **27 to 8**: 17 of the 27 become `faint` — their strongest branch would not surely have been seen — and 3 become `found`, their previously strongest branch having fallen in a blind stretch the coverage map now excludes, so that the next one down, which is accepted, takes its place. One goes the other way, `found` to `missing`, for the same re-ranking reason. Among the 210 tested levels the count goes 13 → 2, and `question_status = retained` goes 13 → 3: ten levels leave the questionable examination altogether. The eight that remain missing are strong cases, `top1_pobs` between 0.90 and the 0.965 ceiling.
+
+     Two side effects are worth naming. The shrunken observable set (7391 predictions against 7776) moves `pattern_V` for 110 levels, by up to 0.53 — the denominator of the pattern score no longer contains branches that were never on a plate. `p_spur` barely moves at all (4 levels by more than 0.005, at most 0.15), because the V distributions it is weighed against are refitted on the same run and absorb the shift. And `pattern_C`/`pattern_V` still treat every surviving prediction as equally observable: the coverage function enters them only through the hard `c < 0.5` cut, not as a weight. Weighting the pattern denominator by `P_obs` is the natural next step and is left for the likelihood proper, since it would change what `C` means — the share of predicted intensity found becomes the share of *expected observable* intensity found, and `C` would no longer be bounded by 1.
+
+     The threshold is the one knob: at `DETECT_CONFIDENCE` = 0.85 thirteen levels read `missing`, at 0.8 twenty, at 0.7 twenty-five. It cannot be raised much above 0.9, since `D` can never exceed 0.965 and a threshold above that would make the test unpassable at any brightness.
    
    Calibration: genuine (old) levels have a median C of 0.91 and median V of 0.94; decoys have 0.03 and 0.06. The information here is genuinely new — the weeding checks each line's intensity individually but never penalizes a level for strong predicted lines that are *absent*. Two known weaknesses: a single grossly wrong predicted rate can wreck C and V of a real level (theory faults of this kind are common), and levels whose transitions are not covered by the theory get no pattern verdict at all.
 4. **Per-level spurious probabilities.** For each tested level, two independent pieces of evidence are weighed between "genuine" and "spurious" (= behaves like a decoy): the energy shift (|d| modeled as a log-normal distribution whose median depends on n, fitted separately to the old levels and to the decoys) and the intensity pattern (the probability of the level's V range under each hypothesis, measured on the old levels and on the decoys). The prior probability that a tested level with support n is spurious is `S·q(n)/m(n)`, where `q(n)` is the decoy probability of ending with support n and `m(n)` is the observed number of tested levels with support n; the single unknown S — the total number of spurious levels — is estimated by maximizing the likelihood. Three posterior probabilities go into the report:

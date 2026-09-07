@@ -290,10 +290,35 @@ import numpy as np
 # a gap, and a single polynomial must never be fitted through one: the fit
 # would smear a real, unknown step over the whole neighbourhood.
 #
-# The defaults are the two gaps of Sugar's Pr III exposures; they are the same
-# numbers as COVERAGE_GAPS_A in level_shifts.py, which uses them to drop
-# predicted transitions that could not have been observed.  Use --gap to give
-# other ones, --no-gaps for a spectrum recorded in one continuous piece.
+# The defaults are the two seams of Sugar's Pr III exposures.  Each of them is
+# the empty wavelength interval between the last line recorded before the seam
+# and the first one recorded after it, read off the line list itself.
+#
+# They must NOT be confused with, or replaced by, the wider blind stretches
+# that tools/coverage_map.py measures - 1522.75-1663.82 A and 2103.32-2190.91 A
+# for these same two seams.  A blind stretch is where FEW LINES WERE RECORDED;
+# a gap here is where THE INTENSITY SCALE BREAKS, and the two are not the same
+# length.  Past a seam the new plate is much less sensitive near its own short
+# wavelength edge, so it registers few lines for some way - but the lines it
+# does register are on the new plate's scale, and a polynomial that starts at
+# the seam corrects them correctly.  That was tested directly: with the gaps
+# below, the median residual ln(Icalc/Icorrected) inside every one of the eight
+# measured blind stretches agrees with its neighbours to better than 0.5 in
+# natural logarithms, against a line-to-line scatter of about 1.2; widening
+# these two gaps to the measured blind stretches instead drops the 27 lines the
+# fit was using inside them and mis-corrects those at 2103-2191 A by a median
+# factor of 3, up to a factor of 700 at the near edge.
+#
+# The intensity scale is in fact the one measurement that tells the two causes
+# of blindness apart.  Across these two seams the median of ln(Icalc/Iobserved)
+# steps by +4.4 and +3.7 - a new plate, on its own scale.  Across the six other
+# measured blind stretches it does not step at all, and the scatter inside them
+# is no larger than outside: those are emulsion defects and impurity lines
+# inside one exposure, which hide lines but break no scale, and they need no
+# boundary here.
+#
+# Use --gap to give other ones, --no-gaps for a spectrum recorded in one
+# continuous piece.
 DEFAULT_GAPS_A = ((1522.49, 1529.85), (2103.46, 2107.92))
 
 

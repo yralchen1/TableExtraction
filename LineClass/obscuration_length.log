@@ -1,0 +1,39 @@
+levels in the run: 594; established (old and in ASD): 384
+predicted transitions: 29260 in all, 13709 between two established levels
+measured lines: 6783, 821.94 - 10719.52 A
+matching window: 5.5 * sigma_lambda, median half-width 0.0220 A (0.0165 - 0.0497)
+18 control positions per prediction: explained 0.1548 of the time, against 0.3762 at the real positions
+epsilon on this run: 0.0350 (0.0176 - 0.0606) from 335 strong predictions
+baseline: 121 parameters, mean modelled absence 0.6135 against 0.6238 observed
+pairs of predictions within 5 A: 276567
+chance factor from the controls: 0-0.01:1.176 0.01-0.02:1.165 0.02-0.03:1.128 0.03-0.05:1.091 0.05-0.08:1.029 0.08-0.15:0.990 0.15-0.4:0.989 0.4-5:0.999
+
+L = 0.0669 A   95% profile 0.0272 - 0.1316
+  leaving out any one of the 40 wavelength blocks: 0.0598 - 0.0669 A
+  against no correlation at all: 2 dNLL = 14.0 on 1 degree of freedom
+  unremoved baseline correlation, fitted as a floor: phi0 = +0.290
+  effective resolution at 1500 A, where nearly all the close pairs lie: 0.0371 A
+epsilon from the clustering amplitude alone: 0.0690 (0.0371 - 0.1450), against 0.0350 from the rate
+
+    d_lo    d_hi   pairs      phi    error
+   0.000   0.015     775    2.157    1.204
+   0.015   0.030     786    0.092    0.099
+   0.030   0.050    1098    0.353    0.288
+   0.050   0.080    1596    0.015    0.103
+   0.080   0.120    2255    0.107    0.123
+   0.120   0.180    3318    0.004    0.099
+   0.180   0.280    5447    0.221    0.222
+   0.280   0.450    9474   -0.029    0.048
+   0.450   0.800   19330    0.126    0.052
+   0.800   1.500   38914    0.080    0.037
+   1.500   3.000   82995    0.069    0.031
+   3.000   5.000  110579    0.101    0.048
+
+branches of one level, and how close they ever come:
+  I >=      1 x noise:  4879 predictions,   9157 branch pairs, closest 0.044 A, median 29 A, 11 closer than L
+  I >=     10 x noise:  1840 predictions,   3163 branch pairs, closest 0.055 A, median 50 A, 4 closer than L
+  I >=    100 x noise:   335 predictions,    379 branch pairs, closest 0.446 A, median 206 A, 0 closer than L
+branches of one level closer than L, at 10 x the noise or stronger: 4  (1029.157/1029.212, 1040.588/1040.645, 1041.143/1041.199, 1061.913/1061.972)
+jointly absent pairs within 0.25 A, both at least 5 x the noise level: 30
+wrote obscuration_length.csv (30 pairs)
+wrote obscuration_length.txt

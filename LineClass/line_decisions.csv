@@ -2,7 +2,6 @@ wn_obs,low_id,upp_id,decision,date,reason
 12326.2201,059003.000339,059003.000479,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
 12407.099,059003.000315,059003.000463,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
 12493.1929,059003.000337,059003.000481,reject,9/3/2026,among the weakest predicted transitions of the level while many stronger branches are missing (also outside the low-sensitivity regions); accepting it would make the line look taken in IDEN2 and impair the search for further levels
-13013.4904,059003.000339,059003.000400,reject,9/3/2026,lost with the old position of 000400; the line stays unassigned
 13044.1198,059003.000338,059003.000400,accept,9/3/2026,"with 20733.358, re-positions 000400: two perfectly agreeing precisely measured lines beat the one arbitrarily chosen precise line the old position rested on"
 16106.0229,059003.000469,059003.000420,accept,9/3/2026,"second assignment of this line, kept as before"
 16106.0229,059003.000481,059003.000427,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
@@ -208,13 +207,43 @@ wn_obs,low_id,upp_id,decision,date,reason
 44204.1703,059003.000176,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 39506.5693,059003.000180,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
 39506.5693,059003.000180,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
-36008.3000,059003.000185,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
-36008.3000,059003.000185,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
+36008.3,059003.000185,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
+36008.3,059003.000185,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 35664.4085,059003.000186,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
 35664.4085,059003.000186,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 34181.9914,059003.000187,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
 34181.9914,059003.000187,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
-33540.6980,059003.000190,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
-33540.6980,059003.000190,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
+33540.698,059003.000190,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
+33540.698,059003.000190,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 32382.6703,059003.000192,059003.000298,reject,9/6/2026,"identification of the published line list, at the position 059003.000298 held before the exchange; lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, so this line now belongs to 059003.000447"
 32382.6703,059003.000192,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
+69190.794,059003.000185,059003.000398,accept,9/6/2026,Required this fix after swap
+93341.584,059003.000101,059003.000398,accept,9/6/2026,Required this fix after swap
+95981.089,059003.000083,059003.000398,accept,9/7/2026,Required this fix after swap
+92120.808,059003.000063,059003.000350,reject,9/7/2026,"Too large obs-Ritz, too small BF, no char"
+84849.889,059003.000186,059003.000510,accept,9/7/2026,IDEN2
+84849.889,059003.000068,059003.000334,reject,9/7/2026,IDEN2
+22700.698,059003.000461,059003.000587,reject,9/7/2026,IDEN2
+34395.482,059003.000148,059003.000255,accept,9/7/2026,IDEN2/LOPT; wide char supports blend
+34395.482,059003.000313,059003.000421,accept,9/7/2026,IDEN2/LOPT; wide char supports blend
+53772.719,059003.000131,059003.000296,accept,9/7/2026,IDEN2/LOPT; hazy char supports blend
+75275.588,059003.000073,059003.000312,accept,9/7/2026,IDEN2/LOPT
+73579.083,059003.000124,059003.000323,accept,9/7/2026,IDEN2/LOPT
+79009.173,059003.000107,059003.000334,accept,9/7/2026,IDEN2/LOPT
+75275.588,059003.000162,059003.000371,accept,9/7/2026,"IDEN2/LOPT; predicted contribution to blend is negligible, but it does not hurt LOPT and is legacy"
+79009.173,059003.000158,059003.000386,accept,9/7/2026,IDEN2/LOPT
+34035.992,059003.000144,059003.000434,accept,9/7/2026,IDEN2/LOPT
+44600.91,059003.000100   059003.000434,,accept,9/7/2026,IDEN2/LOPT
+11174.038,059003.000337,059003.000476,accept,9/7/2026,IDEN2/LOPT
+86339.222,059003.000150,059003.000496,accept,9/7/2026,IDEN2/LOPT; wide char supports blend; cg improves
+115898.609,059003.000054,059003.000500,accept,9/7/2026,IDEN2/LOPT
+121279.416,059003.000047,059003.000525,reject,9/7/2026,predicted much too weak to explain Iobs; line should be free for grabs in search for new levels.
+54627.107,059003.000242,059003.000567,accept,9/7/2026,IDEN2/LOPT
+53981.663,059003.000277,059003.000573,accept,9/7/2026,IDEN2/LOPT
+22715.837,059003.000460,059003.000589,accept,9/7/2026,IDEN2/LOPT
+22709.391,059003.000461,059003.000589,accept,9/7/2026,IDEN2/LOPT; to stabilize 000589
+21762.572,059003.000375,059003.000595,accept,9/7/2026,IDEN2/LOPT
+22959.467,059003.000367,059003.000595,accept,9/7/2026,IDEN2/LOPT; to stabilize 000595
+23789.909,059003.000361,059003.000595,accept,9/7/2026,IDEN2/LOPT; to stabilize 000595
+24102.079,059003.000374,059003.000615,accept,9/7/2026,IDEN2/LOPT
+23856.830,059003.000376,059003.000615,accept,9/7/2026,IDEN2/LOPT; to stabilize 000615

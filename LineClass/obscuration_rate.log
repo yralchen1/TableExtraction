@@ -1,0 +1,21 @@
+levels in the run: 594; established (old and in ASD): 384
+predicted transitions: 29260 in all, 13709 between two established levels
+intensity model on 3689 accepted lines of established pairs: median ln(I_obs*BF/I_pred) = -0.099, sd = 1.295
+measured lines: 6783, 821.94 - 10719.52 A
+matching window: 5.5 * sigma_lambda, median half-width 0.0220 A (0.0165 - 0.0497)
+chance rate from 18 control positions per prediction: mean 0.1548 explained, of which 54% by landing on a recorded line
+  landing on a recorded line: measured 0.0831, Poisson estimate from the local line density 0.0819 - a check on the controls, not an input
+strong subsample: 335 predictions (I_pred >= 100 x noise, coverage >= 0.95)
+  band 1200-1700 A: only 1 strong prediction(s) - not reported
+
+epsilon = 0.0350   95% interval 0.0176 - 0.0606   (11 absent of 335)
+constant across the bands: likelihood ratio 7.8 on 5 degrees of freedom, p = 0.17
+     800 -   1200 A   n =   66   absent   1   epsilon = 0.022  (0.001 - 0.095)
+    1700 -   2300 A   n =   85   absent   4   epsilon = 0.054  (0.017 - 0.122)
+    2300 -   3000 A   n =   18   absent   0   epsilon = 0.000  (0.000 - 0.115)
+    3000 -   4500 A   n =   49   absent   1   epsilon = 0.022  (0.001 - 0.093)
+    4500 -   7000 A   n =   51   absent   0   epsilon = 0.000  (0.000 - 0.037)
+    7000 -  11000 A   n =   65   absent   5   epsilon = 0.072  (0.024 - 0.154)
+wrote obscuration_rate.csv (13709 predictions)
+wrote obscuration_rate.txt
+wrote obscuration_rate.png
