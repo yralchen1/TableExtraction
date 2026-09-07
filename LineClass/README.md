@@ -2702,6 +2702,196 @@ pair the two O−C values become 1.4 and 1.1 times the rms of `4f².5f`; in the 
 of the `4f².6p` rms and 0.5 of the `4f.5d.6s` rms.
 
 
+### Is the level where it is put: `level_positions.py`
+
+**What it answers.** Every other test in this chapter asks whether a level is *real*. This one
+asks the sharper question the question marks need: granted that something is there, is the
+adopted energy the only energy the observed lines allow? The answer is a likelihood ratio
+
+    ln R(L, E) = ln [ P(what was recorded | a real level sits at E)
+                    / P(what was recorded | nothing sits at E) ]
+
+evaluated at the adopted energy and then scanned across the interval Cowan's calculation allows.
+Every local maximum within a few units of the adopted one is an alternate position, and a level
+with any has earned its question mark. **The count of them is the verdict**, reported as a column
+of its own; no single p-value stands in for it.
+
+**One sum, not four factors.** The four things a level answers for — the improbability of its
+alignments, the intensity pattern, the blends, the absences — are usually four penalties
+multiplied together, and the arbitrary part is then how to weigh them against one another. Here
+they are not separate terms. ln R is summed over the level's **predicted** transitions rather
+than over its accepted lines, and that one choice does the work: a prediction with no line near
+it is simply a prediction whose datum is "no line", so the alignment evidence and the
+missing-line penalty become the two branches of a single formula. The intensity test is a second
+factor inside the branch that says the line is genuine. The blend penalty is what happens to the
+same formula when the feature is already explained by transitions that have nothing to do with L.
+
+**The per-prediction formula.** For a predicted transition t of L whose partner M sits at E_M,
+the Ritz wavenumber is nu = E − E_M when L is the upper level and E_M − E when it is the lower —
+the two move in *opposite* directions as E is scanned, which is what makes the maximum sharp
+rather than flat. Model the line list near nu as a Poisson process of unrelated lines of local
+density rho, plus, under H1, at most one genuine line, present with probability P = c(lambda)·D(z)
+and placed Gaussian about nu. The Poisson background is identical under both hypotheses and
+cancels, leaving, with p = P(1 − eta):
+
+| the datum at nu | R_t |
+|---|---|
+| a line at residual d | (1 − p) + p · N(d; 0, sigma) / rho · G |
+| no line in the window | 1 − p (1 − q_out),  q_out = 2Φ(−4) = 6.3e-5 |
+
+c is the coverage function of `tools/coverage_map.py` and D the detection curve of
+`tools/obscuration_rate.py`, reached through `level_shifts.observation_probability`. The absence
+of a prediction is therefore charged in exact proportion to how surely it would have been seen,
+and charged nothing where the plate was blind or the line sat at the noise.
+
+The first branch of the matched row is the world in which the line is there by chance even though
+the level is real. That is why the intensity ratio G multiplies only the second branch, and why
+**no single row can cost more than ln(1 − p)** however badly placed or however wrong in intensity.
+The bound is not a nicety: the residuals of this run are measurably heavy-tailed — |t| > 4 occurs
+twenty times as often as a Gaussian allows — and under a pure Gaussian one corrupted measurement
+would charge e^-8 and kill a level that is perfectly real. Here a bad line merely fails to help.
+
+**The intensity ratio, and where the blend penalty comes from.** A feature is *free* when nothing
+else is accepted on it and *claimed* when other accepted transitions, between levels that do not
+involve L, already account for it. With I_t the predicted intensity of t, C the summed predicted
+intensity of the claimants, f(lambda) the far-ultraviolet scale correction, s the measured scatter
+of ln(I_obs/I_pred) and g the local distribution of ln I_obs over the whole observed list — what
+an unrelated line would have been drawn from —
+
+| feature | G |
+|---|---|
+| free | p(ln I_obs given I_t f) / g(ln I_obs given lambda) |
+| claimed | p(ln I_obs given (C + I_t) f) / p(ln I_obs given C f) |
+
+Both numerator and denominator are densities of the same variable, so no Jacobian survives.
+
+The density p is a Gaussian of width s about the prediction, **floored at g on one side only** —
+where the feature is brighter than predicted, not where it is dimmer. The asymmetry is the
+physics: a feature can always carry light from transitions nobody has identified, so an excess
+over the prediction is no evidence against anything, while a deficit cannot be explained away,
+because light already emitted cannot be taken back. The floor is not cosmetic. Without it the
+denominator of a blended feature is evaluated at the summed prediction of its other components,
+and where those happen to be weak that density is astronomically small — so a level collects
+enormous credit for "explaining" a brightness the components it is compared with never claimed to
+explain. One such row, an observed feature of intensity 7874 whose other claimant is predicted at
+2.3, was worth ln G = +22, and it alone moved a solidly established level 219 cm^-1 onto the
+position of a different real level.
+
+The blend penalty is then not an added term but the same formula with two densities changed.
+Under H0 a claimed feature is present with *certainty*, so its presence is no evidence for L: in
+the positional part rho is replaced by 1/(2W), the density of a line known only to be somewhere
+in the window, and the best attainable R_t falls from about 25 to 3.2. In the intensity part the
+question stops being "is a line of this brightness here" and becomes "does adding the predicted
+intensity of t improve an account of that brightness which already works".
+
+The C form is the branching-fraction form: ln(I_obs/((C + I_t)f)) is identically
+ln(I_obs·BF/(I_t·f)), since BF is by definition I_t/(C + I_t). One transition's prediction is
+never compared with a whole blended feature. C is used because it is defined at any scanned
+position, where BF is not.
+
+**The level offset.** All of a level's lines share whatever the calculation got wrong about that
+level, so the intensity residuals are written r_i = mu_L + e_i with mu_L ~ N(0, s_L). mu_L is
+marginalised, not fitted, and the reason is a measurement: the within-level spread is s = 1.215
+against a between-level spread of level means of s_L = 0.280, so the offset explains about a
+twentieth of the variance, while the intensity model is absolutely calibrated (mean residual
+−0.006). Fitting it freely would throw the calibration away to buy very little. Marginalising adds
+one scalar correction, −½ln(1 + n s_L²/s²) + s_L²(Σr)²/(2s²(s² + n s_L²)), **with each row
+weighted by its posterior of being genuine rather than a coincidence**. The weighting is what
+keeps the correction bounded: its positive part is meant to be cancelled by the −r²/2s² the same
+rows carry in the base term, but a row whose line is a coincidence has its ln R_t floored at
+ln(1 − p) and carries no such term. Unweighted, a displaced position with a few wildly mismatched
+intensities collects the gain without ever having paid for it — in testing, +192 where the honest
+answer was −8.
+
+**Every ingredient is measured on the run**, and printed at the head of every report so that no
+number in it is a guess (values of the run of 2026-09-07, 594 levels, 29260 predicted transitions,
+6668 recorded lines):
+
+| ingredient | what it is | value |
+|---|---|---|
+| k(n) | how much a blend of n parts understates its own quoted position uncertainty | 1.011, 1.454, 1.197, 1.035 for n = 1…4 |
+| k(char) | the same by line-character code, on residuals already divided by k(n) | 0.65 (`**`) to 1.19 (`ch`), shrunk toward 1 by count |
+| eta | rate at which a genuine recorded line sits at an anomalous position | 0.0002 (2ΔNLL = 51 against eta = 0) |
+| rho | recorded lines per cm^-1, from the 41 nearest | 0.004 – 0.336, median 0.094 |
+| s, s_L | within-level and between-level spread of ln(I_obs·BF/I_pred·f) | 1.215, 0.280 |
+| u_M | partner energy uncertainty, D1 of `LOPT_output_levels.txt` | median 0.014, max 0.410 cm^-1 |
+
+sigma_t² = (k(n)·k(char)·unc_wn_obs)² + u_M², and the matching window is four sigma — set by
+whichever is worse, the uncertainty typical of the neighbourhood or the one the candidate line
+itself carries. That detail matters: taking the neighbourhood alone left 204 of the 4937 accepted
+lines outside their own window, because a line quoted to 0.6 cm^-1 among neighbours quoted to 0.1
+was being ruled out for lying 0.4 away. Taking the worse of the two leaves 1. Widening costs
+nothing, since a line far out has N(d; 0, sigma)/rho well below 1 and contributes the same
+ln(1 − p) as an absence.
+
+eta deserves a word, because the measurement contradicted the guess that prompted it. Reading the
+residual tails suggested 0.01; maximum likelihood puts it at 0.0002, and the reason is that mixing
+in a *flat* background at rho ≈ 0.09 per cm^-1 only helps beyond |t| ≈ 5 — at t = 3.5 the Gaussian
+is still ten times rho. The protection against a corrupted measurement does not come from eta at
+all. It comes from the (1 − p) branch, which floors every row whatever its residual.
+
+**What is dropped.** A prediction is dropped when its partner M would have no accepted line left
+after removing the lines M shares with L: M's energy was then fitted to those very lines, and the
+residual is zero by construction rather than by agreement. Seven predictions in this run. (A
+hat-matrix treatment generalising this continuously was tried and rejected — LOPT fits a blended
+feature through a centroid model, so its normal equations are not those of independent
+observations, and leverages computed as though they were make the residuals worse, not flatter:
+the rms of t/sqrt(1−h) climbs to 6.0 in the top leverage band. The explicit rule is exact and
+needs no matrix. It is also not needed for the scan proper, where E is scanned rather than fitted
+and only the partner energies can be degenerate.)
+
+**The scan.** E runs over E_calc ± 3W, with E_calc from `IDEN2/enlev.dat` and W the rms of
+E_obs − E_calc over the known levels of the same dominant configuration
+(`level_interchange.configuration_windows`) — 133 cm^-1 wide for the best-determined
+configurations, 2425 for the worst. The predicted intensities are held fixed while E moves: over
+a few hundred cm^-1 the Boltzmann factor with kT = 12900 cm^-1 changes by about two per cent, far
+below s. A maximum that lands on another level of the run is reported as such (`alt_level`,
+`alt_level_dE`), because that is an interchange — `level_interchange.py`'s question, judged on
+evidence this scan does not use — and not a free position nobody has claimed.
+
+**What it finds.** Over the 594 levels, ln R at the adopted position runs from −10 to +168 with a
+median of 22.6; 21 levels are at or below zero. 122 have at least one alternate position within 5
+units, 57 have one the lines actually prefer, and 5 of those fall on another level of the run.
+
+The test knows nothing about which levels are Wyart's established ones and which are under
+review, so the split between them is a check on the method rather than an input to it:
+
+| | levels | median ln R | ln R ≤ 0 | with an alternate | with a preferred alternate |
+|---|---:|---:|---:|---:|---:|
+| legacy (n_old ≥ n_new) | 384 | 39.0 | 3 | 20 (5 %) | 8 |
+| new* (n_new > n_old) | 210 | 8.2 | 18 | 102 (49 %) | 49 |
+
+A ten-to-one difference in the rate of alternate positions between the set that should be safe and
+the set that is being tested, from a statistic that was never told which was which.
+
+**Limits.** Three, all in the same direction — they flatter the adopted position:
+
+- The partner energies E_M are held fixed while E is scanned, and they were fitted using L's own
+  accepted lines. The degeneracy rule removes the extreme case; the residual effect is that the
+  adopted position is favoured over its alternates by a little more than it should be.
+- The alternate at a given energy is scored with L's predicted intensities, which belong to L at
+  its adopted position. Where an alternate is far away this is only approximately right.
+- A maximum found at another real level says the two are interchangeable **on this evidence**;
+  it does not say they should be swapped. `level_interchange.py` weighs slopes, common lines and
+  branch structure that this scan does not look at.
+
+Usage and outputs:
+
+```bash
+python level_positions.py                        # every level at its adopted energy
+python level_positions.py --detail 059003.000271 # the per-transition table for one level
+python level_positions.py --scan                 # + the alternate-position scan
+python level_positions.py --scan --alt-drop 3    # a stricter definition of "alternate"
+python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised run
+```
+
+`level_positions.csv`, one row per level: `n_pred` predicted transitions after the drops,
+`n_match` of them carrying a line, `n_claimed` of those on features something else already
+explains, `ln_R` and its split into `ln_R_match` and `ln_R_miss`, `sum_lnG` (the intensity
+evidence alone, a useful diagnostic on its own — a large negative value means the level's lines
+are there but their brightnesses are not what theory expects), and with `--scan` the columns
+`n_alt`, `ln_R_alt`, `d_ln_R`, `dE_alt`, `alt_level`, `alt_level_dE` and a `question` flag.
+
 ### Limits of the validation (to be stated alongside the results)
 
 - **Recovery, not physical proof.** A small ΔE certifies that the accepted lines reproduce the energy encoded in Wyart's input value — i.e. that his identifications were recovered. If Wyart himself was misled by chance coincidences, our run re-finds the same coincidences with a small ΔE; only the intensity pattern (and physics arguments: theory, g-factors, term structure) can catch that case.
@@ -2722,6 +2912,7 @@ python decoy_mc.py           # 2. eight decoy runs → decoy_mc_*.csv/.xlsx
 python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → chance_mc_*.csv/.xlsx
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
 python level_interchange.py  # 5. interchanged identities → level_interchange.csv/.xlsx
+python level_positions.py --scan  # 6. alternate positions, question marks → level_positions.csv
 ```
 
 Repairing an interchange that step 5 flags is a separate act, done once and by hand:
@@ -2816,6 +3007,8 @@ LineClass/
 ├── level_shifts.py               # Validation: calibrations, criterion grids, pattern scores, p_spur; --detail mode
 ├── level_interchange.py          # Validation: are two levels of one parity and J wearing each
 │                                 #   other's calculated intensities?  --detail mode
+├── level_positions.py             # Validation: the likelihood of a level position, and the
+│                                 #   scan that puts a question mark on it; --detail, --scan
 ├── swap_line_assignments.py      # Repair: run the three scripts below in order
 ├── swap_line_assignments_LOPT.py # Repair: exchange two levels' lines in the LOPT transitions
 │                                 #   file, keeping both level identifiers where they are
