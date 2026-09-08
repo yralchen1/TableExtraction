@@ -215,6 +215,35 @@ def split_label(label: str):
     return label.strip(), ''
 
 
+_ORBITAL_L = dict(s=0, p=1, d=2, f=3, g=4, h=5, i=6)
+
+
+def configuration_parity(cfg: str) -> str:
+    """'e' or 'o' for an enlev.dat configuration abbreviation.
+
+    IDEN2 writes a configuration as its open shells run together, each an
+    orbital letter optionally preceded by the principal quantum number and
+    followed by its occupation: "f26p" is 4f^2.6p, "fd6p" is 4f.5d.6p, "5d3"
+    is 5d^3.  The parity is the parity of the sum of l over the electrons, so
+    it needs only the letters and the occupations, and the principal quantum
+    numbers - which are digits too - must not be counted.  A digit is an
+    occupation exactly when it FOLLOWS its orbital letter; a digit before a
+    letter is that letter's principal quantum number.
+    """
+    total = 0
+    i = 0
+    while i < len(cfg):
+        ch = cfg[i].lower()
+        if ch in _ORBITAL_L:
+            n = 1
+            if i + 1 < len(cfg) and cfg[i + 1].isdigit():
+                n = int(cfg[i + 1])
+                i += 1
+            total += _ORBITAL_L[ch] * n
+        i += 1
+    return 'o' if total % 2 else 'e'
+
+
 def read_enlev(path: str = ENLEV) -> pd.DataFrame:
     """The theoretical level list of IDEN2, with its calculated energies.
 

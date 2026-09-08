@@ -2845,8 +2845,8 @@ E_obs − E_calc over the known levels of the same dominant configuration
 (`level_interchange.configuration_windows`) — 133 cm^-1 wide for the best-determined
 configurations, 2425 for the worst. The predicted intensities are held fixed while E moves: over
 a few hundred cm^-1 the Boltzmann factor with kT = 12900 cm^-1 changes by about two per cent, far
-below s. A maximum that lands on another level of the run is reported as such (`alt_level`,
-`alt_level_dE`), because that is an interchange — `level_interchange.py`'s question, judged on
+below s. A maximum that lands on another level of the run is reported as such (`near_level`,
+`near_dE`), because that is an interchange — `level_interchange.py`'s question, judged on
 evidence this scan does not use — and not a free position nobody has claimed.
 
 **What it finds.** Over the 594 levels, ln R at the adopted position runs from −10 to +168 with a
@@ -2875,22 +2875,124 @@ the set that is being tested, from a statistic that was never told which was whi
   it does not say they should be swapped. `level_interchange.py` weighs slopes, common lines and
   branch structure that this scan does not look at.
 
+**How to read `ln R`.** It is a log odds, so the sign is the whole of the meaning. `ln R > 0`: the
+recorded lines are more likely if a real level sits at that energy than if nothing does — the
+position is supported, and the bigger the number the stronger the support, each +1 being a factor
+of e in the odds. `ln R = 0`: the lines say nothing either way. `ln R < 0`: the lines are *less*
+likely with a level there than without one — the position predicts transitions that should have
+been recorded and were not, or lines whose brightnesses contradict the prediction. **A strongly
+negative `ln R` is the signature of a spurious position.** For scale, a well-centred line on an
+open plate is worth about +3.2, so `ln R` = +30 is a level carrying ten of them, and the median
+level of this run sits near +22. The same quantity is computed at a candidate energy as at the
+adopted one, which is what makes the two comparable: `gain` = `ln R`(alternate) − `ln R`(adopted)
+is a log odds ratio between two positions of the same level.
+
+**Predicted is not observable.** `n_pred` is how many transitions the calculation gives the level
+inside the recorded range, and on its own it says very little: most are far too faint to have been
+recorded at all, and their number is set by how many partner levels happen to be known rather than
+by the experiment. The count that means something is **`n_obs`** — the predictions whose
+probability of having been recorded, P = c(lambda)·D(z), is at least `P_SEEN` (0.2). Of those,
+`n_seen` found a line and `n_miss` did not. A level with `n_obs` = 9 and `n_seen` = 8 is in good
+order however large `n_pred` is; `n_obs` = 9 with `n_seen` = 2 is not. `n_match` counts every
+prediction that found a line, faint coincidences included, and is kept in the csv only — it is the
+number *not* to quote.
+
+**`near_level` is a neighbourhood label, not a rival.** It names the level of the run whose energy
+is closest to the alternate position, and `near_dE` is the gap between them. It is filled in for
+every alternate, so for most rows it names a level that merely happens to lie nearby and wants
+nothing: read `dE_alt`, the size of the move, instead. Only when `|near_dE|` is under half a
+wavenumber does it carry information, and then it says the alternate *is* that level's position —
+an interchange, where the two identities may need exchanging rather than either level moving.
+
+**The audit (`--audit`).** `ln R` says which of two energies the lines prefer. It does not say the
+preference is worth acting on, and several quite different situations produce the same number, so
+the audit separates them before anything is called a revision. Three corrections stand between
+"the lines prefer that energy" and "move the level":
+
+- **Look-elsewhere.** A level whose configuration is 4f.5d.6p is scanned over ±7000 cm⁻¹ and a
+  well-determined one over ±130, so the first gets hundreds of chances at a good maximum and the
+  second a handful; the raw gains are not comparable. Under H0 the heights of the local maxima are
+  close to exponentially distributed, so the best of `n_alt` of them stands about ln(`n_alt`) above
+  a typical one, and `look` = `gain` − ln(`n_alt`) puts every level on the same footing. It is not
+  a small correction: the median `n_alt` among the levels with a preferred alternate is about 50.
+- **Free lines.** `n_free` counts only the alternate's matched rows that are well-centred and sit
+  on features **no accepted transition claims**, and `free_gain` is what they are worth. Support
+  that is entirely blended is not support: a prediction can be dumped on an already-explained
+  feature almost anywhere, and the blend branch of the formula gives it credit for doing so.
+  `top_share`, the largest single row's share of the positive evidence, throws out the positions
+  whose whole case is one lucky line.
+- **Vacancy.** A preferred alternate can be read two ways — the level moves there, or an *unknown*
+  level sits there and the lines are its. The second reading needs the calculation still to have a
+  level of the right J and parity spare at that energy, and `n_vacant` counts them: unfound rows of
+  `IDEN2/enlev.dat` (no `*` in columns 39–40), of the level's own J and parity, within one
+  configuration window of the alternate. **Where `n_vacant` = 0 the new-level reading is dead
+  however good the lines look.** This is the only test in the module that comes from the theory
+  rather than from the line list, and the only one that can rule a position out outright. It is a
+  real filter: at the alternate position of `059003.000305`, eight unassigned, well-centred lines
+  with coherent intensities looked like an undiscovered level, and the nearest unfound calculated
+  level of J = 9/2 is 6900 cm⁻¹ away in the odd system and 18900 in the even one. Across the whole
+  run, 50 of the 57 preferred alternates have `n_vacant` = 0.
+
+What survives is sorted into five **dispositions**, named rather than ranked because they are five
+different pieces of work:
+
+| `action` | what it means | what to do |
+|---|---|---|
+| `interchange` | the alternate lands on another level of the run (`\|near_dE\|` < 0.5) | `level_interchange.py`, which weighs evidence this scan does not use |
+| `refit` | the alternate is a fraction of a wavenumber away (`\|dE_alt\|` < 2) | nothing moves; some accepted line is dragging the LOPT fit off the position the level's own lines want |
+| `relocate` | a free position, ≥ 4 free lines worth ≥ 8, no line carrying more than 45 % of the case, `look` ≥ 3, **and `ln R` positive there** — convincing in its own right, not merely better than where the level is now | a candidate revision |
+| `weak` | a free position with thin support | leave it until the region around it is settled |
+| `no support` | one free line, or none | no case at all |
+
+**The rows are ordered best-first**, so the report can be read from the top: with `--audit`,
+relocations before interchanges before refits before the weak ones, and within each group the
+largest `look`; with `--scan` alone, the largest gain; with neither, the weakest positions first.
+The csv keeps that order.
+
+**One caution, because it is the easiest mistake to make with this tool.** Levels share lines, so
+every `ln R` is conditional on the rest of the level list, and a revision changes the verdict on
+its neighbours. **Accept them one at a time and re-scan.** `059003.000604` is the demonstration:
+with `059003.000371` at its old position the adopted energy of 000604 wins, and only after 000371
+moves does the alternate at 136728.75 become the best position in the whole window.
+
 Usage and outputs:
 
 ```bash
 python level_positions.py                        # every level at its adopted energy
 python level_positions.py --detail 059003.000271 # the per-transition table for one level
 python level_positions.py --scan                 # + the alternate-position scan
+python level_positions.py --audit                # + what each alternate rests on and what to do
 python level_positions.py --scan --alt-drop 3    # a stricter definition of "alternate"
 python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised run
 ```
 
-`level_positions.csv`, one row per level: `n_pred` predicted transitions after the drops,
-`n_match` of them carrying a line, `n_claimed` of those on features something else already
-explains, `ln_R` and its split into `ln_R_match` and `ln_R_miss`, `sum_lnG` (the intensity
-evidence alone, a useful diagnostic on its own — a large negative value means the level's lines
-are there but their brightnesses are not what theory expects), and with `--scan` the columns
-`n_alt`, `ln_R_alt`, `d_ln_R`, `dE_alt`, `alt_level`, `alt_level_dE` and a `question` flag.
+`level_positions.csv`, one row per level:
+
+| column | meaning |
+|---|---|
+| `E` | the adopted energy, cm⁻¹ |
+| `n_drop` | predictions discarded because the partner would have no accepted line left without the ones it shares with this level |
+| `n_pred` | predicted transitions in range |
+| `n_obs` | of those, the ones that could have been recorded (P ≥ `P_SEEN`) |
+| `n_seen` / `n_miss` | observable predictions that did / did not find a line |
+| `n_match` | every prediction that found a line, faint coincidences included |
+| `n_claimed` | matched predictions on features something else already explains |
+| `ln_R` | the total (see "How to read `ln R`") |
+| `ln_R_match` / `ln_R_miss` | its split between the matched rows and the absences |
+| `sum_lnG` | the intensity evidence alone — a useful diagnostic on its own: a large negative value means the level's lines are there but their brightnesses are not what theory expects |
+| `scan_width` | width of the interval scanned, cm⁻¹ (`--scan`) |
+| `n_alt` | local maxima within `--alt-drop` of the adopted peak. **This count is the verdict** behind the `question` flag |
+| `ln_R_alt` | `ln R` at the best of them |
+| `d_ln_R` | `ln_R` − `ln_R_alt`; **negative means the lines prefer the alternate** (`gain` is the same quantity with the clearer sign) |
+| `dE_alt` | E(alternate) − E(adopted): the size of the move |
+| `near_level` / `near_dE` | the run's level nearest the alternate, and the gap — see above |
+| `question` | `?` when `n_alt` > 0 |
+| `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
+| `gain` / `look` | the gain and its look-elsewhere correction |
+| `n_obs_alt` / `n_seen_alt` / `n_miss_alt` | the observable-prediction counts the level would have at the alternate |
+| `n_vacant` | unfound calculated levels of the same J and parity within one configuration window of the alternate |
+| `z_alt` | (E(alternate) − E_calc)/W: how far the alternate is from where the calculation puts the level, in units of that configuration's own scatter |
+| `action` | the disposition |
 
 ### Limits of the validation (to be stated alongside the results)
 

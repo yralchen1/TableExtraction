@@ -6,6 +6,7 @@ Run from inside LineClass/:
     python level_positions.py                       # every level, adopted E
     python level_positions.py --detail 059003.000271
     python level_positions.py --scan                # + the alternate-position scan
+    python level_positions.py --audit               # + what to do about them
 
 
 1.  The quantity
@@ -207,6 +208,172 @@ its own: it is the criterion, not any single p-value.
 The predicted intensities are held fixed while E moves.  Over the few hundred
 cm^-1 of a scan window the Boltzmann factor exp(-E/kT) with kT = 12900 cm^-1
 changes by about two per cent, far below s.
+
+6.  The audit: what to do about a level that has one
+----------------------------------------------------
+ln R says which of two energies the lines prefer.  It does not say the
+preference is worth acting on, and four quite different situations produce the
+same number, so --audit separates them before anything is called a revision.
+
+Three corrections stand between "the lines prefer that energy" and "move the
+level".
+
+THE LOOK-ELSEWHERE CORRECTION.  A level whose configuration is 4f.5d.6p is
+scanned over +/- 7000 cm^-1 and a well-determined one over +/- 130, so the
+first gets hundreds of chances at a good maximum and the second a handful.
+Their gains cannot be compared raw.  The scan already counts the chances -
+n_alt, the local maxima within --alt-drop of the adopted peak - and under H0
+the heights of those maxima are close to exponentially distributed, so the
+best of n_alt of them stands about ln(n_alt) above a typical one.  The
+corrected gain is
+
+    look = [ln R(alternate) - ln R(adopted)] - ln(n_alt) .
+
+THE FREE-LINE TEST.  Count only the alternate's matched rows that are
+well-centred (within FREE_SIGMA) and sit on features that no accepted
+transition claims (C = 0).  Those are the lines the level could take without
+robbing another level.  Support that is entirely blended is not support: a
+prediction can be dumped on an already-explained feature almost anywhere, and
+the blend branch of the formula gives it credit for doing so.  Alongside it,
+top_share - the largest single row's share of all the positive evidence -
+throws out the positions whose case is one lucky line.
+
+THE VACANCY TEST, which is the only test in this module that comes from the
+theory rather than from the line list, and the only one that can rule a
+position out outright.  A preferred alternate can be read two ways: the level
+moves there, or an unknown level sits there and the lines are its.  The second
+reading needs the calculation to still have a level of the right J and parity
+spare at that energy, and n_vacant counts them - unfound rows of enlev.dat, of
+the level's own J and parity, within one configuration window of the
+alternate.  Where n_vacant is zero the new-level reading is dead however good
+the lines look.  It is a real filter: at the alternate position of
+059003.000305, eight unassigned, well-centred lines with coherent intensities
+looked like an undiscovered level, and the nearest unfound calculated level of
+J = 9/2 is 6900 cm^-1 away in the odd system and 18900 in the even one.  There
+is nothing there to find.
+
+What survives is sorted into five dispositions, named rather than ranked
+because they are five different pieces of work: `interchange` (the alternate
+lands on another level of the run - level_interchange.py's question, on
+evidence this scan does not use), `refit` (the alternate is a fraction of a
+wavenumber away, so the level stays and some accepted line is dragging the
+LOPT fit), `relocate` (a free position, broadly supported, surviving the
+look-elsewhere correction), `weak` (a free position with thin support) and
+`no support`.
+
+One caution the report repeats, because it is the easiest mistake to make with
+this tool: LEVELS SHARE LINES, so every ln R is conditional on the rest of the
+level list, and a revision changes the verdict on its neighbours.  Accept them
+one at a time and re-scan.  059003.000604 is the demonstration - with
+059003.000371 at its old position the adopted energy of 000604 wins, and only
+after 000371 moves does the alternate at 136728.75 become the best position in
+the whole window.
+
+7.  Reading the report
+----------------------
+WHAT ln R MEANS.  ln R is a log odds, so its sign is the whole of its meaning.
+
+    ln R  >  0   the recorded lines are more likely if a real level sits at
+                 this energy than if nothing does - the position is supported,
+                 and the larger the number the stronger the support.  Adding
+                 10 to ln R means the data are e^10, about 20000 times, more
+                 likely under the level than without it.  A well-centred line
+                 on an open plate is worth about +3.2, so ln R = +30 is a
+                 level carrying ten of them.
+    ln R  =  0   the lines say nothing either way.
+    ln R  <  0   the recorded lines are LESS likely if a level sits there:
+                 the position predicts transitions that should have been seen
+                 and were not, or lines whose intensities contradict the
+                 prediction.  A strongly negative ln R is the signature of a
+                 spurious position.
+
+The same number is used for a candidate energy as for the adopted one, which
+is what makes the two comparable: gain = ln R(alternate) - ln R(adopted) is a
+log odds ratio between two positions of the same level.
+
+WHAT COUNTS AS A PREDICTION.  n_pred is the number of transitions the
+calculation gives the level anywhere in the recorded range, and on its own it
+says very little: most of them are far too faint to have been recorded at all,
+and their number is set by how many partner levels are known, not by the
+experiment.  n_obs is the count that matters - the predictions whose
+probability of having been recorded, P_obs = c(lambda) D(z) of section 2, is
+at least P_SEEN.  Those are the transitions the level can actually be judged
+on.  n_seen is how many of the n_obs were found, and n_miss = n_obs - n_seen
+how many were not.  A level with n_obs = 9, n_seen = 8 is in good order
+whatever n_pred says; n_obs = 9 with n_seen = 2 is not.  (n_match, kept in the
+csv, counts every prediction that found a line including the faint ones whose
+line is almost certainly a coincidence, and is the number NOT to quote.)
+
+THE COLUMNS, in the order they are written.
+
+    E            the adopted energy, cm^-1
+    n_drop       predictions discarded because the partner level would have no
+                 accepted line left without the ones it shares with this level
+                 (section 4); they carry no positional information
+    n_pred       predicted transitions in range
+    n_obs        of those, the ones that could have been recorded
+    n_seen       observable predictions that found a line
+    n_miss       observable predictions that did not - the absences
+    n_match      every prediction that found a line, faint coincidences and
+                 all; n_seen is the meaningful count
+    n_claimed    matched predictions whose feature other accepted transitions
+                 already explain
+    ln_R         the total, at the adopted energy
+    ln_R_match   the part of it contributed by the matched predictions
+    ln_R_miss    the part contributed by the absences (never positive)
+    sum_lnG      the part contributed by intensity agreement alone
+
+with --scan, for the best alternate position found:
+
+    scan_width   the width of the interval scanned, cm^-1
+    n_alt        local maxima of ln R within --alt-drop of the adopted peak.
+                 This is the count of alternate positions and it, not any
+                 single probability, is what earns the level its question mark
+    ln_R_alt     ln R at the best of them
+    d_ln_R       ln_R - ln_R_alt.  NEGATIVE means the lines prefer the
+                 alternate.  (The audit's `gain` is the same quantity with the
+                 clearer sign: gain = -d_ln_R, positive = the alternate wins.)
+    dE_alt       E_alternate - E_adopted, cm^-1: how far the move would be
+    near_level   the level of the run whose energy is CLOSEST TO THE
+                 ALTERNATE.  It is a neighbourhood label, not a rival: it is
+                 filled in for every alternate, and for most of them it names
+                 a level that merely happens to lie nearby and wants nothing.
+                 Only when near_dE is small - under INTERCHANGE_DE, half a
+                 wavenumber - does it mean anything, and then it means the
+                 alternate IS that level's position, so the two identities may
+                 need exchanging rather than either of them moving.  A
+                 near_level several cm^-1 away is noise; read dE_alt instead.
+    near_dE      E_alternate - E(near_level), cm^-1
+    question     '?' when n_alt > 0
+
+with --audit, for that same alternate:
+
+    n_free       matched lines at the alternate that no accepted transition
+                 claims and that sit within FREE_SIGMA of prediction
+    free_gain    what those free lines are worth in ln R
+    top_share    the largest single line's share of the positive evidence
+    gain         ln_R_alt - ln_R
+    look         gain - ln(n_alt), the look-elsewhere correction of section 6
+    n_obs_alt    observable predictions at the alternate
+    n_seen_alt   how many of them would find a line there
+    n_miss_alt   how many would be absences there
+    n_vacant     unfound calculated levels of the same J and parity within one
+                 configuration window of the alternate.  Zero kills the
+                 reading "an unknown level sits there"; it does not kill "this
+                 level moves there"
+    z_alt        (E_alternate - E_calc)/W, the distance from where the
+                 calculation puts the level in units of that configuration's
+                 own scatter
+    action       the disposition of section 6
+
+THE ORDER OF THE ROWS.  The report is written best-first, so it can be read
+from the top: with --audit, relocations before interchanges before refits
+before the weak ones, and within each group the largest look-elsewhere
+corrected gain; with --scan alone, the largest gain; with neither, the weakest
+positions first, since a plain report is a list of complaints.  The csv keeps
+that order.  The tables printed under "the twenty weakest positions" are
+sorted by ln R regardless, because that is what they are for.
+
 """
 
 import argparse
@@ -229,6 +396,7 @@ import lopt_lines                             # noqa: E402
 
 # --- constants --------------------------------------------------------------
 N_SIGMA = 4.0        # half-width of the matching window, in sigma
+P_SEEN = 0.2         # P_obs at which a prediction counts observable
 Q_OUT = 2.0 * 0.5 * math.erfc(N_SIGMA / math.sqrt(2.0))   # 6.3e-5
 K_RHO = 41           # recorded lines averaged for the local line density
 K_BG = 201           # recorded lines averaged for the local intensity spread
@@ -893,14 +1061,18 @@ def report_table(ctx, level_ids):
         v, tab = ln_ratio(ctx, lid, np.array([e]), detail=True)
         if tab is None:
             rows.append(dict(level_id=lid, E=e, n_drop=0, n_pred=0,
-                             n_match=0,
+                             n_obs=0, n_seen=0, n_miss=0, n_match=0,
                              n_claimed=0, ln_R=0.0, ln_R_match=0.0,
                              ln_R_miss=0.0, sum_lnG=0.0))
             continue
         m = tab['matched'].to_numpy(dtype=bool)
+        seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
         rows.append(dict(level_id=lid, E=e,
                          n_drop=int(ctx.by_level[lid]['degenerate'].sum()),
                          n_pred=len(tab),
+                         n_obs=int(seen.sum()),
+                         n_seen=int((seen & m).sum()),
+                         n_miss=int((seen & ~m).sum()),
                          n_match=int(m.sum()),
                          n_claimed=int((tab['C'].fillna(0) > 0).sum()),
                          ln_R=float(v[0]),
@@ -941,12 +1113,285 @@ def print_detail(ctx, level_id):
                   f"{'-':>7}{r['ln_R']:>8.2f}")
 
 
+# ---------------------------------------------------------------------------
+# The audit: what a preferred alternate position actually rests on
+# ---------------------------------------------------------------------------
+# ln R says which of two energies the lines prefer.  It does not say whether
+# the preference is worth acting on, and four different things can produce the
+# same number.  The audit separates them.
+FREE_SIGMA = 2.0        # a supporting line must sit within this many sigma
+AUDIT_MIN_FREE = 4      # free supporting lines a firm relocation needs
+AUDIT_MIN_GAIN = 8.0    # ln R those free lines have to be worth
+AUDIT_MAX_SHARE = 0.45  # largest share of the evidence one line may carry
+AUDIT_ANY_SHARE = 0.60  # above this one line IS the case, and there is none
+AUDIT_MIN_FEW = 2       # fewer free lines than this is not support at all
+AUDIT_MIN_LOOK = 3.0    # gain a relocation must keep after look-elsewhere
+REFIT_DE = 2.0          # an alternate this close is the same level, refitted
+INTERCHANGE_DE = 0.5    # an alternate this close to another level is a swap
+
+
+def j_value(j):
+    """4.5 from the '9/2' of the level table; nan from anything unreadable."""
+    try:
+        s = str(j).strip()
+        if '/' in s:
+            a, b = s.split('/')
+            return float(a) / float(b)
+        return float(s)
+    except (ValueError, TypeError):
+        return float('nan')
+
+
+def support(ctx, level_id, e):
+    """What the position E rests on: its free lines, their weight, its spread.
+
+    A matched prediction is FREE support when the observed feature is claimed
+    by no other accepted transition (C = 0) and the line sits within
+    FREE_SIGMA of where it is predicted.  Those are the lines the level can
+    take without robbing another level of its evidence; support that is
+    entirely blended is not support, because a prediction can be dumped on an
+    already-explained feature almost anywhere.
+
+    top_share is the largest single row's share of all the positive evidence.
+    A position whose case is one line is not a case: one line can be a
+    coincidence, and the scan looked at tens of thousands of positions.
+    """
+    v, tab = ln_ratio(ctx, level_id, np.array([float(e)]), detail=True)
+    if tab is None:
+        return dict(ln_R=0.0, n_free=0, free_gain=0.0,
+                    top_share=np.nan, n_obs_alt=0, n_seen_alt=0,
+                    n_miss_alt=0)
+    m = tab['matched'].to_numpy(dtype=bool)
+    d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
+    c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
+    w = tab['W'].to_numpy(dtype=float)
+    r = tab['ln_R'].to_numpy(dtype=float)
+    free = m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
+    pos = r[m & (r > 0.0)]
+    seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
+    return dict(ln_R=float(v[0]), n_free=int(free.sum()),
+                free_gain=float(r[free].sum()),
+                n_obs_alt=int(seen.sum()),
+                n_seen_alt=int((seen & m).sum()),
+                n_miss_alt=int((seen & ~m).sum()),
+                top_share=(float(pos.max() / pos.sum()) if pos.size
+                           else np.nan))
+
+
+def vacancies(en):
+    """The calculated levels of enlev.dat that have not been found.
+
+    A preferred alternate can be read two ways: the level moves there, or an
+    unknown level sits there and the coincidence is with its lines.  The
+    second reading needs the calculation to still have a level of the right J
+    and parity spare at that energy.  Where it has none the reading is dead
+    however good the lines look - which is the one test in this whole module
+    that comes from the theory rather than from the line list.
+    """
+    v = en[~en['known']].copy()
+    v['par'] = v['cfg'].map(li.configuration_parity)
+    return v
+
+
+def count_vacancies(vac, j, parity, e, window):
+    """Unfound calculated levels of this J and parity within +/- window of E.
+
+    -1 when the level has no J, parity or window to test it against.
+    """
+    j = j_value(j)
+    if not (np.isfinite(j) and np.isfinite(e) and np.isfinite(window)
+            and window > 0 and parity in ('e', 'o')):
+        return -1
+    sel = ((vac['J'].to_numpy() == j) & (vac['par'].to_numpy() == parity)
+           & (np.abs(vac['E_calc'].to_numpy() - e) <= window))
+    return int(sel.sum())
+
+
+def disposition(row):
+    """What kind of problem a level with a preferred alternate actually is.
+
+    Five different pieces of work, which is why they are named rather than
+    ranked:
+
+      interchange  the alternate lands on another level of the run.  Nothing
+                   moves anywhere new; the two identities may be swapped, and
+                   level_interchange.py decides that on evidence this scan
+                   does not look at.
+      refit        the alternate is a fraction of a wavenumber away.  The
+                   level stays where it is; some accepted line is dragging
+                   the LOPT fit off the position its own lines want.
+      relocate     a free position, broadly supported by lines nobody is
+                   using, surviving the look-elsewhere correction, and
+                   convincing in its own right - ln R must be positive there,
+                   not merely better than where the level is now.
+      weak         a free position whose support is thin.  Leave it until the
+                   region around it is settled - the neighbours will change
+                   the answer.
+      no support   one line, or none that is free.  No case at all.
+    """
+    if np.isfinite(row['near_dE']) and abs(
+            row['near_dE']) < INTERCHANGE_DE:
+        return 'interchange'
+    if np.isfinite(row['dE_alt']) and abs(row['dE_alt']) < REFIT_DE:
+        return 'refit'
+    share = row['top_share']
+    if row['n_free'] < AUDIT_MIN_FEW or (np.isfinite(share)
+                                         and share > AUDIT_ANY_SHARE):
+        return 'no support'
+    if (row['n_free'] >= AUDIT_MIN_FREE
+            and row['ln_R_alt'] > 0.0
+            and row['free_gain'] >= AUDIT_MIN_GAIN
+            and np.isfinite(share) and share <= AUDIT_MAX_SHARE
+            and row['look'] >= AUDIT_MIN_LOOK):
+        return 'relocate'
+    return 'weak'
+
+
+def audit_table(ctx, tab, e_calc, w_of, vac):
+    """Add the audit columns to a scanned report table.
+
+    gain     ln R the alternate wins by (positive: the lines prefer it)
+    look     that gain after the look-elsewhere correction.  A level allowed
+             a 7000 cm^-1 window gets hundreds of chances at a good maximum
+             and a level allowed 130 gets a handful, so the two cannot be
+             compared raw.  Under H0 the heights of the local maxima are
+             roughly exponential, so the best of n_alt of them stands about
+             ln(n_alt) above a typical one; requiring the gain to beat that
+             puts every level on the same footing.
+    n_free   lines supporting the alternate that no other level is using
+    free_gain  what those lines are worth
+    top_share  the largest row's share of the positive evidence
+    n_vacant   unfound calculated levels of the same J and parity within one
+             configuration window of the alternate - can an UNKNOWN level be
+             there instead?
+    z_alt    (E_alt - E_calc)/W: how far the alternate sits from where the
+             calculation puts the level, in units of that configuration's own
+             scatter
+    action   see disposition()
+    """
+    cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], look=[],
+                n_obs_alt=[], n_seen_alt=[], n_miss_alt=[],
+                n_vacant=[], z_alt=[], action=[])
+    lev = ctx.per.set_index('level_id')
+    for _, r in tab.iterrows():
+        lid = r['level_id']
+        if not r.get('n_alt', 0) or not np.isfinite(r.get('dE_alt', np.nan)):
+            for k in cols:
+                cols[k].append('' if k == 'action' else np.nan)
+            continue
+        e_a = float(r['E']) + float(r['dE_alt'])
+        s = support(ctx, lid, e_a)
+        gain = float(r['ln_R_alt']) - float(r['ln_R'])
+        look = gain - math.log(max(int(r['n_alt']), 1))
+        w = float(w_of.get(lid, np.nan))
+        ec = float(e_calc.get(lid, np.nan))
+        row = dict(r)
+        row.update(s)
+        row['gain'] = gain
+        row['look'] = look
+        cols['n_free'].append(s['n_free'])
+        cols['free_gain'].append(s['free_gain'])
+        cols['top_share'].append(s['top_share'])
+        cols['n_obs_alt'].append(s['n_obs_alt'])
+        cols['n_seen_alt'].append(s['n_seen_alt'])
+        cols['n_miss_alt'].append(s['n_miss_alt'])
+        cols['gain'].append(gain)
+        cols['look'].append(look)
+        cols['n_vacant'].append(count_vacancies(
+            vac, lev.at[lid, 'J'] if lid in lev.index else None,
+            lev.at[lid, 'parity'] if lid in lev.index else None, e_a, w))
+        cols['z_alt'].append((e_a - ec) / w if (np.isfinite(ec)
+                                                and np.isfinite(w) and w > 0)
+                             else np.nan)
+        cols['action'].append(disposition(row))
+    for k, v in cols.items():
+        tab[k] = v
+    return tab
+
+
+ACTION_ORDER = ['relocate', 'interchange', 'refit', 'weak',
+                'no support', '']
+
+
+def order_report(tab):
+    """Put the rows worth acting on at the top.
+
+    The report is read from the top down, so the first row should be the move
+    with the best case for it, not the level with the worst ln R.  With
+    --audit that is the disposition order of ACTION_ORDER, and within each
+    disposition the look-elsewhere-corrected gain, largest first.  With --scan
+    alone there is no disposition, so it is simply the size of the gain the
+    alternate offers.  Without either, the weakest positions come first, which
+    is the only ordering a plain report can have.
+    """
+    tab = tab.copy()
+    if 'action' in tab.columns:
+        rank = {a: i for i, a in enumerate(ACTION_ORDER)}
+        tab['_r'] = [rank.get(str(a), len(ACTION_ORDER))
+                     for a in tab['action']]
+        tab = tab.sort_values(['_r', 'look', 'gain'],
+                              ascending=[True, False, False],
+                              na_position='last')
+        tab = tab.drop(columns='_r')
+    elif 'd_ln_R' in tab.columns:
+        tab = tab.sort_values(['d_ln_R', 'ln_R'], ascending=[True, True],
+                              na_position='last')
+    else:
+        tab = tab.sort_values('ln_R')
+    return tab.reset_index(drop=True)
+
+
+def print_audit(tab, alt_drop):
+    """The audit report: what to do about the levels that have an alternate."""
+    q = tab[tab['action'].astype(str) != ''].copy()
+    if q.empty:
+        print('\nno level has an alternate position to audit')
+        return
+    pref = q[q['gain'] > 0]
+    print(f"\naudit of the {len(q)} levels with an alternate position within "
+          f"{alt_drop:g} of the adopted one")
+    print(f"  {len(pref)} of them have an alternate the lines actually prefer")
+    print('\n  what kind of problem each one is:')
+    for name, g in pref.groupby('action'):
+        print(f"    {name:<12} {len(g):>4}")
+    firm = pref[pref['action'] == 'relocate'].sort_values(
+        'look', ascending=False)
+    cols = ['level_id', 'E', 'n_obs', 'n_seen', 'ln_R', 'dE_alt',
+            'ln_R_alt', 'n_seen_alt', 'n_miss_alt', 'gain', 'n_alt', 'look',
+            'n_free', 'free_gain', 'top_share', 'n_vacant', 'z_alt']
+    with pd.option_context('display.width', 220, 'display.max_columns', 24):
+        print(f"\n  firm grounds for relocation ({len(firm)}):")
+        print(firm[cols].to_string(index=False) if len(firm) else '    none')
+        swap = pref[pref['action'] == 'interchange']
+        if len(swap):
+            print(f"\n  interchanges, for level_interchange.py ({len(swap)}):")
+            print(swap[cols + ['near_level', 'near_dE']].to_string(
+                index=False))
+        rf = pref[pref['action'] == 'refit']
+        if len(rf):
+            print(f"\n  the level stays; an accepted line is dragging the fit "
+                  f"({len(rf)}):")
+            print(rf[cols].to_string(index=False))
+    hole = pref[(pref['action'] == 'relocate') & (pref['n_vacant'] > 0)]
+    if len(hole):
+        print(f"\n  {len(hole)} of the relocations sit where the calculation "
+              f"still has an unfound level of the same J and parity, so the "
+              f"lines may belong to THAT level rather than to this one: "
+              f"{', '.join(hole['level_id'])}")
+    print('\n  A relocation changes the lines available to its neighbours, so '
+          'accept them\n  one at a time and re-scan: the verdict on every '
+          'level is conditional on the\n  rest of the list.')
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     p.add_argument('--detail', metavar='LEVEL_ID',
                    help='per-transition table for one level')
     p.add_argument('--scan', action='store_true',
                    help='scan the alternate-position window of every level')
+    p.add_argument('--audit', action='store_true',
+                   help='what each alternate position rests on and what to '
+                        'do about it (implies --scan)')
     p.add_argument('--levels', nargs='*', default=None,
                    help='restrict the report to these level ids')
     p.add_argument('--alt-drop', type=float, default=ALT_DROP,
@@ -976,7 +1421,7 @@ def main(argv=None):
     ids = [i for i in ids if i in ctx.by_level]
     tab = report_table(ctx, ids)
 
-    if args.scan:
+    if args.scan or args.audit:
         en = li.read_enlev()
         win = li.configuration_windows(en)
         lv, unmatched = li.attach_identities(ctx.per, en, win)
@@ -1007,7 +1452,8 @@ def main(argv=None):
                 sep.append(e_a - r['e_adopted'])
                 k = int(np.clip(np.searchsorted(lev_e, e_a), 1,
                                 len(lev_e) - 1))
-                k = k if abs(lev_e[k] - e_a) < abs(lev_e[k - 1] - e_a)                     else k - 1
+                if abs(lev_e[k] - e_a) >= abs(lev_e[k - 1] - e_a):
+                    k -= 1
                 alt_lev.append(lev_id[k])
                 alt_lev_dE.append(float(e_a - lev_e[k]))
             else:
@@ -1021,15 +1467,18 @@ def main(argv=None):
         tab['ln_R_alt'] = best_alt
         tab['d_ln_R'] = d_alt
         tab['dE_alt'] = sep
-        tab['alt_level'] = alt_lev
-        tab['alt_level_dE'] = alt_lev_dE
+        tab['near_level'] = alt_lev
+        tab['near_dE'] = alt_lev_dE
         tab['question'] = np.where(np.asarray(n_alt) > 0, '?', '')
+        if args.audit:
+            tab = audit_table(ctx, tab, e_calc, w_of, vacancies(en))
 
-    tab = tab.sort_values('ln_R').reset_index(drop=True)
+    tab = order_report(tab)
     mc.save_table(tab, args.out, decimals={
         'E': 4, 'ln_R': 3, 'ln_R_match': 3, 'ln_R_miss': 3,
         'sum_lnG': 3, 'ln_R_alt': 3, 'd_ln_R': 3, 'dE_alt': 4,
-        'alt_level_dE': 4, 'scan_width': 1})
+        'near_dE': 4, 'scan_width': 1, 'gain': 3, 'look': 3,
+        'free_gain': 3, 'top_share': 3, 'z_alt': 2})
     print(f"ln R at the adopted position: median {tab['ln_R'].median():.1f}, "
           f"{int((tab['ln_R'] <= 0).sum())} at or below zero, "
           f"{int((tab['ln_R'] < 10).sum())} below 10")
@@ -1041,18 +1490,21 @@ def main(argv=None):
               f"{args.alt_drop:g} of the adopted one: {len(q)} of {len(tab)}")
         print(f"  of these, {int((q['d_ln_R'] < 0).sum())} have an alternate "
               f"the lines prefer to the adopted position")
-        onlev = (q['alt_level_dE'].abs() < 0.5).sum()
+        onlev = (q['near_dE'].abs() < 0.5).sum()
         print(f"  {int(onlev)} of the best alternates fall on another level "
               f"of the run - an interchange, not a free position")
-        cols = ['level_id', 'E', 'n_pred', 'n_match', 'ln_R', 'n_alt',
-                'ln_R_alt', 'd_ln_R', 'dE_alt', 'alt_level', 'alt_level_dE']
+        cols = ['level_id', 'E', 'n_obs', 'n_seen', 'n_miss', 'ln_R',
+                'n_alt', 'ln_R_alt', 'd_ln_R', 'dE_alt', 'near_level',
+                'near_dE']
         with pd.option_context('display.width', 200,
                                'display.max_columns', 24):
             print(q.sort_values('d_ln_R')[cols].head(40).to_string(index=False))
+    if 'action' in tab.columns:
+        print_audit(tab, args.alt_drop)
     with pd.option_context('display.width', 200,
                            'display.max_columns', 24):
         print("\nthe twenty weakest positions:")
-        print(tab.head(20).to_string(index=False))
+        print(tab.sort_values('ln_R').head(20).to_string(index=False))
     return 0
 
 
