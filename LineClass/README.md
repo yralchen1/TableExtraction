@@ -121,7 +121,7 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | `Pr3_lev_Wyart_1999.xlsm`           | `../TableExtraction/` (`LEVELS_FILE`) | `Wyart2000` | Energy levels (Wyart 1999 adopted values). Shared with `TableExtraction`. |
 | `Icalc.xlsx`                        | `LineClass/` (`files.icalc`)          | `Icalc`     | Calculated (theoretical) transition intensities and their uncertainties.  |
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
-| `revised_level_energies.csv`        | `LineClass/` (`files.level_overrides`, optional) | csv | Adopted energies revised by the identification work, as `level_id,E_input` plus a free comment column. A level listed here is read at that energy instead of the workbook value; see [Revised level energies](#revised-level-energies). |
+| `revised_level_energies.csv`        | `LineClass/` (`files.level_overrides`, optional) | csv | Adopted energies revised by the identification work, as `level_id,E_input` plus a comment column. A level listed here is read at that energy instead of the workbook value, and the comment is read too — it is what says whether the level was re-positioned or exchanged with another, and hence what becomes of the identifications the published line list makes with it. See [Revised level energies](#revised-level-energies). |
 | `line_decisions.csv`                | `LineClass/` (`files.line_decisions`, optional) | csv | The verdicts reached by hand on individual assignments, as `wn_obs,low_id,upp_id,decision` plus free `date`/`reason` columns. Applied after every automatic step, so it has the last word; an `accept` row is an order and *creates* its assignment when the matching never proposes it, and a row that cannot be carried out stops the run. See [The decision ledger](#the-decision-ledger-identifications-ruled-on-by-hand). |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
@@ -203,6 +203,69 @@ Three readers consult it, so the whole pipeline sees one energy for the level:
 A level in the file that is absent from the workbook raises an error rather
 than passing silently as "nothing was moved". Comment the `level_overrides`
 line out of the configuration to run on Wyart's energies unchanged.
+
+#### The comment column, and what becomes of the published identifications
+
+An identification taken from the published line list — the rows
+`line_classifications.csv` marks `new` = 0, and which this README calls *old* —
+names its two levels in the line workbook, and that workbook is an external
+input and is never edited. So an identification made while a level sat at its
+published energy goes on naming that level after the identification work has
+moved it, and Step 3 keeps such an identification unless something rejects it
+("old, no solid evidence for rejection"). The level is then fitted between its
+true lines and its stale legacy ones. That is what pulled `059003.000424`
+81 cm⁻¹ off its LOPT position on 2026-09-05.
+
+The comment column is what tells the pipeline which of two things was done, and
+`read_level_provenance()` reads it:
+
+| the comment says | what was done | what happens to the published identifications naming the level |
+|---|---|---|
+| `re-positioned`, or `moved` | the level was found at a different energy | they lose their old status and are weighed as new candidates are, on their own evidence |
+| `levels A and B were swapped`, or `exchanged with B` | two levels of the same parity and *J* exchanged their measured positions, each identifier keeping its own calculated identity | they keep their old status, **under the other identifier** — the observed lines did not move, only the name written over them |
+| anything else | the energy was refined and nothing else | they stand exactly as written |
+
+The phrase an exchange is recognised by is the one
+`swap_line_assignments_pipeline.py` stamps on every row it writes, so an
+exchange recorded by that script is recognised without anything further being
+written by hand. A row that names an exchange partner absent from the level
+list, or one whose partner's own row names a third level, stops the run: that
+is a typo or a half-finished exchange, and either way there is no telling which
+of two positions an identification belongs to.
+
+`retag_legacy_identifications()` then settles, for every observed line, which
+pairs of levels it holds a published identification for, and reports the count:
+
+```
+  Published identifications: 3462 stand as written, 20 carried over to the
+  level that now holds the measured position, 10 withdrawn because a level of
+  theirs has been re-positioned; the pairs they used to name are no longer
+  candidates on their lines.
+```
+
+What this settles is which of a line's candidates are entitled to be treated
+as old, and that entitlement belongs to the observed line and its measured
+position rather than to the identifier written beside it in a workbook that
+predates the move.
+
+The candidate seeded from the workbook goes wherever its entitlement goes. A
+line's published identifications are put on it as candidates whatever their
+Ritz wavenumber — that is what makes them published identifications rather
+than proposals, and it is why they can be weighed at all — so a pair the line
+no longer holds has to be taken off it. Otherwise the row survives as a
+candidate exempt from the matching tolerance, at a Ritz mismatch of the whole
+distance the level moved: at 95158.229 cm⁻¹ the pair `000087-000398`, whose
+upper level swapped its measured position away on 2026-09-06, stood in the
+output with `dif_wn_O-C = 92.898` cm⁻¹, an identification nobody holds and
+that nothing in the run can accept. For an exchange the identification is
+re-seeded under the partner's identifier, which is where it now lives; a
+sound exchange puts that pair within the matching tolerance anyway, so this
+usually adds no row that was not there already.
+
+The verdicts these rows carried in `line_decisions.csv` become moot when the
+pair leaves the run, and are listed by `report_unapplied_decisions()` at the
+end of the run — which is what that report is for. They can be deleted from
+the ledger or left as a record of the decision; nothing reads them again.
 
 The point of routing the revision through this file rather than through the
 workbook is that the level then re-enters the probabilistic validation: its
@@ -376,6 +439,41 @@ Two files are written to the `LineClass/` directory (`OUTPUT_FILE`, `OUTPUT_CSV`
 |-----------------------------|--------------------------------------------------------|
 | `line_classifications.xlsx` | Classification table with per-column number formatting |
 | `line_classifications.csv`  | Identical data in CSV                                  |
+
+#### A file open in Excel stops the run at the start, not at the end
+
+Excel holds the workbook or comma-separated file it has open locked against
+writing, so a run whose output file is open used to die at the last moment —
+after every level had been read, every candidate weighed and every cycle
+turned — with `PermissionError: [Errno 13] Permission denied`, and the whole
+run was lost.
+
+Every script that writes a file Excel can open now asks, before it starts
+work, whether that file can be written, and stops with the name of the file
+if it cannot:
+
+```
+Cannot write the output file of this run:
+    line_classifications.xlsx - it is open in another program (Excel locks the
+    file it has open) or is read-only
+
+Close the file and run again.  The run stops here, before any of the work is
+done, rather than after all of it.
+```
+
+The test is a real one, not a guess from the file name: the file is opened for
+update — read and write, no truncation — which asks the operating system for
+exactly the access the eventual write will need and touches not a single byte.
+It lives in `output_files.py` (`require_writable`), and is made by
+`classify_lines.py`, `make_LOPT_input.py`, `check_sync.py`, `chance_mc.py`,
+`decoy_mc.py`, `level_shifts.py`, `level_positions.py` and
+`level_interchange.py`. A run that writes no files (`main(write_files=False)`,
+used by the Monte-Carlo drivers) skips it, as does any `--detail` mode, which
+only prints.
+
+The gap between the check and the write is the length of the run: nothing stops
+a file being opened in Excel while the run is going. What the check settles is
+the common case — the file was already open when the run began.
 
 Rows are sorted by **decreasing observed wavenumber** (`wn_obs`), then decreasing Ritz wavenumber (`rwn`), then increasing `grade` for ties (`build_output`). Unclassified observed lines still appear, as a single blank-classification row.
 
@@ -2608,7 +2706,12 @@ legacy ones. That is what pulled `059003.000424` 81 cm⁻¹ off its LOPT positio
 2026-09-05. So for each of them the script writes two orders: a `reject` where the line
 stands and an `accept` under the other identifier, which is the level that now sits where
 the line is. `--rejects-only` writes only the first and leaves the rest to the
-classification. An order that would contradict one already in the ledger stops the script,
+classification. `classify_lines.py` now reads the exchange out of the comment column of
+`revised_level_energies.csv` and carries the old status over by itself (see
+[The comment column](#the-comment-column-and-what-becomes-of-the-published-identifications)),
+so these orders are no longer what stands between the exchange and a level fitted to its
+stale legacy lines; they remain a written record of the two verdicts and are still worth
+having, and where they exist already the two agree. An order that would contradict one already in the ledger stops the script,
 because `classify_lines.py` aborts on two rows ruling differently on the same assignment —
 better here than on the next run.
 
@@ -3002,6 +3105,177 @@ python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised 
 - **A bad intensity pattern can be hidden by the folding.** `p_spur` folds the energy-shift evidence with the pattern evidence, and a level whose strongest predicted branch is *masked* by a nearby stronger line has that half of the pattern evidence withdrawn — correctly, since a masked branch says nothing. But a level can then keep a very poor pattern score and still come out with a small `p_spur` and no questionable mark. In the run of 2026-09-05 the worst intensity pattern of all 208 tested levels belongs to `059003.000572` (`pattern_V` = 0.122, 4 of its top 10 predictions accepted), which carries `p_spur` = 0.033 and is not marked; its configuration, `4f.5d.6p`, is the one whose calculated positions deviate most from the observed ones in the Cowan-code fit, so a misidentification of the level with the wrong theoretical partner is exactly what one would expect there. **`pattern_V` is worth reading directly, not only through `p_spur`.** The specific failure — two levels of the same parity and `J`, close in energy, whose theoretical identities have been interchanged — is what `level_interchange.py` looks for (next section); it is a separate test because an interchange leaves every energy right and so is invisible to ΔE.
 - **Lines omitted as blends with other ionization stages.** Sugar assigned lines to Pr II, III, or IV by comparing exposures at different degrees of excitation; a Pr III line nearly coinciding with a stronger Pr II or Pr IV line could not be assigned confidently and was omitted from his Pr III list. Such omissions are invisible to the masking check (the search covers only Sugar's Pr III lines), so some "missing" strong predictions are excusable in a way the automation cannot see. Statistically the effect is absorbed — the old (genuine) reference levels suffer the same omissions, so the pattern-score comparison between the classes stays fair — but the per-level adjudication is conservative: a questionable mark that an expert would clear on this ground stays retained. Automating this excuse would require Pr II and Pr IV line lists.
 
+### Are the files in step: `check_sync.py`
+
+The same facts — which observed line belongs to which pair of levels, and where each level
+sits — are held in five places, and nothing keeps them in step automatically:
+
+```
+Pr3_lines.xlsx                    the measured lines (the only real input)
+    |  classify_lines.py, obeying line_decisions.csv and revised_level_energies.csv
+    v
+line_classifications.csv / .xlsx  every candidate transition, accepted or not
+    |  make_LOPT_input.py
+    v
+LOPT_input_lines.txt              the accepted ones, weighted
+    |  lopt.bat
+    v
+LOPT_output_lines.txt             the fit
+LOPT_output_levels.txt            the optimized level energies
+    |  by hand, rarely
+    v
+IDEN2/enlev.dat                   the level list IDEN2 shows on screen
+IDEN2/trans.dat                   its predicted transitions and their assignments
+```
+
+A step skipped anywhere leaves two of them disagreeing, and the disagreement is silent:
+every tool downstream keeps working, on stale numbers. The symptom is a report that
+recommends something already done — `level_positions.py` proposing a move to the energy the
+level was moved to yesterday — which, read on its own, looks exactly like a recommendation
+worth acting on. `check_sync.py` compares all five and says where they differ. It changes
+nothing.
+
+**What is a mismatch and what is only drift.** The IDEN2 files are brought up to date by
+hand and only when there is reason to, so their level energies are expected to lag the
+current fit a little; a hundredth or two of a wavenumber is the ordinary state of affairs.
+Two thresholds separate that from a real difference: `--drift` (0.5 cm⁻¹ by default) below
+which an energy difference is the expected lag and is only counted, and `--gross` (5.0)
+at which the two files are describing different positions rather than one position known to
+different precision. A third, `--wn-tol` (0.05), is not a tolerance on the physics but on
+the printing: `make_LOPT_input.py` writes three decimals, LOPT echoes each wavenumber to
+the precision its own uncertainty warrants (121279.416 comes back as 121279.42), and the
+decision ledger is written by hand from a printed list. Everything else — a line accepted
+in one file and absent from another, a ledger verdict the classification does not obey, a
+transition assigned in IDEN2 that the classification has withdrawn — has no tolerance at
+all and is reported item by item.
+
+**Why the level pair is the key and the wavenumber is not.** Two files are compared
+transition by transition, matched first on the pair of levels and then, within that pair, on
+the nearest wavenumber. Keying on the wavenumber alone reports thousands of differences
+that are only rounding; keying on the pair alone is wrong the other way, because the same
+two levels can be candidates on several observed lines — moving an assignment from one line
+to another, which is how a correction is made, leaves the pair on both, and both ledger
+rows are then obeyed. Two *accepted* rows for one pair would be a real contradiction, since
+one transition can be on one line only, and that is reported.
+
+**The three severities.** `ERROR` — the files contradict each other, and a report built on
+them can be wrong in a way no reading of it would reveal. `WARN` — they disagree in a way
+that is expected, or in one artefact that can simply be rebuilt. `ok` — checked, nothing to
+say. The exit status is 2 if anything is an error, 1 if anything is a warning, 0 if
+everything is clean, so the script can gate a pipeline.
+
+The ten checks, in the order they are made:
+
+| # | what is compared | what a difference means |
+|---|---|---|
+| 1 | every artefact against the files it is built from, by modification time | the cheapest check, and it usually explains all the others at once |
+| 2 | `line_classifications.csv` against `.xlsx` | they are written together by `classify_lines.py`, so a difference was made afterwards — an edit in Excel, or one file left over from an earlier run |
+| 3 | the classification against `LOPT_input_lines.txt` | what has to agree is the fit: every accepted classification weighted, nothing else weighted, and each carrying the right share of its observed line |
+| 4 | `LOPT_input_lines.txt` against `LOPT_output_lines.txt` | LOPT must have been run on the transitions file that is on disk now |
+| 5 | LOPT's line output against its level output | different level energies in the two mean they are from different runs |
+| 6 | `revised_level_energies.csv` against the fitted levels | a revision written down and never carried out — or one made and then undone by a later run started from an older classification |
+| 7 | `IDEN2/trans.dat` against `IDEN2/enlev.dat` | trans.dat carries a copy of every partner energy, found flag and predicted wavenumber, and IDEN2 rewrites them together; a copy that no longer follows means every wavenumber trans.dat shows is stale |
+| 8 | `IDEN2/enlev.dat` against `LOPT_output_levels.txt`, joined through `IDEN2/IDEN_level_ids.txt` | the energy of every level, and the membership of the two lists both ways: levels starred in enlev.dat with no entry in the map, levels of the fit not marked found |
+| 9 | `IDEN2/trans.dat` against the accepted classifications | **the check the rest exists to make**: a transition IDEN2 shows as identified but the classification has withdrawn looks, on the screen, exactly like one that is still accepted |
+| 10 | `unstable_candidates.csv` and `line_decisions.csv` | stability rather than staleness — see below |
+
+**Stability.** Two things can be unsettled rather than merely out of date. An *oscillating*
+assignment is one `classify_lines.py` accepted on one pass and rejected on the next until it
+blacklisted the pair; the run converged, but only because that assignment was taken out of
+the argument, and which way it should have gone is still undecided. It is reported as a
+warning with the acceptance states that made it an oscillator, and the action is to settle
+it by hand and record the verdict in `line_decisions.csv`. An *unobeyed ledger row* is
+worse and is an error: the analyst has ruled on a line and the classification does not show
+the ruling, which means it was written before the row, or by a run that did not read the
+ledger. A rejection obeyed on the line it names, while the same pair is accepted on another
+line, is neither — that is how an assignment is moved, and it is reported as a warning only
+so that the move is visible.
+
+**The problem lists.** Every list of transitions is written so that it can be worked
+through at the screen without a second lookup. The rows are ordered by the energy of the
+upper level and then of the lower one — the order the same transitions come in in IDEN2 and
+in the workbook — and each row carries both levels with IDEN2's own level numbers beside
+them (the numbers typed into IDEN2, from `IDEN_level_ids.txt`), both energies, and three
+words saying where the transition stands:
+
+| column | value | meaning |
+|---|---|---|
+| `.xlsx` | `accepted` | `line_classifications.xlsx` accepts it on this line |
+| | `rejected` | it is a candidate on this line and was turned down |
+| | `elsewhere` | it is a candidate, but on other observed lines only |
+| | `missing` | it is not a candidate anywhere |
+| `LOPT` | `included` | on this line in `LOPT_input_lines.txt` with a weight and no `P` flag |
+| | `not incl. P` | in the file, but flagged predicted or given zero weight — either way it does not pull on the levels |
+| | `elsewhere` | in the file on other observed lines only |
+| | `not incl. --` | not in the file at all |
+| `IDEN2` | `assigned` | `trans.dat` identifies it with this line |
+| | `elsewhere` | `trans.dat` identifies it with another line |
+| | `not assigned` | IDEN2 predicts it and has no line for it |
+| | `no trans row` | IDEN2 does not predict it at all, which for a real pair of levels means `trans.dat` is stale |
+
+Every one of the three is answered for the observed line the row names, never for the pair
+of levels in general. The same pair can be a candidate on several lines — moving an
+assignment leaves the old row in place to be rejected, which is how the pipeline is made to
+turn down an assignment it would otherwise keep — so a status read off another line would
+print a row that is in perfect order as a problem.
+
+**The weights.** A row that both files hold can still say opposite things, because being in
+the transitions file is not being in the fit: a `P` flag or a zero weight takes it out. An
+accepted classification that is in the file without weight is therefore listed with the ones
+that are not in the file at all, and a weighted row the classification does not accept with
+the ones the classification has never heard of. Only when both files put the line in the fit
+is there a weight to compare, and what is compared is the *share of the observed line*, not
+the number in the weight column: LOPT normalises the weights of one line to sum to one, so a
+blend assigned by hand with the calculated intensities pasted straight out of `Icalc.xlsx`
+fits exactly as `make_LOPT_input.py`'s own fractions would and looks nothing like them on
+paper. The tool repeats that arithmetic — the whole line to a single accepted
+classification, a blend divided between its components in proportion to `calc_intens` — and
+reports a share that is out by more than one per cent, printing both.
+
+**What the lists leave out.** A transition that carries no weight in the fit and no
+identification in IDEN2, and that the classification does not accept, says the same thing
+in all three files whichever of them happens to hold a row for it: it changes neither the
+level optimisation, nor the next pass of `classify_lines.py`, nor the view in IDEN2. It
+arises in both directions — `make_LOPT_input.py` writes every classified candidate, the
+rejected ones at zero weight, so settling a classification after the transitions file was
+built leaves rejected candidates in the workbook alone, and withdrawing one leaves a
+`P`-flagged row in the transitions file alone — and in both directions it is counted in a
+warning and kept out of the detailed lists. The rebuild that puts the two files literally
+in step belongs at the end of the analysis, when fully synchronised files are wanted for
+the publication tables. The same transition weighted in the fit, or identified in IDEN2, is
+a real disagreement and stays in the list.
+
+**Where the report goes.** The terminal shows the first `--list` rows of each list, enough
+to see the shape of the trouble at once; the complete report, every item of every list, is
+written to `sync_report.txt`. A list cut off after a dozen rows cannot be worked through,
+and the rows that were cut are then invisible.
+
+**The suggested actions** are printed last, in the order the pipeline runs rather than by
+severity, because doing a later one first only means doing it again after the earlier one:
+settle the unstable assignments and the ledger, re-run `classify_lines.py`, rebuild the
+LOPT input, re-run LOPT, carry the changes into IDEN2, and re-run the validation reports
+last of all. One thing the tool deliberately does *not* advise is rebuilding
+`LOPT_input_lines.txt` to make a mismatch with the classification go away. Rebuilding it
+does exactly that — makes the list go away — while every question in the list stays open
+and is now untracked: the transitions have to be looked at in IDEN2 one by one and settled
+in `line_decisions.csv` first.
+
+Usage:
+
+```bash
+python check_sync.py                     # the report, and sync_report.txt
+python check_sync.py --quiet             # only the checks that found something
+python check_sync.py --list 40           # up to 40 items under each finding on screen
+python check_sync.py --out mine.txt      # write the complete report elsewhere
+python check_sync.py --drift 0.1         # a stricter idea of "up to date"
+python check_sync.py --csv sync.csv      # the findings as a table as well
+```
+
+Like the swap tools, it looks for each file in the directory it was run from and falls back
+to the directory holding the scripts, so it can be run inside an iteration folder
+(`iter22/`) against that folder's own LOPT files while still reading the one copy of the
+ledgers.
+
 ### Excel-friendly output files
 
 All validation tables are written by `save_table()` (in `chance_mc.py`): every CSV gets an `.xlsx` twin, and floating-point columns are rounded to physically meaningful decimals. The rounding matters for CSVs: Python prints a 64-bit float with up to 17 significant digits (the number needed to reproduce the binary value exactly — not extra precision), while Excel reads at most 15 and converts longer numbers to text; in the `.xlsx` twins, J values such as `3/2` stay text instead of being converted to dates. If a target file is locked (open in Excel), the writer falls back to a `_new`-suffixed name instead of aborting the run.
@@ -3015,6 +3289,7 @@ python chance_mc.py          # 3. optional: shifted-wavenumber cross-check → c
 python level_shifts.py       # 4. calibrations, probabilities → level_shift_report.csv/.xlsx
 python level_interchange.py  # 5. interchanged identities → level_interchange.csv/.xlsx
 python level_positions.py --scan  # 6. alternate positions, question marks → level_positions.csv
+python check_sync.py         # 7. do all the files still describe the same identification?
 ```
 
 Repairing an interchange that step 5 flags is a separate act, done once and by hand:

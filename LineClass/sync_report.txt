@@ -1,0 +1,59 @@
+check_sync.py - are the files describing the same identification?
+file                             last written
+line_classifications.csv         2026-09-09 16:43
+line_classifications.xlsx        2026-09-09 16:43
+LOPT_input_lines.txt             2026-09-09 16:12
+LOPT_output_lines.txt            2026-09-09 16:17
+LOPT_output_levels.txt           2026-09-09 16:15
+line_decisions.csv               2026-09-09 16:43
+revised_level_energies.csv       2026-09-08 21:06
+unstable_candidates.csv          2026-09-09 16:43
+level_positions.csv              2026-09-08 15:39
+Pr3_lines.xlsx                   2026-09-05 20:43
+IDEN2/enlev.dat                  2026-09-09 15:39
+IDEN2/trans.dat                  2026-09-09 15:56
+
+Freshness
+---------
+  warn  LOPT_input_lines.txt is older than what it is built from:
+         line_classifications.csv (line_classifications.csv newer by 31 min)
+  warn  level_positions.csv is older than what it is built from:
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 24.6 h)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 24.6 h)
+         line_classifications.xlsx (line_classifications.xlsx newer by 25.1 h)
+
+Classification
+--------------
+    ok  the csv and the workbook hold the same 7678 classified transitions, on the same lines and with the same verdicts
+
+LOPT
+----
+  warn  154 rejected candidates are in the classification and nowhere else: absent from LOPT_input_lines.txt and unassigned in IDEN2. They are counted, not listed - carrying no weight and no line, they say the same thing in all three files, and the rebuild that puts them on paper belongs at the end of the analysis.
+  warn  125 transitions in LOPT_input_lines.txt are flagged P or of zero weight, are not accepted in the classification, and are not identified in IDEN2: leftovers of an earlier classification that pull on nothing.  They are counted, not listed; the next rebuild of the file drops them.
+    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (7524 of them), weighted as accepted
+    ok  the fit was made on the transitions file that is on disk now (7649 lines)
+    ok  the line output and the level output agree about every level energy
+
+Revisions
+---------
+    ok  all 16 recorded revisions are in the fit
+
+IDEN2
+-----
+    ok  trans.dat follows from enlev.dat: 1242 level headers and 104272 transitions all consistent
+    ok  all 594 levels agree with the fit to within 0.5 cm^-1
+    ok  IDEN2 and the classification agree about all 4979 identified transitions
+
+Stability
+---------
+    ok  no assignment oscillated in the last run
+    ok  all 268 ledger verdicts are obeyed
+
+What to do
+----------
+  1. Re-run level_positions.py (and level_shifts.py) last: their reports are built on everything above, and a report made before the fixes will recommend things that have already been done.
+
+  They are in the order the pipeline runs.  Doing a later
+  one first only means doing it again after the earlier one.
+
+0 error(s), 4 warning(s), 10 check(s) clean.

@@ -388,6 +388,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import chance_mc as mc                        # noqa: E402
+import output_files                          # noqa: E402
 import classify_lines as cl                   # noqa: E402
 import level_interchange as li                # noqa: E402
 import level_shifts as ls                     # noqa: E402
@@ -1411,6 +1412,9 @@ def parse_args(argv):
 
 def main(argv=None):
     args = parse_args(argv)
+    if not args.detail:
+        output_files.require_writable(output_files.with_twin(args.out),
+                                      'report file')
     ctx = build(args)
 
     if args.detail:

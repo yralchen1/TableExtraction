@@ -19,6 +19,7 @@ import argparse
 import csv
 import os
 import math
+import re
 from typing import List
 import numpy as np
 import bisect
@@ -26,6 +27,7 @@ import pandas as pd
 import openpyxl
 import config
 import gA_imputation
+import output_files
 from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 
 # ---------------------------------------------------------------------------
@@ -49,6 +51,8 @@ WN_MIN = 0.0        # wavenumber range for possible transitions (cm^-1)
 WN_MAX = 0.0
 MISSING_POLICY = 'none'  # missing_gA.policy in force: 'none' or 'impute'
 _IMPUTED = None          # cached imputation constants; see imputed_values()
+LEGACY_MOVED = set()     # levels re-positioned by hand; see read_level_provenance()
+LEGACY_SWAPPED = {}      # level -> the level its measured position went to
 
 
 def apply_config(cfg, policy: str = None) -> None:
@@ -265,6 +269,7 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
         add_new_levels(levels_dict, levels_list, NEW_LEVELS)
     if LEVEL_OVERRIDES:
         apply_energy_overrides(levels_dict, LEVEL_OVERRIDES)
+        set_level_provenance(levels_dict, LEVEL_OVERRIDES)
     return levels_dict, levels_list
 
 
@@ -349,6 +354,240 @@ def read_energy_overrides(path: str) -> dict[str, float]:
                 continue
             emap[lid] = float(rec['E_input'])
     return emap
+
+
+# ---------------------------------------------------------------------------
+# What was done to a level, as its revised-energies row records it
+# ---------------------------------------------------------------------------
+# A legacy identification - one taken from the published line list, the ones
+# this pipeline marks new = 0 - names its two levels in the line workbook, and
+# that workbook is never edited.  So an identification made while a level sat
+# at its published energy goes on naming that level after the identification
+# work has moved it, and Step 3 keeps such an identification unless something
+# rejects it ("old, no solid evidence for rejection").  The level is then
+# fitted between its true lines and its stale legacy ones.
+#
+# The comment column of the revised-energies file says what was done, and that
+# is enough to tell the two cases apart:
+#
+#   re-positioned, moved  The level was found at a different energy.  Whatever
+#                         was identified with it at the old one was identified
+#                         with a level that is no longer there, so those
+#                         identifications lose their old status and are
+#                         weighed as new candidates are, on their own
+#                         evidence.
+#   swapped, exchanged    Two levels of the same parity and the same J
+#                         exchanged their measured positions, each identifier
+#                         keeping its own calculated identity.  The observed
+#                         lines did not move; only the name written over them
+#                         did.  The old status is therefore not lost but
+#                         carried over to the other identifier, the one that
+#                         now sits where the identification was made.
+#
+# The wording recognised here is the wording these files are written in:
+# swap_line_assignments_pipeline.py stamps every exchange it records with the
+# phrase "levels <a> and <b> were swapped", and a re-positioning is written by
+# hand as "re-positioned from <energy>" or "moved".
+_RE_SWAP_PAIR = re.compile(
+    r'levels\s+([\w.\-]+)\s+and\s+([\w.\-]+)\s+were\s+swapped', re.I)
+_RE_SWAP_WITH = re.compile(r'exchanged\s+with\s+([\w.\-]+)', re.I)
+_RE_MOVED = re.compile(r're-?positioned|\bmoved\b', re.I)
+
+
+def read_level_provenance(path: str) -> tuple[set, dict]:
+    """(re-positioned levels, {level: the level it was exchanged with}).
+
+    Read from the `comment` column of the revised-energies file.  A row whose
+    comment names an exchange is an exchange even if it also says "moved"; a
+    row that says neither moves the level's energy and nothing else, and its
+    legacy identifications are left exactly as they are.
+    """
+    moved, swapped = set(), {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        for rec in csv.DictReader(fh):
+            lid = to_str_id(rec.get('level_id'))
+            if lid == '':
+                continue
+            text = (rec.get('comment') or '').strip()
+            other = ''
+            m = _RE_SWAP_PAIR.search(text)
+            if m:
+                a, b = to_str_id(m.group(1)), to_str_id(m.group(2))
+                other = b if a == lid else a
+            else:
+                m = _RE_SWAP_WITH.search(text)
+                if m:
+                    other = to_str_id(m.group(1))
+            if other and other != lid:
+                swapped[lid] = other
+            elif _RE_MOVED.search(text):
+                moved.add(lid)
+    return moved, swapped
+
+
+def set_level_provenance(levels_dict: dict, path: str) -> None:
+    """Adopt what `path` says was done to its levels, for this run.
+
+    An exchange is mutual, so it is recorded from both sides even when only
+    one of the two rows spells it out, and a level said to be exchanged with
+    one level and named as the partner of another is refused: that is a typo
+    or a half-finished exchange, and either way the pipeline cannot know
+    which of the two positions a legacy identification belongs to.
+    """
+    global LEGACY_MOVED, LEGACY_SWAPPED
+    moved, swapped = read_level_provenance(path)
+    for a, b in list(swapped.items()):
+        swapped.setdefault(b, a)
+    unknown = sorted(set(swapped) - set(levels_dict))
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: exchanged with level "
+                         f"id(s) not in the level list: {', '.join(unknown)}")
+    bad = sorted(a for a, b in swapped.items() if swapped.get(b) != a)
+    if bad:
+        raise ValueError(f"{os.path.basename(path)}: the exchange of "
+                         f"{', '.join(bad)} does not agree with the exchange "
+                         f"recorded for the level named as its partner")
+    LEGACY_MOVED, LEGACY_SWAPPED = moved, swapped
+    if moved:
+        print(f"    {len(moved)} of them re-positioned: their published "
+              f"identifications no longer count as old "
+              f"({', '.join(sorted(moved))})")
+    if swapped:
+        pairs = sorted({tuple(sorted((a, b))) for a, b in swapped.items()})
+        print(f"    {len(pairs)} exchange(s) of two levels' measured "
+              f"positions: the published identifications keep their old "
+              f"status under the other identifier "
+              f"({'; '.join(a + ' <-> ' + b for a, b in pairs)})")
+
+
+def legacy_identification(low_id: str, upp_id: str):
+    """The pair of levels a published identification of these two now names.
+
+    The same pair, for a level that has not been touched or whose energy was
+    merely refined.  The partner's identifier, for a level whose measured
+    position was exchanged with another's.  None if a level of the pair has
+    been re-positioned, meaning there is no longer any published
+    identification here to carry over.
+    """
+    if low_id in LEGACY_MOVED or upp_id in LEGACY_MOVED:
+        return None
+    return (LEGACY_SWAPPED.get(low_id, low_id),
+            LEGACY_SWAPPED.get(upp_id, upp_id))
+
+
+def seed_legacy_candidate(lower, upper, line, calc_trans_index) -> object:
+    """Put one published identification on `line` as a candidate.
+
+    A published identification is a candidate on its line whatever its Ritz
+    wavenumber - that is what makes it published rather than proposed - so it
+    is seeded here instead of being left to the matching tolerance.  The
+    calculated intensity comes from the calculated-transition file, or is
+    imputed by the same rule as any other pair when the file does not print
+    the pair.  Returns the new Transition.
+    """
+    calc_data = calc_trans_index.get((lower.level_id, upper.level_id))
+    if calc_data is not None:
+        i_calc, u_calc, imputed = (calc_data['calc_intensity'],
+                                   calc_data['u_calc'], 0)
+    else:
+        # Absent from the calculated-transition file. A legacy identification
+        # must meet the same intensity test as a new one, so it is imputed by
+        # exactly the same rule.
+        i_calc, u_calc = imputed_values(lower, upper)
+        imputed = 1 if i_calc is not None else 0
+    tr = Transition(
+        lower_level=lower,
+        upper_level=upper,
+        calc_intensity=i_calc,
+        u_calc=u_calc,
+        assigned_to=line,
+        orig_calc_intensity=i_calc,
+        orig_u_calc=u_calc,
+        is_imputed=imputed,
+    )
+    line.assigned_transitions.append(tr)
+    line.original_assignments.append(tr)
+    if calc_data is not None:
+        calc_data['assigned_to'] = line
+    return tr
+
+
+def unseed_legacy_candidate(line, tr, calc_trans_index=None) -> None:
+    """Take a seeded published identification off `line` again.
+
+    The caller has already dropped it from original_assignments; what is left
+    is the candidate itself and the mark on the calculated-transition record
+    that says which line holds this pair.
+    """
+    line.assigned_transitions = [t for t in line.assigned_transitions
+                                 if t is not tr]
+    if calc_trans_index is None:
+        return
+    calc_data = calc_trans_index.get((tr.lower_level.level_id,
+                                      tr.upper_level.level_id))
+    if calc_data is not None and calc_data.get('assigned_to') is line:
+        calc_data['assigned_to'] = None
+
+
+def retag_legacy_identifications(observed_lines: list, levels_dict: dict = None,
+                                 calc_trans_index: dict = None) -> None:
+    """Say, for every observed line, which pairs of levels it holds a
+    published identification for, once the moves recorded in the
+    revised-energies file have been taken into account.
+
+    What is settled here is which of a line's candidates are entitled to be
+    treated as old, and that entitlement belongs to the observed line and its
+    measured position, not to the identifier that happens to be written
+    beside it in a workbook that predates the move.
+
+    The candidate seeded from the workbook goes wherever its entitlement
+    goes.  A pair the workbook names but the line no longer holds - because a
+    level of it has been re-positioned, or because the level swapped its
+    measured position away and the line went with it - is taken off the line
+    altogether: it is nobody's identification any more, and a seeded
+    candidate is exempt from the matching tolerance, so leaving it in offers
+    the analyst an identification at whatever Ritz wavenumber the identifier
+    now has - the very mismatch the move was made to remove.  For an
+    exchange the identification is re-seeded under the partner's identifier,
+    which is where it now lives; that needs the level list and the
+    calculated-transition file, and without them (a caller that has neither)
+    the carried pair is only recorded in legacy_keys and left to the
+    matching, which reaches it whenever the exchange was a sound one.
+    """
+    kept = carried = withdrawn = 0
+    for line in observed_lines:
+        keys = set()
+        originals, line.original_assignments = line.original_assignments, []
+        for orig in originals:
+            lo = orig.lower_level.level_id
+            up = orig.upper_level.level_id
+            key = legacy_identification(lo, up)
+            if key == (lo, up):
+                kept += 1
+                keys.add(key)
+                line.original_assignments.append(orig)
+                continue
+            unseed_legacy_candidate(line, orig, calc_trans_index)
+            if key is None:
+                withdrawn += 1
+                continue
+            carried += 1
+            keys.add(key)
+            if levels_dict is None or calc_trans_index is None:
+                continue
+            if any((t.lower_level.level_id, t.upper_level.level_id) == key
+                   for t in line.original_assignments):
+                continue          # both halves of a pair swapped into one
+            low, upp = levels_dict.get(key[0]), levels_dict.get(key[1])
+            if low is not None and upp is not None:
+                seed_legacy_candidate(low, upp, line, calc_trans_index)
+        line.legacy_keys = keys
+    if carried or withdrawn:
+        print(f"  Published identifications: {kept} stand as written, "
+              f"{carried} carried over to the level that now holds the "
+              f"measured position, {withdrawn} withdrawn because a level of "
+              f"theirs has been re-positioned; the pairs they used to name "
+              f"are no longer candidates on their lines.")
 
 
 def apply_energy_overrides(levels_dict: dict, path: str) -> None:
@@ -1011,31 +1250,8 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
             lower = levels_dict.get(id1_val)
             upper = levels_dict.get(id2_val)
             if lower is not None and upper is not None:
-                calc_data = calc_trans_index.get((id1_val, id2_val))
-                if calc_data is not None:
-                    i_calc = calc_data['calc_intensity']
-                    u_calc = calc_data['u_calc']
-                    imputed = 0
-                else:
-                    # Absent from the calculated-transition file. A legacy
-                    # identification must meet the same intensity test as a new
-                    # one, so it is imputed by exactly the same rule.
-                    i_calc, u_calc = imputed_values(lower, upper)
-                    imputed = 1 if i_calc is not None else 0
-                tr = Transition(
-                    lower_level=lower,
-                    upper_level=upper,
-                    calc_intensity=i_calc,
-                    u_calc=u_calc,
-                    assigned_to=current_line,
-                    orig_calc_intensity=i_calc,
-                    orig_u_calc=u_calc,
-                    is_imputed=imputed,
-                )
-                current_line.assigned_transitions.append(tr)
-                current_line.original_assignments.append(tr)
-                if calc_data:
-                    calc_data['assigned_to'] = current_line
+                seed_legacy_candidate(lower, upper, current_line,
+                                      calc_trans_index)
 
     wb.close()
     print(f"  Read {len(observed_lines)} observed lines.")
@@ -1173,8 +1389,20 @@ def assign_grades(line: SpectralLine, transitions: list):
         if UNASSIGNED in line.assigned_transitions:
             line.assigned_transitions.remove(UNASSIGNED)
 
-        # Set new flag: 1 = new classification, 0 = original
-        is_original = any(same_transitions(tr, orig) for orig in line.original_assignments)
+        # Set new flag: 1 = new classification, 0 = original.  The
+        # published identifications of the line are asked for by the pair of
+        # levels they name TODAY (retag_legacy_identifications): a level that
+        # has been re-positioned since has no published identification here
+        # any more, and one whose measured position was exchanged with
+        # another's has it under the other identifier.  legacy_keys is None
+        # only when the run never went through that step, and then the
+        # transitions seeded from the workbook are the old ones, as before.
+        if line.legacy_keys is None:
+            is_original = any(same_transitions(tr, orig)
+                              for orig in line.original_assignments)
+        else:
+            is_original = (tr.lower_level.level_id,
+                           tr.upper_level.level_id) in line.legacy_keys
         tr.new = 0 if is_original else 1
         tr.notes1 = ""  # notes1 holds F/R flags from conflict resolution
 
@@ -3368,6 +3596,13 @@ def clear_assignments(all_possible: list, lines: list):
 # ===========================================================================
 # MAIN
 # ===========================================================================
+def output_paths() -> list:
+    """Every file a full run writes: the workbook, its csv twin, the report."""
+    return [OUTPUT_FILE, OUTPUT_CSV,
+            os.path.join(os.path.dirname(OUTPUT_CSV),
+                         'unstable_candidates.csv')]
+
+
 def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
          decoy_shift: float = 0.0, decoy_ids=None) -> pd.DataFrame:
     """Run the full classification pipeline.
@@ -3396,6 +3631,11 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         print(f"DECOY RUN: shadow copies of the new levels displaced by +-{abs(decoy_shift):g} cm^-1")
     print("=" * 60)
 
+    # An output file open in Excel is locked against writing.  It is found
+    # here, before the work, rather than by the write at the end of it.
+    if write_files:
+        output_files.require_writable(output_paths())
+
     # Step 1: Read energy levels
     levels_dict, levels_list = read_energy_levels()
 
@@ -3411,6 +3651,8 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     # Chance-coincidence runs classify from scratch (no legacy identifications)
     observed_lines = read_observed_lines(levels_dict, calc_trans_index, wn_shift=wn_shift,
                                          drop_legacy=(wn_shift != 0.0))
+    retag_legacy_identifications(observed_lines, levels_dict,
+                                 calc_trans_index)
 
     # The manual verdicts.  A calibration run (a chance-coincidence shift or a
     # decoy planting) measures what the ALGORITHM does with an input it should

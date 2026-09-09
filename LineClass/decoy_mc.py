@@ -59,6 +59,7 @@ import pandas as pd
 
 import classify_lines as cl
 import chance_mc as mc
+import output_files
 
 DELTAS = [-11.3, -9.7, -8.3, -6.9, 6.9, 8.3, 9.7, 11.3]  # cm^-1
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +81,9 @@ def decoy_level_frame(levels: pd.DataFrame, delta: float, ids: list) -> pd.DataF
 def main():
     smoke = '--smoke' in sys.argv
     mc.apply_policy_option()
+    output_files.require_writable(
+        [p for csv in (LEVELS_CSV, REAL_LEVELS_CSV, LINES_CSV, SUMMARY_CSV)
+         for p in output_files.with_twin(csv)], 'table')
     deltas = DELTAS[:1] if smoke else DELTAS
     max_cycles = 2 if smoke else 20
     if smoke:

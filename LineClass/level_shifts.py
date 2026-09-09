@@ -237,6 +237,7 @@ import numpy as np
 import pandas as pd
 
 import chance_mc as mc
+import output_files
 import classify_lines as cl
 import decoy_mc as dmc
 import lopt_lines
@@ -1098,6 +1099,8 @@ def read_run():
 
 
 def main():
+    output_files.require_writable(output_files.with_twin(REPORT_CSV),
+                                  'report file')
     # ------------------------------------------------------------------
     # Real run, per level
     # ------------------------------------------------------------------

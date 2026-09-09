@@ -1,0 +1,1608 @@
+#!/usr/bin/env python
+"""Is everything in this directory talking about the same identification?
+
+The work passes through five files that each hold a copy of the same facts -
+which observed line belongs to which pair of levels, and where each level sits
+- and nothing keeps those copies in step automatically:
+
+    Pr3_lines.xlsx            the measured lines (the only real input)
+        |   classify_lines.py, obeying line_decisions.csv and
+        |   revised_level_energies.csv
+        v
+    line_classifications.csv / .xlsx   every candidate transition, accepted
+        |                              or not
+        |   make_LOPT_input.py
+        v
+    LOPT_input_lines.txt      the accepted ones, weighted
+        |   lopt.bat
+        v
+    LOPT_output_lines.txt     the fit
+    LOPT_output_levels.txt    the optimized level energies
+        |   by hand, rarely
+        v
+    IDEN2/enlev.dat           the level list IDEN2 shows on screen
+    IDEN2/trans.dat           its predicted transitions and their assignments
+
+A step skipped anywhere leaves two files disagreeing, and the disagreement is
+silent: every tool downstream keeps working, on stale numbers.  The usual
+symptom is a report that recommends something already done - level_positions.py
+proposing a move to an energy the level was moved to yesterday - which is
+indistinguishable, when reading the report, from a recommendation worth acting
+on.
+
+This script reads all of them and says where they differ.  It changes nothing.
+
+WHAT IS A MISMATCH AND WHAT IS ONLY DRIFT
+-----------------------------------------
+The IDEN2 files are brought up to date by hand and only when there is reason
+to, so their level energies are expected to lag the current LOPT fit by a
+little: a hundredth or two of a wavenumber is the ordinary state of affairs and
+is not worth reporting.  Two thresholds separate that from a real difference:
+
+    --drift  (default 0.5 cm^-1)  below this, an energy difference is the
+                                  expected lag and is only counted, not listed
+    --gross  (default 5.0 cm^-1)  at or above this, the two files are
+                                  describing different levels, not the same
+                                  level known to different precision
+
+Everything else - a line accepted in one file and absent from another, a
+decision in the ledger the classification does not obey, a transition assigned
+in IDEN2 that the classification has withdrawn - has no tolerance at all and is
+reported item by item.
+
+THE THREE SEVERITIES
+--------------------
+    ERROR  the files contradict each other; a report built on them can be
+           wrong in a way that no reading of it would reveal
+    WARN   the files disagree in a way that is expected, or is confined to one
+           artefact that can simply be rebuilt
+    ok     checked, nothing to say
+
+The exit status is 2 if anything is an ERROR, 1 if anything is a WARN, 0 if
+everything is ok, so the script can gate a pipeline.
+
+WHAT IT CHECKS
+--------------
+ 1. Freshness.  Every artefact against the files it is built from, by
+    modification time.  This is the cheapest check and catches most of it.
+ 2. line_classifications.csv against line_classifications.xlsx.  They are
+    written from one table by classify_lines.py, so a difference means one of
+    them has been edited by hand or one is left over from an earlier run.
+ 3. line_classifications against LOPT_input_lines.txt.  What has to agree is
+    the fit: every accepted classification carrying weight in the transitions
+    file, nothing else carrying weight, and each of them carrying the right
+    share of its observed line.  The share, not the number in the weight
+    column: LOPT normalises the weights of one observed line to sum to one, so
+    a blend assigned by hand with the calculated intensities pasted straight
+    out of Icalc.xlsx fits exactly as the pipeline's own fractions would, and
+    only a share that is out by more than one per cent is an error.
+ 4. LOPT_input_lines.txt against LOPT_output_lines.txt: LOPT must have been
+    run on the transitions file that is on disk now.
+ 5. LOPT_output_lines.txt against LOPT_output_levels.txt: the level energies
+    the line output quotes against the level output's own.
+ 6. revised_level_energies.csv against the LOPT levels: a revision recorded in
+    the ledger but not visible in the fit was never carried out.
+ 7. IDEN2/trans.dat against IDEN2/enlev.dat: the partner energies, the found
+    flags and the predicted wavenumbers trans.dat carries are copies of what
+    enlev.dat holds, and IDEN2 rewrites them together.
+ 8. IDEN2/enlev.dat against LOPT_output_levels.txt, joined by
+    IDEN2/IDEN_level_ids.txt: the energy of every level, and the membership of
+    the two lists both ways.
+ 9. IDEN2/trans.dat against the accepted classifications: which transitions
+    IDEN2 shows as identified and which the classification actually accepts.
+10. Stability.  unstable_candidates.csv - the assignments classify_lines.py
+    withdrew because they oscillate - and line_decisions.csv, whose verdicts
+    the classification must obey exactly.
+
+THE PROBLEM LISTS
+-----------------
+Every list of transitions is written so that it can be worked through at the
+screen without a second lookup.  The rows are ordered by the energy of the
+upper level and then of the lower one - the order the same transitions appear
+in in IDEN2 and in the workbook - and each row carries both levels with
+IDEN2's own level numbers beside them, both energies, and three words saying
+where the transition stands:
+
+    .xlsx   accepted      line_classifications.xlsx accepts it here
+            rejected      it is a candidate on this line and was turned down
+            elsewhere     it is a candidate, but on other lines only
+            missing       it is not a candidate anywhere
+    LOPT    included      on this line in LOPT_input_lines.txt with a weight
+                          and no P flag
+            not incl. P   in the file, but flagged predicted or of zero
+                          weight: it does not pull on the levels
+            elsewhere     in the file on other lines only
+            not incl. --  not in the file at all
+    IDEN2   assigned      trans.dat identifies it with this line
+            elsewhere     trans.dat identifies it with another line
+            not assigned  IDEN2 predicts it and has no line for it
+            no trans row  IDEN2 does not predict it at all, which for a real
+                          pair of levels means trans.dat is stale
+
+Every one of the three is answered for the line the row names and not for the
+pair of levels in general.  The same pair can be a candidate on several
+observed lines - moving an assignment leaves the old row in place to be
+rejected, which is how the pipeline is made to turn down an assignment it
+would otherwise keep - so a status read off another line would print a row
+that is in perfect order as a problem.
+
+The terminal shows the first --list rows of each list, enough to see the shape
+of the trouble; the whole of every list is written to sync_report.txt, because
+a list cut off after a dozen rows cannot be worked through and the rows that
+were cut are then invisible.
+
+What the lists leave out is the difference that is on paper only.  A
+transition that carries no weight in the fit and no identification in IDEN2,
+and that the classification does not accept, is saying the same thing in all
+three files whichever of them happens to hold a row for it: it changes
+neither the level optimisation, nor the next pass of classify_lines.py, nor
+the view in IDEN2.  It arises in both directions - make_LOPT_input.py writes
+every classified candidate, the rejected ones at zero weight, so settling a
+classification after the transitions file was built leaves rejected
+candidates in the workbook alone, and withdrawing one leaves a P-flagged row
+in the transitions file alone - and in both directions it is counted in a
+warning and left out of the lists.  The same transition weighted in the fit,
+or identified in IDEN2, is a real disagreement and stays in the list.
+
+Usage:
+
+    python check_sync.py                     the report, and sync_report.txt
+    python check_sync.py --quiet             only what is wrong
+    python check_sync.py --list 40           show up to 40 items per finding
+    python check_sync.py --out mine.txt      write the full report elsewhere
+    python check_sync.py --drift 0.1         a stricter idea of "up to date"
+    python check_sync.py --wn-tol 0.02       a stricter idea of "one line"
+    python check_sync.py --csv sync.csv      the findings as a table too
+
+It reads the files in the directory it is run from, falling back to the
+directory holding the scripts for the ones that exist in only one place - the
+same rule the swap tools use, so that it can be run inside an iteration folder
+against that folder's own LOPT files.
+"""
+
+import argparse
+import csv
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+import output_files
+import swap_line_assignments_IDEN as IDEN
+from swap_paths import working_path
+
+
+# ---------------------------------------------------------------------------
+# What is built from what.  Only the modification times are used here; the
+# contents are compared by the checks further down.
+# ---------------------------------------------------------------------------
+CLASSIFICATIONS_CSV = 'line_classifications.csv'
+CLASSIFICATIONS_XLSX = 'line_classifications.xlsx'
+LOPT_IN = 'LOPT_input_lines.txt'
+LOPT_LINES = 'LOPT_output_lines.txt'
+LOPT_LEVELS = 'LOPT_output_levels.txt'
+DECISIONS = 'line_decisions.csv'
+REVISIONS = 'revised_level_energies.csv'
+UNSTABLE = 'unstable_candidates.csv'
+POSITIONS = 'level_positions.csv'
+LINES_XLSX = 'Pr3_lines.xlsx'
+NAME_IDEN2 = 'IDEN2'
+
+# artefact -> the files it is built from.  A missing name is skipped.
+DEPENDS = [
+    (CLASSIFICATIONS_CSV, [LINES_XLSX, DECISIONS, REVISIONS]),
+    (CLASSIFICATIONS_XLSX, [LINES_XLSX, DECISIONS, REVISIONS]),
+    (LOPT_IN, [CLASSIFICATIONS_CSV]),
+    (LOPT_LINES, [LOPT_IN]),
+    (LOPT_LEVELS, [LOPT_IN]),
+    (POSITIONS, [LOPT_LINES, LOPT_LEVELS, CLASSIFICATIONS_XLSX]),
+]
+
+# The columns of LOPT_input_lines.txt, as make_LOPT_input.py writes them:
+# 1-based first and last column of each field.
+IN_FIELDS = {
+    'wavenumber': (1, 12),
+    'uncertainty': (14, 19),
+    'intensity': (25, 42),
+    'lower_level': (43, 55),
+    'upper_level': (59, 71),
+    'flags': (73, 77),
+    'weight': (82, 87),
+}
+
+# Where the complete report is written.  The terminal shows the first few
+# items of each list; a list cut off after a dozen rows cannot be worked
+# through, and the rows that were cut are then invisible.
+REPORT = 'sync_report.txt'
+
+DEF_DRIFT = 0.5
+DEF_GROSS = 5.0
+DEF_LIST = 12
+
+# How far two files may put one transition's observed wavenumber apart before
+# it counts as a different line rather than a difference of printing
+# precision.  LOPT echoes each wavenumber to the precision its uncertainty
+# warrants, which costs up to 0.03 cm^-1 on the widest lines.
+DEF_WN_TOL = 0.05
+
+# classify_lines.py finds the line a ledger row rules on within this distance
+# (its DECISIONS_WN_MATCH), so a ledger wavenumber that misses by less is
+# obeyed and is not a mismatch.
+DECISIONS_WN_MATCH = 0.01
+
+ERROR, WARN, OK = 'ERROR', 'WARN', 'ok'
+RANK = {ERROR: 0, WARN: 1, OK: 2}
+
+
+class Report(object):
+    """The findings, in the order they were made, and the actions they imply.
+
+    A finding is a severity, the name of the check, one line of English, and
+    the items it applies to - level identifiers, line wavenumbers, pairs.  The
+    items are what makes a finding actionable, so they are kept whole and only
+    abbreviated when printed.
+    """
+
+    def __init__(self, list_n=DEF_LIST):
+        self.findings = []
+        self.actions = []
+        self.list_n = list_n
+
+    def add(self, severity, check, message, items=None, head=None):
+        self.findings.append(dict(severity=severity, check=check,
+                                  message=message, items=list(items or []),
+                                  head=head))
+
+    def error(self, check, message, items=None, head=None):
+        self.add(ERROR, check, message, items, head)
+
+    def warn(self, check, message, items=None, head=None):
+        self.add(WARN, check, message, items, head)
+
+    def ok(self, check, message, items=None, head=None):
+        self.add(OK, check, message, items, head)
+
+    def act(self, priority, text):
+        """Something to do.  Lower priority numbers are done first, because
+        the pipeline runs one way and a fix applied out of order is undone by
+        the next step."""
+        self.actions.append((priority, text))
+
+    @property
+    def worst(self):
+        if any(f['severity'] == ERROR for f in self.findings):
+            return ERROR
+        if any(f['severity'] == WARN for f in self.findings):
+            return WARN
+        return OK
+
+    def print(self, quiet=False, out=None, full=False):
+        """Write the findings.
+
+        ``full`` writes every item of every list, which is what the
+        report file is for: the terminal shows the first few rows so
+        that the shape of the trouble is visible at once, and the file
+        holds the whole of it so that it can be worked through.
+        """
+        out = out or sys.stdout
+        limit = None if full else self.list_n
+        section = None
+        for f in self.findings:
+            if quiet and f['severity'] == OK:
+                continue
+            if f['check'].split(':')[0] != section:
+                section = f['check'].split(':')[0]
+                out.write('\n' + section + '\n')
+                out.write('-' * len(section) + '\n')
+            tag = {ERROR: 'ERROR', WARN: 'warn ', OK: '  ok '}[f['severity']]
+            out.write('  %s %s\n' % (tag, f['message']))
+            shown = f['items'] if limit is None else f['items'][:limit]
+            if shown and f['head']:
+                out.write('         %s\n' % f['head'])
+            for item in shown:
+                out.write('         %s\n' % item)
+            if limit is not None and len(f['items']) > limit:
+                out.write('         ... and %d more; all of them are in %s\n'
+                          % (len(f['items']) - limit, REPORT))
+
+    def print_actions(self, out=None):
+        out = out or sys.stdout
+        out.write('\nWhat to do\n')
+        out.write('----------\n')
+        if not self.actions:
+            out.write('  Nothing: the files agree.\n')
+            return
+        seen = set()
+        n = 0
+        for _, text in sorted(self.actions, key=lambda t: t[0]):
+            if text in seen:
+                continue
+            seen.add(text)
+            n += 1
+            out.write('  %d. %s\n' % (n, text))
+        out.write('\n  They are in the order the pipeline runs.  Doing a'
+                  ' later\n  one first only means doing it again after the'
+                  ' earlier one.\n')
+
+    def to_frame(self):
+        return pd.DataFrame([dict(severity=f['severity'], check=f['check'],
+                                  message=f['message'],
+                                  n_items=len(f['items']),
+                                  items='; '.join(str(i) for i in f['items']))
+                             for f in self.findings])
+
+
+# ---------------------------------------------------------------------------
+# Readers
+# ---------------------------------------------------------------------------
+def read_classifications(path):
+    """line_classifications.csv, with the identifiers kept as text.
+
+    Read as numbers, "059003.000456" becomes 59003.000456 and loses its
+    leading zero and its last digit; every join in this script would then be
+    empty and would report a total mismatch.
+    """
+    return pd.read_csv(path, low_memory=False,
+                       dtype={'low_id': str, 'upp_id': str})
+
+
+def classified(df):
+    """The rows that name both levels: the ones make_LOPT_input.py writes."""
+    lo = df['low_id'].fillna('').str.strip()
+    up = df['upp_id'].fillna('').str.strip()
+    return df[(lo != '') & (up != '')]
+
+
+def pair_key(low, upp):
+    """The identity of a candidate transition: the pair of levels it joins.
+
+    Not the wavenumber as well, although that is the obvious key, because the
+    files write it to different precisions: make_LOPT_input.py gives three
+    decimals, LOPT echoes each line to the precision its own uncertainty
+    warrants (121279.416 comes back as 121279.42), and the decision ledger is
+    written by hand from a printed list.  Keying on the wavenumber therefore
+    reports thousands of differences that are only rounding.  The pair is a
+    key in its own right - one transition can belong to only one observed
+    line, which check_duplicate_pairs() verifies rather than assumes - so the
+    wavenumbers are compared afterwards, with a tolerance.
+    """
+    return (str(low).strip(), str(upp).strip())
+
+
+def fmt_pair(pair, wn=None):
+    if wn is None:
+        return '%s - %s' % pair
+    return '%12.3f  %s - %s' % (float(wn), pair[0], pair[1])
+
+
+def align(a, b, tol):
+    """Match two files' records transition by transition.
+
+    Both arguments are {pair: [record, ...]} with the observed wavenumber
+    first in every record.  Returns (matched, a_only, b_only), where matched
+    is a list of (pair, record_a, record_b).
+
+    Within one pair of levels the records are matched by wavenumber, nearest
+    first, because the pair alone is not a key: the same two levels can be
+    candidates on several observed lines, and moving an assignment from one
+    line to another - which is how a correction is made - leaves the pair on
+    both.  Matching on the wavenumber alone is no good either, since the files
+    write it to different precisions; hence the pair, then the wavenumber
+    within `tol`.
+    """
+    matched, a_only, b_only = [], [], []
+    for pair in sorted(set(a) | set(b)):
+        left = sorted(a.get(pair, []), key=lambda r: r[0])
+        right = list(sorted(b.get(pair, []), key=lambda r: r[0]))
+        for rec in left:
+            best, best_d = None, tol
+            for other in right:
+                d = abs(float(rec[0]) - float(other[0]))
+                if d <= best_d:
+                    best, best_d = other, d
+            if best is None:
+                a_only.append((pair, rec))
+            else:
+                right.remove(best)
+                matched.append((pair, rec, best))
+        for rec in right:
+            b_only.append((pair, rec))
+    return matched, a_only, b_only
+
+
+class Context(object):
+    """Where each transition stands in every file, and how to print it.
+
+    Every list of problem transitions answers the same three questions, and
+    the answers are what turn a list into something that can be worked
+    through at the screen.  Each is asked about the transition ON THE LINE
+    the row names, not about the pair of levels in general: one pair can be a
+    candidate on several observed lines, and reading the pair's status off
+    another line is how a row that is in perfect order comes to be printed as
+    a problem.
+
+    * ``.xlsx``  - what line_classifications.xlsx says: ``accepted``, or
+      ``rejected`` (the pair is a candidate on this line and was turned
+      down), or ``elsewhere`` (it is a candidate, but on other lines only),
+      or ``missing`` (the pair is not a candidate anywhere).
+    * ``LOPT``   - whether the transition carries weight in the fit.
+      ``included`` means it is in LOPT_input_lines.txt on this line with a
+      weight above zero and no ``P`` flag; ``not incl. P`` means it is in the
+      file but flagged predicted or given zero weight; ``elsewhere`` means
+      the file has the pair on other lines only, and ``not incl. --`` that it
+      is not in the file at all.  All but the first are the same thing to
+      LOPT: this line does not pull on the levels.
+    * ``IDEN2``  - what trans.dat says: ``assigned`` (the transition is
+      identified with this line), ``elsewhere`` (identified with another
+      line), ``not assigned`` (IDEN2 predicts it and has no line for it), or
+      ``no trans row`` (IDEN2 does not predict it at all, which for a real
+      pair of levels means trans.dat is stale).
+
+    The two levels are printed as one field, lower first, in the form a
+    transition is written and searched for; their energies follow in the same
+    order, and then IDEN2's own level numbers - the numbers typed into IDEN2 -
+    so that a row can be looked up without a search through
+    IDEN_level_ids.txt.  IDEN_id1 is the lower level's number and IDEN_id2 the
+    upper level's.  The rows are still sorted by upper energy and then by
+    lower energy, which is the order the same transitions are met in IDEN2.
+    """
+
+    FMT = '%-10s %-27s %10s %10s  %-8s %-8s %-9s %-12s %-12s'
+    HEAD = FMT % ('wn_obs', 'lower_id - upper_id', 'E_lower', 'E_upper',
+                  'IDEN_id1', 'IDEN_id2', '.xlsx', 'LOPT', 'IDEN2')
+
+    def __init__(self, cls=None, levels=None, lopt_in=None, iden=None,
+                 wn_tol=DEF_WN_TOL):
+        self.wn_tol = wn_tol
+        self.levels = dict(levels or {})
+        self.iden = iden
+        # The transitions file as it was read, keyed the way the file writes
+        # the pair, for align(); and again keyed on the sorted pair, for the
+        # questions the item lists ask.
+        self.lopt_in = lopt_in
+        self.lopt = {}
+        for pair, recs in (lopt_in or {}).items():
+            self.lopt.setdefault(tuple(sorted(pair)), []).extend(recs)
+        self.rows = {}
+        if cls is not None:
+            for pair, recs in classified_rows(classified(cls)).items():
+                self.rows.setdefault(tuple(sorted(pair)), []).extend(recs)
+        # The transitions some earlier check has already printed in full,
+        # as {sorted pair: [wavenumber, ...]}.  A list is worth reading only
+        # for what it adds: the same transition met again for the same reason
+        # further down the report is noise, and the count in the message says
+        # it is there without spending a line on it.  See listed() and
+        # already_listed().
+        self.shown = {}
+        self.iden_row, self.assigned, self.predicted = {}, {}, set()
+        if iden is not None:
+            self.iden_row = dict(iden.row_of)
+            self.assigned, _ = read_iden_assignments(
+                iden.enlev, iden.trans, iden.id_of_row)
+            for owner, partner in iden.trans.row_of:
+                a = iden.id_of_row.get(owner)
+                b = iden.id_of_row.get(partner)
+                if a and b:
+                    self.predicted.add(tuple(sorted((a, b))))
+
+    # -- the level ------------------------------------------------------
+    def energy(self, lid):
+        """The fitted energy, or IDEN2's if the fit does not know the level.
+
+        A level absent from both gives a nan, which sorts last and prints as
+        a question mark rather than as a number that is not there.
+        """
+        if lid in self.levels:
+            return float(self.levels[lid])
+        if self.iden is not None and lid in self.iden_row:
+            try:
+                return float(self.iden.enlev.e_obs(self.iden_row[lid]))
+            except (ValueError, KeyError):
+                pass
+        return float('nan')
+
+    def iden_of(self, lid):
+        n = self.iden_row.get(lid)
+        return '-' if n is None else str(n)
+
+    def order(self, pair):
+        """(upper, lower), decided by energy rather than by identifier."""
+        a, b = tuple(pair)
+        ea, eb = self.energy(a), self.energy(b)
+        if ea == ea and eb == eb and ea != eb:
+            return (a, b) if ea > eb else (b, a)
+        return (max(a, b), min(a, b))
+
+    def sort_key(self, pair, wn=None):
+        """Upper energy first, then lower energy: the order the same
+        transitions are looked at in IDEN2 and in the workbook."""
+        upp, low = self.order(pair)
+        eu, el = self.energy(upp), self.energy(low)
+        far = 1e12
+        return (eu if eu == eu else far, el if el == el else far,
+                float(wn) if wn is not None else 0.0)
+
+    # -- the transition -------------------------------------------------
+    def _here(self, wn, other):
+        """Is that record's wavenumber the line being asked about?
+
+        With no wavenumber to ask about - a question put about the pair of
+        levels alone - every record counts.
+        """
+        return (wn is None or other is None
+                or abs(float(wn) - float(other)) <= self.wn_tol)
+
+    def in_xlsx(self, pair, wn=None):
+        """What the classification says about this transition on this line.
+
+        One pair of levels can be a candidate on several observed lines, and
+        that is not an accident: moving an assignment from one line to
+        another leaves the old row in place to be rejected, which is how the
+        pipeline is made to turn down an assignment it would otherwise keep.
+        The verdict therefore belongs to the line, not to the pair, and a
+        pair classified only on other lines is `elsewhere` - nothing is wrong
+        with it here, it simply belongs to a different observed line.
+        """
+        recs = self.rows.get(tuple(sorted(pair)), [])
+        if not recs:
+            return 'missing'
+        here = [acc for w, acc in recs if self._here(wn, w)]
+        if not here:
+            return 'elsewhere'
+        return 'accepted' if any(here) else 'rejected'
+
+    def in_lopt(self, pair, wn=None):
+        recs = [r for r in self.lopt.get(tuple(sorted(pair)), [])
+                if self._here(wn, r[0])]
+        if not recs:
+            return ('elsewhere' if self.lopt.get(tuple(sorted(pair)))
+                    else 'not incl. --')
+        if wn is not None:
+            recs.sort(key=lambda r: abs(float(r[0]) - float(wn)))
+        return 'included' if _weighted(recs[0]) else 'not incl. P'
+
+    def in_iden(self, pair, wn=None):
+        if self.iden is None:
+            return '?'
+        key = tuple(sorted(pair))
+        got = self.assigned.get(key)
+        if got is not None:
+            return 'assigned' if self._here(wn, got) else 'elsewhere'
+        return 'not assigned' if key in self.predicted else 'no trans row'
+
+    def item(self, pair, wn=None, note=''):
+        """One line of a problem list, with everything needed to look it
+        up: the observed wavenumber, both levels with IDEN2's numbers and
+        their energies, and where the transition stands in the three
+        files."""
+        upp, low = self.order(pair)
+        text = self.FMT % (
+            '' if wn is None else '%.3f' % float(wn),
+            '%s-%s' % (low, upp),
+            self._e_text(low), self._e_text(upp),
+            self.iden_of(low), self.iden_of(upp),
+            self.in_xlsx(pair, wn), self.in_lopt(pair, wn),
+            self.in_iden(pair, wn))
+        return (text + '  ' + note).rstrip()
+
+    def listed(self, pairs_wn):
+        """Remember that these transitions have been printed."""
+        for pair, wn in pairs_wn:
+            self.shown.setdefault(tuple(sorted(pair)), []).append(
+                None if wn is None else float(wn))
+
+    def already_listed(self, pair, wn=None):
+        """Has this transition, on this line, been printed already?"""
+        return any(self._here(wn, other)
+                   for other in self.shown.get(tuple(sorted(pair)), []))
+
+    def items(self, pairs_wn, note_of=None, by_wn=False):
+        """A whole list, sorted by upper energy and then by lower energy.
+
+        With by_wn the rows are sorted by decreasing wavenumber instead.  That
+        is the order for a list about the observed lines themselves rather
+        than about the levels - a wrongly divided blend is a fault of one
+        observed line, and the strongest end of the spectrum is where the
+        blends are, so the lines worth looking at first come first.
+        """
+        if by_wn:
+            def order(t):
+                wn = t[1]
+                return (0, -float(wn)) if wn is not None else (1, 0.0)
+        else:
+            def order(t):
+                return self.sort_key(t[0], t[1])
+        rows = sorted(pairs_wn, key=order)
+        return [self.item(p, wn, (note_of or {}).get((p, wn), ''))
+                for p, wn in rows]
+
+    def _e_text(self, lid):
+        e = self.energy(lid)
+        return '?' if e != e else '%.3f' % e
+
+
+def read_lopt_input(path):
+    """LOPT_input_lines.txt as {pair: (wavenumber, flag, weight)}, by columns.
+
+    The fields cannot be found by splitting on blanks: an intensity of 128400
+    fills its column and runs into the next one, so a whitespace split silently
+    merges two fields on exactly the brightest lines.
+    """
+    def cut(rec, name):
+        first, last = IN_FIELDS[name]
+        return rec[first - 1:last]
+
+    out = {}
+    with open(path, 'r', encoding='latin-1', newline='') as fh:
+        for raw in fh:
+            rec = raw.rstrip('\r\n')
+            if not rec.strip():
+                continue
+            wn = cut(rec, 'wavenumber').strip()
+            low = cut(rec, 'lower_level').strip()
+            upp = cut(rec, 'upper_level').strip()
+            if not wn or not low or not upp:
+                continue
+            weight = cut(rec, 'weight').strip()
+            try:
+                value = (float(wn), cut(rec, 'flags').strip(),
+                         float(weight) if weight else 0.0)
+            except ValueError:
+                continue
+            out.setdefault(pair_key(low, upp), []).append(value)
+    return out
+
+
+def read_lopt_output_lines(path):
+    """LOPT_output_lines.txt as {pair: (wavenumber, weight, E_low, E_upp)}."""
+    out = {}
+    with open(path, 'r', encoding='latin-1', newline='') as fh:
+        rd = csv.reader(fh, delimiter='\t')
+        header = next(rd)
+        ix = {h.strip(): i for i, h in enumerate(header)}
+        for need in ('wn_o', 'L1', 'L2', 'E1', 'E2', 'Weight'):
+            if need not in ix:
+                raise SystemExit(
+                    '%s has no %r column - switch its printing on in the LOPT '
+                    'parameter file' % (os.path.basename(path), need))
+        for r in rd:
+            if len(r) <= ix['Weight']:
+                continue
+            low, upp = r[ix['L1']].strip(), r[ix['L2']].strip()
+            if not low or not upp:
+                continue
+            out.setdefault(pair_key(low, upp), []).append(
+                (_num(r[ix['wn_o']]), _num(r[ix['Weight']]),
+                 _num(r[ix['E1']]), _num(r[ix['E2']])))
+    return out
+
+
+def _num(text):
+    text = (text or '').strip()
+    if text in ('', '_'):
+        return np.nan
+    try:
+        return float(text)
+    except ValueError:
+        return np.nan
+
+
+def read_lopt_levels(path):
+    """{level_id: energy} from LOPT_output_levels.txt."""
+    df = pd.read_csv(path, sep='\t', dtype={'Designation': str})
+    return dict(zip(df['Designation'].str.strip(),
+                    df['Energy'].astype(float)))
+
+
+def classified_rows(df):
+    """{pair: [(wavenumber, accepted), ...]} for the rows naming both levels.
+
+    A pair may legitimately appear more than once - the same two levels can be
+    candidates on several observed lines, and only one of those rows is
+    accepted.  Two ACCEPTED rows for one pair would be a contradiction, since
+    one transition can be on one line only; check_double_acceptance() looks
+    for that.
+    """
+    out = {}
+    for wn, low, upp, acc in zip(df['wn_obs'], df['low_id'], df['upp_id'],
+                                 df['accepted']):
+        out.setdefault(pair_key(low, upp), []).append(
+            (float(wn), float(acc or 0) == 1.0))
+    return out
+
+
+def check_double_acceptance(rows, rep, list_n):
+    """One transition on two observed lines at once.
+
+    Nothing downstream can represent it: the transitions file would carry the
+    pair twice, LOPT would fit it to both lines, and trans.dat has one row per
+    pair and would keep whichever came last.
+    """
+    bad = ['%s on %s' % (fmt_pair(pair),
+                         ' and '.join('%.3f' % w for w, a in recs if a))
+           for pair, recs in sorted(rows.items())
+           if sum(1 for _, a in recs if a) > 1]
+    if bad:
+        rep.error('Classification',
+                  '%d transitions are accepted on more than one observed line'
+                  % len(bad), bad)
+        rep.act(10, 'Decide which line each of those %d transitions belongs '
+                    'to and record it in %s.' % (len(bad), DECISIONS))
+    return bad
+
+
+def read_iden_assignments(enlev, trans, id_of_row):
+    """{(low_id, upp_id) sorted: wavenumber} for every identified transition
+    of trans.dat, and the rows whose levels are not in the map.
+
+    A trans.dat transition row carries, after its predicted wavenumber, the
+    observed line it has been identified with: its wavenumber, the
+    observed-minus-predicted, and the row number of the line in the observed
+    list.  A row number of zero means the transition has not been identified.
+    """
+    found, unmapped = {}, []
+    for (owner, partner), k in trans.row_of.items():
+        obs = IDEN.assignment(trans.records[k])
+        if not IDEN.has_line(obs):
+            continue
+        if owner not in id_of_row or partner not in id_of_row:
+            unmapped.append((owner, partner, IDEN.obs_wavenumber(obs)))
+            continue
+        pair = tuple(sorted((id_of_row[owner], id_of_row[partner])))
+        found[pair] = IDEN.obs_wavenumber(obs)
+    return found, unmapped
+
+
+# ---------------------------------------------------------------------------
+# 1. Freshness
+# ---------------------------------------------------------------------------
+def check_freshness(paths, rep):
+    """An artefact older than something it was built from is out of date.
+
+    This is a statement about the files, not about their contents: a rebuild
+    that changed nothing still moves the timestamp, so a stale timestamp is
+    only a reason to look, and the checks that follow say whether the
+    staleness matters.  It is put first because it is the one check that can
+    explain all the others at once.
+    """
+    stale = False
+    for name, sources in DEPENDS:
+        path = paths.get(name)
+        if not path or not os.path.exists(path):
+            continue
+        t = os.path.getmtime(path)
+        older = []
+        for src in sources:
+            spath = paths.get(src)
+            if spath and os.path.exists(spath) and os.path.getmtime(spath) > t:
+                older.append('%s (%s newer by %s)'
+                             % (src, os.path.basename(spath),
+                                _age(os.path.getmtime(spath) - t)))
+        if older:
+            stale = True
+            rep.warn('Freshness', '%s is older than what it is built from:'
+                     % name, older)
+    if not stale:
+        rep.ok('Freshness', 'every artefact is newer than its inputs')
+
+
+def _age(seconds):
+    if seconds < 90:
+        return '%.0f s' % seconds
+    if seconds < 5400:
+        return '%.0f min' % (seconds / 60.0)
+    if seconds < 172800:
+        return '%.1f h' % (seconds / 3600.0)
+    return '%.1f days' % (seconds / 86400.0)
+
+
+# ---------------------------------------------------------------------------
+# 2. The two copies of the classification
+# ---------------------------------------------------------------------------
+def check_csv_xlsx(csv_path, xlsx_path, rep, list_n):
+    """classify_lines.py writes the csv and the workbook from one table, so
+    any difference between them was made afterwards - by an edit in Excel, or
+    by one of the two being left over from an earlier run."""
+    if not (csv_path and os.path.exists(csv_path)):
+        rep.error('Classification', '%s is missing' % CLASSIFICATIONS_CSV)
+        return None, None
+    a = read_classifications(csv_path)
+    if not (xlsx_path and os.path.exists(xlsx_path)):
+        rep.warn('Classification', '%s is missing; the csv is used alone'
+                 % CLASSIFICATIONS_XLSX)
+        return a, None
+    b = pd.read_excel(xlsx_path, dtype={'low_id': str, 'upp_id': str})
+    if len(a) != len(b):
+        rep.error('Classification',
+                  'the csv has %d rows and the workbook %d - they are from '
+                  'different runs' % (len(a), len(b)))
+        rep.act(20, 'Re-run classify_lines.py so that %s and %s are written '
+                    'together.' % (CLASSIFICATIONS_CSV, CLASSIFICATIONS_XLSX))
+        return a, b
+
+    pa = classified_rows(classified(a))
+    pb = classified_rows(classified(b))
+    check_double_acceptance(pa, rep, list_n)
+
+    matched, a_only, b_only = align(pa, pb, 0.001)
+    if a_only or b_only:
+        rep.error('Classification',
+                  '%d classified transitions are in the csv only and %d in '
+                  'the workbook only' % (len(a_only), len(b_only)),
+                  [('csv only: ' + fmt_pair(p, r[0])) for p, r in a_only[:20]]
+                  + [('workbook only: ' + fmt_pair(p, r[0]))
+                     for p, r in b_only[:20]])
+        rep.act(20, 'Re-run classify_lines.py; the csv and the workbook hold '
+                    'different assignments.')
+        return a, b
+
+    bad = [fmt_pair(p, ra[0]) for p, ra, rb in matched if ra[1] != rb[1]]
+    if bad:
+        rep.error('Classification',
+                  '%d transitions are accepted in one copy and not the other'
+                  % len(bad), bad)
+        rep.act(20, 'Re-run classify_lines.py; the two copies disagree about '
+                    'which assignments are accepted.')
+    else:
+        rep.ok('Classification',
+               'the csv and the workbook hold the same %d classified '
+               'transitions, on the same lines and with the same verdicts'
+               % len(matched))
+    return a, b
+
+
+# ---------------------------------------------------------------------------
+# 3-5. The LOPT chain
+# ---------------------------------------------------------------------------
+def _weighted(rec):
+    """Does this row of LOPT_input_lines.txt pull on the levels?
+
+    Only if it has a weight above zero and is not flagged P.  The two are
+    separate fields and either one on its own takes the line out of the fit,
+    so both have to be read: a P-flagged row often carries its old weight,
+    and reading the weight alone would call it fitted.
+    """
+    return rec[2] > 0 and 'P' not in (rec[1] or '').upper()
+
+
+def _split_idle(missing, ctx):
+    """Split the classified-but-absent transitions into the ones that matter
+    and the ones that do not.
+
+    make_LOPT_input.py writes every classified candidate, the rejected ones
+    with zero weight, so a classification settled after the transitions file
+    was built leaves rejected candidates in the workbook and nowhere else.
+    That difference is on paper only: a rejected candidate that carries no
+    weight in the fit and no identification in IDEN2 is saying the same thing
+    in all three files, and rebuilding LOPT_input_lines.txt at the end of the
+    analysis - when the fully synchronised files are wanted for the
+    publication tables - is what puts it in writing.  Such a transition is
+    counted, not listed.
+
+    A rejected candidate that IS weighted in the fit, or IS identified in
+    IDEN2, is a different matter and stays in the list: there the files
+    disagree about the identification itself.
+
+    Returns (real, idle).
+    """
+    real, idle = [], []
+    for pair, rec in missing:
+        wn, accepted = rec[0], rec[1]
+        if (not accepted and ctx.in_lopt(pair, wn) != 'included'
+                and ctx.in_iden(pair, wn) != 'assigned'):
+            idle.append((pair, rec))
+        else:
+            real.append((pair, rec))
+    return real, idle
+
+
+def _split_dead(extra, ctx):
+    """The same test the other way round, for the transitions the file holds
+    and the classification does not.
+
+    A row of LOPT_input_lines.txt flagged P or given zero weight is not in
+    the fit; if the classification does not accept it and IDEN2 does not
+    identify it, it is a leftover of an earlier classification that is doing
+    nothing anywhere, and the next rebuild of the file will drop it.  A row
+    that IS weighted, or IS identified in IDEN2, is a real disagreement and
+    stays in the list.
+
+    Returns (real, dead).
+    """
+    real, dead = [], []
+    for pair, rec in extra:
+        wn = rec[0]
+        if (not _weighted(rec) and ctx.in_xlsx(pair, wn) != 'accepted'
+                and ctx.in_iden(pair, wn) != 'assigned'):
+            dead.append((pair, rec))
+        else:
+            real.append((pair, rec))
+    return real, dead
+
+
+def expected_shares(df):
+    """{(pair, wavenumber): the share of its observed line each accepted
+    classification should carry in LOPT_input_lines.txt}.
+
+    This is make_LOPT_input.py's own arithmetic, repeated so that a weight
+    written by hand can be compared with the one the pipeline would write: a
+    line with a single accepted classification gives it the whole weight, and
+    the components of a blend divide it in proportion to their calculated
+    intensities, sharing it equally if those intensities say nothing.
+    """
+    groups = {}
+    for wn, low, upp, acc, calc in zip(df['wn_obs'], df['low_id'],
+                                       df['upp_id'], df['accepted'],
+                                       df['calc_intens']):
+        if float(acc or 0) != 1.0:
+            continue
+        c = float(calc) if calc == calc else 0.0
+        groups.setdefault(round(float(wn), 3), []).append(
+            (tuple(sorted(pair_key(low, upp))), float(wn), max(c, 0.0)))
+    out = {}
+    for rows in groups.values():
+        if len(rows) == 1:
+            pair, wn, _c = rows[0]
+            out[(pair, round(wn, 3))] = 1.0
+            continue
+        total = sum(c for _p, _w, c in rows)
+        if total <= 0:
+            rows = [(p, w, 1.0) for p, w, _c in rows]
+            total = float(len(rows))
+        for pair, wn, c in rows:
+            out[(pair, round(wn, 3))] = c / total
+    return out
+
+
+def line_weights(lopt_in):
+    """{wavenumber: the sum of the weights on that observed line}.
+
+    LOPT divides each weight by this sum, so what a row is worth in the fit
+    is its share of its line and never the number in the column.
+    """
+    total = {}
+    for _pair, recs in lopt_in.items():
+        for rec in recs:
+            if _weighted(rec):
+                key = round(float(rec[0]), 3)
+                total[key] = total.get(key, 0.0) + float(rec[2])
+    return total
+
+
+def same_share(want, got):
+    """Do the two files give a transition the same share of its line?
+
+    Not the same number: a blend assigned by hand carries the calculated
+    intensities pasted straight out of Icalc.xlsx, which do not sum to one,
+    and LOPT normalises them itself, so the columns are expected to look
+    unlike each other and to fit identically.  What has to agree is the
+    share, to one per cent.  The 1e-4 is the rounding of the four-decimal
+    weight column, which is the whole of the difference for the small
+    component of a lopsided blend.
+    """
+    d = abs(want - got)
+    return d <= 1e-4 or d <= 0.01 * max(want, got)
+
+
+def check_lopt_chain(cls, paths, ctx, rep, wn_tol):
+    """The classification, the transitions file LOPT was given, and the two
+    files LOPT wrote, are four views of one fit; each is made from the one
+    before it by a command that has to be run by hand."""
+    inp = paths.get(LOPT_IN)
+    out = paths.get(LOPT_LINES)
+    lev = paths.get(LOPT_LEVELS)
+    lopt_in = ctx.lopt_in
+    levels = ctx.levels
+
+    if cls is not None and lopt_in is not None:
+        want = classified_rows(classified(cls))
+        matched, missing, extra = align(want, lopt_in, wn_tol)
+        shares = expected_shares(classified(cls))
+        total = line_weights(lopt_in)
+        wrong, note = [], {}
+        # A row that both files hold can still say opposite things.  Being in
+        # the transitions file is not being in the fit - a P flag or a zero
+        # weight takes it out - so an accepted classification that is in the
+        # file without weight belongs with the ones that are not in the file
+        # at all, and a weighted row the classification does not accept
+        # belongs with the ones the classification has never heard of.  Only
+        # when both files put the line in the fit is there a weight to
+        # compare.
+        for pair, ra, rb in matched:
+            fitted = _weighted(rb)
+            if ra[1] and not fitted:
+                missing.append((pair, ra))
+            elif fitted and not ra[1]:
+                extra.append((pair, rb))
+            elif fitted:
+                key = round(float(rb[0]), 3)
+                got = float(rb[2]) / total[key] if total.get(key) else 0.0
+                due = shares.get((tuple(sorted(pair)),
+                                  round(float(ra[0]), 3)), 1.0)
+                if not same_share(due, got):
+                    wrong.append((pair, ra))
+                    note[(pair, ra[0])] = ('%.4f of the line here, %.4f in %s'
+                                           % (due, got, LOPT_IN))
+        missing, idle = _split_idle(missing, ctx)
+        extra, dead = _split_dead(extra, ctx)
+        if idle:
+            rep.warn('LOPT',
+                     '%d rejected candidates are in the classification and '
+                     'nowhere else: absent from %s and unassigned in IDEN2. '
+                     'They are counted, not listed - carrying no weight and '
+                     'no line, they say the same thing in all three files, '
+                     'and the rebuild that puts them on paper belongs at the '
+                     'end of the analysis.' % (len(idle), LOPT_IN))
+        if dead:
+            rep.warn('LOPT',
+                     '%d transitions in %s are flagged P or of zero weight, '
+                     'are not accepted in the classification, and are not '
+                     'identified in IDEN2: leftovers of an earlier '
+                     'classification that pull on nothing.  They are counted, '
+                     'not listed; the next rebuild of the file drops them.'
+                     % (len(dead), LOPT_IN))
+        if missing or extra or wrong:
+            # The last flag is the sort: the first two groups are about
+            # levels and keep the level order, the weights are about the
+            # observed lines and run from the highest wavenumber down.
+            groups = [
+                ('in %s, not in %s:' % (CLASSIFICATIONS_XLSX, LOPT_IN),
+                 missing, False),
+                ('in %s, not in %s:' % (LOPT_IN, CLASSIFICATIONS_XLSX),
+                 extra, False),
+                ('the share of the observed line differs by more than '
+                 '1 per cent:', wrong, True),
+            ]
+            items = []
+            for label, rows, by_wn in groups:
+                if not rows:
+                    continue
+                items.append(label)
+                items.extend(ctx.items([(p, r[0]) for p, r in rows], note,
+                                       by_wn=by_wn))
+            # What the IDEN2 check finds next is largely these same
+            # transitions seen from the other end - an assignment absent from
+            # the fit is usually the one IDEN2 still shows - so tell it what
+            # has been printed here.  The weights are deliberately included:
+            # a wrongly weighted blend is a different fault from an unmade
+            # identification, and it is worth meeting twice.
+            ctx.listed([(p, r[0]) for _label, rows, _by_wn in groups
+                        for p, r in rows])
+            said = [n for n in
+                    ('%d accepted transitions are not in the fit it makes'
+                     % len(missing) if missing else '',
+                     '%d are weighted in it and not accepted in the '
+                     'classification' % len(extra) if extra else '',
+                     '%d are weighted differently' % len(wrong) if wrong
+                     else '') if n]
+            rep.error('LOPT', '%s does not match the classification: %s'
+                      % (LOPT_IN, ', '.join(said)), items, head=Context.HEAD)
+            rep.act(30, 'Look at each of those %d transitions in IDEN2 and '
+                        'settle it, recording the verdict in %s; where it is '
+                        'the share of a blend that differs, correct the '
+                        'weight in %s by hand.  Do not simply re-run '
+                        'make_LOPT_input.py: that rebuilds %s from the '
+                        'current classification, so the list above '
+                        'disappears while every question in it stays open '
+                        'and is now untracked.'
+                        % (len(missing) + len(extra) + len(wrong),
+                           DECISIONS, LOPT_IN, LOPT_IN))
+        else:
+            rep.ok('LOPT', '%s holds every classified transition that bears '
+                           'on the fit (%d of them), weighted as accepted'
+                   % (LOPT_IN, len(matched)))
+
+    lopt_out = None
+    if out and os.path.exists(out):
+        lopt_out = read_lopt_output_lines(out)
+        if lopt_in is not None:
+            matched, missing, extra = align(lopt_in, lopt_out, wn_tol)
+            if missing or extra:
+                rep.error('LOPT',
+                          'LOPT was run on a different transitions file: %d '
+                          'lines of %s are not in the output, %d lines of the '
+                          'output are not in %s'
+                          % (len(missing), LOPT_IN, len(extra), LOPT_IN),
+                          [fmt_pair(p, r[0])
+                           for p, r in (missing + extra)[:20]])
+                rep.act(40, 'Re-run lopt.bat on the current %s.' % LOPT_IN)
+            else:
+                rep.ok('LOPT', 'the fit was made on the transitions file that '
+                               'is on disk now (%d lines)' % len(matched))
+
+    if lev and os.path.exists(lev):
+        if lopt_out is not None:
+            bad = []
+            for (low, upp), recs in lopt_out.items():
+                _wn, _w, e1, e2 = recs[0]
+                for lid, e in ((low, e1), (upp, e2)):
+                    if lid in levels and not np.isnan(e) \
+                            and abs(levels[lid] - e) > 0.5:
+                        bad.append('%s  %.3f in the line output, %.3f in the '
+                                   'level output' % (lid, e, levels[lid]))
+            bad = sorted(set(bad))
+            if bad:
+                rep.error('LOPT',
+                          'the line output and the level output give %d '
+                          'levels different energies - they are from '
+                          'different runs' % len(bad), bad)
+                rep.act(40, 'Re-run lopt.bat; %s and %s are from different '
+                            'runs.' % (LOPT_LINES, LOPT_LEVELS))
+            else:
+                rep.ok('LOPT', 'the line output and the level output agree '
+                               'about every level energy')
+    return lopt_out
+
+
+def check_revisions(paths, levels, rep, gross):
+    """A level revision is recorded in revised_level_energies.csv and carried
+    out by re-running the pipeline.  A row whose energy the fit does not show
+    is a revision that was written down and never made - or, just as often,
+    one that was made and then undone by a later run started from an older
+    classification."""
+    path = paths.get(REVISIONS)
+    if not (path and os.path.exists(path)) or not levels:
+        return
+    rev = pd.read_csv(path, dtype={'level_id': str})
+    if 'E_input' not in rev.columns:
+        return
+    late, absent = [], []
+    for lid, e in zip(rev['level_id'].str.strip(), rev['E_input']):
+        if lid not in levels:
+            absent.append(lid)
+            continue
+        d = float(levels[lid]) - float(e)
+        if abs(d) >= gross:
+            late.append('%s  ledger %.3f, fit %.3f  (%+.3f)'
+                        % (lid, float(e), levels[lid], d))
+    if absent:
+        rep.error('Revisions', '%d revised levels are not in %s'
+                  % (len(absent), LOPT_LEVELS), absent)
+    if late:
+        rep.error('Revisions',
+                  '%d recorded revisions are not in the fit - the energy the '
+                  'ledger gives and the energy LOPT settled on differ by more '
+                  'than %g cm^-1' % (len(late), gross), late)
+        rep.act(20, 'Re-run classify_lines.py and then the LOPT step: %s '
+                    'records level energies the fit does not have.'
+                    % REVISIONS)
+    elif not absent:
+        rep.ok('Revisions', 'all %d recorded revisions are in the fit'
+               % len(rev))
+
+
+# ---------------------------------------------------------------------------
+# 7-9. IDEN2
+# ---------------------------------------------------------------------------
+class Iden2(object):
+    """The three IDEN2 files, read once.
+
+    They are read before any check is made rather than inside the IDEN2
+    check, because every problem list - including the LOPT ones - names
+    IDEN2's level numbers and says whether the transition is assigned there.
+    """
+
+    def __init__(self, enlev, trans, row_of):
+        self.enlev = enlev
+        self.trans = trans
+        self.row_of = row_of
+        self.id_of_row = {n: lid for lid, n in row_of.items()}
+
+
+def load_iden2(iden2_dir, rep):
+    """Iden2, or None with a warning if a file is missing."""
+    enlev_path = os.path.join(iden2_dir, 'enlev.dat')
+    trans_path = os.path.join(iden2_dir, 'trans.dat')
+    map_path = os.path.join(iden2_dir, 'IDEN_level_ids.txt')
+    for p in (enlev_path, trans_path, map_path):
+        if not os.path.exists(p):
+            rep.warn('IDEN2', '%s is missing; the IDEN2 checks are skipped'
+                     % p)
+            return None
+    return Iden2(IDEN.Enlev(enlev_path), IDEN.Trans(trans_path),
+                 IDEN.read_map(map_path))
+
+
+def check_iden2(iden, cls, ctx, levels, rep, drift, gross, list_n):
+    """The two IDEN2 files against each other, against the fit, and against
+    the accepted assignments.
+
+    IDEN2 is where the identifications are looked at, so a difference here is
+    the one the eye will meet: a transition it shows as identified that the
+    classification has since withdrawn looks, on the screen, exactly like one
+    that is still accepted.
+    """
+    if iden is None:
+        return
+    _iden_internal(iden.enlev, iden.trans, rep, list_n)
+    _iden_vs_fit(iden.enlev, iden.row_of, levels, rep, drift, gross, list_n)
+    _iden_vs_classification(iden.enlev, iden.trans, iden.id_of_row, cls, ctx,
+                            rep, list_n)
+
+
+def _iden_internal(enlev, trans, rep, list_n):
+    """trans.dat carries, for every transition, a copy of the partner's
+    observed energy and found flag and the wavenumber that follows from them.
+    IDEN2 rewrites all of it whenever a level energy changes, so a copy that
+    no longer agrees with enlev.dat means trans.dat was written before the
+    last change to enlev.dat and everything it predicts is stale."""
+    bad_head, bad_part, bad_wn = [], [], []
+    for owner, k in trans.header_of.items():
+        rec = trans.records[k]
+        if owner not in enlev.row_of:
+            bad_head.append('level %d is in trans.dat and not in enlev.dat'
+                            % owner)
+            continue
+        starred = '*' in IDEN.field(rec, IDEN.TH_STAR)
+        if abs(IDEN.number(rec, IDEN.TH_EOBS) - enlev.e_obs(owner)) > 0.0005 \
+                or starred != enlev.known(owner):
+            bad_head.append('level %d: %.3f in trans.dat, %.3f in enlev.dat'
+                            % (owner, IDEN.number(rec, IDEN.TH_EOBS),
+                               enlev.e_obs(owner)))
+    for (owner, partner), k in trans.row_of.items():
+        rec = trans.records[k]
+        if partner not in enlev.row_of or owner not in enlev.row_of:
+            continue
+        e_part = IDEN.number(rec, IDEN.TR_EPART)
+        if abs(e_part - enlev.e_obs(partner)) > 0.0005:
+            bad_part.append('%d - %d: partner at %.3f in trans.dat, %.3f in '
+                            'enlev.dat' % (owner, partner, e_part,
+                                           enlev.e_obs(partner)))
+        pred = abs(enlev.e_obs(owner) - enlev.e_obs(partner))
+        if abs(IDEN.number(rec, IDEN.TR_WN) - pred) > 0.0015:
+            bad_wn.append('%d - %d: %.3f in trans.dat, %.3f from the two '
+                          'level energies' % (owner, partner,
+                                        IDEN.number(rec, IDEN.TR_WN), pred))
+    items = (bad_head + bad_part + bad_wn)
+    if items:
+        rep.error('IDEN2',
+                  'trans.dat is older than enlev.dat: %d level headers, %d '
+                  'partner energies and %d predicted wavenumbers no longer '
+                  'follow from the level energies'
+                  % (len(bad_head), len(bad_part), len(bad_wn)), items)
+        rep.act(50, 'Let IDEN2 rewrite trans.dat from the current enlev.dat; '
+                    'every predicted wavenumber it shows is stale.')
+    else:
+        rep.ok('IDEN2', 'trans.dat follows from enlev.dat: %d level headers '
+                        'and %d transitions all consistent'
+               % (len(trans.header_of), len(trans.row_of)))
+
+
+def _iden_vs_fit(enlev, row_of, levels, rep, drift, gross, list_n):
+    """enlev.dat holds a copy of every level energy; the fit holds the current
+    one.  The copy is updated by hand and is expected to lag."""
+    if not levels:
+        return
+    joined, lag, big, absent = 0, [], [], []
+    for lid, n in sorted(row_of.items()):
+        if n not in enlev.row_of:
+            absent.append('%s is mapped to enlev.dat row %d, which does not '
+                          'exist' % (lid, n))
+            continue
+        if lid not in levels:
+            absent.append('%s is in the IDEN2 map and not in %s'
+                          % (lid, LOPT_LEVELS))
+            continue
+        joined += 1
+        d = float(levels[lid]) - enlev.e_obs(n)
+        if abs(d) >= gross:
+            big.append('%s (row %d)  enlev %.3f, fit %.3f  (%+.3f)'
+                       % (lid, n, enlev.e_obs(n), levels[lid], d))
+        elif abs(d) > drift:
+            lag.append('%s (row %d)  %+.3f' % (lid, n, d))
+    if absent:
+        rep.error('IDEN2', '%d levels cannot be joined between the IDEN2 map '
+                           'and the fit' % len(absent), absent)
+    if big:
+        rep.error('IDEN2',
+                  '%d levels sit at least %g cm^-1 from where the fit puts '
+                  'them - enlev.dat and the fit are describing different '
+                  'positions' % (len(big), gross), big)
+        rep.act(50, 'Update the energies of those levels in IDEN2 (enlev.dat, '
+                    'and let IDEN2 rewrite trans.dat) before looking at them '
+                    'on the screen.')
+    if lag:
+        rep.warn('IDEN2', '%d levels are more than %g cm^-1 from the fit but '
+                          'less than %g - the ordinary lag, worth an update '
+                          'the next time IDEN2 is opened'
+                 % (len(lag), drift, gross), lag)
+    if not (absent or big or lag):
+        rep.ok('IDEN2', 'all %d levels agree with the fit to within %g cm^-1'
+               % (joined, drift))
+
+    # levels the fit knows and IDEN2 does not, and the reverse
+    unmapped_star = sorted(n for n in enlev.row_of
+                           if enlev.known(n) and n not in row_of.values())
+    unlisted = sorted(set(levels) - set(row_of))
+    unstarred = sorted(lid for lid, n in row_of.items()
+                       if n in enlev.row_of and not enlev.known(n))
+    if unmapped_star:
+        rep.warn('IDEN2', '%d levels are marked found in enlev.dat and '
+                          'have no entry in IDEN_level_ids.txt'
+                 % len(unmapped_star),
+                 ['enlev.dat row %d at %.3f' % (n, enlev.e_obs(n))
+                  for n in unmapped_star])
+    if unlisted:
+        rep.warn('IDEN2', '%d levels of the fit have no entry in '
+                          'IDEN_level_ids.txt' % len(unlisted),
+                 unlisted)
+    if unstarred:
+        rep.error('IDEN2', '%d levels of the fit are not marked found in '
+                           'enlev.dat' % len(unstarred), unstarred)
+        rep.act(50, 'Mark those levels found in enlev.dat; IDEN2 will not '
+                    'offer their transitions until it is done.')
+
+
+def _already(n):
+    """The clause that stands in place of a list already printed above."""
+    if not n:
+        return ''
+    return ('; %d of them are the transitions already listed under LOPT '
+            'above and are not repeated here' % n)
+
+
+def _iden_vs_classification(enlev, trans, id_of_row, cls, ctx, rep,
+                            list_n):
+    """Which transitions IDEN2 shows as identified, against which the
+    classification accepts.  This is the check the rest of the script exists
+    to make."""
+    if cls is None:
+        return
+    found, unmapped = read_iden_assignments(enlev, trans, id_of_row)
+    accepted = {}
+    for pair, recs in classified_rows(classified(cls)).items():
+        for wn, acc in recs:
+            if acc:
+                accepted[tuple(sorted(pair))] = wn
+
+    only_iden = sorted(set(found) - set(accepted))
+    only_cls = sorted(set(accepted) - set(found))
+    moved, moved_note = [], {}
+    for pair in sorted(set(found) & set(accepted)):
+        if abs(found[pair] - accepted[pair]) > 0.01:
+            moved.append((pair, accepted[pair]))
+            moved_note[(pair, accepted[pair])] = (
+                'IDEN2 has it on %.3f' % found[pair])
+    if unmapped:
+        rep.warn('IDEN2', '%d identified transitions of trans.dat join levels '
+                          'that are not in IDEN_level_ids.txt' % len(unmapped),
+                 ['rows %d - %d at %.3f' % u for u in unmapped])
+    if only_iden:
+        fresh = [p for p in only_iden if not ctx.already_listed(p, found[p])]
+        rep.error('IDEN2',
+                  '%d transitions are identified in trans.dat and are no '
+                  'longer accepted - IDEN2 will show them as good%s'
+                  % (len(only_iden), _already(len(only_iden) - len(fresh))),
+                  ctx.items([(p, found[p]) for p in fresh]),
+                  head=Context.HEAD)
+        rep.act(60, 'Withdraw those %d assignments in IDEN2, or accept them '
+                    'in the classification: at present the screen and the fit '
+                    'disagree.' % len(only_iden))
+    if only_cls:
+        fresh = [p for p in only_cls
+                 if not ctx.already_listed(p, accepted[p])]
+        rep.error('IDEN2',
+                  '%d accepted assignments are not identified in trans.dat - '
+                  'IDEN2 will show those lines as unassigned%s'
+                  % (len(only_cls), _already(len(only_cls) - len(fresh))),
+                  ctx.items([(p, accepted[p]) for p in fresh]),
+                  head=Context.HEAD)
+        rep.act(60, 'Carry those %d new assignments into IDEN2 so that the '
+                    'screen shows the fit that is actually being used.'
+                    % len(only_cls))
+    if moved:
+        rep.error('IDEN2', '%d transitions are on a different observed '
+                           'line in the two files' % len(moved),
+                  ctx.items(moved, moved_note), head=Context.HEAD)
+        rep.act(60, 'Re-identify those transitions in IDEN2: they have been '
+                    'moved to another line since IDEN2 last saw them.')
+    if not (only_iden or only_cls or moved):
+        rep.ok('IDEN2', 'IDEN2 and the classification agree about all %d '
+                        'identified transitions' % len(found))
+
+
+# ---------------------------------------------------------------------------
+# 10. Stability
+# ---------------------------------------------------------------------------
+def check_stability(paths, cls, ctx, rep, list_n):
+    """Two ways the classification can be unsettled rather than merely stale.
+
+    An oscillating assignment is one classify_lines.py accepted on one pass
+    and rejected on the next until it blacklisted it; the run converged, but
+    only because that assignment was taken out of the argument, and which way
+    it should have gone is undecided.  An unobeyed ledger row is worse: the
+    analyst has ruled on a line and the classification does not show the
+    ruling.
+    """
+    path = paths.get(UNSTABLE)
+    if path and os.path.exists(path):
+        un = pd.read_csv(path, dtype={'low_id': str, 'upp_id': str})
+        if len(un):
+            rows, notes = [], {}
+            for _, r in un.iterrows():
+                key = (pair_key(r['low_id'], r['upp_id']),
+                       float(r['wn_obs']))
+                rows.append(key)
+                notes[key] = '%s -> %s' % (r.get('oscillated_between', ''),
+                                           r.get('states', ''))
+            rep.warn('Stability',
+                     '%d assignments were withdrawn for oscillating: the run '
+                     'converged only because they were blacklisted'
+                     % len(un), ctx.items(rows, notes), head=Context.HEAD)
+            rep.act(10, 'Decide the %d oscillating assignment(s) in %s by '
+                        'hand and record the verdict in %s, so that the next '
+                        'run is stable rather than merely converged.'
+                        % (len(un), UNSTABLE, DECISIONS))
+        else:
+            rep.ok('Stability', 'no assignment oscillated in the last run')
+    else:
+        rep.warn('Stability', '%s is missing; classify_lines.py has not been '
+                              'run, or was run with --no-write' % UNSTABLE)
+
+    path = paths.get(DECISIONS)
+    if not (path and os.path.exists(path)) or cls is None:
+        return
+    dec = pd.read_csv(path, dtype={'low_id': str, 'upp_id': str})
+    state = classified_rows(classified(cls))
+    unapplied, unknown, elsewhere = [], [], []
+    notes = {}
+    for _, r in dec.iterrows():
+        key = pair_key(r['low_id'], r['upp_id'])
+        want = str(r['decision']).strip().lower() == 'accept'
+        wn = float(r['wn_obs'])
+        # A ledger row rules on ONE observed line, and classify_lines.py finds
+        # it within DECISIONS_WN_MATCH.  The same pair on another line is a
+        # different question, and is how an assignment is moved from one line
+        # to another: both rows are then obeyed and neither contradicts the
+        # other.
+        here = [(w, a) for w, a in state.get(key, [])
+                if abs(w - wn) <= DECISIONS_WN_MATCH]
+        if not here:
+            if want:
+                unknown.append((key, wn))
+                notes[(key, wn)] = 'the ledger orders it accepted'
+            elif any(a for _w, a in state.get(key, [])):
+                w = [x for x, a in state[key] if a][0]
+                elsewhere.append((key, w))
+                notes[(key, w)] = ('rejected on %.3f as ordered, now accepted '
+                                   'on this line' % wn)
+            continue
+        got_wn, got = here[0]
+        if got != want:
+            unapplied.append((key, wn))
+            notes[(key, wn)] = ('the ledger says %s, the classification says '
+                                '%s' % ('accept' if want else 'reject',
+                                        'accept' if got else 'reject'))
+    if unknown:
+        rep.error('Stability',
+                  '%d ledger rows order an assignment the classification does '
+                  'not hold at all' % len(unknown),
+                  ctx.items(unknown, notes), head=Context.HEAD)
+    if unapplied:
+        rep.error('Stability',
+                  '%d ledger verdicts are not obeyed by the classification - '
+                  'it was written before those rows, or by a run that did not '
+                  'read the ledger' % len(unapplied),
+                  ctx.items(unapplied, notes), head=Context.HEAD)
+        rep.act(10, 'Re-run classify_lines.py: %s has verdicts the '
+                    'classification does not obey.' % DECISIONS)
+    if elsewhere:
+        rep.warn('Stability',
+                 '%d ledger rejections were obeyed on the line they name, but '
+                 'the transition has settled on another line - the ledger '
+                 'says nothing about that one' % len(elsewhere),
+                 ctx.items(elsewhere, notes), head=Context.HEAD)
+    if not (unknown or unapplied or elsewhere):
+        rep.ok('Stability', 'all %d ledger verdicts are obeyed' % len(dec))
+
+
+# ---------------------------------------------------------------------------
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(
+        description='Check that the classification, the LOPT files and the '
+                    'IDEN2 files describe the same identification, and that '
+                    'the last classification run was stable.')
+    ap.add_argument('--drift', type=float, default=DEF_DRIFT, metavar='CM',
+                    help='an IDEN2 level energy this far from the fit is the '
+                         'expected lag, not a mismatch (default: %(default)s)')
+    ap.add_argument('--gross', type=float, default=DEF_GROSS, metavar='CM',
+                    help='at this distance the two files are describing '
+                         'different positions (default: %(default)s)')
+    ap.add_argument('--wn-tol', type=float, default=DEF_WN_TOL, metavar='CM',
+                    dest='wn_tol',
+                    help='how far two files may put one transition apart in '
+                         'wavenumber and still mean the same observed line '
+                         '(default: %(default)s)')
+    ap.add_argument('--list', type=int, default=DEF_LIST, metavar='N',
+                    dest='list_n',
+                    help='how many items to print under each finding '
+                         '(default: %(default)s)')
+    ap.add_argument('--quiet', action='store_true',
+                    help='print only the checks that found something')
+    ap.add_argument('--out', metavar='FILE', default=REPORT,
+                    help='where the complete report is written, every item '
+                         'of every list (default: %(default)s)')
+    ap.add_argument('--csv', metavar='FILE',
+                    help='also write the findings as a table')
+    ap.add_argument('--iden2', metavar='DIR', default=None,
+                    help='the IDEN2 directory (default: IDEN2, resolved like '
+                         'every other file)')
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    output_files.require_writable([args.out, args.csv], 'report file')
+    names = [CLASSIFICATIONS_CSV, CLASSIFICATIONS_XLSX, LOPT_IN, LOPT_LINES,
+             LOPT_LEVELS, DECISIONS, REVISIONS, UNSTABLE, POSITIONS,
+             LINES_XLSX]
+    paths = {n: working_path(n) for n in names}
+    iden2 = args.iden2 or working_path(NAME_IDEN2)
+
+    head = ['check_sync.py - are the files describing the same '
+            'identification?',
+            '%-32s %s' % ('file', 'last written')]
+    for n in names + ['IDEN2/enlev.dat', 'IDEN2/trans.dat']:
+        p = paths.get(n) or os.path.join(iden2, os.path.basename(n))
+        head.append('%-32s %s'
+                    % (n, _stamp(p) if os.path.exists(p) else 'not found'))
+    print('\n'.join(head))
+
+    rep = Report(args.list_n)
+    check_freshness(paths, rep)
+    cls, _ = check_csv_xlsx(paths[CLASSIFICATIONS_CSV],
+                            paths[CLASSIFICATIONS_XLSX], rep, args.list_n)
+
+    levels = (read_lopt_levels(paths[LOPT_LEVELS])
+              if os.path.exists(paths[LOPT_LEVELS]) else None)
+    lopt_in = (read_lopt_input(paths[LOPT_IN])
+               if os.path.exists(paths[LOPT_IN]) else None)
+    iden = load_iden2(iden2, rep)
+    ctx = Context(cls, levels, lopt_in, iden, args.wn_tol)
+
+    check_lopt_chain(cls, paths, ctx, rep, args.wn_tol)
+    check_revisions(paths, levels, rep, args.gross)
+    check_iden2(iden, cls, ctx, levels, rep, args.drift, args.gross,
+                args.list_n)
+    check_stability(paths, cls, ctx, rep, args.list_n)
+
+    if rep.worst != OK:
+        rep.act(70, 'Re-run level_positions.py (and level_shifts.py) last: '
+                    'their reports are built on everything above, and a '
+                    'report made before the fixes will recommend things that '
+                    'have already been done.')
+
+    n_err = sum(1 for f in rep.findings if f['severity'] == ERROR)
+    n_warn = sum(1 for f in rep.findings if f['severity'] == WARN)
+    summary = ('%d error(s), %d warning(s), %d check(s) clean.'
+               % (n_err, n_warn,
+                  sum(1 for f in rep.findings if f['severity'] == OK)))
+
+    rep.print(quiet=args.quiet)
+    rep.print_actions()
+    print('\n' + summary)
+
+    if args.out:
+        with open(args.out, 'w', encoding='utf-8', newline='\n') as fh:
+            fh.write('\n'.join(head) + '\n')
+            rep.print(quiet=False, out=fh, full=True)
+            rep.print_actions(out=fh)
+            fh.write('\n' + summary + '\n')
+        print('the complete report, with every item of every list, is in %s'
+              % args.out)
+
+    if args.csv:
+        rep.to_frame().to_csv(args.csv, index=False, lineterminator='\n')
+        print('findings written to %s' % args.csv)
+
+    return 2 if n_err else (1 if n_warn else 0)
+
+
+def _stamp(path):
+    return (pd.Timestamp(os.path.getmtime(path), unit='s', tz='UTC')
+            .tz_convert(None).strftime('%Y-%m-%d %H:%M'))
+
+
+if __name__ == '__main__':
+    sys.exit(main())

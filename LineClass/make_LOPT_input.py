@@ -56,6 +56,8 @@ import argparse
 import csv
 import os
 
+import output_files
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------------------
@@ -306,6 +308,11 @@ def main(argv=None):
     lines_out = in_dir(args.lines_out)
     fixlev_out = in_dir(args.fixlev_out)
     par_out = in_dir(args.par_out)
+
+    # LOPT's input files are tab-delimited text, and an analyst who has one
+    # of them open in Excel would otherwise learn of it only after the whole
+    # classification had been re-read and re-written.
+    output_files.require_writable([lines_out, fixlev_out, par_out])
 
     rows = read_classifications(args.classifications)
     written, accepted, flagged = write_lines_file(rows, lines_out)

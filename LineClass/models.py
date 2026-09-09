@@ -40,6 +40,15 @@ class SpectralLine:
     # ('accept'|'reject', reason), read from the decision ledger by
     # classify_lines.attach_line_decisions().  Empty unless the ledger names
     # this line.
+    legacy_keys: Optional[set] = None
+    # The (lower_id, upper_id) pairs this line holds a published
+    # identification for, as classify_lines.retag_legacy_identifications()
+    # works them out: the identifications of the line workbook, with a level
+    # whose measured position was exchanged with another's replaced by that
+    # other and an identification naming a re-positioned level dropped.  These
+    # are the pairs the classification treats as old.  None means the step was
+    # never run, and then the transitions seeded from the workbook are taken
+    # as the old ones.
 
 
 @dataclass

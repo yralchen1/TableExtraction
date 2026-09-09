@@ -114,6 +114,7 @@ import datetime
 import os
 import sys
 
+import output_files
 import swap_paths
 
 NAME_LEVELS = 'LOPT_output_levels.txt'
@@ -572,6 +573,11 @@ def main(argv=None):
                 'IDEN2\'s numbering; name both levels by their experimental '
                 'identifier here.' % lid)
     date = args.date or today()
+
+    # Both files are csv, and both are read in Excel; a run that found one of
+    # them locked would stop half way, having written the other.
+    if not args.dry_run:
+        output_files.require_writable([args.overrides, args.ledger], 'ledger')
 
     log('swap_line_assignments_pipeline.py')
     log('  exchanging       : %s  <->  %s' % (id1, id2))

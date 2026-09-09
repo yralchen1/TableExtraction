@@ -62,6 +62,7 @@ import pandas as pd
 
 import classify_lines as cl
 import config
+import output_files
 
 SHIFTS = [-11.3, -9.7, -8.3, -6.9, 6.9, 8.3, 9.7, 11.3]  # cm^-1, all > 5.5*max(u_obs)
 MAX_SUPPORT_BIN = 8  # per-level support histogram: 1..MAX_SUPPORT_BIN+
@@ -277,6 +278,9 @@ def apply_policy_option(argv=None) -> str:
 def main():
     smoke = '--smoke' in sys.argv
     apply_policy_option()
+    output_files.require_writable(
+        output_files.with_twin(SUMMARY_CSV) + output_files.with_twin(LEVELS_CSV)
+        + output_files.with_twin(LINES_CSV), 'table')
     shifts = SHIFTS[:1] if smoke else SHIFTS
     max_cycles = 2 if smoke else 20
     if smoke:

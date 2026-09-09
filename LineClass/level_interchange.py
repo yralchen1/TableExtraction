@@ -177,6 +177,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import chance_mc as mc
+import output_files
 import classify_lines as cl
 import gA_imputation
 import level_shifts as ls
@@ -910,6 +911,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     if not args.detail:
+        output_files.require_writable(output_files.with_twin(args.report),
+                                      'report file')
         print('Interchanged-identity check: are two levels of the same parity '
               'and J wearing')
         print("each other's calculated intensities?  Scale of the predicted "
