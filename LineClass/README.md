@@ -2530,7 +2530,8 @@ python swap_line_assignments.py 059003.000483 059003.000398
 Nothing in `Icalc.xlsx`, in `icalc_new.xlsx` or in the published line workbook changes. The
 calculated transitions are keyed by the **pair of level identifiers**, and an identifier
 keeps its configuration, its term and its calculated transition probabilities through the
-exchange — what moves is the measurement. `classify_lines.py` reads only the `Icalc` and
+exchange — what moves is the measurement. The calculated intensities are *read*, by the
+first script, to divide the blends again (below). `classify_lines.py` reads only the `Icalc` and
 `u%gA` columns of that file, so a level's calculated intensities do not depend on where the
 level sits at all; the predicted wavenumbers are computed from the level energies, which is
 exactly what the third script changes.
@@ -2549,9 +2550,45 @@ identifier. Exchanging the lines therefore exchanges the energies, and nothing e
 saying. In `LOPT_input_lines.txt` every record naming `id1` at either end is rewritten to
 name `id2`, and the other way round. The columns of the two identifier fields are read
 from `LOPT.par` (`--par`, or `--columns` to override), so a re-arranged layout is followed
-automatically; every other character of every record — wavenumber, weight, flags, spacing,
-DOS line endings — is preserved byte for byte, and a difference of the before and after
-files shows those two columns and nothing else.
+automatically; every other character of every record — wavenumber, flags, spacing, DOS line
+endings — is preserved byte for byte, with the single exception of the blend weights
+described next, and a difference of the before and after files shows those two columns, the
+weights of the disturbed blends, and nothing else.
+
+**The shares of a blend are recomputed.** Where two transitions fall on one measured line,
+`make_LOPT_input.py` writes one record per component and divides the line's weight, 1,
+between them in proportion to their **calculated** intensities, so that LOPT gives each
+level the share of the measured position the calculation says belongs to it. An exchange
+gives the moved component a different pair of levels, for which the calculation predicts a
+different intensity, so the share it was given no longer applies. The script therefore reads
+`Icalc.xlsx` and `icalc_new.xlsx` — through `classify_lines.read_transitions`, so that the
+numbers are the ones the pipeline itself would use — and divides each disturbed line again
+by the same rule, reporting every weight it changes.
+
+It recomputes a blend only when two things hold: the calculated file gives an intensity for
+every component of it, before and after the exchange, and recomputing the shares the file
+*already* carries reproduces them to within `--reweight-tol` (0.002). The second test is
+what makes the first safe — it checks, on the file itself, that the script is reading the
+same intensities and applying the same rule as the run that wrote the weights. A transitions
+file left over from an older classification, an intensity model refitted since, or a
+component whose intensity had to be imputed rather than read therefore leaves that blend
+exactly as it is, with the reason printed. `--no-reweight` turns the whole of it off.
+
+A share too small for the four-decimal weight field is written in exponential form —
+`2.5e-5` rather than `0.0000` — which LOPT reads just as well. Nothing is written as an
+exact zero: LOPT stops with an error when a record that is not flagged `P` (predicted) or
+`M` (masked) carries the weight 0, so a blend in which the calculation gives a component
+no intensity at all is left alone instead. Any component that comes out below a tenth of
+its measured line is listed as a **warning**: a share that small says the calculation does
+not really place the line on that transition, and rejecting the assignment is worth more
+than fitting it with a negligible weight. For `059003.000237` ↔ `059003.000234` three of
+the sixteen recomputed components fall below that mark — 0.0400 at 45293.419, 0.0034 at
+43640.810 and 0.0717 at 38164.609 cm⁻¹.
+
+This matters for the LOPT refit that `swap_line_assignments.py` runs between its first and
+third steps: those are the energies the third step writes into `revised_level_energies.csv`.
+The next full `classify_lines.py` → `make_LOPT_input.py` rebuild works the same shares out
+again from scratch.
 
 Three things stop it before anything is written: an identifier that does not occur in the
 file at all (a typo would otherwise produce a silently unchanged file); a record joining
@@ -3018,8 +3055,15 @@ the audit separates them before anything is called a revision. Three corrections
   close to exponentially distributed, so the best of `n_alt` of them stands about ln(`n_alt`) above
   a typical one, and `look` = `gain` − ln(`n_alt`) puts every level on the same footing. It is not
   a small correction: the median `n_alt` among the levels with a preferred alternate is about 50.
-- **Free lines.** `n_free` counts only the alternate's matched rows that are well-centred and sit
-  on features **no accepted transition claims**, and `free_gain` is what they are worth. Support
+- **Free lines.** `n_free` counts only the alternate's matched rows that are **observable**
+  (`P_obs` ≥ 0.2 — the prediction had at least a one-in-five chance of having been recorded),
+  well-centred, and on features **no accepted transition claims**; `free_gain` is what they are
+  worth. The observability condition is the same one that separates `n_seen` from `n_match`, and
+  it matters as much here: a prediction with a 1.5 per cent chance of being recorded that finds a
+  line has found a coincidence. Such rows are worth a few hundredths of a unit each, so leaving
+  them in inflated `n_free` without moving `free_gain` — for `059003.000613` the alternate at
+  +28.87 cm⁻¹ was reported with `n_free` = 9 when only 4 of the 9 could have been recorded at all,
+  and that inflation alone was carrying the row over the `n_free` ≥ 4 bar. Support
   that is entirely blended is not support: a prediction can be dumped on an already-explained
   feature almost anywhere, and the blend branch of the formula gives it credit for doing so.
   `top_share`, the largest single row's share of the positive evidence, throws out the positions
@@ -3063,11 +3107,59 @@ Usage and outputs:
 ```bash
 python level_positions.py                        # every level at its adopted energy
 python level_positions.py --detail 059003.000271 # the per-transition table for one level
+python level_positions.py --detail 059003.000613 --at alt   # ... at the alternate the audit proposes
 python level_positions.py --scan                 # + the alternate-position scan
 python level_positions.py --audit                # + what each alternate rests on and what to do
 python level_positions.py --scan --alt-drop 3    # a stricter definition of "alternate"
+python level_positions.py --audit --use-firm     # + skip the levels already settled (fast)
 python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised run
 ```
+
+**An empty `action` is not a clean bill of health.** `action` answers one question only — is
+there somewhere better to put this level? — and it is blank whenever the scan found no alternate.
+Whether the level is supported *where it is* is a separate question, and `ln R` answers it. The
+two come apart in both directions. A level with `ln R` = 12 and `action` = `refit` is in good
+order where it stands; the alternate is a worse position (`gain` negative) and the row is only
+telling you that an accepted line is pulling on the fit. A level with `ln R` = −0.54 and a blank
+`action` — `059003.000322` is the current example — is the hardest case in the report: the lines
+do not support it where it is, and the scan finds nothing better anywhere in the 366 cm⁻¹ the
+calculation allows, so whatever is wrong lies outside that window or in the lines assigned to it.
+The report prints those levels in a section of their own, after the scan table, for exactly this
+reason. The levels worth opening in IDEN2 are the union of the two lists: everything the audit
+prints (it already restricts itself to alternates the lines actually prefer) and everything with
+`ln R` below about 3, with or without an action.
+
+**The registry of settled positions.** Most of a run is spent re-proving what was proved last
+time: a level with `ln R` above 3 and no alternate anywhere in its window is not in doubt, and
+about 485 of the 594 levels are in that state. Every `--scan` or `--audit` run writes them to
+`level_positions_firm.csv` — `level_id`, `E`, `ln_R`, `scan_width` and a **fingerprint** of
+everything that level's scan depends on: the interval scanned and its step, `--alt-drop`, the
+level's own energy, every prediction it makes (partner, partner energy, partner uncertainty,
+predicted intensity), the measured line list, the constants fitted to the run, and the accepted
+assignments lying anywhere its predictions can reach as it moves across the window. `--use-firm`
+skips the scan for a level whose fingerprint is unchanged.
+
+The fingerprint is deliberately **local**. A run in which one relocation has been accepted differs
+from the previous one in that level, in its partners and in the lines near it; a fingerprint taken
+over the run as a whole would invalidate all 594 entries and the registry would never save
+anything. As written, accepting a relocation costs a re-scan of the levels that share lines or
+partners with it, and of nothing else. A second guard sits behind the fingerprint: `ln R` at the
+adopted position is computed for every level on every run whether it is scanned or not — that is
+one evaluation, not a scan — so an entry is honoured only if that value still comes out within 0.5
+of the one recorded with it. The `scanned` column says which levels were taken from the registry
+(`registry`) and which were scanned (`this run`). `--no-firm` ignores the registry altogether, for
+a result that must not depend on any earlier run.
+
+`--detail` prints the level's IDEN2 index and label, and the same for every partner, so the table
+can be read beside IDEN2 without looking each partner up by hand. It lists only the rows worth
+looking at — the observable predictions and any row that found a line — and says how many faint
+predictions it left out; `--detail-all` lists those too. The `what` column names what each match
+is: `free` (observable, well-centred, on an unclaimed feature — these are exactly the `n_free` of
+the audit), `blend` (the feature is already explained), `off` (matched but too far out to count as
+free), `faint` (the prediction could not have been recorded, so the match is a coincidence). By
+default the table is evaluated at the adopted energy; `--at alt` evaluates it at the best
+alternate the scan finds, which is the position an audit row proposes moving to and the only one
+worth inspecting when the report suggests a move. `--at 138851.2` takes any energy.
 
 `level_positions.csv`, one row per level:
 
@@ -3090,6 +3182,7 @@ python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised 
 | `dE_alt` | E(alternate) − E(adopted): the size of the move |
 | `near_level` / `near_dE` | the run's level nearest the alternate, and the gap — see above |
 | `question` | `?` when `n_alt` > 0 |
+| `scanned` | `this run` when the window was scanned, `registry` when the level was taken unchanged from the registry of settled positions |
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
 | `gain` / `look` | the gain and its look-elsewhere correction |
 | `n_obs_alt` / `n_seen_alt` / `n_miss_alt` | the observable-prediction counts the level would have at the alternate |
@@ -3276,6 +3369,204 @@ to the directory holding the scripts, so it can be run inside an iteration folde
 (`iter22/`) against that folder's own LOPT files while still reading the one copy of the
 ledgers.
 
+### Bringing IDEN2 up to date: `sync_IDEN2.py`
+
+`check_sync.py` says when IDEN2's files have fallen behind. `sync_IDEN2.py` catches them
+up. It rewrites both of them from the current fit and the current calculated intensities:
+
+* **`IDEN2/enlev.dat`** — the measured energy of every found level and its uncertainty are
+  taken from `LOPT_output_levels.txt`. The uncertainty is the larger of LOPT's `D1` and
+  `D2tot`, rounded to a thousandth of a wavenumber, which is the rule the file already
+  follows for all 594 levels. The observed-minus-calculated column is recomputed from each
+  level's own calculated energy. A level that has **not** been found keeps its calculated
+  energy as its adopted energy — this run knows nothing better — but its uncertainty is
+  rewritten too, and there the column means something else entirely.
+* **`IDEN2/trans.dat`** — every row is rewritten with the partner's new energy, the new
+  predicted wavenumber (the difference of the two energies exactly as `enlev.dat` writes
+  them) and a new intensity code.
+
+**The uncertainty column holds two different quantities.** On a found level it is the
+uncertainty of a measurement: how well the fit knows where the level is, a few thousandths
+of a wavenumber. On a level nobody has found there is no measurement to be uncertain about,
+and the only honest reading of the column is a prediction — how far from its **calculated**
+position the level is likely to turn out to be. IDEN2 uses it that way: it is the half-width
+of the window it searches. That distance is a property of the configuration rather than of
+the level, because the calculation describes some configurations far better than others, so
+it is measured per configuration as the rms of E_obs − E_calc over the levels of that
+configuration that have been found. It ranges from 24 cm⁻¹ for `f25g` to 404 cm⁻¹ for
+`fd6p`, against 132 cm⁻¹ for the level list as a whole — a factor of seventeen, which is why
+one number for all of them will not do. Six configurations (`5d3`, `f26g`, `f5d6d`,
+`f5d7s`, `f6s2`, `p5f3d`) have not one level found in them; their 149 levels are left
+exactly as they are, still carrying the placeholder 5000, because the list-wide rms would be
+a claim about them that nothing supports. Both kinds of change — the found levels' `max(D1,
+D2tot)` and the unfound levels' configuration rms — are listed in the run's report.
+
+The intensity code `trans.dat` carries is
+
+```
+Icalc_IDEN2 = round(10 * ln(Icalc)) ,   Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT)
+```
+
+a small signed integer — one unit is a factor 1.105 in intensity. `gA` comes from
+**`tp_E1_no_trials.xlsx`**, the Cowan E1 transition list, which is the file `Icalc.xlsx`
+itself was drawn from; `C` and `kT` come from `[intensity_model]` of the configuration and
+are checked against `Icalc.xlsx` before anything is written. The codes now in the file were
+computed long ago at kT ≈ 13100 cm⁻¹ with a normalisation to match: they rank the
+transitions almost perfectly (rank correlation 0.9994 with the current `Icalc`) but they are
+a factor 0.70 and a Boltzmann tilt away from the numbers the pipeline works in.
+
+**An identification is never dropped.** A transition that carries an observed line stays in
+`trans.dat` however weak its new intensity code makes it, and whether or not the Cowan table
+still has a `gA` for it — which one of them does not: the hand-added row for Sugar's
+identification of a line below the `gA` = 10³ s⁻¹ floor of the Cowan run, the one imputed
+`Icalc` in `line_classifications.csv`. Its row is carried through with the code it has.
+
+Which of the other transitions are listed is set by `--cutoff`, on the intensity code. The
+default, −41, is the value that leaves the present list most nearly alone: on the first run
+it added 420 transitions the old scale had cut off and dropped 47, out of 104272. Each step
+of one removes about 700 more.
+
+A level that ends up with no transition above the cutoff heads no block, and IDEN2 then
+shows nothing below it. That is not a loss of information: IDEN2 displays only the
+transitions with a code of 0 or more anyway, so a level whose whole block falls below the
+cutoff had nothing on screen to lose. The report names those levels.
+
+```bash
+python sync_IDEN2.py                 # rewrite both files, keeping .presync copies
+python sync_IDEN2.py --dry-run       # say what would change, write nothing
+python sync_IDEN2.py --cutoff -45    # a longer list, down to weaker lines
+python sync_IDEN2.py --report sync_IDEN2_report.txt
+```
+
+**Close IDEN2 first.** It holds its files open and rewrites them from memory when it exits,
+which would undo everything the run has done.
+
+The reader of the Cowan table is `cowan_gA.py`, a module of its own, because
+`level_positions.py` needs it too: it is the only source of a calculated strength for a
+transition of a level that has never been found, and so the only way to say which of the
+659 unfound levels are worth looking for. It also carries the join between the three
+numberings of the same levels — the calculation's `lid`, IDEN2's row number, and Wyart's
+`level_id` — which it works out by aligning the two energy-ordered level lists and then
+checking the result against all 594 levels whose row number and `level_id` are both known.
+
+### Which unfound levels are worth searching for: `unfound_levels.py`
+
+**What it answers.** Cowan's calculation gives Pr III 1253 levels. 594 have been found; the
+other 659 have never been placed, and each of them is an energy the calculation predicts and
+the line list has never been searched for. Searching for one is an afternoon's work in IDEN2,
+so the question is which of the 659 to spend it on. A level can only be found through its
+lines, so the answer is a count: **how many of the transitions the calculation gives it would
+have been recorded on the plates**. One is never enough — a single line can be made to fit any
+energy, so one coincidence is no evidence — and ten is a position that, if the level is there
+at all, is heavily overdetermined.
+
+**What makes a transition promising.** For an unfound level L at a trial energy E and a partner
+M that *has* been found, at its measured energy E_M, the line would sit at ν = |E − E_M| with
+the intensity `I = C·gA·(ν/1e8)·exp(−E_up/kT)`, the same formula and the same C and kT as
+everything else in the pipeline. gA comes from Cowan's own transition list through
+`cowan_gA.py`, which is the only place it can come from: `Icalc.xlsx` holds only transitions
+whose two levels are both known, and by definition none of these are. That the two agree is
+worth checking and was checked — recomputing the 29260 predictions of `Icalc.xlsx` from gA this
+way reproduces the file to an rms of 0.2 % in ln I. The probability that such a line reached
+Sugar's list is then the same `P_obs = c(λ)·D(z)` the rest of the analysis uses, and a
+transition is **promising** when P_obs ≥ 0.5.
+
+**The level's energy is not known, and the count says so.** How far a level turns out to be
+from its calculated position is a property of the *configuration*, not of the level: W, the rms
+of E_obs − E_calc over the found levels of the same configuration, runs from 24 cm⁻¹ for
+4f².5g to 404 cm⁻¹ for 4f.5d.6p. So ν is uncertain by that much, and with it λ, the local noise
+level and therefore P_obs. Every probability here is averaged over a Gaussian of width W
+centred on E_calc — nine trial positions from −2W to +2W, weighted by the normal density — so
+what comes out is a probability in the ordinary sense: the chance the line is on the plates
+given both the physics and the ignorance about E. Summing it over a level's transitions gives
+`sum_P`, the expected **number** of its lines that were recorded. The six configurations with
+no found level of their own (`5d3`, `f26g`, `f5d6d`, `f5d7s`, `f6s2`, `p5f3d`) have no W; they
+are listed anyway, with the list-wide 132 cm⁻¹ and a `list` in the `W_src` column, because a
+ranking is a suggestion about where to spend an afternoon and not a number written into a file.
+
+**What it finds.** Of the 659, every one has at least one calculated transition to a found
+level, but
+
+| promising transitions | levels |
+|---|---:|
+| none — nothing to search on | 232 |
+| exactly one — not enough | 97 |
+| two or more — worth a search | **330** |
+| five or more | 106 |
+
+and the search list is concentrated: `f27d` 62, `f25g` 50, `fd6p` 49, `f26d` 32, `f27p` 29,
+`f26f` 21. The best of them is IDEN2 row 742, `f25f ~3F4G`, J = 5/2, calculated at 116406.7:
+23 promising transitions and an expected 22.9 recorded lines, 21 of them to levels of 4f².5d
+and 18 of those between 985 and 1125 Å.
+
+**The count is blind, so it can be scored on the levels already found** (`--validate`). Nothing
+in it looks at whether a line was ever assigned to a level — only calculated energies,
+calculated gA, and the measured coverage and noise of the plates — so every found level can be
+put back at its *calculated* energy and counted as though nobody knew where it was, and the
+answer compared with the number of accepted lines it really has:
+
+| `n_prom` | levels | median accepted lines | mean |
+|---|---:|---:|---:|
+| 0 | 1 | 5 | 5.0 |
+| 1 | 11 | 3 | 3.0 |
+| 2–4 | 88 | 4 | 4.2 |
+| 5–9 | 138 | 7 | 7.6 |
+| 10+ | 356 | 19 | 23.8 |
+
+Rank correlation 0.925 for `n_prom` and 0.943 for `sum_P`. And 582 of the 594 clear the bar of
+two promising transitions, which is that bar being checked from the other side: a level the
+count would have called hopeless is hardly ever a level that was in fact found. The found
+levels are not a fair sample — they were found *because* they had lines — so this says the
+count ranks levels correctly, not that a level with `n_prom` = 10 will turn up.
+
+**Limits.** Three, and they are all of the same kind: the count says the evidence would exist,
+not that it can be recognised.
+
+- **It does not know whether the lines are still free.** A promising transition may fall on a
+  feature another level already claims. While the level could be anywhere in a window hundreds
+  of wavenumbers wide there is no way to say which lines it would reach; `rho_med`, the density
+  of recorded lines around its promising transitions, is the nearest thing to a warning — where
+  it is high, a trial energy will find lines whether the level is there or not.
+- **It does not know whether the partners are sound.** Every partner is a found level, but
+  found levels differ in how firmly; `level_positions.py` is what says which is which.
+- **It does not know whether the calculated strengths are right.** Observed intensities scatter
+  against predicted ones by a factor of about three. P_obs carries that spread through the
+  detection curve, but a transition predicted at ten times the noise can still be absent.
+
+Usage:
+
+```bash
+python unfound_levels.py                   # the ranked table + unfound_levels.csv/.xlsx
+python unfound_levels.py --detail 742      # the transitions of one level, by IDEN2 row
+python unfound_levels.py --detail 742 --detail-all   # ... including the hopeless ones
+python unfound_levels.py --validate        # score the count on the levels already found
+python unfound_levels.py --min-prom 5 --top 0        # print the whole short list
+```
+
+`unfound_levels.csv`, one row per unfound level, best first:
+
+| column | meaning |
+|---|---|
+| `idx` | the level's row number in `IDEN2/enlev.dat` — the key IDEN2 itself uses |
+| `label` / `J` / `parity` / `cfg` | as `enlev.dat` writes them |
+| `E_calc` | the calculated energy, cm⁻¹ |
+| `W` / `W_src` | how far levels of that configuration turn out to be from their calculated position, and whether that came from the configuration itself or from the list as a whole |
+| `n_pred` | transitions to found levels the calculation gives it |
+| `n_obs` | of those, the ones with P_obs ≥ 0.2, the bar `level_positions.py` uses |
+| `n_prom` | **the verdict**: transitions with P_obs ≥ 0.5 |
+| `sum_P` | the expected number of its lines actually on the plates |
+| `I_max` / `wn_I_max` | its strongest predicted transition and where it would fall |
+| `rho_med` | recorded lines per cm⁻¹ around the promising transitions |
+
+The `--detail` table names each partner by IDEN2 row, label and `level_id`, says whether the
+unfound level is the upper or the lower of the two, and gives ν and λ at E_calc, the predicted
+intensity, P_obs and the local line density. It is meant to be read beside IDEN2.
+
+**This is the first half of the search.** It says where to point a search, not what a search
+finds. Taking a level off this list and asking whether the lines actually put it somewhere —
+the scan of `ln R` over the window, at trial energies rather than at an adopted one — is the
+other half, and is not built yet.
+
 ### Excel-friendly output files
 
 All validation tables are written by `save_table()` (in `chance_mc.py`): every CSV gets an `.xlsx` twin, and floating-point columns are rounded to physically meaningful decimals. The rounding matters for CSVs: Python prints a 64-bit float with up to 17 significant digits (the number needed to reproduce the binary value exactly — not extra precision), while Excel reads at most 15 and converts longer numbers to text; in the `.xlsx` twins, J values such as `3/2` stay text instead of being converted to dates. If a target file is locked (open in Excel), the writer falls back to a `_new`-suffixed name instead of aborting the run.
@@ -3290,6 +3581,7 @@ python level_shifts.py       # 4. calibrations, probabilities → level_shift_re
 python level_interchange.py  # 5. interchanged identities → level_interchange.csv/.xlsx
 python level_positions.py --scan  # 6. alternate positions, question marks → level_positions.csv
 python check_sync.py         # 7. do all the files still describe the same identification?
+python unfound_levels.py     # 8. which levels nobody has found are worth searching for
 ```
 
 Repairing an interchange that step 5 flags is a separate act, done once and by hand:

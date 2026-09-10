@@ -33,20 +33,33 @@ the wrong one; each is re-keyed here, and the reason it carries is annotated
 with the date of the exchange rather than being rewritten, because the
 reason is prose and only its subject has changed.
 
-**And the legacy identifications.**  This is the part that is easy to miss
-and expensive to get wrong.  An identification taken from the published line
-list - Sugar's own, the ones ``line_classifications.csv`` marks ``new`` = 0 -
-names its two levels explicitly in the line workbook, an input file that is
-never edited.  Step 3 of ``classify_lines.py`` keeps such an identification
-unless something rejects it ("old, no solid evidence for rejection"), and it
-goes on naming its level after the exchange has moved that level a hundred
-wavenumbers away.  The level then ends up fitted between its true lines and
-its stale legacy ones.  That is what pulled level ``059003.000424``
-81 cm^-1 off its LOPT position on 2026-09-05.  So for every legacy
-identification of either level this script writes two orders: a ``reject``
-where the line stands now and an ``accept`` under the other identifier,
-which is where the same measured line belongs once the two levels have
-exchanged positions.
+**And the legacy identifications.**  This is the part that used to be easy
+to miss and expensive to get wrong.  An identification taken from the
+published line list - Sugar's own, the ones ``line_classifications.csv``
+marks ``new`` = 0 - names its two levels explicitly in the line workbook, an
+input file that is never edited.  Step 3 of ``classify_lines.py`` keeps such
+an identification unless something rejects it ("old, no solid evidence for
+rejection"), and it used to go on naming its level after the exchange had
+moved that level a hundred wavenumbers away.  The level then ended up fitted
+between its true lines and its stale legacy ones.  That is what pulled level
+``059003.000424`` 81 cm^-1 off its LOPT position on 2026-09-05.  So this
+script wrote two orders for every one of them: a ``reject`` where the line
+stood and an ``accept`` under the other identifier.
+
+``classify_lines.py`` now does that itself.  It reads the ``comment`` column
+of ``revised_level_energies.csv`` - the same comment this script writes,
+which says in plain words that the two levels were swapped - and moves every
+published identification of either level to the other identifier before the
+matching begins (``retag_legacy_identifications``): the pair the workbook
+names is taken off the observed line, and the same identification is seeded
+under the partner, which is the level that now sits where the line is.  The
+ledger orders would only say a second time what the overlay already says,
+and their ``reject`` halves would then match no candidate at all and be
+reported, one line each, as unapplied decisions on every future run.  So
+they are **no longer written** when this script writes the overlay.  They
+are still written when it does not (``--no-overrides``), because then
+nothing else records the exchange, and ``--legacy-orders`` asks for them
+outright.
 
 What is NOT written
 -------------------
@@ -95,7 +108,7 @@ Usage
 -----
     python swap_line_assignments_pipeline.py 059003.000483 059003.000398
     python swap_line_assignments_pipeline.py id1 id2 --dry-run
-    python swap_line_assignments_pipeline.py id1 id2 --rejects-only
+    python swap_line_assignments_pipeline.py id1 id2 --legacy-orders
 
 Every default file name is looked for first in the directory the command was
 run from and then in the directory holding this script, so that working in an
@@ -523,10 +536,19 @@ def parse_args(argv):
                    help='take the level table to be from a run made after '
                         'the exchange and record its two energies as they '
                         'stand, instead of working out which it is')
+    p.add_argument('--legacy-orders', action='store_true',
+                   help='write a reject and an accept into the ledger for '
+                        'every identification of the published line list '
+                        'held by either level.  Not needed since '
+                        'classify_lines.py began carrying those '
+                        'identifications over itself, from the exchange '
+                        'recorded in the comment of the level overrides; '
+                        'they are written anyway when --no-overrides means '
+                        'nothing records the exchange')
     p.add_argument('--rejects-only', action='store_true',
-                   help='for a legacy identification write only the reject '
-                        'at the level it names, leaving the accept at the '
-                        'other level to the classification')
+                   help='with --legacy-orders, write only the reject at the '
+                        'level the identification names, leaving the accept '
+                        'at the other level to the classification')
     p.add_argument('--no-ledger', action='store_true',
                    help='leave the decision ledger alone')
     p.add_argument('--no-overrides', action='store_true',
@@ -679,22 +701,40 @@ def main(argv=None):
                 'its old position.' % args.classifications)
         else:
             legacy = legacy_assignments(args.classifications, (id1, id2))
-        orders = legacy_orders(legacy, id1, id2, date, not args.rejects_only)
-        added, already = merge_orders(led_rows, orders)
+        # The overlay records the exchange, and classify_lines.py reads it
+        # and moves the published identifications itself; an order here would
+        # only repeat that, and its reject half would match no candidate.
+        write_orders = args.legacy_orders or args.no_overrides
         log('')
         log('Identifications of the published line list held by the two '
-            'levels: %d.  They do not follow the exchange on their own - the '
-            'line workbook names their levels and is never edited - so each '
-            'needs an order.' % len(legacy))
+            'levels: %d.' % len(legacy))
         for item in legacy:
             log('  %-14s %s - %s   (of %s)'
                 % (item['wn'], item['low'], item['upp'], item['level']))
-        log('  %d order(s) added, %d already in the ledger.'
-            % (len(added), len(already)))
-        for row in added:
-            log('    %-7s %-14s %s - %s'
-                % (row['decision'], row['wn_obs'], row['low_id'],
-                   row['upp_id']))
+        if not write_orders:
+            log('  No order is written for them.  classify_lines.py reads the '
+                'exchange from the')
+            log('  comment written into %s above, and moves'
+                % os.path.basename(args.overrides))
+            log('  every one of them to the other identifier by itself, so a '
+                'ledger order would')
+            log('  say the same thing twice, and its')
+            log('  reject half would match no candidate of the run.  '
+                '--legacy-orders writes them.')
+        else:
+            orders = legacy_orders(legacy, id1, id2, date,
+                                   not args.rejects_only)
+            added, already = merge_orders(led_rows, orders)
+            if args.no_overrides:
+                log('  --no-overrides: nothing else records the exchange, so '
+                    'each identification')
+                log('  needs an order of its own.')
+            log('  %d order(s) added, %d already in the ledger.'
+                % (len(added), len(already)))
+            for row in added:
+                log('    %-7s %-14s %s - %s'
+                    % (row['decision'], row['wn_obs'], row['low_id'],
+                       row['upp_id']))
 
     if args.dry_run:
         log('')

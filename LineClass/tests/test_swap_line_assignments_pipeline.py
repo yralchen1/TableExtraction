@@ -368,12 +368,35 @@ def test_end_to_end_writes_both_files(tmp_path, capsys):
              for r in orders}
     # the order that named A now names B
     assert keyed[('94058.9743', LOW, B)] == 'accept'
-    # the legacy identification of B is rejected there and accepted at A
-    assert keyed[('94153.5203', LOW, B)] == 'reject'
-    assert keyed[('94153.5203', LOW, A)] == 'accept'
+    # the legacy identification is left to classify_lines.py, which reads the
+    # exchange from the comment written into the overrides above and moves it
+    # to the other identifier itself
+    assert not [k for k in keyed if k[0] == '94153.5203']
     # the unaccepted legacy row and the unrelated line are not ruled on
     assert not [k for k in keyed if k[0] == '90000.0000']
     assert not [k for k in keyed if '059003.000999' in k]
+
+
+def test_legacy_orders_writes_the_pair_of_orders(tmp_path):
+    """--legacy-orders is the old behaviour, kept for a run that records the
+    exchange nowhere else."""
+    assert run(tmp_path, ['--exchange', '--legacy-orders']) == 0
+    _fields, orders = pipe.read_table(str(tmp_path / 'line_decisions.csv'))
+    keyed = {(r['wn_obs'], r['low_id'], r['upp_id']): r['decision']
+             for r in orders}
+    # the legacy identification of B is rejected there and accepted at A
+    assert keyed[('94153.5203', LOW, B)] == 'reject'
+    assert keyed[('94153.5203', LOW, A)] == 'accept'
+
+
+def test_no_overrides_still_writes_the_legacy_orders(tmp_path):
+    """Nothing then records the exchange, so the ledger has to."""
+    assert run(tmp_path, ['--exchange', '--no-overrides']) == 0
+    _fields, orders = pipe.read_table(str(tmp_path / 'line_decisions.csv'))
+    keyed = {(r['wn_obs'], r['low_id'], r['upp_id']): r['decision']
+             for r in orders}
+    assert keyed[('94153.5203', LOW, B)] == 'reject'
+    assert keyed[('94153.5203', LOW, A)] == 'accept'
 
 
 def test_end_to_end_is_idempotent(tmp_path):
@@ -425,6 +448,8 @@ class WArgs(object):
         self.only = 'lopt,iden,pipeline'
         self.after_lopt = self.dry_run = self.no_backup = False
         self.rejects_only = self.force = self.no_lopt_run = False
+        self.legacy_orders = self.no_reweight = False
+        self.reweight_tol = None
         self.index = self.date = None
         self.lopt_command = 'lopt'
         self.__dict__.update(kw)
@@ -481,3 +506,20 @@ def test_each_step_is_given_only_the_options_it_has():
 def test_dry_run_reaches_every_step():
     for step in wrapper.STEPS:
         assert '--dry-run' in wrapper.step_argv(step, WArgs(dry_run=True))
+
+
+def test_the_reweighting_options_reach_the_lopt_step_only():
+    assert '--no-reweight' in wrapper.step_argv('lopt', WArgs(no_reweight=True))
+    assert wrapper.step_argv('lopt', WArgs(reweight_tol=0.01))[-2:] \
+        == ['--reweight-tol', '0.01']
+    assert '--no-reweight' not in wrapper.step_argv(
+        'pipeline', WArgs(no_reweight=True))
+    assert '--no-reweight' not in wrapper.step_argv('lopt', WArgs())
+
+
+def test_legacy_orders_reaches_the_pipeline_step_only():
+    assert '--legacy-orders' in wrapper.step_argv(
+        'pipeline', WArgs(legacy_orders=True))
+    assert '--legacy-orders' not in wrapper.step_argv(
+        'lopt', WArgs(legacy_orders=True))
+    assert '--legacy-orders' not in wrapper.step_argv('pipeline', WArgs())

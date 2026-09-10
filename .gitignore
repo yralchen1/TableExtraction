@@ -70,6 +70,8 @@ coverage.xml
 output/
 # Auxiliary files not for distribution
 *.pdf
+LineClass/sync_report.txt
+LineClass/level_positions_firm.csv
 
 # Excel lock files
 ~$*.xlsx
@@ -95,3 +97,5 @@ LineClass/PLAN*
 
 # Archived reference runs: the CSVs are kept, their Excel twins are derived
 LineClass/baseline/**/*.xlsx
+LineClass/tp_E1_no_trials.cache.csv
+LineClass/IDEN2/*.presync

@@ -178,8 +178,16 @@ def test_round_trip_is_byte_exact(tmp_path, module, text):
 # swap_line_assignments_LOPT.py
 # ---------------------------------------------------------------------------
 def test_columns_come_from_the_parameter_file(tmp_path):
+    """The weight field is read too; its last column is missing from this
+    parameter file, so the sample layout supplies it."""
     par = write(tmp_path / 'LOPT.par', PAR.splitlines(), eol='\n')
-    assert lopt.read_columns(par) == (43, 55, 59)
+    assert lopt.read_columns(par) == (43, 55, 59, 82, 87)
+
+
+def test_a_parameter_file_without_the_weight_columns_still_works(tmp_path):
+    """Only the recomputed blend shares need them."""
+    par = write(tmp_path / 'p.par', PAR.splitlines()[:4], eol='\n')
+    assert lopt.read_columns(par) == (43, 55, 59, 82, 87)
 
 
 def test_columns_missing_from_the_parameter_file(tmp_path):
@@ -193,6 +201,7 @@ def test_layout_spans_the_two_identifier_fields():
     assert layout.width == 13
     assert layout.low == (42, 55)
     assert layout.upp == (58, 71)
+    assert layout.wt == (81, 87)
     row = lopt_row(1000.0, ID1, ID2)
     assert layout.get(row, layout.low) == ID1
     assert layout.get(row, layout.upp) == ID2
@@ -221,6 +230,197 @@ def test_swap_exchanges_both_ends_and_leaves_the_rest_alone():
     assert info['counts'][(ID1, 'upper')] == 1
     assert info['counts'][(ID2, 'lower')] == 1
     assert len(info['moved']) == 2
+
+
+def test_the_records_lopt_fits_are_counted_apart_from_the_rest():
+    """A record flagged "P" carries the weight 0: LOPT prints it and fits
+    nothing to it, so the count of records found is not the count of
+    assignments that decide the level's energy."""
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, '059003.000063', ID1),
+            lopt_row(900.0, '059003.000064', ID1, flag='P', weight=0.0),
+            lopt_row(800.0, ID2, '059003.000600')]
+    _out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    assert info['counts'][(ID1, 'upper')] == 2
+    assert info['fitted'][(ID1, 'upper')] == 1
+    assert info['counts'][(ID2, 'lower')] == 1
+    assert info['fitted'][(ID2, 'lower')] == 1
+
+
+def test_the_weight_of_a_record_is_its_last_number():
+    assert lopt.record_weight(lopt_row(1000.0, ID1, ID2, weight=0.3944)) \
+        == 0.3944
+    assert lopt.record_weight(
+        lopt_row(1000.0, ID1, ID2, flag='P', weight=0.0)) == 0.0
+    assert lopt.record_weight('   ') is None
+
+
+def test_a_moved_blend_component_is_reported_as_stale():
+    """Two weighted records at one wavenumber are one blend, and the share
+    each holds was worked out from the calculated intensities of the pair it
+    named before the exchange."""
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, '059003.000063', ID1, weight=0.4),
+            lopt_row(1000.0, '059003.000065', '059003.000600', weight=0.6),
+            lopt_row(800.0, ID2, '059003.000601')]
+    _out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    assert [(b[1], b[2], b[3]) for b in info['blends']] == [
+        ('059003.000063', ID1, 0.4)]
+
+
+def test_a_moved_record_that_is_alone_at_its_wavenumber_is_not_a_blend():
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, '059003.000063', ID1),
+            lopt_row(800.0, ID2, '059003.000601')]
+    _out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    assert info['blends'] == []
+
+
+def test_a_flagged_record_is_never_called_a_blend_component():
+    """It carries no weight, so there is no share for the exchange to
+    invalidate."""
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, '059003.000063', ID1, flag='P', weight=0.0),
+            lopt_row(1000.0, '059003.000065', '059003.000600', weight=1.0),
+            lopt_row(800.0, ID2, '059003.000601')]
+    _out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    assert info['blends'] == []
+
+
+# ---------------------------------------------------------------------------
+# The shares of a blend
+# ---------------------------------------------------------------------------
+LOW_A, LOW_B, UPP_B = '059003.000063', '059003.000065', '059003.000600'
+
+
+def a_blend(weights=(0.4, 0.6)):
+    """Two components on one measured line, the first of them moving."""
+    return [lopt_row(1000.0, LOW_A, ID1, weight=weights[0]),
+            lopt_row(1000.0, LOW_B, UPP_B, weight=weights[1]),
+            lopt_row(800.0, ID2, '059003.000601')]
+
+
+def reweighted(rows, calc, tol=lopt.DEF_REWEIGHT_TOL):
+    layout = lopt.Layout((43, 55, 59))
+    out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    out, rew = lopt.reweight_blends(out, layout, info, calc, tol)
+    return layout, out, rew
+
+
+def test_a_disturbed_blend_is_divided_again_by_the_new_intensities():
+    """The moved component now names ID2, for which the calculation predicts
+    10 against the 40 predicted for the pair it named before, so it takes a
+    tenth of the line where it took two fifths."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 10.0}
+    layout, out, rew = reweighted(a_blend(), calc)
+    assert [round(w, 4) for _, _, _, _, _, w, _ in rew['changed']] \
+        == [0.1429, 0.8571]
+    assert rew['kept'] == []
+    assert lopt.record_weight(out[0]) == 0.1429
+    assert lopt.record_weight(out[1]) == 0.8571
+    # the weight is written into the weight field and nothing else moves
+    assert out[0][:layout.wt[0]] == lopt_row(
+        1000.0, LOW_A, ID2, weight=0.1429)[:layout.wt[0]]
+
+
+def test_the_share_of_an_untouched_component_moves_with_it():
+    """A blend is one measured line: what one component gains the other
+    loses, whether or not the exchange named it."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 10.0}
+    _layout, _out, rew = reweighted(a_blend(), calc)
+    assert [(low, upp, moved)
+            for _, low, upp, moved, _, _, _ in rew['changed']] \
+        == [(LOW_A, ID2, True), (LOW_B, UPP_B, False)]
+
+
+def test_a_blend_written_by_another_run_is_left_alone():
+    """Recomputing the shares the file carries does not reproduce them, so
+    these intensities are not the ones that wrote the file."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 10.0}
+    _layout, out, rew = reweighted(a_blend(weights=(0.5, 0.5)), calc)
+    assert rew['changed'] == []
+    assert 'another run' in rew['kept'][0][1]
+    assert lopt.record_weight(out[0]) == 0.5
+
+
+def test_a_blend_with_an_unpredicted_component_is_left_alone():
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0}
+    _layout, out, rew = reweighted(a_blend(), calc)
+    assert rew['changed'] == []
+    assert 'no calculated intensity' in rew['kept'][0][1]
+    assert lopt.record_weight(out[0]) == 0.4
+
+
+def test_a_share_too_small_for_four_decimals_is_written_in_exponent_form():
+    """0.0000 would mean the line is not fitted at all, which is not what the
+    calculation says - and LOPT stops on a zero weight."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 6e-6}
+    _layout, out, rew = reweighted(a_blend(), calc)
+    assert rew['kept'] == []
+    assert rew['changed'][0][-1] == '1.0e-7'
+    assert lopt.record_weight(out[0]) == 1e-7
+
+
+def test_a_share_below_a_tenth_is_reported_as_a_warning():
+    """It is written, but such a component is a candidate for rejection
+    rather than for a fit with a negligible weight."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 1.0}
+    _layout, _out, rew = reweighted(a_blend(), calc)
+    assert [(low, upp) for _, low, upp, _, _, _, _ in rew['faint']] \
+        == [(LOW_A, ID2)]
+    assert round(rew['faint'][0][5], 4) == 0.0164
+    assert rew['kept'] == []
+
+
+def test_ordinary_shares_raise_no_warning():
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 10.0}
+    _layout, _out, rew = reweighted(a_blend(), calc)
+    assert rew['faint'] == []
+
+
+def test_a_component_with_no_intensity_at_all_leaves_the_blend_alone():
+    """A zero weight stops LOPT unless the record is flagged P or M."""
+    calc = {(LOW_A, ID1): 40.0, (LOW_B, UPP_B): 60.0, (LOW_A, ID2): 0.0}
+    _layout, out, rew = reweighted(a_blend(), calc)
+    assert rew['changed'] == []
+    assert 'no intensity at all' in rew['kept'][0][1]
+    assert lopt.record_weight(out[0]) == 0.4
+
+
+def test_a_weight_is_written_as_plainly_as_the_field_allows():
+    assert lopt.weight_text(0.5, 6) == '0.5000'
+    assert lopt.weight_text(1.0, 6) == '1.0000'
+    assert lopt.weight_text(2.5e-05, 6) == '2.5e-5'
+    assert lopt.weight_text(2.5e-05, 5) == '3e-5'   # one figure is all it fits
+    assert float(lopt.weight_text(1.234e-08, 6)) == 1.2e-08
+
+
+def test_a_blend_the_exchange_did_not_touch_is_not_reweighted():
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, LOW_A, UPP_B, weight=0.4),
+            lopt_row(1000.0, LOW_B, UPP_B, weight=0.6),
+            lopt_row(800.0, ID2, '059003.000601'),
+            lopt_row(700.0, ID1, '059003.000602')]
+    out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    out, rew = lopt.reweight_blends(out, layout, info,
+                                   {(LOW_A, UPP_B): 90.0, (LOW_B, UPP_B): 10.0})
+    assert rew['changed'] == [] and rew['kept'] == []
+    assert lopt.record_weight(out[0]) == 0.4
+
+
+def test_a_line_with_one_component_keeps_the_whole_weight():
+    calc = {(LOW_A, ID1): 40.0, (LOW_A, ID2): 10.0}
+    layout = lopt.Layout((43, 55, 59))
+    rows = [lopt_row(1000.0, LOW_A, ID1), lopt_row(800.0, ID2, UPP_B)]
+    out, info = lopt.swap_records(rows, layout, ID1, ID2)
+    out, rew = lopt.reweight_blends(out, layout, info, calc)
+    assert rew['changed'] == []
+    assert lopt.record_weight(out[0]) == 1.0
+
+
+def test_shares_are_the_intensities_over_their_sum():
+    assert lopt.shares([1.0, 3.0]) == [0.25, 0.75]
+    assert lopt.shares([0.0, 0.0]) is None
 
 
 def test_an_absent_identifier_stops_the_swap():

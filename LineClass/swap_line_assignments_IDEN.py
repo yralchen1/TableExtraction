@@ -120,6 +120,14 @@ what IDEN2 itself calls the level.  A bare run of digits is read as a row
 number and anything else as an identifier, so the two forms need no flag to
 tell them apart and may be mixed.
 
+``--index`` is a shortcut for the *lookup* and for nothing else.  What the
+script does to the two rows does not depend on how they were named: their
+observed energies, their uncertainties and their observed-line assignments
+are exchanged in ``enlev.dat`` and ``trans.dat`` in every case.  Without
+``--index`` the two identifiers are first translated into row numbers by one
+of the routes below, and the exchange then proceeds exactly as it would have
+done had the numbers been typed.
+
 A row number needs no translation and is the shortest way to name a level
 when IDEN2 is already open in front of you.  Identifiers are accepted
 because this script is the companion of
@@ -722,7 +730,9 @@ def parse_args(argv):
     p = argparse.ArgumentParser(
         description='Exchange two levels\' observed energies and observed '
                     'lines in the IDEN2 working files, keeping IDEN2\'s level '
-                    'numbering as it is.',
+                    'numbering as it is.  The two observed energies in '
+                    'enlev.dat are always exchanged; --index and --map only '
+                    'save the script the work of finding the two rows.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('id1', help='the first level: its experimental '
                                 'identifier, or its row number in enlev.dat')
@@ -732,7 +742,10 @@ def parse_args(argv):
                    help='the directory holding enlev.dat and trans.dat')
     p.add_argument('--index', nargs=2, type=int, metavar=('N1', 'N2'),
                    help='the two levels\' row numbers in enlev.dat, given '
-                        'directly instead of being looked up')
+                        'directly instead of being looked up.  This only '
+                        'saves the lookup: the two observed energies, their '
+                        'uncertainties and their line assignments are '
+                        'exchanged in enlev.dat and trans.dat either way')
     p.add_argument('--map',
                    help='a lookup table of experimental identifier and '
                         'IDEN2 level number')

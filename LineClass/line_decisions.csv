@@ -267,3 +267,8 @@ wn_obs,low_id,upp_id,decision,date,reason
 92977.225,059003.000075,059003.000365,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
 92974.394,059003.000098,059003.000391,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
 92977.225,059003.000098,059003.000391,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
+22369.177,059003.000389,059003.000613,reject,9/9/2026,IDEN2: not justified.
+54551.802,059003.000041,059003.000234,accept,9/9/2026,IDEN2/LOPT
+29405.16,059003.000172,059003.000251,accept,9/9/2026,IDEN2/LOPT
+96783.112,059003.000081,059003.000485,accept,9/10/2026,IDEN2/LOPT; multiple assignments supported by cl char.
+93973.726,059003.000101,059003.000402,reject,9/10/2026,Too small predicted intensity. Free the line for other assignments.

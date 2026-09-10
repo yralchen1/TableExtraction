@@ -209,6 +209,34 @@ The predicted intensities are held fixed while E moves.  Over the few hundred
 cm^-1 of a scan window the Boltzmann factor exp(-E/kT) with kT = 12900 cm^-1
 changes by about two per cent, far below s.
 
+THE REGISTRY OF SETTLED POSITIONS.  The scan is what makes a run slow, and
+most of it is spent re-proving what was proved last time: a level with ln R
+above FIRM_LN_R and no alternate anywhere in its window is not in doubt, and
+the great majority of the levels are in that state.  Those levels are written
+to a registry file, one line each, with a FINGERPRINT of everything their scan
+depends on: the interval scanned and its step, `--alt-drop`, the level's own
+energy, every prediction it makes (partner, partner energy, partner
+uncertainty, predicted intensity), the measured line list, the constants
+fitted to the run, and the accepted assignments lying anywhere the level's
+predictions can reach as it moves across its window.  With `--use-firm` a
+level whose fingerprint is unchanged is not scanned again.
+
+The fingerprint is deliberately LOCAL.  A run in which one relocation has been
+accepted differs from the previous one in that level, in its partners, and in
+the lines near it; a fingerprint over the run as a whole would invalidate all
+594 entries and the registry would never save anything.  As written, accepting
+a relocation costs a re-scan of the levels that share lines or partners with
+it and of nothing else.
+
+Two things guard against a stale entry being honoured.  The fingerprint is the
+first.  The second is that ln R at the adopted position is computed for every
+level on every run whether it is scanned or not - it is one evaluation, not a
+scan - so a registry entry is used only if that value still comes out within
+FIRM_TOL of the one recorded beside the fingerprint.  A level taken from the
+registry is marked `registry` in the `scanned` column; one that was scanned is
+marked `this run`.  `--no-firm` ignores the registry entirely, which is what to
+use when a result must not depend on any earlier run.
+
 6.  The audit: what to do about a level that has one
 ----------------------------------------------------
 ln R says which of two energies the lines prefer.  It does not say the
@@ -230,9 +258,15 @@ corrected gain is
     look = [ln R(alternate) - ln R(adopted)] - ln(n_alt) .
 
 THE FREE-LINE TEST.  Count only the alternate's matched rows that are
-well-centred (within FREE_SIGMA) and sit on features that no accepted
-transition claims (C = 0).  Those are the lines the level could take without
-robbing another level.  Support that is entirely blended is not support: a
+OBSERVABLE (P_obs >= P_SEEN, section 2), well-centred (within FREE_SIGMA) and
+sit on features that no accepted transition claims (C = 0).  Those are the
+lines the level could take without robbing another level.  The observability
+condition is the same one that separates n_seen from n_match, and it matters
+as much here: a prediction with a 1.5 per cent chance of having been recorded
+that nevertheless finds a line has found a coincidence, not support, and
+counting such rows inflates n_free without adding anything to free_gain -
+they are worth a few hundredths of a unit each.  Support that is entirely
+blended is not support: a
 prediction can be dumped on an already-explained feature almost anywhere, and
 the blend branch of the formula gives it credit for doing so.  Alongside it,
 top_share - the largest single row's share of all the positive evidence -
@@ -345,11 +379,17 @@ with --scan, for the best alternate position found:
                  near_level several cm^-1 away is noise; read dE_alt instead.
     near_dE      E_alternate - E(near_level), cm^-1
     question     '?' when n_alt > 0
+    scanned      `this run` when the window was scanned, `registry` when the
+                 level was taken from the registry of settled positions
+                 unchanged (section 5); the other scan columns then hold what
+                 the registry recorded
 
 with --audit, for that same alternate:
 
-    n_free       matched lines at the alternate that no accepted transition
-                 claims and that sit within FREE_SIGMA of prediction
+    n_free       OBSERVABLE matched lines at the alternate that no accepted
+                 transition claims and that sit within FREE_SIGMA of
+                 prediction.  Faint matches are coincidences and are not
+                 counted, for the reason n_match is not quoted
     free_gain    what those free lines are worth in ln R
     top_share    the largest single line's share of the positive evidence
     gain         ln_R_alt - ln_R
@@ -377,6 +417,7 @@ sorted by ln R regardless, because that is what they are for.
 """
 
 import argparse
+import hashlib
 import math
 import os
 import sys
@@ -415,6 +456,14 @@ ALT_SEP = 0.5        # cm^-1: two maxima closer than this are one maximum
 ALT_DROP = 5.0       # ln R below the adopted peak that still counts as an
                      # alternate position
 LOPT_LEVELS_FILE = os.path.join(HERE, 'LOPT_output_levels.txt')
+FIRM_LN_R = 3.0      # ln R at or above which a level with no alternate
+                     # position is settled enough to go into the registry
+FIRM_TOL = 0.5       # a registry entry is honoured only if ln R at the
+                     # adopted position still comes out within this of the
+                     # value that was recorded with it
+FIRM_FILE = 'level_positions_firm.csv'
+REACH_PAD = 5.0      # cm^-1 added to the wavenumber range a level's
+                     # predictions sweep, to cover the matching window
 
 _LN_2PI = math.log(2.0 * math.pi)
 
@@ -1010,6 +1059,18 @@ def local_maxima(y):
     return np.flatnonzero(m)
 
 
+def scan_interval(e_adopted, e_calc, window):
+    """The energies the scan covers: three configuration windows either side
+    of where the calculation puts the level, always including the adopted
+    position with five wavenumbers to spare.  Fifty wavenumbers either side of
+    the adopted position when the calculation says nothing."""
+    if not np.isfinite(e_calc) or not np.isfinite(window) or window <= 0:
+        lo, hi = e_adopted - 50.0, e_adopted + 50.0
+    else:
+        lo, hi = e_calc - 3.0 * window, e_calc + 3.0 * window
+    return min(lo, e_adopted - 5.0), max(hi, e_adopted + 5.0)
+
+
 def scan_level(ctx, level_id, e_adopted, e_calc, window, step=GRID_STEP,
                alt_drop=ALT_DROP):
     """Scan ln R across the interval the calculation allows.
@@ -1017,12 +1078,7 @@ def scan_level(ctx, level_id, e_adopted, e_calc, window, step=GRID_STEP,
     Returns a dict with the adopted value, the alternate maxima ranked by
     ln R, and the grid itself.
     """
-    if not np.isfinite(e_calc) or not np.isfinite(window) or window <= 0:
-        lo, hi = e_adopted - 50.0, e_adopted + 50.0
-    else:
-        lo, hi = e_calc - 3.0 * window, e_calc + 3.0 * window
-    lo = min(lo, e_adopted - 5.0)
-    hi = max(hi, e_adopted + 5.0)
+    lo, hi = scan_interval(e_adopted, e_calc, window)
     n = int((hi - lo) / step) + 1
     if n > GRID_MAX:
         step = (hi - lo) / (GRID_MAX - 1)
@@ -1049,6 +1105,112 @@ def scan_level(ctx, level_id, e_adopted, e_calc, window, step=GRID_STEP,
     return dict(level_id=level_id, e_adopted=e_adopted, ln_R=y_adopted,
                 e_best=float(grid[i_best]), ln_R_best=float(y[i_best]),
                 lo=lo, hi=hi, step=step, grid=grid, y=y, alternates=kept)
+
+
+# ---------------------------------------------------------------------------
+# The registry of settled positions
+# ---------------------------------------------------------------------------
+def run_digest(ctx):
+    """A hash of the ingredients of ln R that no single level owns.
+
+    The list of measured lines and the constants fitted to the run enter
+    every level's scan, so when they change no registry entry can be trusted.
+    The constants are rounded to three decimals first: they are re-fitted on
+    every run and move in the last figures even when nothing of substance has
+    changed, and a registry that threw itself away on that would never be
+    used.
+    """
+    h = hashlib.sha1()
+    for a in (ctx.wn_o, ctx.int_o, ctx.unc_o):
+        h.update(np.ascontiguousarray(a, dtype=float).tobytes())
+    h.update('\x00'.join(ctx.char_o).encode('utf-8'))
+    h.update(('%.3f|%.3f|%.3f' % (ctx.eta, ctx.s, ctx.s_L)).encode())
+    for d in (ctx.k_n, ctx.k_char, ctx.bias):
+        h.update(repr(sorted((str(k), np.round(np.asarray(v, dtype=float), 3)
+                              .tolist())
+                             for k, v in d.items())).encode())
+    return h.hexdigest()[:16]
+
+
+def accepted_index(ctx):
+    """The accepted assignments, sorted by wavenumber, each as a short string.
+
+    A level's scan sees the rest of the run only through the assignments that
+    sit on the lines its own predictions can reach: those are what set C, the
+    intensity another transition already claims on a feature, and the number
+    of components blended into it.  Keeping them in wavenumber order lets the
+    fingerprint of one level pick out exactly the ones that could affect it,
+    so that accepting a relocation invalidates the neighbours of that level
+    and nothing else.
+    """
+    a = ctx.acc
+    o = np.argsort(a['wn_obs'].to_numpy(dtype=float))
+    wn = a['wn_obs'].to_numpy(dtype=float)[o]
+    key = np.array(['%.4f|%s|%s|%.4g' % (w, lo, up, ic) for w, lo, up, ic in
+                    zip(wn, a['low_id'].to_numpy()[o],
+                        a['upp_id'].to_numpy()[o],
+                        a['calc_intens'].fillna(0.0)
+                        .to_numpy(dtype=float)[o])], dtype=object)
+    return wn, key
+
+
+def scan_fingerprint(ctx, level_id, e_adopted, e_calc, window, step, alt_drop,
+                     glob, acc_wn, acc_key):
+    """A hash of everything the scan of this one level depends on.
+
+    Two runs that give this the same value give the same scan: the interval
+    scanned and its step, the level's own energy, every prediction it makes
+    (partner, partner energy, partner uncertainty, predicted intensity), and
+    the accepted assignments lying anywhere the predictions can reach.  A
+    level is taken from the registry only when its fingerprint is unchanged
+    AND ln R at the adopted position, which is computed for every level
+    anyway, still comes out what the registry recorded.
+    """
+    lo, hi = scan_interval(e_adopted, e_calc, window)
+    h = hashlib.sha1(glob.encode())
+    h.update(('%s|%.4f|%.3f|%.3f|%.4f|%.2f'
+              % (level_id, e_adopted, lo, hi, step, alt_drop)).encode())
+    g = ctx.by_level.get(level_id)
+    if g is None:
+        return h.hexdigest()[:16]
+    keep = ~g['degenerate'] & np.isfinite(g['e_m']) & (g['i_pred'] > 0)
+    e_m, sign = g['e_m'][keep], g['sign'][keep]
+    h.update(repr(sorted(
+        '%s|%.3f|%.3f|%.4g' % (p, e, u, i) for p, e, u, i in
+        zip(g['partner'][keep], e_m, g['u_m'][keep],
+            g['i_pred'][keep]))).encode())
+    # the wavenumbers this level's predictions sweep as it moves over lo..hi
+    a = sign * (lo - e_m)
+    b = sign * (hi - e_m)
+    reach = np.zeros(len(acc_wn), dtype=bool)
+    for x, y in zip(np.minimum(a, b) - REACH_PAD, np.maximum(a, b) + REACH_PAD):
+        reach[np.searchsorted(acc_wn, x):np.searchsorted(acc_wn, y)] = True
+    h.update('\x00'.join(acc_key[reach]).encode('utf-8'))
+    return h.hexdigest()[:16]
+
+
+def read_firm(path):
+    """{level_id: row} of the registry, or {} when there is no registry."""
+    if not path or not os.path.exists(path):
+        return {}
+    t = pd.read_csv(path, dtype={'level_id': str, 'fingerprint': str})
+    return {str(r['level_id']): r for _, r in t.iterrows()}
+
+
+def write_firm(path, rows, log=print):
+    """Write the registry, newest verdict per level, in energy order."""
+    cols = ['level_id', 'E', 'ln_R', 'scan_width', 'fingerprint']
+    t = pd.DataFrame(rows, columns=cols)
+    # an empty registry is still written: the alternative is to leave the
+    # entries of a previous run standing for levels this run has just found
+    # alternates for
+    t = t.sort_values('E').reset_index(drop=True)
+    t['E'] = t['E'].round(4)
+    t['ln_R'] = t['ln_R'].round(3)
+    t['scan_width'] = t['scan_width'].round(1)
+    output_files.require_writable([path], 'registry file')
+    t.to_csv(path, index=False, lineterminator='\n')
+    log(f"registry: {len(t)} settled levels written to {path}")
 
 
 # ---------------------------------------------------------------------------
@@ -1083,10 +1245,82 @@ def report_table(ctx, level_ids):
     return pd.DataFrame(rows)
 
 
-def print_detail(ctx, level_id):
-    e = ctx.e_final[level_id]
+def iden2_identities(per, en, tol=li.ENLEV_MATCH_TOL):
+    """{level_id: (index in enlev.dat, label)} for the levels of the run.
+
+    The two lists share no key, so they are tied by energy exactly as
+    level_interchange.attach_identities ties them: a level of the run is the
+    starred - experimentally found - row of enlev.dat whose observed energy is
+    nearest, if that row is within `tol`.  The index is the running number in
+    column 1 of enlev.dat, which is the level id IDEN2 shows on the screen,
+    and it is what a detail table has to print if the table is to be read
+    beside IDEN2 without looking every partner up by hand.
+    """
+    known = en[en['known']].sort_values('E_obs').reset_index(drop=True)
+    e_arr = known['E_obs'].to_numpy(dtype=float)
+    out = {}
+    for lid, e in zip(per['level_id'], per['E_final']):
+        if not len(e_arr):
+            break
+        i = int(np.argmin(np.abs(e_arr - float(e))))
+        if abs(e_arr[i] - float(e)) <= tol:
+            out[str(lid)] = (int(known['idx'][i]), str(known['label'][i]))
+    return out
+
+
+def detail_energy(ctx, level_id, at, alt_drop=ALT_DROP):
+    """The energy --detail is to be evaluated at, and how it was arrived at.
+
+    ``at`` is None for the adopted position, the word ``alt`` for the best
+    alternate the scan finds - which is the position an audit row proposes,
+    and the one there is any point inspecting when the report suggests a move
+    - or an energy in cm^-1.
+    """
+    e_adopted = ctx.e_final[level_id]
+    if at is None:
+        return e_adopted, 'the adopted position'
+    if str(at).strip().lower() != 'alt':
+        return float(at), 'the energy asked for'
+    en = li.read_enlev()
+    win = li.configuration_windows(en)
+    lv, _ = li.attach_identities(ctx.per, en, win)
+    e_calc = dict(zip(lv['level_id'], lv['E_calc']))
+    w_of = dict(zip(lv['level_id'], lv['W']))
+    r = scan_level(ctx, level_id, e_adopted, e_calc.get(level_id, np.nan),
+                   w_of.get(level_id, np.nan), alt_drop=alt_drop)
+    if not r['alternates']:
+        return e_adopted, 'the adopted position - the scan finds no alternate'
+    e_a = r['alternates'][0][0]
+    return e_a, ('the best of the %d alternate positions, %+.4f cm^-1 from '
+                 'the adopted one' % (len(r['alternates']), e_a - e_adopted))
+
+
+def print_detail(ctx, level_id, at=None, show_all=False,
+                 alt_drop=ALT_DROP):
+    """The per-transition table for one level, at one energy.
+
+    Only the rows worth looking at are printed: the observable predictions
+    (P_obs >= P_SEEN) and any row that found a line, whether observable or
+    not.  The rest - and there are usually a hundred or more of them, faint
+    predictions to distant partners that were never going to be recorded -
+    are counted and left out, since they say nothing about the position and
+    burying the handful that matter is what makes the full table useless.
+    ``--detail-all`` prints them anyway.
+
+    The `what` column is the one to read against the audit row: `free` marks
+    the observable, well-centred matches on features no accepted transition
+    claims, which are exactly the n_free of the audit; `blend` a match on a
+    feature that is already explained; `off` a match too far out to count as
+    free; `faint` a match to a prediction that could not have been recorded,
+    which is a coincidence; `-` an absence.
+    """
+    e, how = detail_energy(ctx, level_id, at, alt_drop)
     v, tab = ln_ratio(ctx, level_id, np.array([e]), detail=True)
-    print(f"\nlevel {level_id} at E = {e:.4f} cm^-1")
+    ident = iden2_identities(ctx.per, li.read_enlev())
+    own = ident.get(str(level_id))
+    print(f"\nlevel {level_id} at E = {e:.4f} cm^-1 - {how}")
+    if own:
+        print(f"  IDEN2 level {own[0]}  {own[1]}")
     print(f"ln R = {float(v[0]):+.2f} over {0 if tab is None else len(tab)} "
           f"predicted transitions")
     if tab is None:
@@ -1095,23 +1329,46 @@ def print_detail(ctx, level_id):
     print(f"  {int(g['degenerate'].sum())} predictions dropped: the partner "
           f"has no accepted line of its own")
     m = tab['matched'].to_numpy(dtype=bool)
+    seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
+    d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
+    c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
+    w = tab['W'].to_numpy(dtype=float)
+    free = seen & m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
+    what = np.where(~m, '-',
+                    np.where(~seen, 'faint',
+                             np.where(c > 0, 'blend',
+                                      np.where(free, 'free', 'off'))))
     print(f"  {int(m.sum())} matched, contributing {tab['ln_R'][m].sum():+.2f}; "
           f"{int((~m).sum())} absent, costing {tab['ln_R'][~m].sum():+.2f}")
+    print(f"  {int(seen.sum())} of the predictions could have been recorded "
+          f"(P_obs >= {P_SEEN:g}); {int(free.sum())} free supporting lines "
+          f"worth {tab['ln_R'].to_numpy()[free].sum():+.2f}")
+    show = np.ones(len(tab), dtype=bool) if show_all else (seen | m)
+    hidden = int((~show).sum())
+    if hidden:
+        print(f"  {hidden} faint predictions that found no line are not "
+              f"listed (--detail-all lists them)")
     print()
-    hdr = (f"{'partner':<14}{'nu':>12}{'I_pred':>10}{'P_obs':>7}"
-           f"{'wn_obs':>12}{'d':>8}{'I_obs':>10}{'C':>10}{'lnG':>7}{'lnR':>8}")
+    hdr = (f"{'partner':<14}{'IDEN2':>6} {'label':<12}{'E_partner':>12}"
+           f"{'nu':>12}{'I_pred':>10}{'P_obs':>7}{'wn_obs':>12}{'d':>8}"
+           f"{'I_obs':>10}{'C':>10}{'lnG':>7}{'lnR':>8}  what")
     print(hdr)
     print('-' * len(hdr))
-    for _, r in tab.iterrows():
+    for (_, r), tag, keep in zip(tab.iterrows(), what, show):
+        if not keep:
+            continue
+        pid = str(r['partner'])
+        idx, label = ident.get(pid, ('', ''))
+        e_m = ctx.e_final.get(pid, float('nan'))
+        head = (f"{pid:<14}{idx:>6} {label:<12}{e_m:>12.3f}"
+                f"{r['nu']:>12.3f}{r['I_pred']:>10.1f}{r['P_obs']:>7.3f}")
         if r['matched']:
-            print(f"{r['partner']:<14}{r['nu']:>12.3f}{r['I_pred']:>10.1f}"
-                  f"{r['P_obs']:>7.3f}{r['wn_obs']:>12.3f}{r['d']:>8.3f}"
+            print(f"{head}{r['wn_obs']:>12.3f}{r['d']:>8.3f}"
                   f"{r['I_obs']:>10.1f}{r['C']:>10.1f}{r['ln_G']:>7.2f}"
-                  f"{r['ln_R']:>8.2f}")
+                  f"{r['ln_R']:>8.2f}  {tag}")
         else:
-            print(f"{r['partner']:<14}{r['nu']:>12.3f}{r['I_pred']:>10.1f}"
-                  f"{r['P_obs']:>7.3f}{'-':>12}{'-':>8}{'-':>10}{'-':>10}"
-                  f"{'-':>7}{r['ln_R']:>8.2f}")
+            print(f"{head}{'-':>12}{'-':>8}{'-':>10}{'-':>10}"
+                  f"{'-':>7}{r['ln_R']:>8.2f}  {tag}")
 
 
 # ---------------------------------------------------------------------------
@@ -1146,10 +1403,14 @@ def j_value(j):
 def support(ctx, level_id, e):
     """What the position E rests on: its free lines, their weight, its spread.
 
-    A matched prediction is FREE support when the observed feature is claimed
-    by no other accepted transition (C = 0) and the line sits within
-    FREE_SIGMA of where it is predicted.  Those are the lines the level can
-    take without robbing another level of its evidence; support that is
+    A matched prediction is FREE support when it could have been recorded
+    at all (P_obs >= P_SEEN), the observed feature is claimed by no other
+    accepted transition (C = 0), and the line sits within FREE_SIGMA of where
+    it is predicted.  Without the first condition a prediction with a 1.5 per
+    cent chance of being recorded counts as support the moment any line
+    happens to lie within the matching window - a coincidence, and the same
+    one that makes n_match the number not to quote.  Those are the lines the
+    level can take without robbing another level of its evidence; support that is
     entirely blended is not support, because a prediction can be dumped on an
     already-explained feature almost anywhere.
 
@@ -1167,9 +1428,9 @@ def support(ctx, level_id, e):
     c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
     w = tab['W'].to_numpy(dtype=float)
     r = tab['ln_R'].to_numpy(dtype=float)
-    free = m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
-    pos = r[m & (r > 0.0)]
     seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
+    free = seen & m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
+    pos = r[m & (r > 0.0)]
     return dict(ln_R=float(v[0]), n_free=int(free.sum()),
                 free_gain=float(r[free].sum()),
                 n_obs_alt=int(seen.sum()),
@@ -1362,17 +1623,18 @@ def print_audit(tab, alt_drop):
             'n_free', 'free_gain', 'top_share', 'n_vacant', 'z_alt']
     with pd.option_context('display.width', 220, 'display.max_columns', 24):
         print(f"\n  firm grounds for relocation ({len(firm)}):")
-        print(firm[cols].to_string(index=False) if len(firm) else '    none')
+        print(firm[cols].to_string(index=False, na_rep='-')
+              if len(firm) else '    none')
         swap = pref[pref['action'] == 'interchange']
         if len(swap):
             print(f"\n  interchanges, for level_interchange.py ({len(swap)}):")
             print(swap[cols + ['near_level', 'near_dE']].to_string(
-                index=False))
+                index=False, na_rep='-'))
         rf = pref[pref['action'] == 'refit']
         if len(rf):
             print(f"\n  the level stays; an accepted line is dragging the fit "
                   f"({len(rf)}):")
-            print(rf[cols].to_string(index=False))
+            print(rf[cols].to_string(index=False, na_rep='-'))
     hole = pref[(pref['action'] == 'relocate') & (pref['n_vacant'] > 0)]
     if len(hole):
         print(f"\n  {len(hole)} of the relocations sit where the calculation "
@@ -1388,6 +1650,15 @@ def parse_args(argv):
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     p.add_argument('--detail', metavar='LEVEL_ID',
                    help='per-transition table for one level')
+    p.add_argument('--at', metavar='E|alt', default=None,
+                   help='energy at which --detail is evaluated: a value in '
+                        'cm^-1, or "alt" for the best alternate position the '
+                        'scan finds - the one an audit row proposes moving '
+                        'to (default: the adopted position)')
+    p.add_argument('--detail-all', action='store_true',
+                   help='--detail lists every prediction, including the faint '
+                        'ones that could not have been recorded and found no '
+                        'line (default: only the observable and the matched)')
     p.add_argument('--scan', action='store_true',
                    help='scan the alternate-position window of every level')
     p.add_argument('--audit', action='store_true',
@@ -1400,6 +1671,20 @@ def parse_args(argv):
                         'alternate position (default %(default)s)')
     p.add_argument('--step', type=float, default=GRID_STEP,
                    help='scan step in cm^-1 (default %(default)s)')
+    p.add_argument('--firm', default=FIRM_FILE, metavar='PATH',
+                   help='registry of the levels whose position is settled - '
+                        'ln R at least %g and no alternate anywhere in the '
+                        'window.  It is rewritten by every --scan or --audit '
+                        'run (default %%(default)s)' % FIRM_LN_R)
+    p.add_argument('--no-firm', dest='firm', action='store_const', const=None,
+                   help='neither read nor write the registry')
+    p.add_argument('--use-firm', action='store_true',
+                   help='do not re-scan the levels the registry calls '
+                        'settled, when nothing their scan depends on has '
+                        'changed since it was written.  This is what makes a '
+                        'second run fast; a level is re-scanned the moment '
+                        'its energy, one of its partners, or an accepted '
+                        'assignment within reach of its predictions moves')
     p.add_argument('--lopt', default=None,
                    help='build the run from a LOPT line-output file')
     p.add_argument('--lopt-levels', default=None)
@@ -1415,10 +1700,13 @@ def main(argv=None):
     if not args.detail:
         output_files.require_writable(output_files.with_twin(args.out),
                                       'report file')
+        if args.firm and (args.scan or args.audit):
+            output_files.require_writable([args.firm], 'registry file')
     ctx = build(args)
 
     if args.detail:
-        print_detail(ctx, args.detail)
+        print_detail(ctx, args.detail, args.at, args.detail_all,
+                     args.alt_drop)
         return 0
 
     ids = args.levels if args.levels else list(ctx.per['level_id'])
@@ -1431,9 +1719,17 @@ def main(argv=None):
         lv, unmatched = li.attach_identities(ctx.per, en, win)
         e_calc = dict(zip(lv['level_id'], lv['E_calc']))
         w_of = dict(zip(lv['level_id'], lv['W']))
+        registry = read_firm(args.firm)
+        known = registry if args.use_firm else {}
+        if registry and not args.use_firm:
+            print(f"\nthe registry {args.firm} calls {len(registry)} levels "
+                  f"settled; --use-firm skips their scans")
+        glob = run_digest(ctx)
+        acc_wn, acc_key = accepted_index(ctx)
         print(f"\nscanning {len(ids)} levels "
               f"({len(unmatched)} matched no row of enlev.dat)")
         n_alt, best_alt, d_alt, sep, width = [], [], [], [], []
+        scanned, fresh = [], {k: dict(v) for k, v in registry.items()}
         # a maximum that falls on another level of the run is a different
         # question from one that falls on empty energy: the first is an
         # interchange, which level_interchange.py judges on evidence this
@@ -1443,10 +1739,38 @@ def main(argv=None):
         o = np.argsort(lev_e)
         lev_e, lev_id = lev_e[o], lev_id[o]
         alt_lev, alt_lev_dE = [], []
-        for lid in tab['level_id']:
-            r = scan_level(ctx, lid, ctx.e_final[lid],
-                           e_calc.get(lid, np.nan), w_of.get(lid, np.nan),
+        for lid, ln_r in zip(tab['level_id'], tab['ln_R']):
+            e_a, ln_r = ctx.e_final[lid], float(ln_r)
+            ec, wd = e_calc.get(lid, np.nan), w_of.get(lid, np.nan)
+            fp = scan_fingerprint(ctx, lid, e_a, ec, wd, args.step,
+                                  args.alt_drop, glob, acc_wn, acc_key)
+            was = known.get(str(lid))
+            if (was is not None and str(was['fingerprint']) == fp
+                    and abs(ln_r - float(was['ln_R'])) <= FIRM_TOL):
+                # nothing this level's scan depends on has moved, and ln R at
+                # the adopted position still comes out what it did: the scan
+                # would find the same empty window it found last time
+                scanned.append('registry')
+                n_alt.append(0)
+                width.append(float(was['scan_width']))
+                best_alt.append(np.nan)
+                d_alt.append(np.nan)
+                sep.append(np.nan)
+                alt_lev.append('')
+                alt_lev_dE.append(np.nan)
+                fresh[str(lid)] = dict(level_id=lid, E=e_a, ln_R=ln_r,
+                                       scan_width=float(was['scan_width']),
+                                       fingerprint=fp)
+                continue
+            scanned.append('this run')
+            r = scan_level(ctx, lid, e_a, ec, wd,
                            step=args.step, alt_drop=args.alt_drop)
+            if not r['alternates'] and ln_r >= FIRM_LN_R:
+                fresh[str(lid)] = dict(level_id=lid, E=e_a, ln_R=ln_r,
+                                       scan_width=r['hi'] - r['lo'],
+                                       fingerprint=fp)
+            else:
+                fresh.pop(str(lid), None)
             n_alt.append(len(r['alternates']))
             width.append(r['hi'] - r['lo'])
             if r['alternates']:
@@ -1474,6 +1798,13 @@ def main(argv=None):
         tab['near_level'] = alt_lev
         tab['near_dE'] = alt_lev_dE
         tab['question'] = np.where(np.asarray(n_alt) > 0, '?', '')
+        tab['scanned'] = scanned
+        n_cached = scanned.count('registry')
+        if n_cached:
+            print(f"  {n_cached} of them were taken from the registry and not "
+                  f"re-scanned")
+        if args.firm:
+            write_firm(args.firm, list(fresh.values()))
         if args.audit:
             tab = audit_table(ctx, tab, e_calc, w_of, vacancies(en))
 
@@ -1502,13 +1833,38 @@ def main(argv=None):
                 'near_dE']
         with pd.option_context('display.width', 200,
                                'display.max_columns', 24):
-            print(q.sort_values('d_ln_R')[cols].head(40).to_string(index=False))
+            print(q.sort_values('d_ln_R')[cols].head(40)
+                  .to_string(index=False, na_rep='-'))
+        # An empty action is not a clean bill of health.  It means the scan
+        # found no alternate, which is reassuring only when the adopted
+        # position is itself well supported; when it is not, the level has
+        # nothing holding it where it is AND nowhere better to go, and it is
+        # the hardest case in the report rather than the safest.  The audit
+        # cannot show these - it lists levels that have an alternate - so
+        # they are listed here.
+        stuck = tab[(tab['n_alt'] == 0) & (tab['ln_R'] < FIRM_LN_R)]
+        print(f"\n{len(stuck)} levels have no alternate anywhere in the "
+              f"window AND ln R below {FIRM_LN_R:g} where they stand.  They "
+              f"carry no action, because there is nothing to propose moving "
+              f"them to;\n  that is not a clean bill of health.  The lines do "
+              f"not support them where they are and the scan has nothing "
+              f"better to offer, so what is wrong with them - if\n  anything "
+              f"is - lies outside the window the calculation allows, or in "
+              f"the lines assigned to them:")
+        if len(stuck):
+            with pd.option_context('display.width', 200,
+                                   'display.max_columns', 24):
+                print(stuck.sort_values('ln_R')[
+                    ['level_id', 'E', 'n_pred', 'n_obs', 'n_seen', 'n_miss',
+                     'ln_R', 'scan_width']].to_string(index=False,
+                                                      na_rep='-'))
     if 'action' in tab.columns:
         print_audit(tab, args.alt_drop)
     with pd.option_context('display.width', 200,
                            'display.max_columns', 24):
         print("\nthe twenty weakest positions:")
-        print(tab.sort_values('ln_R').head(20).to_string(index=False))
+        print(tab.sort_values('ln_R').head(20)
+              .to_string(index=False, na_rep='-'))
     return 0
 
 

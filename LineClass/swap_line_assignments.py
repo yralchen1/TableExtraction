@@ -50,6 +50,19 @@ workbook changes.  The calculated transitions are keyed by the pair of level
 identifiers, and an identifier keeps its calculated identity through the
 exchange; it is the measurement that moves.
 
+The calculated intensities are, however, READ.  Where two transitions fall
+on one measured line - a blend - the LOPT transitions file divides that
+line's weight between them in proportion to the intensities the calculation
+predicts for them, and the exchange gives the moved component a different
+pair of levels and therefore a different predicted intensity.  The first
+step recomputes those shares from ``Icalc.xlsx``, by the same rule
+``make_LOPT_input.py`` uses, and reports every weight it changes.  It
+recomputes a blend only when the calculated file covers all of its
+components and when recomputing the shares the file already carries
+reproduces them, so that a transitions file written by an older run is left
+alone rather than silently reweighted; ``--no-reweight`` turns the whole of
+it off.
+
 The order of work
 -----------------
 This script runs the three in the order above and stops at the first one
@@ -90,7 +103,13 @@ Usage
 
 Both arguments are experimental level identifiers: the LOPT files and the
 pipeline know levels by nothing else.  ``--index`` gives IDEN2's two row
-numbers when they are known, which saves that step a lookup.
+numbers when they are known, which saves that step a lookup and nothing
+else: the IDEN2 step exchanges the two levels' observed energies, their
+uncertainties and their observed-line assignments in ``enlev.dat`` and
+``trans.dat`` whether or not it is given.  Left to itself it finds the two
+rows by matching each identifier's energy in the level table against the
+observed energies in ``enlev.dat``, which is the state before the exchange,
+so run this before the next LOPT run or name the rows with ``--index``.
 
 Every file name each step needs is looked for first in the directory the
 command was run from and then in the directory holding these scripts, so
@@ -144,11 +163,31 @@ def parse_args(argv):
                         'exchanges the two energies itself')
     p.add_argument('--index', nargs=2, type=int, metavar=('N1', 'N2'),
                    help='the two levels\' row numbers in enlev.dat, passed '
-                        'to the IDEN2 step so that it need not look them up')
+                        'to the IDEN2 step so that it need not look them up.  '
+                        'That step exchanges the two observed energies and '
+                        'all their line assignments in enlev.dat and '
+                        'trans.dat with or without it')
+    p.add_argument('--legacy-orders', action='store_true',
+                   help='passed to the pipeline step: write a reject and an '
+                        'accept into the decision ledger for every '
+                        'identification of the published line list held by '
+                        'either level.  classify_lines.py now carries those '
+                        'identifications over by itself, from the exchange '
+                        'recorded in the level overrides, so they are not '
+                        'written unless this is given')
     p.add_argument('--rejects-only', action='store_true',
-                   help='passed to the pipeline step: for an identification '
-                        'of the published line list write only the reject at '
-                        'the level it names')
+                   help='passed to the pipeline step: with --legacy-orders, '
+                        'for an identification of the published line list '
+                        'write only the reject at the level it names')
+    p.add_argument('--no-reweight', action='store_true',
+                   help='passed to the LOPT step: do not recompute the shares '
+                        'of the blends the exchange disturbs from the '
+                        'calculated intensities; carry the old shares over')
+    p.add_argument('--reweight-tol', type=float, metavar='W',
+                   help='passed to the LOPT step: how far a recomputed old '
+                        'share may sit from the weight the transitions file '
+                        'carries before the blend is left alone as written '
+                        'by another run')
     p.add_argument('--date', help='passed to the pipeline step: the date '
                                   'written into the rows it adds')
     p.add_argument('--force', action='store_true',
@@ -214,12 +253,19 @@ def step_argv(step, args):
         argv.append('--dry-run')
     if args.no_backup:
         argv.append('--no-backup')
-    if step == 'iden':
+    if step == 'lopt':
+        if args.no_reweight:
+            argv.append('--no-reweight')
+        if args.reweight_tol is not None:
+            argv += ['--reweight-tol', str(args.reweight_tol)]
+    elif step == 'iden':
         if args.index:
             argv += ['--index', str(args.index[0]), str(args.index[1])]
         if args.force:
             argv.append('--force')
     elif step == 'pipeline':
+        if args.legacy_orders:
+            argv.append('--legacy-orders')
         if args.rejects_only:
             argv.append('--rejects-only')
         if args.date:
