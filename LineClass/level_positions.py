@@ -52,7 +52,9 @@ maximum of ln R sharp rather than flat.  Write
                 tools/coverage_map.py, D the detection curve measured by
                 tools/obscuration_rate.py, both reached through
                 level_shifts.observation_probability
-    rho_t     the density of observed lines near nu_t, per cm^-1
+    rho_t     the density near nu_t, per cm^-1, of the lines that are NOT
+                accounted for by the level list - the unrelated ones, which
+                are what a coincidence is drawn from (section 4a)
     eta       the probability that a genuine recorded line sits at an
               anomalous position - a corrupted measurement, a misread blend -
               so that its position carries no information (section 4)
@@ -81,9 +83,9 @@ the residuals of this run are measurably heavy-tailed, |t| > 4 occurring twenty
 times as often as a Gaussian allows.
 
 Two consequences worth stating in the other direction.  A well-centred line on
-an open plate has N(0, sigma)/rho of about 25 for the typical sigma = 0.1 cm^-1
-and rho = 0.04 lines per cm^-1 of this spectrum, so it is worth ln R_t = +3.2,
-and ten of them e^32.  A missing prediction costs ln(1 - p), which is bounded,
+an open plate has N(0, sigma)/rho of about 40 for the typical sigma = 0.1 cm^-1
+and rho = 0.039 unrelated lines per cm^-1 of this spectrum, so it is worth
+ln R_t = +3.7, and ten of them e^37.  A missing prediction costs ln(1 - p), which is bounded,
 small where the plate is blind or the line is at the noise, and near ln(eta)
 only for a prediction that was certain to be seen.
 
@@ -102,8 +104,10 @@ ln(I_obs / I_pred) measured on the accepted lines,
     claimed feature   G_t = N(ln I_obs; ln((C + I_t) f), s)
                           / N(ln I_obs; ln(C f), s)
 
-with g the local distribution of ln I_obs over the observed line list, which is
-what an unrelated line would have been drawn from.  Both numerator and
+with g the local distribution of ln I_obs over the UNRELATED lines - not over
+the observed list as a whole, which is dominated by the identified and
+therefore bright ones - since that is what a coincidence would have been drawn
+from (section 4a).  Both numerator and
 denominator are densities of the same variable, so no Jacobian survives.
 
 Each N above is floored at g on ONE side - where the feature is brighter than
@@ -117,6 +121,29 @@ density is astronomically small - so a level collects enormous credit for
 "explaining" a brightness the components it is compared with never claimed to
 explain.  One such row was worth ln G = +22, and it alone moved a solidly
 established level 219 cm^-1 onto the position of a different real level.
+
+Two readings of a match, and the row is worth the better of them.  A matched
+free feature can be read as being the transition - position drawn from
+N(d; 0, sigma_t) against the local line density rho, brightness from
+N(ln I_obs; ln(I_t f), s) against g - or as a feature that is there in any
+case, carrying light nobody has identified, with the transition hidden in it.
+Under the second reading H0 has the line present with certainty, so rho_t is
+1/(2 W_t) as for a blend and the brightness says nothing either way; its
+attainable value is 3.2 against the first reading's 25.  R_t takes whichever
+is larger.
+
+Taking the floor of the intensity term without also replacing rho was the
+error: it read the brightness under the second hypothesis and the position
+under the first, so a prediction of I = 0.2 landing on a feature of 13372 kept
+the whole of the positional credit - ln R_t = +1.4 for a transition with a
+1.5 per cent chance of having been recorded at all.  Rows of that kind are the
+strong observed line assigned to the very weak transition, the assignment
+classify_lines refuses and the analyst leaves free for a better one, and half
+a dozen of them carried four levels of the audit to alternate positions.  A
+genuine line under-predicted by a factor of thirty is unharmed: the first
+reading is still much the better one for it, and it goes on being read that
+way.  A row the second reading wins counts as neither free support nor
+evidence in the level offset.
 
 This is the blend penalty (factor 3), and it is not an added term but the same
 formula with two densities changed.  Under H0 a claimed feature is present with
@@ -160,28 +187,206 @@ it has not earned.
 Everything the formula needs is fitted to the run itself, by build(), and
 printed at the head of the report so that no number in it is a guess.
 
-sigma_t.  The quoted wavenumber uncertainty of the matched line, inflated by
-two measured factors and combined with the partner energy uncertainty:
+sigma_t.  The wavenumber uncertainty of the matched line, built from the three
+things that are known to widen a feature, and combined with the partner energy
+uncertainty:
 
-    sigma_t^2 = (k(n) k(char) unc_wn_obs)^2 + u_M^2
+    sigma_t^2 = (k(n) sigma_meas)^2 + w_hfs(low)^2 + w_hfs(upp)^2 + u_M^2
 
-k(n) is the rms of t = (wn_obs - rwn)/unc_wn_obs among features carrying n
+    sigma_meas^2 = (dlam(era) 1e-8 nu^2)^2 + u_F^2 + (dlam(char) 1e-8 nu^2)^2
+                                                     + k(char)^2
+
+The first two terms are the measurement itself: a wavelength-constant reading
+error dlam - 0.0030 A for the 1974 measurements, 0.0040 A for the 1969 ones -
+converted to wavenumber by 1e-8 nu^2, plus a constant precision floor
+u_F = 0.0055 cm^-1.  A wavelength-constant width grows as nu^2, so the two
+cross at about 43000 cm^-1.  Both are measured, not assumed: among the plain
+lines whose quoted uncertainty follows that rule the residual scatter needs
+nothing whatever beyond it (1579 lines of 1974, rms of residual/sigma = 1.00).
+
+The last two terms are the line's recorded character.  Every blend and
+resolution code - w wide, d double, bl blended, ch complex and hazy, c complex
+(1974), cl perturbed by a close neighbouring line (1969, the NIST code 'p'),
+h hazy - widens the feature by an amount of its own, fitted by maximum
+likelihood on the accepted lines of the run.
+
+Which form that amount takes is a question about where the width comes from,
+and the two possible answers are physically different.  A width that comes
+from READING the plate - deciding where the middle of a smeared or doubled
+image lies - is a length on the plate, so it is constant in wavelength and
+grows as nu^2 in wavenumber; these are CHAR_DLAM, in A.  A width that belongs
+to the LINE - an unresolved structure inside the feature itself - is a
+constant in wavenumber, the same number of cm^-1 wherever the line falls;
+these are CHAR_DWN, in cm^-1.  Each code is fitted both ways and given the
+form its own residuals prefer.
+
+Most codes choose the wavelength form, which is what they should choose: c is
+a complex feature and cl a line pulled off centre by a close neighbour, and
+both are difficulties of deciding where on the plate the line lies.  (They are
+not the same code differently spelled - c is complex, cl is perturbed - and
+their widths, 0.034 A and 0.0044 A, have no reason to agree.)  w (wide) chooses
+the other form, by 12 units of ln L over its 312
+lines, and says so twice over: split into four bands of wavenumber the fitted
+excess is 0.023, 0.030, 0.019, 0.045 cm^-1 - flat within its errors - while
+the same four bands expressed as a wavelength fall 0.0060, 0.0027, 0.0013,
+0.0025 A, a factor of five across the range.  That is what 'wide' should mean
+if the mark records a feature that is genuinely broader than the instrument
+rather than one that was awkward to read, and it halves the width the old
+wavelength fit gave at the blue end while nearly doubling it at the red.
+
+These fits exclude the lines LOPT marks S = '*' (whose observed value IS the
+Ritz value, by construction), F = 'P' (predicted, not observed), and those
+whose Ritz wavenumber is not firm enough to test the observation
+(uWnCtot > 0.5 uWnOTot); a blended feature enters once, through LOPT's own
+centroid deviation dEcent, never once per component.
+
+w_hfs is hyperfine structure, and belongs to the LEVEL, not to the line: an
+unresolved hyperfine pattern displaces every line that touches that level, by
+an amount set by the level's hyperfine splitting and therefore constant in
+WAVENUMBER, not in wavelength.  The residuals say so plainly - over the band
+holding 255 of the 285 flagged 1974 lines the excess is flat at 0.133 cm^-1
+while its wavelength equivalent moves by 26 %, and the likelihood prefers the
+wavenumber form by 138 units of ln L.  One width per level is fitted to the
+1974 lines alone (fit_hfs_widths, --fit-hfs) and stored in
+level_hfs_widths.csv; the levels that need more than HFS_MARK are marked.
+
+A level with fewer than HFS_MIN_LINES lines of 1974 has no width the fit can
+measure, and used to be given zero.  That is the one place the model was
+plainly wrong: such a level is not a level without hyperfine structure, it is
+a level whose hyperfine structure nobody has measured.  It is now given the
+typical width of its CONFIGURATION instead (configuration_widths), which is
+what the physics says governs a hyperfine splitting - an s electron reaches
+the nucleus and feels its magnetic moment, a 5f or 5g electron does not - and
+which the fitted widths bear out without being told: over the levels the fit
+can constrain, 4f2.6s has a median width of 0.063 cm^-1 with 82 % of its
+levels above the gate, while every configuration with no penetrating outer
+electron has a median of zero; a permutation test on the configuration labels
+gives p < 5e-5.  The rule is worth 445 units of held-out ln L over the 2057
+accepted unblended 1974 lines, five-fold, against 22 (5-95 %: -42 to +129)
+when the configuration labels are shuffled among the levels, and 462 of those
+445 are earned by 31 lines alone: the ones Sugar marked *r or *v, which are
+given no character width precisely because w_hfs is meant to carry them, and
+whose level the fit could not reach.  It changes nothing for a level the fit
+can constrain, and u_F is unmoved by it - re-fitted on the clean plain 1974
+lines with the configuration widths in place it comes out 0.0054 (0.0049 -
+0.0060) cm^-1, against 0.0050 (0.0045 - 0.0056) without them.
+The fit rediscovers Sugar's own flags without being shown them - 89 % of the
+*r lines and 61 % of the *v lines land on a marked level, against 4 % of the
+unflagged ones - and then predicts the 1969 region out of sample: unflagged
+1969 lines on marked levels go from rms 1.60 to 1.05 when the width is carried
+across unchanged, and lines on unmarked levels do not move.  So the flag itself
+is not used: a line gets the hyperfine width of its two levels whatever its
+character, which is the only way the unflagged ones can be reached.
+
+k(n) is the rms of t = (wn_obs - rwn)/sigma_meas among features carrying n
 accepted transitions - about 1.01 unblended and 1.47 for a two-component blend,
-so a blend is less well placed than its already inflated uncertainty admits.
-k(char) is the same rms by line-character code, on residuals already divided by
-k(n).  Both are shrunk toward 1 by a pseudo-count so that a code with five
-lines does not acquire a factor of its own.  u_M is the partner level D1 from
+so a blend is less well placed than the model for its width admits.  It is
+shrunk toward 1 by a pseudo-count so that a class of five lines does not
+acquire a factor of its own.  u_M is the partner level D1 from
 LOPT_output_levels.txt, 0.002 - 0.03 cm^-1; adding it in quadrature slightly
 overstates sigma, since the two are positively correlated, and the direction is
 conservative.
 
+The quoted unc_wn_obs of the line list is used only where the model cannot
+speak for it.  A flagged line's quoted value is the reading rule times a fixed
+factor of its code and carries nothing the code does not already say, so the
+model replaces it; a line with no character flag whose quoted value exceeds the
+rule can only have been widened by a deliberate judgement made when the list
+was compiled, so there the larger of the two is kept.  Two codes are dropped
+outright: ** (multiply classified) duplicates k(n), which prices multiplicity
+already, and *v / *r (hyperfine, shaded violet or red) are replaced by w_hfs,
+which needs no character excess on top of it once the per-level widths are in
+(rms 1.015 and 0.941 with nothing added).
+
 eta is fitted by maximum likelihood on the accepted lines, as the mixing weight
 that makes (1 - eta) N(d; 0, sigma) + eta rho fit their residuals best.
 
-rho(nu) is the local density of the observed line list, from the K nearest
-recorded lines; g(ln I | lambda) is the local mean and spread of ln I_obs over
-a wider neighbourhood; s and s_L are the within- and between-level spreads of
-the intensity residual over levels with at least five accepted lines.
+rho(nu) and g(ln I | lambda) are the rate and the brightness distribution of
+the unrelated lines, and section 4a is about nothing else; s and s_L are the
+within- and between-level spreads of the intensity residual over levels with at
+least five accepted lines.
+
+
+4a.  rho and g: the lines that belong to nothing yet known
+----------------------------------------------------------
+rho_t is the rate at which a line the level under test has nothing to do with
+turns up near nu_t, and g is the brightness such a line would have.  Both were
+first measured on the whole recorded list, from the K nearest lines.  That is
+the wrong population, and it is wrong in both halves.  Of the 6668 recorded
+lines, 4526 already carry an accepted transition: they are identified, they are
+by construction explained without the level under test, and they are also the
+bright ones, because a line was identified in the first place partly by being
+strong enough to measure well.  Only the remaining 2142 are candidates for a
+coincidence.  Using all 6668 puts rho about two and a half times too high, and
+puts the mean of g about 0.6 in ln I too high.
+
+The free lines are not a mystery.  A recorded line that carries no accepted
+transition is, in this spectrum, almost always a transition of a level that the
+calculation predicts and nobody has yet found: 658 of the 1253 calculated
+levels of IDEN2/enlev.dat are in that state, 61290 of their E1 transitions have
+a partner that HAS been found, and summing the probability P_t that each of
+those would have been recorded gives about 2970 expected lines - of the same
+order as the 2142 free ones actually there.  Cowan's full transition list,
+tp_E1_no_trials.xlsx, therefore predicts the very population rho and g are
+supposed to describe, and it predicts its structure as well as its size: the
+expected rate runs from 0.001 per cm^-1 below 10000 to 0.052 near 55000, more
+than an order of magnitude, which no single number and no 41-nearest-neighbour
+smoothing of 2142 sparse lines can express.
+
+An unfound level's energy is known only to W, the rms of E_obs - E_calc over
+the found levels of its configuration, 40 to 800 cm^-1, so a single one of its
+transitions predicts no position.  Smeared over W it predicts a RATE, which is
+exactly what a Poisson background needs:
+
+    rho_unk(nu) = sum over unfound-level transitions of
+                  P_t * N(nu; nu_calc, W_cfg)                 per cm^-1
+
+and, with the same weights, the mean and spread of ln(I_t f) give the
+brightness such a line would have.  unknown_transition_background() builds
+both, as one convolution per configuration width.
+
+Two estimates of one population, then, and they are combined by taking the
+LARGER of them - the larger rate, and the larger of the two brightness
+densities.  That is the conservative direction, since a bigger background is a
+smaller ln R, and it is the same device as the two readings of a match in
+section 3: an unrelated line is allowed whichever account of itself is the
+better, the one the free lines actually recorded suggest or the one the
+calculation predicts for a level still missing.  The result is capped above by
+the all-lines density, which the free lines are a subset of, and floored at
+RHO_BG_FLOOR of it, because both estimates extrapolate where no free line is
+near and an extrapolated density must not buy unbounded credit; the brightness
+half is floored the same way, at LN_BG_DROP below the all-lines value.
+
+Where this does NOT apply.  A CLAIMED feature keeps the all-lines rate and the
+all-lines g: there the question is the blend one, rho_t has already been
+replaced by 1/(2 W_t), and the one-sided floor of ln_intensity is a floor - a
+guard against an astronomically small denominator - for which the more generous
+distribution is the safer one.  Nor does rho_unk enter the "hidden in a feature
+that is there anyway" reading.  That reading compares a world in which the
+observed feature is an unrelated line with one in which the same unrelated line
+has the transition blended into it; the feature is observed in both, so its
+rate cancels and only the probability that the transition falls inside it,
+2 W N(d; 0, sigma), survives.
+
+What it costs and what it changes.  Reading the transition list adds about two
+seconds to build().  Because the correction removes a background that was too
+large, every level's ln R rises - the median of this run from 22.4 to 31.6, a
+little under one unit per matched free line - so FIRM_LN_R and any threshold
+read off an absolute ln R mean something slightly different than they did
+before.  Differences between two positions of the SAME level, which is what the
+scan and the audit are about, are much less affected: the shift is common to
+both positions wherever they match the same number of free lines.
+
+The effect worth knowing about is on the alternate positions.  Summed over the
+593 levels, the local maxima within --alt-drop of the adopted peak fall from
+2823 to 1912, and the levels carrying a question mark from 85 to 68: a third of
+the alternate positions were manufactured by the background itself, a
+coincidence scored against a rate two and a half times too low looking like a
+match, and enough of those in one window raising a maximum.  That also loosens
+the look-elsewhere correction, which is ln(n_alt) - 059003.000228 becomes firm
+grounds for relocation not because its alternate gained but because the rival
+maxima in its window fell from 107 to 10 - so the corrected gains want reading
+with that in mind.  --plain-background restores the old behaviour exactly.
 
 Transitions that carry no positional information are dropped, which is the
 caveat the alignment factor needs: a prediction is dropped when its partner
@@ -286,14 +491,41 @@ looked like an undiscovered level, and the nearest unfound calculated level of
 J = 9/2 is 6900 cm^-1 away in the odd system and 18900 in the even one.  There
 is nothing there to find.
 
-What survives is sorted into five dispositions, named rather than ranked
-because they are five different pieces of work: `interchange` (the alternate
+What survives is sorted into six dispositions, named rather than ranked
+because they are six different pieces of work: `interchange` (the alternate
 lands on another level of the run - level_interchange.py's question, on
-evidence this scan does not use), `refit` (the alternate is a fraction of a
-wavenumber away, so the level stays and some accepted line is dragging the
-LOPT fit), `relocate` (a free position, broadly supported, surviving the
-look-elsewhere correction), `weak` (a free position with thin support) and
-`no support`.
+evidence this scan does not use), `refit` (the level stays where it is and
+some accepted line is dragging the LOPT fit), `top line` (the same short move,
+but the line it gives up is the level's strongest), `relocate` (the level
+moves: a free position, broadly supported, surviving the look-elsewhere
+correction), `weak` (a move whose support is thin) and `no support`.
+
+WHAT SEPARATES A REFIT FROM A RELOCATION is not how far the alternate lies -
+it is whether the level keeps the recorded lines it is assigned now.  n_own
+counts those lines and n_kept how many of them the alternate still matches.
+A level that keeps most of them stays where it is: one bad assignment is
+pulling the LOPT fit a fraction of a wavenumber off the position its own
+lines want, and correcting it is a refit and nothing more (059003.000457
+keeps six of its seven at a position 0.5 cm^-1 away).  A level that keeps
+none of them has to be re-identified however short the move: every one of its
+present assignments is dropped, another set is made, and the level is entered
+in a ledger at a new position (059003.000617 keeps NONE of its three at a
+position 1.3 cm^-1 away).  Sorting the two by distance put them side by side
+under the same heading and told the reader to do the opposite of the work.
+
+AND COUNTING THE LINES IS NOT ENOUGH, because the one being given up is
+usually the one that matters.  kept_light weighs what n_kept counts: the share
+of the level's own observed light the alternate still matches, each feature's
+measured intensity split among its accepted components by branching fraction
+so that a level is never credited with the whole of a blend.  059003.000457 is
+the case - six of its seven lines survive a move of 0.51 cm^-1, which reads as
+one bad line dragging the fit, but the line it drops is its strongest by an
+order of magnitude (kept_light = 0.155) and the Ritz mismatch the move removes
+is the mismatch of the level's brightest branch.  Removing it improves the fit
+by construction and leaves the level deprived of the transition that most
+defines it, which is a thing to explain and not a thing to discard.  That row
+is called `top line`, and what wants opening in IDEN2 is the line, not the
+position.
 
 One caution the report repeats, because it is the easiest mistake to make with
 this tool: LEVELS SHARE LINES, so every ln R is conditional on the rest of the
@@ -408,7 +640,7 @@ with --audit, for that same alternate:
 
 THE ORDER OF THE ROWS.  The report is written best-first, so it can be read
 from the top: with --audit, relocations before interchanges before refits
-before the weak ones, and within each group the largest look-elsewhere
+before the levels giving up their strongest line before the weak ones, and within each group the largest look-elsewhere
 corrected gain; with --scan alone, the largest gain; with neither, the weakest
 positions first, since a plain report is a list of complaints.  The csv keeps
 that order.  The tables printed under "the twenty weakest positions" are
@@ -432,6 +664,7 @@ import chance_mc as mc                        # noqa: E402
 import output_files                          # noqa: E402
 import classify_lines as cl                   # noqa: E402
 import level_interchange as li                # noqa: E402
+import cowan_gA                               # noqa: E402
 import level_shifts as ls                     # noqa: E402
 import lopt_lines                             # noqa: E402
 
@@ -443,12 +676,68 @@ Q_OUT = 2.0 * 0.5 * math.erfc(N_SIGMA / math.sqrt(2.0))   # 6.3e-5
 K_RHO = 41           # recorded lines averaged for the local line density
 K_BG = 201           # recorded lines averaged for the local intensity spread
 K_UNC = 101          # recorded lines averaged for the local uncertainty
+K_RHO_FREE = 21      # free lines averaged for the local free-line density
+K_BG_FREE = 101      # free lines averaged for their local intensity spread
+UNK_STEP = 20.0      # cm^-1, the grid the modelled unknown-level background is
+                     # accumulated on; far finer than the configuration windows
+                     # that smear it, which are 40 - 800 cm^-1
+UNK_SMEAR_MIN = 10.0 # cm^-1, the narrowest smearing used for an unfound level,
+                     # so that no configuration ever contributes a spike
+RHO_BG_FLOOR = 0.05  # the background rate of unrelated lines is never taken
+                     # below this fraction of the all-lines density: both
+                     # estimates of it extrapolate where there is no free line
+                     # nearby, and this caps the credit that extrapolation can
+                     # buy at ln 20 = 3.0 per matched row
+LN_BG_DROP = 3.0     # and the same cap on the intensity half: the H0 density
+                     # of a free feature's brightness is never more than this
+                     # far below the all-lines value
 SHRINK_N = 25.0      # pseudo-count pulling k(n) toward 1
-SHRINK_CHAR = 50.0   # pseudo-count pulling k(char) toward 1
-K_WORST = 1.6        # the largest k(n) k(char) the run produces, used
-                     # to widen the matching window (see ln_ratio)
+K_WORST = 1.6        # the largest k(n) the run produces, used to widen the
+                     # matching window (see ln_ratio)
 ETA_MAX = 0.25       # upper bound of the anomalous-position rate
 MIN_LEVEL_LINES = 5  # accepted lines a level needs to enter the s_L estimate
+
+# --- the wavenumber-uncertainty model of section 4 -------------------------
+UNC_FLOOR = 0.0055   # cm^-1, the precision floor every measurement carries
+ERA_SPLIT = 47500.0  # cm^-1: above it the 1969 measurements, below the 1974
+DLAM_ERA = {'1974': 0.0030, '1969': 0.0040}   # A, the plain reading error
+CHAR_DLAM = {        # A, the wavelength-constant excess of each character,
+                     # fitted jointly with the per-level hyperfine widths
+    ('1974', 'd'): 0.0073,     # double
+    ('1974', 'ch'): 0.0103,    # complex and hazy
+    ('1974', 'c'): 0.0337,     # complex
+    ('1974', 'bl'): 0.0085,    # blended (2 lines; the 1969 value)
+    ('1974', 'h'): 0.0082,     # hazy (3 lines; the 1969 value)
+    ('1969', 'cl'): 0.0044,    # perturbed by a close neighbouring line
+                               # (Sugar's own words); the NIST code 'p'
+    ('1969', 'h'): 0.0082,     # hazy
+    ('1969', 'bl'): 0.0085,    # blended
+    ('1969', 'w'): 0.0104,     # wide: 21 lines in the list, one of which
+                     # survives the Ritz cut, so the 1974 refit below could
+                     # not be repeated here; the wavelength value is kept
+                     # because it is the larger of the two
+}
+CHAR_DWN = {         # cm^-1, the WAVENUMBER-constant excess of a character:
+                     # a width belonging to the line itself rather than to the
+                     # reading of the plate (see section 4)
+    ('1974', 'w'): 0.0251,     # wide (312 lines)
+}
+HFS_FILE = os.path.join(HERE, 'level_hfs_widths.csv')
+LEVEL_IDS = os.path.join(HERE, 'IDEN2', 'IDEN_level_ids.txt')
+HFS_APPLY = 0.02     # cm^-1: a fitted width below this is noise of the fit
+                     # and is not applied to any line
+HFS_MARK = 0.08      # cm^-1: above this the level is reported as having a
+                     # large hyperfine structure
+HFS_MIN_LINES = 4    # 1974 lines a level needs before its width is believed
+HFS_CFG_MIN = 3      # levels of its own the configuration needs before its
+                     # typical width is used for a level the fit cannot
+                     # constrain; below that the list-wide width is used
+HFS_PRIOR = 0.02     # cm^2: the scale of the exponential prior on the fitted
+                     # variances, which pulls an unsupported level to zero
+HFS_MAX = 4.0        # cm^2, the upper bound of one level's fitted variance
+HAND_FACTOR = 1.5    # how far above the usual quoted value of its own class a
+                     # line must be quoted before the quoted value is read as a
+                     # deliberate widening and honoured
 GRID_STEP = 0.02     # cm^-1, the scan step
 GRID_MAX = 300000    # cap on the number of scan points per level
 BLOCK = 4000         # scan points evaluated in one array operation
@@ -553,7 +842,21 @@ def ln_intensity(x, predicted, s, ln_bg):
     """
     m = np.log(np.maximum(np.asarray(predicted, dtype=float), 1e-300))
     ln_n = ln_norm(x, m, s)
-    return np.where((x > m) & (ln_bg > ln_n), ln_bg, ln_n)
+    return np.where(intensity_floored(x, predicted, s, ln_bg), ln_bg, ln_n)
+
+
+def intensity_floored(x, predicted, s, ln_bg):
+    """Where the floor of ln_intensity binds: the feature is already light.
+
+    True marks a feature so much brighter than everything predicted on it
+    that an unrecognised line accounts for its brightness better than the
+    prediction does.  Charging that excess against the position would be
+    wrong, which is what the floor is for; crediting the position with having
+    found the feature is the same mistake with its sign reversed, and that is
+    what the second reading of a match in ln_ratio is for.
+    """
+    m = np.log(np.maximum(np.asarray(predicted, dtype=float), 1e-300))
+    return (x > m) & (ln_bg > ln_norm(x, m, s))
 
 
 def ln_norm(x, mu, sd):
@@ -600,6 +903,10 @@ def fit_k_blend(t, n, log):
             continue
         ms = float(np.mean(t[m] ** 2))
         k = math.sqrt((cnt * ms + SHRINK_N) / (cnt + SHRINK_N))
+        # never below 1: the width model of section 4 is what the measurement
+        # itself is worth, and a class whose residuals happen to fall inside it
+        # buys no licence to quote the position better than it was measured
+        k = max(k, 1.0)
         out[nb] = k
         rows.append((nb, cnt, math.sqrt(ms), k))
     log("  blend inflation of the position uncertainty, k(n):")
@@ -608,23 +915,399 @@ def fit_k_blend(t, n, log):
     return out
 
 
-def fit_k_char(t, char, log):
-    """k(char): the same by line-character code, on t already divided by k(n)."""
-    out, rows = {}, []
-    for c in sorted(set(char)):
-        m = (char == c)
-        cnt = int(m.sum())
-        ms = float(np.mean(t[m] ** 2))
-        k = math.sqrt((cnt * ms + SHRINK_CHAR) / (cnt + SHRINK_CHAR))
-        out[c] = k
-        rows.append((c, cnt, math.sqrt(ms), k))
-    rows.sort(key=lambda r: -r[1])
-    log("  character-code inflation, k(char) (codes with 20 lines or more):")
-    for c, cnt, rms, k in rows:
-        if cnt >= 20:
-            log(f"    {c if c else '(none)':<8s} N={cnt:5d}  rms={rms:.3f}  "
-                f"k={k:.3f}")
+# ---------------------------------------------------------------------------
+# The width of an observed feature (section 4)
+# ---------------------------------------------------------------------------
+def normalize_char(c):
+    """The character code of a line, reduced to the published vocabulary.
+
+    The raw column mixes three kinds of mark.  A trailing '**' says the line is
+    multiply classified, which is not a property of the feature at all and is
+    priced by k(n); it is stripped.  '*v' and '*r' say the feature is shaded
+    violet or red by an unresolved hyperfine pattern; they become 'hfs', which
+    carries no width of its own because the per-level widths carry it.  What
+    is left is one of the resolution codes - w, d, bl, ch, c, cl, h - or the
+    empty string for a line with no mark.
+    """
+    s = str(c or '').strip()
+    if s in ('*v', '*r'):
+        return 'hfs'
+    while s.endswith('*'):
+        s = s[:-1]
+    return s.strip()
+
+
+def era_of(wn):
+    """'1969' above ERA_SPLIT, '1974' below: which measurement a line is from."""
+    return np.where(np.asarray(wn, dtype=float) > ERA_SPLIT, '1969', '1974')
+
+
+def meas_sigma(wn, char, unc=None):
+    """sigma_meas: the reading error, the precision floor and the character.
+
+    Vectorized over arrays of wavenumber and of raw character code.  `unc` is
+    the quoted unc_wn_obs of the line list; it is honoured only where it says
+    something the model cannot - see the last paragraph of section 4.  The test
+    is made against the line's own class: within a class the quoted value is
+    the reading rule times one fixed factor, so a line quoted more than
+    HAND_FACTOR times the usual value of its class was widened by hand when the
+    list was compiled, on knowledge no flag records, and its quoted value is
+    then used as a floor.  The medians are taken from the lines passed in, so
+    nothing about the factors has to be assumed.
+    """
+    wn = np.asarray(wn, dtype=float)
+    code = np.array([normalize_char(c) for c in np.atleast_1d(char)])
+    era = era_of(wn)
+    dl = np.array([DLAM_ERA[e] for e in np.atleast_1d(era)])
+    dc = np.array([CHAR_DLAM.get((e, c), 0.0)
+                   for e, c in zip(np.atleast_1d(era), code)])
+    kc = np.array([CHAR_DWN.get((e, c), 0.0)
+                   for e, c in zip(np.atleast_1d(era), code)])
+    rule = np.sqrt(((dl * wn ** 2) * 1e-8) ** 2 + UNC_FLOOR ** 2)
+    s = np.sqrt(rule ** 2 + ((dc * wn ** 2) * 1e-8) ** 2 + kc ** 2)
+    if unc is None:
+        return s
+    unc = np.asarray(unc, dtype=float)
+    good = np.isfinite(unc) & (unc > 0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratio = np.where(good, unc / rule, np.nan)
+    typical = np.ones(len(wn))
+    for key in set(zip(era, code)):
+        m = (era == key[0]) & (code == key[1])
+        if m.sum() >= 5 and np.isfinite(ratio[m]).any():
+            typical[m] = np.nanmedian(ratio[m])
+    hand = good & (ratio > HAND_FACTOR * np.maximum(typical, 1.0))
+    return np.where(hand, np.maximum(unc, s), s)
+
+
+def configuration_widths(w_hfs, n_1974, cfg):
+    """The typical hyperfine width of each configuration, in cm^-1.
+
+    A level's hyperfine splitting is set by how strongly its outer electron
+    feels the nuclear magnetic moment, and that is a property of which
+    orbitals the electron occupies - the level's CONFIGURATION - far more than
+    of anything else about it.  An s electron has a non-zero probability
+    density at the nucleus and feels the moment directly (the Fermi contact
+    term); a 5f or 5g electron does not come near it.  141Pr is the only
+    isotope, so there is no isotope shift to confuse this with, and the
+    ordering the fitted widths come out in is the ordering that argument
+    predicts: 4f2.6s at 0.111 cm^-1, then the configurations with a 6p or a
+    5d2, then the pure 4f3 and the non-penetrating 4f2.5f and 4f2.5g at zero.
+
+    So a level with too few lines of its own for a width to be fitted is not
+    a level with no hyperfine structure; it is a level whose hyperfine
+    structure has not been measured, and the best estimate of it is what the
+    levels of the same configuration show.  That is what this returns: for
+    each configuration the root mean square of the widths APPLIED to the
+    levels of that configuration the fit can constrain - the mean of the
+    variances, which is the quantity that adds in quadrature and therefore
+    the one to predict with.  Levels below the gate count as the zeros they
+    are, so a configuration whose levels are all narrow gets a narrow width.
+
+    A configuration with fewer than HFS_CFG_MIN determined levels cannot speak
+    for itself, and is answered for by the electron that decides the question
+    anyway - the outermost one.  Its orbital is taken from the label and the
+    levels of every configuration with that same outer orbital are pooled: 4f
+    5d.6s has one determined level of its own and would say nothing, but its
+    outer electron is the same 6s as 4f2.6s's, and that is a 6s electron's
+    answer to give.  Failing that the levels are pooled by the orbital LETTER
+    alone - every s, every d - which still separates a penetrating outer
+    electron from one that never reaches the nucleus, and only failing that
+    does the list-wide value apply.  Each step is wider than the truth more
+    often than narrower, which is the safe direction: a width can only make a
+    sigma larger and a position less certain.
+
+    Returns (dict key -> width, the list-wide width).  The keys are
+    configurations, then outer orbitals ("6s"), then orbital letters ("s");
+    width_for() walks them in that order.
+    """
+    w = np.asarray(w_hfs, dtype=float)
+    n = np.asarray(n_1974, dtype=float)
+    cfg = np.asarray([str(c or '') for c in cfg])
+    sup = n >= HFS_MIN_LINES
+    var = np.where(w > HFS_APPLY, w, 0.0) ** 2
+    wide = math.sqrt(var[sup].mean()) if sup.any() else 0.0
+    out = {}
+    if not sup.any():
+        return out, wide
+    orb = np.array([outer_orbital(c) for c in cfg])
+    for keys in (cfg, orb, np.array([o[-1:] for o in orb])):
+        for k in sorted(set(keys[sup])):
+            m = sup & (keys == k)
+            if k and k not in out and int(m.sum()) >= HFS_CFG_MIN:
+                out[k] = math.sqrt(var[m].mean())
+    return out, wide
+
+
+def outer_orbital(cfg):
+    """The outermost orbital of an enlev.dat configuration, as "6s" or "5d".
+
+    IDEN2 runs the open shells together, each an orbital letter optionally
+    preceded by its principal quantum number and followed by its occupation -
+    "f26p" is 4f^2.6p, "fd6p" is 4f.5d.6p, "4f3" is 4f^3 - so a digit BEFORE a
+    letter is that letter's principal quantum number and a digit after it is
+    an occupation.  The last shell written is the outermost one, which is the
+    electron whose penetration of the nucleus decides the hyperfine splitting.
+    A principal quantum number IDEN2 leaves out is left out here too, so "f"
+    and "d" are their own keys; that costs nothing, because the letter-only
+    pooling catches them.
+    """
+    cfg = str(cfg or '')
+    last = ''
+    i = 0
+    while i < len(cfg):
+        ch = cfg[i].lower()
+        if ch in li._ORBITAL_L:
+            pre = cfg[i - 1] if i and cfg[i - 1].isdigit() else ''
+            last = pre + ch
+            if i + 1 < len(cfg) and cfg[i + 1].isdigit():
+                i += 1
+        i += 1
+    return last
+
+
+def width_for(cfg, widths, wide):
+    """The width to give a level of this configuration that the fit could not
+    measure: its configuration's, else its outer orbital's, else that
+    orbital's letter, else the list-wide value."""
+    orb = outer_orbital(cfg)
+    for k in (str(cfg or ''), orb, orb[-1:]):
+        if k and k in widths:
+            return widths[k]
+    return wide
+
+
+def read_hfs_widths(path=HFS_FILE, log=None):
+    """The hyperfine width applied to each level, from level_hfs_widths.csv.
+
+    The file's w_applied column already holds the rule of section 4: a level
+    the fit can constrain - HFS_MIN_LINES lines of 1974 or more - carries its
+    own fitted width if that width clears HFS_APPLY, and a level the fit
+    cannot constrain carries the typical width of its configuration instead of
+    zero.  Files written before that column existed are read the old way, so
+    an old level_hfs_widths.csv still works.
+    """
+    if not os.path.exists(path):
+        if log:
+            log(f"  no {os.path.basename(path)}: no hyperfine widths applied")
+        return {}
+    d = pd.read_csv(path, dtype={'level_id': str})
+    if 'w_applied' in d.columns:
+        d = d[d['w_applied'] > 0]
+        col, kind = 'w_applied', d.get('w_source')
+        n_cfg = int((kind == 'configuration').sum()) if kind is not None else 0
+    else:
+        d = d[(d['w_hfs'] > HFS_APPLY) & (d['n_1974'] >= HFS_MIN_LINES)]
+        col, n_cfg = 'w_hfs', 0
+    out = {str(k): float(v) for k, v in zip(d['level_id'], d[col])}
+    big = sum(1 for v in out.values() if v > HFS_MARK)
+    if log:
+        log(f"  hyperfine widths: {len(out)} levels carry one, "
+            f"{min(out.values(), default=0):.3f} - "
+            f"{max(out.values(), default=0):.3f} cm^-1; {big} of them above "
+            f"{HFS_MARK} cm^-1 are marked as having a large hyperfine "
+            f"structure; {n_cfg} of them are the typical width of the level's "
+            f"configuration, the fit having too few lines to measure its own")
     return out
+
+
+def hfs_pair(w_hfs, low, upp):
+    """w_hfs(low)^2 + w_hfs(upp)^2 for arrays of level identifiers."""
+    a = np.array([w_hfs.get(str(x), 0.0) for x in np.atleast_1d(low)])
+    b = np.array([w_hfs.get(str(x), 0.0) for x in np.atleast_1d(upp)])
+    return a ** 2 + b ** 2
+
+
+def read_level_configs(levels, log=None, enlev=None, ids=None):
+    """level_id -> dominant configuration, from IDEN2/enlev.dat.
+
+    The two lists are tied by IDEN2/IDEN_level_ids.txt, the table that gives
+    every level identifier the number of its row in enlev.dat.  That table is
+    the authority, and it is the one thing that survives a level being moved:
+    when a position is edited in IDEN2 the energy in enlev.dat changes and the
+    row number does not.  Matching on energy instead loses exactly those
+    levels - four of them in the run of 2026-09-11, each shifted 0.5 - 1.1
+    cm^-1 beyond level_interchange.ENLEV_MATCH_TOL.
+
+    Energy matching is kept only for a level the table does not list, and a
+    level that neither route finds is reported: every level of the set the
+    pipeline and LOPT use is in enlev.dat, so a miss means the lookup is
+    broken and wants a human, not a silent fallback width.
+    """
+    try:
+        en = li.read_enlev(enlev or li.ENLEV)
+        cfg_of_row = dict(zip(en['idx'].astype(int), en['cfg']))
+    except Exception as exc:                      # no IDEN2 files, say
+        if log:
+            log(f"  no configurations ({exc}): every level takes the "
+                f"list-wide hyperfine width")
+        return {}
+
+    want = [str(k) for k in levels['level_id']]
+    out = {}
+    try:
+        row_of_id = {v: k for k, v in
+                     cowan_gA.read_id_map(ids or LEVEL_IDS).items()}
+    except Exception as exc:
+        row_of_id = {}
+        if log:
+            log(f"  IDEN_level_ids.txt could not be read ({exc}); "
+                f"falling back to matching on energy")
+    for lid in want:
+        row = row_of_id.get(lid)
+        if row in cfg_of_row:
+            out[lid] = str(cfg_of_row[row] or '')
+
+    left = [k for k in want if k not in out]
+    if left:                                      # not in the table: by energy
+        try:
+            win = li.configuration_windows(en)
+            sub = levels[[str(k) in set(left) for k in levels['level_id']]]
+            lv, unmatched = li.attach_identities(
+                sub.assign(E_final=sub['E_input']), en, win)
+            for k, c in zip(lv['level_id'], lv['cfg']):
+                if str(c or ''):
+                    out[str(k)] = str(c)
+        except Exception as exc:
+            if log:
+                log(f"  energy matching failed ({exc})")
+
+    missing = [k for k in want if not out.get(k)]
+    if log:
+        log(f"  configurations: {len(want) - len(missing)} of {len(want)} "
+            f"levels read from enlev.dat through IDEN_level_ids.txt")
+        if missing:
+            log(f"  {len(missing)} levels are in neither the table nor the "
+                f"energy window and take the list-wide hyperfine width - "
+                f"every level of the fit should be in enlev.dat, so this "
+                f"wants checking: {', '.join(missing[:8])}"
+                + (' ...' if len(missing) > 8 else ''))
+    return out
+
+
+def fit_hfs_widths(acc, levels, log=print):
+    """One hyperfine width per level, by maximum likelihood on the 1974 lines.
+
+    The model is sigma^2 = base^2 + v(low) + v(upp), with base the measurement
+    and character part of section 4 and v >= 0 one variance per level.  Only
+    the 1974 lines are used: below ERA_SPLIT the measurement base is 0.006 -
+    0.01 cm^-1 and a hyperfine width of 0.1 - 0.3 cm^-1 stands out of it, while
+    above it the base alone is 0.29 cm^-1 at 85000 cm^-1 and the same width is
+    invisible.  Carrying the widths across that boundary unchanged is then a
+    genuine out-of-sample prediction, and it is what makes the treatment
+    believable; see section 4.
+
+    An exponential prior of scale HFS_PRIOR on the sum of the variances keeps a
+    level with two lines and one large residual from acquiring a width.
+
+    k(n) and the widths are fitted together, by alternating: a k(n) measured
+    with no hyperfine term in the base comes out too large, because a blend
+    that happens to sit on a wide level charges its width to the blending, and
+    the inflated k(n) then leaves nothing for the level to explain.  Four
+    passes settle it.
+
+    Returns a frame with one row per level, ready to be written to
+    level_hfs_widths.csv.
+    """
+    from scipy.optimize import minimize
+
+    a = acc.dropna(subset=['rwn', 'wn_obs', 'low_id', 'upp_id']).copy()
+    meas = meas_sigma(a['wn_obs'].to_numpy(),
+                      a['char'].fillna('').astype(str).to_numpy(),
+                      a['unc_wn_obs'].to_numpy(dtype=float))
+    nb = a['n_accepted'].fillna(1).to_numpy(dtype=float)
+    r_all = (a['wn_obs'] - a['rwn']).to_numpy()
+
+    ids = sorted(set(a['low_id'].astype(str)) | set(a['upp_id'].astype(str)))
+    idx = {k: i for i, k in enumerate(ids)}
+    # every level the accepted lines touch, not only those of the level list:
+    # a level added by this run carries lines before it carries a position
+    e_of = dict(zip(levels['level_id'].astype(str), levels['E_input']))
+    level_cfg = read_level_configs(
+        pd.DataFrame({'level_id': ids,
+                      'E_input': [e_of.get(k, np.nan) for k in ids]}), log)
+    lo_all = a['low_id'].astype(str).map(idx).to_numpy()
+    up_all = a['upp_id'].astype(str).map(idx).to_numpy()
+    n = len(ids)
+    prior = 1.0 / HFS_PRIOR
+
+    # the fit of the widths themselves sees the 1974 lines only
+    f74 = (a['wn_obs'] <= ERA_SPLIT).to_numpy()
+    lo, up, r = lo_all[f74], up_all[f74], r_all[f74]
+
+    v = np.zeros(n)
+    for _ in range(4):
+        # the widths the last pass could support, as the production model
+        # would apply them
+        cnt74 = pd.concat([a.loc[f74, 'low_id'].astype(str),
+                           a.loc[f74, 'upp_id'].astype(str)]).value_counts()
+        vt = np.array([v[idx[k]] if (math.sqrt(v[idx[k]]) > HFS_APPLY
+                                     and cnt74.get(k, 0) >= HFS_MIN_LINES)
+                       else 0.0 for k in ids])
+        kn = fit_k_blend(r_all / np.sqrt(meas ** 2 + vt[lo_all] + vt[up_all]),
+                         nb, lambda *_: None)
+        b2 = (np.array([kn.get(int(x), 1.0) for x in nb]) * meas)[f74] ** 2
+
+        def nll(x):
+            s2 = b2 + x[lo] + x[up]
+            val = 0.5 * np.sum(np.log(s2) + r ** 2 / s2) + prior * np.sum(x)
+            g0 = 0.5 * (1.0 / s2 - r ** 2 / s2 ** 2)
+            g = np.full(n, prior)
+            np.add.at(g, lo, g0)
+            np.add.at(g, up, g0)
+            return val, g
+
+        v = minimize(nll, np.full(n, 0.005), jac=True, method='L-BFGS-B',
+                     bounds=[(0.0, HFS_MAX)] * n,
+                     options={'maxiter': 2000}).x
+    w = np.sqrt(np.maximum(v, 0.0))
+    a = a[f74]
+
+    cnt = pd.concat([a['low_id'].astype(str),
+                     a['upp_id'].astype(str)]).value_counts()
+    lv = levels.set_index(levels['level_id'].astype(str))
+    out = pd.DataFrame({
+        'level_id': ids,
+        'w_hfs': np.round(w, 4),
+        'n_1974': [int(cnt.get(k, 0)) for k in ids],
+        'E_input': [lv['E_input'].get(k, np.nan) for k in ids],
+        'J': [lv['J'].get(k, '') for k in ids],
+        'parity': [lv['parity'].get(k, '') for k in ids],
+        'cfg': [level_cfg.get(k, '') for k in ids],
+    })
+
+    # the width each level will actually be given: its own where the fit can
+    # measure one, its configuration's where it cannot - see
+    # configuration_widths
+    wc, wide = configuration_widths(out['w_hfs'], out['n_1974'], out['cfg'])
+    sup = out['n_1974'] >= HFS_MIN_LINES
+    own = np.where(out['w_hfs'] > HFS_APPLY, out['w_hfs'], 0.0)
+    fall = np.array([width_for(c, wc, wide) for c in out['cfg']])
+    out['w_applied'] = np.round(np.where(sup, own, fall), 4)
+    out['w_source'] = np.where(sup, 'level', 'configuration')
+    out.loc[out['w_applied'] <= 0, 'w_source'] = ''
+
+    used = out[out['w_applied'] > 0]
+    marked = used[used['w_applied'] > HFS_MARK]
+    n_own = int(((out['w_source'] == 'level') & (out['w_applied'] > 0)).sum())
+    n_cfg = int((out['w_source'] == 'configuration').sum())
+    log(f"  hyperfine widths fitted on {len(a)} lines of 1974 over "
+        f"{n} levels; {len(used)} will be applied - {n_own} the level's own "
+        f"fitted width above {HFS_APPLY} cm^-1 on {HFS_MIN_LINES} lines or "
+        f"more, {n_cfg} the typical width of the level's configuration where "
+        f"the fit has too few lines to measure one; {len(marked)} above "
+        f"{HFS_MARK} cm^-1 are marked as large")
+    log('  configuration widths, cm^-1: '
+        + ', '.join(f'{c} {v:.4f}'
+                    for c, v in sorted(wc.items(), key=lambda t: -t[1]))
+        + f'; anything else {wide:.4f}')
+    pooled = out.loc[out['w_source'] == 'configuration', 'cfg']
+    pooled = sorted(set(c for c in pooled if c not in wc))
+    if pooled:
+        log('  answered for by the outer electron: '
+            + ', '.join(f'{c} -> {outer_orbital(c) or "?"} '
+                        f'{width_for(c, wc, wide):.4f}' for c in pooled))
+    return out.sort_values('level_id').reset_index(drop=True)
 
 
 def fit_eta(d, sigma, rho, log):
@@ -714,6 +1397,204 @@ def complete_accepted(acc, ctx, log=print):
     return acc
 
 
+def unknown_transition_background(ctx, log=print):
+    """The modelled density of recorded lines that belong to unfound levels.
+
+    Every level of the calculation that has not yet been found - 658 of the
+    1253 rows of IDEN2/enlev.dat in this run - still has a place in Cowan's
+    E1 transition list, and every one of its transitions to a level that HAS
+    been found predicts a wavenumber, an intensity, and, through the coverage
+    and detection curves, a probability P_obs that such a line would have been
+    recorded.  Those are exactly the lines that make up the free part of the
+    observed list: features nobody has identified because the level at one end
+    of them is not yet known.
+
+    The wavenumber is predicted only to the width W of the level's
+    configuration - the rms of E_obs - E_calc over the found levels of that
+    configuration, 40 to 800 cm^-1 - so a single transition does not predict a
+    position.  Smeared over W it predicts a RATE, which is the object a Poisson
+    background needs.  Each transition contributes P_obs of a line spread as a
+    normal density of width W about its calculated wavenumber, and the
+    accumulated rate is the density of unrelated lines that the calculation
+    says should be there, per cm^-1.
+
+    Returns ``(grid, rate, mu, sd)``: the wavenumber grid, the rate on it, and
+    the mean and spread of ln I of those same transitions - their predicted
+    intensities put on the observed scale by the far-ultraviolet correction
+    f(lambda) - which is what an unrelated line's BRIGHTNESS would have been
+    drawn from if it belongs to a level nobody has found.  Returns None if the
+    transition list or the calculated level list is not available, in which
+    case only the empirical estimate is used and the report says so.
+    """
+    try:
+        import unfound_levels as uf
+    except Exception as exc:                                  # pragma: no cover
+        log(f"  unfound-level background unavailable: {exc}")
+        return None
+    quiet = (lambda *a, **k: None)
+    try:
+        en, trans, mapping = uf.read_theory(log=quiet)
+        per_cfg, whole = uf.windows(en, log=quiet)
+        e_meas = uf.measured_energies(en, e_final=ctx.e_final, log=quiet)
+        t = uf.unfound_transitions(en, trans, mapping, e_meas, log=quiet)
+        t = uf.attach_windows(t, en, per_cfg, whole)
+        t = uf.observation_probabilities(t, ctx)
+    except Exception as exc:                                  # pragma: no cover
+        log(f"  unfound-level background unavailable: {exc}")
+        return None
+    if not len(t):
+        return None
+
+    wn = t['wn'].to_numpy(dtype=float)
+    p = t['P_obs'].to_numpy(dtype=float)
+    ipr = t['I_pred'].to_numpy(dtype=float)
+    wid = np.maximum(t['W'].to_numpy(dtype=float), UNK_SMEAR_MIN)
+    f = scale_factor_vec(wn, ctx.bias)
+    keep = (np.isfinite(wn) & (wn > cl.WN_MIN) & (wn < cl.WN_MAX)
+            & np.isfinite(p) & (p > 0) & (ipr > 0) & np.isfinite(f) & (f > 0))
+    wn, p, ipr, wid = wn[keep], p[keep], ipr[keep], wid[keep]
+    x = np.log(ipr * f[keep])
+
+    edges = np.arange(cl.WN_MIN, cl.WN_MAX + UNK_STEP, UNK_STEP)
+    grid = 0.5 * (edges[:-1] + edges[1:])
+    rate = np.zeros(len(grid))
+    s1 = np.zeros(len(grid))
+    s2 = np.zeros(len(grid))
+    # One convolution per distinct configuration width, which is a few dozen
+    # kernels rather than 61290 of them.
+    for w0 in np.unique(wid):
+        m = wid == w0
+        k = np.arange(-int(4.0 * w0 / UNK_STEP) - 1,
+                      int(4.0 * w0 / UNK_STEP) + 2) * UNK_STEP
+        ker = np.exp(-0.5 * (k / w0) ** 2)
+        ker /= ker.sum()
+        for acc, wt in ((rate, p[m]), (s1, p[m] * x[m]), (s2, p[m] * x[m] ** 2)):
+            h, _ = np.histogram(wn[m], bins=edges, weights=wt)
+            acc += np.convolve(h, ker, mode='same')
+    with np.errstate(divide='ignore', invalid='ignore'):
+        mu = np.where(rate > 0, s1 / np.maximum(rate, 1e-300), np.nan)
+        var = np.where(rate > 0, s2 / np.maximum(rate, 1e-300) - mu ** 2,
+                       np.nan)
+    sd = np.sqrt(np.maximum(var, 0.04))          # floored at 0.2, as bg_sd_o is
+    rate = rate / UNK_STEP                       # counts per bin -> per cm^-1
+    log(f"  unfound levels: {int((~en['known']).sum())} of {len(en)} "
+        f"calculated; {len(t)} of their transitions have a found partner and "
+        f"{p.sum():.0f} of those would have been recorded")
+    return grid, rate, mu, sd
+
+
+def plain_background(ctx):
+    """Make the unrelated-line background the whole observed list.
+
+    The state of every run made before the transition-probability file was
+    available: the free lines are not separated from the identified ones and
+    the levels that have not been found contribute nothing.  Used by
+    --plain-background, as the fallback when the calculated level list cannot
+    be read, and by the tests, whose synthetic runs have no such distinction
+    to make.
+    """
+    ctx.rho_bg_o = np.asarray(ctx.rho_o, dtype=float).copy()
+    ctx.rho_unk_o = np.zeros(len(ctx.rho_o))
+    ctx.bg_mu_f = np.asarray(ctx.bg_mu_o, dtype=float).copy()
+    ctx.bg_sd_f = np.asarray(ctx.bg_sd_o, dtype=float).copy()
+    ctx.unk_mu_o = np.asarray(ctx.bg_mu_o, dtype=float).copy()
+    ctx.unk_sd_o = np.asarray(ctx.bg_sd_o, dtype=float).copy()
+
+
+def free_line_background(ctx, args, log=print):
+    """rho_bg(nu) and g_free(ln I | nu): the population of UNRELATED lines.
+
+    The likelihood asks, of a feature that no accepted transition claims, how
+    surprising it is to find a line of that brightness at that place if the
+    level under test is not there.  Both halves of that question are about the
+    lines nobody has identified, not about the observed list as a whole - the
+    identified lines are, by construction, the ones already explained, and they
+    are also systematically the bright ones.  Two independent estimates of the
+    same population are formed and combined:
+
+      empirical - the 1468 recorded lines that carry no accepted transition,
+        their local density from the K_RHO_FREE nearest of them and their local
+        ln I from the K_BG_FREE nearest;
+      modelled - unknown_transition_background() above, the rate and brightness
+        the calculation predicts for the transitions of the levels that have
+        not been found.
+
+    The rate used is the LARGER of the two, capped by the all-lines density
+    (free lines are a subset of the recorded ones, so no estimate of their rate
+    may exceed it) and floored at RHO_BG_FLOOR of it.  The brightness density
+    used is likewise the larger of the two normal densities.  Taking the larger
+    in both places is the conservative choice - a bigger background is a
+    smaller ln R - and it is the same device as the two readings of a match: an
+    unrelated line is offered whichever account of itself is the better, the
+    one the free lines actually recorded suggest or the one the calculation
+    predicts for a level still missing.
+
+    Sets ctx.rho_bg_o, ctx.bg_mu_f, ctx.bg_sd_f and ctx.rho_unk_o on the
+    observed-line grid.  With --plain-background all three fall back to the
+    all-lines values, which is the behaviour of the runs made before this was
+    written.
+    """
+    n = len(ctx.wn_o)
+    if getattr(args, 'plain_background', False):
+        plain_background(ctx)
+        log("  --plain-background: the unrelated-line background is the whole "
+            "observed list, as before")
+        return
+    ctx.rho_unk_o = np.zeros(n)
+
+    free = ctx.n_acc_line == 0
+    n_free = int(free.sum())
+    if n_free >= K_RHO_FREE:
+        wf = ctx.wn_o[free]
+        i = np.arange(len(wf))
+        hi = np.clip(i + K_RHO_FREE // 2, 0, len(wf) - 1)
+        lo = np.clip(i - K_RHO_FREE // 2, 0, len(wf) - 1)
+        span = wf[hi] - wf[lo]
+        rho_f = np.where(span > 0, K_RHO_FREE / np.where(span > 0, span, 1.0),
+                         np.nan)
+        rho_emp = np.interp(ctx.wn_o, wf, rho_f)
+        mu_f = running(ctx.ln_int_o[free], K_BG_FREE, 'mean')
+        sd_f = np.maximum(running(ctx.ln_int_o[free], K_BG_FREE, 'std'), 0.2)
+        ctx.bg_mu_f = np.interp(ctx.wn_o, wf, mu_f)
+        ctx.bg_sd_f = np.interp(ctx.wn_o, wf, sd_f)
+    else:                                                     # pragma: no cover
+        rho_emp = ctx.rho_o.copy()
+        ctx.bg_mu_f = ctx.bg_mu_o.copy()
+        ctx.bg_sd_f = ctx.bg_sd_o.copy()
+
+    unk = unknown_transition_background(ctx, log=log)
+    if unk is not None:
+        grid, rate, mu, sd = unk
+        ctx.rho_unk_o = np.interp(ctx.wn_o, grid, rate)
+        ok = np.isfinite(mu) & np.isfinite(sd)
+        if ok.any():
+            ctx.unk_mu_o = np.interp(ctx.wn_o, grid[ok], mu[ok])
+            ctx.unk_sd_o = np.maximum(np.interp(ctx.wn_o, grid[ok], sd[ok]),
+                                      0.2)
+        else:                                                 # pragma: no cover
+            ctx.unk_mu_o = ctx.bg_mu_f.copy()
+            ctx.unk_sd_o = ctx.bg_sd_f.copy()
+    else:                                                     # pragma: no cover
+        ctx.unk_mu_o = ctx.bg_mu_f.copy()
+        ctx.unk_sd_o = ctx.bg_sd_f.copy()
+    bad = ~np.isfinite(ctx.unk_mu_o) | ~np.isfinite(ctx.unk_sd_o)
+    ctx.unk_mu_o = np.where(bad, ctx.bg_mu_f, ctx.unk_mu_o)
+    ctx.unk_sd_o = np.where(bad, ctx.bg_sd_f, ctx.unk_sd_o)
+
+    rho = np.maximum(rho_emp, ctx.rho_unk_o)
+    rho = np.minimum(rho, ctx.rho_o)
+    ctx.rho_bg_o = np.maximum(rho, RHO_BG_FLOOR * ctx.rho_o)
+
+    log(f"  unrelated-line background: {n_free} of {n} recorded lines carry "
+        f"no accepted transition")
+    log(f"    empirical density {np.nanmedian(rho_emp):.4f}, modelled "
+        f"{np.median(ctx.rho_unk_o):.4f}, used {np.median(ctx.rho_bg_o):.4f} "
+        f"per cm^-1 (median; all lines {np.median(ctx.rho_o):.4f})")
+    log(f"    ln I of a free line: mean {np.nanmedian(ctx.bg_mu_f):.2f} "
+        f"(all lines {np.nanmedian(ctx.bg_mu_o):.2f}), of a predicted "
+        f"unfound-level line {np.nanmedian(ctx.unk_mu_o):.2f}")
+
+
 def build(args, log=print):
     """Read the run and measure every ingredient of the likelihood."""
     ctx = Context()
@@ -741,6 +1622,10 @@ def build(args, log=print):
     ctx.int_o = obs['obs_intens'].to_numpy(dtype=float)
     ctx.unc_o = obs['unc_wn_obs'].to_numpy(dtype=float)
     ctx.char_o = obs['char'].to_numpy()
+    # the modelled width of each recorded feature, section 4: this, and not
+    # the quoted unc_wn_obs, is what a candidate position is judged against
+    ctx.meas_o = meas_sigma(ctx.wn_o, ctx.char_o, ctx.unc_o)
+    ctx.w_hfs = read_hfs_widths(log=log)
     with np.errstate(divide='ignore', invalid='ignore'):
         ctx.ln_int_o = np.log(np.where(ctx.int_o > 0, ctx.int_o, np.nan))
     log(f"observed lines: {len(obs)}, {ctx.wn_o[0]:.1f} - {ctx.wn_o[-1]:.1f} "
@@ -752,7 +1637,7 @@ def build(args, log=print):
                          len(ctx.wn_o) - 1)]
         - ctx.wn_o[np.clip(np.arange(len(ctx.wn_o)) - K_RHO // 2, 0,
                            len(ctx.wn_o) - 1)])
-    ctx.sig_loc_o = running(ctx.unc_o, K_UNC, 'median')
+    ctx.sig_loc_o = running(ctx.meas_o, K_UNC, 'median')
     ctx.bg_mu_o = running(ctx.ln_int_o, K_BG, 'mean')
     ctx.bg_sd_o = running(ctx.ln_int_o, K_BG, 'std')
     ctx.bg_sd_o = np.maximum(ctx.bg_sd_o, 0.2)
@@ -820,15 +1705,35 @@ def build(args, log=print):
     log("ingredients measured on this run:")
     a = acc.dropna(subset=['rwn', 'unc_wn_obs']).copy()
     a = a[a['unc_wn_obs'] > 0]
-    t = ((a['wn_obs'] - a['rwn']) / a['unc_wn_obs']).to_numpy()
+    meas = meas_sigma(a['wn_obs'].to_numpy(),
+                      a['char'].fillna('').astype(str).to_numpy(),
+                      a['unc_wn_obs'].to_numpy(dtype=float))
+    v_hfs = hfs_pair(ctx.w_hfs, a['low_id'].astype(str),
+                     a['upp_id'].astype(str))
+    # k(n) is what is left over once the width of the feature is accounted
+    # for, hyperfine part included: measured without it, it would charge the
+    # blending for a width that belongs to the level
+    t = ((a['wn_obs'] - a['rwn']).to_numpy() / np.sqrt(meas ** 2 + v_hfs))
     nb = a['n_accepted'].fillna(1).to_numpy(dtype=float)
     ctx.k_n = fit_k_blend(t, nb, log)
     kn = np.array([ctx.k_n.get(int(x), 1.0) for x in nb])
-    ctx.k_char = fit_k_char(t / kn, a['char'].fillna('').astype(str).to_numpy(),
-                            log)
-    kc = np.array([ctx.k_char.get(c, 1.0)
-                   for c in a['char'].fillna('').astype(str)])
-    sigma = kn * kc * a['unc_wn_obs'].to_numpy()
+    sigma = np.sqrt((kn * meas) ** 2 + v_hfs)
+    res = (a['wn_obs'] - a['rwn']).to_numpy()
+    z = res / sigma
+    log(f"  the width model: rms of residual/sigma over the {len(a)} accepted "
+        f"lines = {math.sqrt(float(np.mean(z ** 2))):.3f}; a class that comes "
+        f"out far from 1 is a class whose width is mis-stated")
+    code = np.array([normalize_char(c) for c in a['char'].fillna('')])
+    era = era_of(a['wn_obs'].to_numpy())
+    seen = sorted(set(zip(era, code)))
+    log("    " + "  ".join(
+        f"{e[2:]}/{c if c else '-'}:{int(m.sum())}@"
+        f"{math.sqrt(float(np.mean(z[m] ** 2))):.2f}"
+        for e, c in seen
+        for m in [(era == e) & (code == c)] if m.sum() >= 10))
+    # the all-lines density here, not the unrelated one of section 4a: eta is
+    # the rate at which a GENUINE line sits at an anomalous position, and the
+    # background it is mixed against is every line it could have been taken for
     rho_a = np.interp(a['wn_obs'].to_numpy(), ctx.wn_o, ctx.rho_o)
     ctx.eta = fit_eta((a['wn_obs'] - a['rwn']).to_numpy(), sigma, rho_a, log)
 
@@ -849,6 +1754,9 @@ def build(args, log=print):
     else:
         log("  LOPT_output_levels.txt not found - the partner energy "
             "contributes nothing to sigma_t")
+
+    # --- the background of lines that belong to nothing yet known --------
+    free_line_background(ctx, args, log)
 
     # --- predictions grouped by level ------------------------------------
     ctx.by_level = group_predictions(ctx)
@@ -905,6 +1813,10 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
     i_pred, u_m = g['i_pred'][keep], g['u_m'][keep]
     partner = g['partner'][keep]
     own = ctx.own_claim.get(level_id, {})
+    # the hyperfine width of the pair of levels the transition joins: the
+    # level being scanned contributes its own to every one of its lines
+    v_hfs = (ctx.w_hfs.get(str(level_id), 0.0) ** 2
+             + np.array([ctx.w_hfs.get(str(x), 0.0) ** 2 for x in partner]))
 
     total = np.zeros(len(e_grid))
     rows = None
@@ -930,18 +1842,19 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
         pick = np.where(np.abs(d0) < np.abs(d1), j0, j1)
         d = ctx.wn_o[pick] - nu_s
 
-        # The window is set by whichever is worse, the uncertainty typical of
-        # the neighbourhood or the one the candidate line itself carries: a
-        # line quoted to 0.6 cm^-1 where its neighbours are quoted to 0.1 must
-        # not be ruled out for lying 0.4 away.  K_WORST covers the largest
-        # k(n) k(char) the run produces.  Widening the window costs nothing:
-        # a line far out has N(d; 0, sigma)/rho far below 1 and contributes
+        # The window is set by whichever is worse, the width typical of the
+        # neighbourhood or the one the candidate line itself is modelled at: a
+        # feature flagged complex where its neighbours are plain must not be
+        # ruled out for lying half its own width away.  K_WORST covers the
+        # largest k(n) the run produces, and the hyperfine widths of the two
+        # levels widen it further.  Widening the window costs nothing: a line
+        # far out has N(d; 0, sigma)/rho far below 1 and contributes
         # ln(1 - p), the same as an absence.
-        unc_near = ctx.unc_o[pick]
+        unc_near = ctx.meas_o[pick]
         unc_near = np.where(np.isfinite(unc_near) & (unc_near > 0), unc_near,
                             sig_loc)
         sig_w = np.sqrt(np.maximum(sig_loc, K_WORST * unc_near) ** 2
-                        + (u_m ** 2)[:, None])
+                        + (u_m ** 2 + v_hfs)[:, None])
         w = N_SIGMA * sig_w
         matched = (np.abs(d) <= w) & ok
 
@@ -950,7 +1863,7 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
 
         if matched.any():
             mi = pick[matched]
-            unc = ctx.unc_o[mi]
+            unc = ctx.meas_o[mi]
             unc = np.where(np.isfinite(unc) & (unc > 0), unc,
                            sig_loc[matched])
             # C: what other levels already claim on that feature
@@ -959,31 +1872,84 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
             n_blend = ctx.n_acc_line[mi] - (own_here > 0).astype(int) + 1
             kn = np.array([ctx.k_n.get(int(x), ctx.k_n.get(1, 1.0))
                            for x in n_blend])
-            kc = np.array([ctx.k_char.get(c, 1.0) for c in ctx.char_o[mi]])
             u_here = np.repeat(u_m, nu_s.shape[1]).reshape(nu_s.shape)[matched]
-            sig = np.sqrt((kn * kc * unc) ** 2 + u_here ** 2)
-
-            # positional density under H0
-            free = claimed <= 0
-            rho = np.where(free, ctx.rho_o[mi], 1.0 / (2.0 * w[matched]))
-            dens = (np.exp(-0.5 * (d[matched] / sig) ** 2)
-                    / (sig * math.sqrt(2.0 * math.pi)))
+            v_here = np.repeat(v_hfs,
+                               nu_s.shape[1]).reshape(nu_s.shape)[matched]
+            sig = np.sqrt((kn * unc) ** 2 + u_here ** 2 + v_here)
 
             # the intensity ratio
             i_here = np.repeat(i_pred, nu_s.shape[1]).reshape(nu_s.shape)[matched]
             f = scale_factor_vec(nu_s[matched], ctx.bias)
             x = ctx.ln_int_o[mi]
             ln_bg = ln_norm(x, ctx.bg_mu_o[mi], ctx.bg_sd_o[mi])
+            free = claimed <= 0
+            # g for a FREE feature is the brightness distribution of the
+            # unrelated population - the recorded lines that carry no accepted
+            # transition, and the lines the calculation predicts for the levels
+            # nobody has found - not that of the observed list as a whole,
+            # which is dominated by the identified and therefore bright lines.
+            # The better of the two accounts is offered, and the result is
+            # never allowed more than LN_BG_DROP below the all-lines value:
+            # both estimates extrapolate where free lines are sparse, and an
+            # extrapolated density must not buy unbounded credit.
+            ln_bg_f = np.maximum(
+                np.maximum(ln_norm(x, ctx.bg_mu_f[mi], ctx.bg_sd_f[mi]),
+                           ln_norm(x, ctx.unk_mu_o[mi], ctx.unk_sd_o[mi])),
+                ln_bg - LN_BG_DROP)
+            ln_bg_f = np.where(np.isfinite(ln_bg_f), ln_bg_f, ln_bg)
             with np.errstate(divide='ignore', invalid='ignore'):
                 ln_p1 = ln_intensity(x, (claimed + i_here) * f, ctx.s, ln_bg)
-                ln_p0 = np.where(free, ln_bg,
+                ln_p0 = np.where(free, ln_bg_f,
                                  ln_intensity(x, claimed * f, ctx.s, ln_bg))
-            ln_g = ln_p1 - ln_p0
-            ln_g = np.where(np.isfinite(ln_g), ln_g, 0.0)
-            gain = np.exp(np.clip(ln_g, -50.0, 50.0))
+            ln_g = np.where(np.isfinite(ln_p1 - ln_p0), ln_p1 - ln_p0, 0.0)
 
+            dens = (np.exp(-0.5 * (d[matched] / sig) ** 2)
+                    / (sig * math.sqrt(2.0 * math.pi)))
+            # TWO READINGS OF A MATCH ON A FREE FEATURE, and the row is worth
+            # whichever is the better of them.
+            #
+            #   the feature IS the transition:  its position is drawn from
+            #     N(d; 0, sigma) against the local line density rho, and its
+            #     brightness from N(x; ln I_t f, s) against the local
+            #     distribution g of ln I_obs.
+            #   the transition is hidden IN the feature:  a line is there in
+            #     any case and carries light nobody has identified, so under
+            #     H0 the feature is present with certainty - the density of a
+            #     line known to be somewhere in the window, 1/(2 W) - and its
+            #     brightness says nothing either way.
+            #
+            # The second reading is what the one-sided floor of ln_intensity
+            # was reaching for, and taking the floor without also replacing
+            # rho was the error: a prediction of I = 0.2 landing on a feature
+            # of 13372 kept the whole of the positional credit, ln R_t = +1.4
+            # for a transition with a 1.5 per cent chance of having been
+            # recorded at all.  Rows of that kind - the strong observed line
+            # assigned to the very weak transition, the assignment
+            # classify_lines refuses and the analyst leaves free for a better
+            # one - carried four levels of the audit to alternate positions.
+            # Taking the better of the two readings rather than switching on
+            # the floor is what keeps a genuine line: one under-predicted by
+            # a factor of thirty is still far better explained as the
+            # transition than as a coincidence, and it goes on being read
+            # that way.
+            # rho for the "it IS the transition" reading of a FREE feature is
+            # the rate of UNRELATED lines, not of all recorded lines: a feature
+            # that no accepted transition claims cannot have been drawn from
+            # the identified ones.  A claimed feature keeps the all-lines rate,
+            # because there the question is the blend one and rho_t is replaced
+            # by 1/(2W) in any case.
+            rho_here = np.where(free, ctx.rho_bg_o[mi], ctx.rho_o[mi])
+            with np.errstate(divide='ignore', invalid='ignore'):
+                ln_here = (np.log(dens / rho_here)
+                           + ln_norm(x, np.log(np.maximum(i_here * f, 1e-300)),
+                                     ctx.s) - np.where(free, ln_bg_f, ln_bg))
+                ln_hidden = np.log(dens * 2.0 * w[matched])
+                ln_blend = np.log(dens * 2.0 * w[matched]) + ln_g
+            over = free & (ln_hidden >= ln_here)
+            ln_t = np.where(free, np.maximum(ln_here, ln_hidden), ln_blend)
+            ln_t = np.where(np.isfinite(ln_t), ln_t, -50.0)
             pm = p[matched]
-            genuine = pm * dens / rho * gain
+            genuine = pm * np.exp(np.clip(ln_t, -50.0, 50.0))
             r_t[matched] = (1.0 - pm) + genuine
             # posterior that the matched line really is the transition, not a
             # coincidence: the weight this row carries in the level offset
@@ -1004,7 +1970,7 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
         # score hundreds of units it has not earned.
         if matched.any():
             weight = np.zeros(matched.shape)
-            weight[matched] = w_gen * free
+            weight[matched] = w_gen * (free & ~over)
             with np.errstate(divide='ignore', invalid='ignore'):
                 res = np.zeros(matched.shape)
                 res[matched] = x - np.log(np.maximum((claimed + i_here) * f,
@@ -1035,11 +2001,14 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
                                     np.nan)
             claim_col = np.full(len(partner), np.nan)
             gain_col = np.full(len(partner), np.nan)
+            over_col = np.zeros(len(partner), dtype=bool)
             if matched.any():
                 claim_col[matched[:, 0]] = claimed
                 gain_col[matched[:, 0]] = ln_g
+                over_col[matched[:, 0]] = over
             tab['C'] = claim_col
             tab['ln_G'] = gain_col
+            tab['over'] = over_col
             tab = tab[ok[:, 0]]
             rows = tab.sort_values('ln_R', ascending=False).reset_index(
                 drop=True)
@@ -1125,7 +2094,15 @@ def run_digest(ctx):
         h.update(np.ascontiguousarray(a, dtype=float).tobytes())
     h.update('\x00'.join(ctx.char_o).encode('utf-8'))
     h.update(('%.3f|%.3f|%.3f' % (ctx.eta, ctx.s, ctx.s_L)).encode())
-    for d in (ctx.k_n, ctx.k_char, ctx.bias):
+    # the width model: a changed constant changes every level's sigma
+    h.update(repr((UNC_FLOOR, ERA_SPLIT, sorted(DLAM_ERA.items()),
+                   sorted(CHAR_DLAM.items()),
+                   sorted(CHAR_DWN.items()))).encode())
+    # the unrelated-line background: it enters every matched free row
+    for a in (ctx.rho_bg_o, ctx.bg_mu_f, ctx.bg_sd_f, ctx.unk_mu_o,
+              ctx.unk_sd_o):
+        h.update(np.round(np.asarray(a, dtype=float), 3).tobytes())
+    for d in (ctx.k_n, ctx.w_hfs, ctx.bias):
         h.update(repr(sorted((str(k), np.round(np.asarray(v, dtype=float), 3)
                               .tolist())
                              for k, v in d.items())).encode())
@@ -1310,9 +2287,12 @@ def print_detail(ctx, level_id, at=None, show_all=False,
     The `what` column is the one to read against the audit row: `free` marks
     the observable, well-centred matches on features no accepted transition
     claims, which are exactly the n_free of the audit; `blend` a match on a
-    feature that is already explained; `off` a match too far out to count as
-    free; `faint` a match to a prediction that could not have been recorded,
-    which is a coincidence; `-` an absence.
+    feature that is already explained; `bright` a match on a feature so much
+    stronger than the prediction that an unidentified line explains it better
+    - it would have been recorded there in any case, so it counts for
+    nothing; `off` a match too far out to count as free; `faint` a match to a
+    prediction that could not have been recorded, which is a coincidence; `-`
+    an absence.
     """
     e, how = detail_energy(ctx, level_id, at, alt_drop)
     v, tab = ln_ratio(ctx, level_id, np.array([e]), detail=True)
@@ -1333,11 +2313,15 @@ def print_detail(ctx, level_id, at=None, show_all=False,
     d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
     c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
     w = tab['W'].to_numpy(dtype=float)
-    free = seen & m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
+    o = tab['over'].to_numpy(dtype=bool)
+    free = (seen & m & (c == 0.0) & ~o
+            & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
     what = np.where(~m, '-',
-                    np.where(~seen, 'faint',
-                             np.where(c > 0, 'blend',
-                                      np.where(free, 'free', 'off'))))
+                    np.where(c > 0, 'blend',
+                             np.where(o, 'bright',
+                                      np.where(~seen, 'faint',
+                                               np.where(free, 'free',
+                                                        'off')))))
     print(f"  {int(m.sum())} matched, contributing {tab['ln_R'][m].sum():+.2f}; "
           f"{int((~m).sum())} absent, costing {tab['ln_R'][~m].sum():+.2f}")
     print(f"  {int(seen.sum())} of the predictions could have been recorded "
@@ -1384,7 +2368,12 @@ AUDIT_MAX_SHARE = 0.45  # largest share of the evidence one line may carry
 AUDIT_ANY_SHARE = 0.60  # above this one line IS the case, and there is none
 AUDIT_MIN_FEW = 2       # fewer free lines than this is not support at all
 AUDIT_MIN_LOOK = 3.0    # gain a relocation must keep after look-elsewhere
-REFIT_DE = 2.0          # an alternate this close is the same level, refitted
+REFIT_DE = 2.0          # an alternate this close may be the same level
+REFIT_KEEP = 0.5        # ... but only if it keeps more than this share of
+                        # the recorded lines the level is assigned now
+REFIT_LIGHT = 0.5       # ... and more than this share of their light, so
+                        # that dropping the level's brightest branch is never
+                        # a refit however many faint lines survive
 INTERCHANGE_DE = 0.5    # an alternate this close to another level is a swap
 
 
@@ -1398,6 +2387,38 @@ def j_value(j):
         return float(s)
     except (ValueError, TypeError):
         return float('nan')
+
+
+def observed_index(ctx, wn):
+    """Where these recorded wavenumbers sit in the observed line list.
+
+    The detail table names a matched line by its wavenumber; the accepted
+    assignments name it by its position in ctx.wn_o.  This turns the first
+    into the second, so that the two can be compared.
+    """
+    wn = np.asarray(wn, dtype=float)
+    i = np.clip(np.searchsorted(ctx.wn_o, wn), 0, len(ctx.wn_o) - 1)
+    j = np.clip(i - 1, 0, len(ctx.wn_o) - 1)
+    return np.where(np.abs(ctx.wn_o[j] - wn) < np.abs(ctx.wn_o[i] - wn), j, i)
+
+
+def own_light(ctx, own):
+    """How much observed light each of the level's own lines brings it.
+
+    ``own`` is ctx.own_claim's entry for the level: {index of the observed
+    line -> the predicted intensity of this level's component on it}.  What
+    the level can claim of a feature it shares is the feature's measured
+    intensity times the branching fraction of its own component, never the
+    whole feature - the same rule the rest of the pipeline applies to a
+    blend.  Returns {index -> the light that is the level's}.
+    """
+    out = {}
+    for i, i_pred in own.items():
+        i = int(i)
+        tot = float(ctx.claimed_tot[i]) if i < len(ctx.claimed_tot) else 0.0
+        share = (float(i_pred) / tot) if tot > 0 else 1.0
+        out[i] = float(ctx.int_o[i]) * min(max(share, 0.0), 1.0)
+    return out
 
 
 def support(ctx, level_id, e):
@@ -1417,21 +2438,50 @@ def support(ctx, level_id, e):
     top_share is the largest single row's share of all the positive evidence.
     A position whose case is one line is not a case: one line can be a
     coincidence, and the scan looked at tens of thousands of positions.
+
+    n_own and n_kept say what the move would cost.  n_own is the number of
+    recorded lines the level is assigned NOW; n_kept is how many of those the
+    position E still matches.  The two together are what separates a level
+    that stays put from a level that moves, and the distance between the two
+    energies does not do it: 059003.000617 keeps NONE of its three lines at a
+    position 1.3 cm^-1 away, so every one of them would have to be given up
+    and another set assigned.
+
+    kept_light is the same cost weighed rather than counted: the share of the
+    level's own observed light - each feature's intensity times the branching
+    fraction of the level's component in it - that the position still matches.
+    Counting alone cannot see which line is being given up, and the one being
+    given up is usually the one that matters.  059003.000457 keeps six of its
+    seven lines at a position 0.5 cm^-1 away, which reads as one bad line
+    dragging the fit; but the line it drops is its strongest by an order of
+    magnitude, and a position bought by discarding a level's brightest branch
+    is not a refit however many faint lines it keeps.
     """
     v, tab = ln_ratio(ctx, level_id, np.array([float(e)]), detail=True)
+    light = own_light(ctx, ctx.own_claim.get(level_id, {}))
+    own = set(light)
     if tab is None:
         return dict(ln_R=0.0, n_free=0, free_gain=0.0,
                     top_share=np.nan, n_obs_alt=0, n_seen_alt=0,
-                    n_miss_alt=0)
+                    n_miss_alt=0, n_own=len(own), n_kept=0,
+                    kept_light=0.0 if own else np.nan)
     m = tab['matched'].to_numpy(dtype=bool)
     d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
     c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
+    o = tab['over'].to_numpy(dtype=bool)
     w = tab['W'].to_numpy(dtype=float)
     r = tab['ln_R'].to_numpy(dtype=float)
     seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
-    free = seen & m & (c == 0.0) & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA)
+    free = (seen & m & (c == 0.0) & ~o
+            & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
     pos = r[m & (r > 0.0)]
+    here = set(int(x) for x in
+               observed_index(ctx, tab.loc[m, 'wn_obs'].to_numpy()))
+    whole = sum(light.values())
     return dict(ln_R=float(v[0]), n_free=int(free.sum()),
+                n_own=len(own), n_kept=len(own & here),
+                kept_light=(sum(light[i] for i in own & here) / whole
+                            if whole > 0 else (np.nan if not own else 0.0)),
                 free_gain=float(r[free].sum()),
                 n_obs_alt=int(seen.sum()),
                 n_seen_alt=int((seen & m).sum()),
@@ -1479,13 +2529,32 @@ def disposition(row):
                    moves anywhere new; the two identities may be swapped, and
                    level_interchange.py decides that on evidence this scan
                    does not look at.
-      refit        the alternate is a fraction of a wavenumber away.  The
-                   level stays where it is; some accepted line is dragging
-                   the LOPT fit off the position its own lines want.
+      refit        the alternate is a fraction of a wavenumber away AND
+                   the level keeps more than half of the recorded lines it
+                   is assigned now.  Nothing is re-identified: the level
+                   stays, and some accepted line is dragging the LOPT fit off
+                   the position its own lines want.  Both halves are needed.
+                   A short move that keeps none of the lines is not a refit
+                   at all - every one of its assignments has to be dropped,
+                   another set made, and the level entered in a ledger at a
+                   new position - and calling it one told the reader to do
+                   the opposite of the work the level actually needs.
+      top line     the same short move, keeping most of the level's lines by
+                   count, but giving up the greater part of its light: the
+                   line it drops is the level's strongest.  The alternate is
+                   then bought with the one assignment the level can least
+                   afford to lose, and the Ritz mismatch it removes is the
+                   mismatch of the brightest branch, which is a thing to
+                   explain and not a thing to discard.  Look at that line -
+                   is it a blend, is its wavenumber right, is the
+                   identification right - rather than at the position.
       relocate     a free position, broadly supported by lines nobody is
                    using, surviving the look-elsewhere correction, and
                    convincing in its own right - ln R must be positive there,
-                   not merely better than where the level is now.
+                   not merely better than where the level is now.  How far
+                   away it is does not enter: a position 1 cm^-1 away that
+                   takes a different set of lines is as much a relocation as
+                   one 300 cm^-1 away, and needs the same ledger record.
       weak         a free position whose support is thin.  Leave it until the
                    region around it is settled - the neighbours will change
                    the answer.
@@ -1494,7 +2563,11 @@ def disposition(row):
     if np.isfinite(row['near_dE']) and abs(
             row['near_dE']) < INTERCHANGE_DE:
         return 'interchange'
-    if np.isfinite(row['dE_alt']) and abs(row['dE_alt']) < REFIT_DE:
+    if (np.isfinite(row['dE_alt']) and abs(row['dE_alt']) < REFIT_DE
+            and row['n_kept'] > REFIT_KEEP * row['n_own']):
+        kept = row.get('kept_light', np.nan)
+        if np.isfinite(kept) and kept <= REFIT_LIGHT:
+            return 'top line'
         return 'refit'
     share = row['top_share']
     if row['n_free'] < AUDIT_MIN_FEW or (np.isfinite(share)
@@ -1521,6 +2594,12 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
              ln(n_alt) above a typical one; requiring the gain to beat that
              puts every level on the same footing.
     n_free   lines supporting the alternate that no other level is using
+    n_own    recorded lines the level is assigned now
+    n_kept   how many of those the alternate still matches - the test that
+             separates a refit from a relocation
+    kept_light  the share of the level's own observed light those kept lines
+             carry: the test that separates a refit from a move that survives
+             by dropping the level's brightest line
     free_gain  what those lines are worth
     top_share  the largest row's share of the positive evidence
     n_vacant   unfound calculated levels of the same J and parity within one
@@ -1532,8 +2611,8 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
     action   see disposition()
     """
     cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], look=[],
-                n_obs_alt=[], n_seen_alt=[], n_miss_alt=[],
-                n_vacant=[], z_alt=[], action=[])
+                n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
+                n_kept=[], kept_light=[], n_vacant=[], z_alt=[], action=[])
     lev = ctx.per.set_index('level_id')
     for _, r in tab.iterrows():
         lid = r['level_id']
@@ -1557,6 +2636,9 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         cols['n_obs_alt'].append(s['n_obs_alt'])
         cols['n_seen_alt'].append(s['n_seen_alt'])
         cols['n_miss_alt'].append(s['n_miss_alt'])
+        cols['n_own'].append(s['n_own'])
+        cols['n_kept'].append(s['n_kept'])
+        cols['kept_light'].append(s['kept_light'])
         cols['gain'].append(gain)
         cols['look'].append(look)
         cols['n_vacant'].append(count_vacancies(
@@ -1571,7 +2653,7 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
     return tab
 
 
-ACTION_ORDER = ['relocate', 'interchange', 'refit', 'weak',
+ACTION_ORDER = ['relocate', 'interchange', 'refit', 'top line', 'weak',
                 'no support', '']
 
 
@@ -1620,7 +2702,8 @@ def print_audit(tab, alt_drop):
         'look', ascending=False)
     cols = ['level_id', 'E', 'n_obs', 'n_seen', 'ln_R', 'dE_alt',
             'ln_R_alt', 'n_seen_alt', 'n_miss_alt', 'gain', 'n_alt', 'look',
-            'n_free', 'free_gain', 'top_share', 'n_vacant', 'z_alt']
+            'n_free', 'free_gain', 'top_share', 'n_own', 'n_kept',
+            'kept_light', 'n_vacant', 'z_alt']
     with pd.option_context('display.width', 220, 'display.max_columns', 24):
         print(f"\n  firm grounds for relocation ({len(firm)}):")
         print(firm[cols].to_string(index=False, na_rep='-')
@@ -1632,9 +2715,28 @@ def print_audit(tab, alt_drop):
                 index=False, na_rep='-'))
         rf = pref[pref['action'] == 'refit']
         if len(rf):
-            print(f"\n  the level stays; an accepted line is dragging the fit "
-                  f"({len(rf)}):")
+            print(f"\n  the level stays where it is and keeps its lines; an "
+                  f"accepted line is dragging the fit ({len(rf)}):")
             print(rf[cols].to_string(index=False, na_rep='-'))
+        tl = pref[pref['action'] == 'top line']
+        if len(tl):
+            print(f"\n  the alternate is bought by giving up the level's "
+                  f"strongest line ({len(tl)}).  It keeps most of the "
+                  f"assignments by count\n  and less than half their light: "
+                  f"read kept_light against n_kept/n_own.  What wants "
+                  f"looking at is that line -\n  its wavenumber, whether it "
+                  f"is a blend, whether the identification is right - and "
+                  f"not the position:")
+            print(tl[cols].to_string(index=False, na_rep='-'))
+        wk = pref[pref['action'] == 'weak'].sort_values(
+            'look', ascending=False)
+        if len(wk):
+            print(f"\n  the level would move onto a different set of lines - "
+                  f"a relocation, and a ledger record - but the case for the "
+                  f"new position is thin ({len(wk)}).\n  Read n_kept against "
+                  f"n_own: that is how many of its present assignments it "
+                  f"would have to give up:")
+            print(wk[cols].to_string(index=False, na_rep='-'))
     hole = pref[(pref['action'] == 'relocate') & (pref['n_vacant'] > 0)]
     if len(hole):
         print(f"\n  {len(hole)} of the relocations sit where the calculation "
@@ -1644,6 +2746,280 @@ def print_audit(tab, alt_drop):
     print('\n  A relocation changes the lines available to its neighbours, so '
           'accept them\n  one at a time and re-scan: the verdict on every '
           'level is conditional on the\n  rest of the list.')
+
+
+# ---------------------------------------------------------------------------
+# Levels nobody has found: searching by IDEN2 row
+# ---------------------------------------------------------------------------
+# Everything above scans a level the run already has: an adopted energy, a set
+# of accepted lines, a level_id.  A level of the CALCULATION that has never
+# been found has none of those.  What it has is a row in IDEN2/enlev.dat - a
+# calculated energy E_calc, a J, a configuration label - and a place in
+# Cowan's transition list, which gives it transitions to every other
+# calculated level.  The ones whose other end HAS been found are predictions
+# with a known partner energy: at any trial energy E they predict a
+# wavenumber, and a wavenumber is all ln R needs.  So the same likelihood
+# ratio can be evaluated for a level that does not exist yet, and scanning it
+# across the window the calculation allows IS the search.  Where ln R > 0 the
+# recorded lines are more likely with a level at that energy than with nothing
+# there; where it is largest they are most likely.
+#
+# This is the scan the user does by hand in IDEN2, with the level list scrolled
+# to a trial position and the predicted transitions checked against the plate
+# list one by one.  The arithmetic is the same arithmetic; what it adds is
+# that every position in the window is tried instead of the ones a person has
+# the patience for, and that the absences count against a position as well as
+# the coincidences count for it.
+#
+# THREE THINGS DIFFER from the scan of a level the run already has, and all
+# three make the answer harsher rather than kinder:
+#
+#   - The level owns no accepted line.  Every feature that an existing
+#     identification already claims therefore counts against it in full
+#     through C (section 5): to be believed, an unfound level must explain
+#     lines that the levels already found have left alone.  That is the right
+#     test, and it is stricter than the one a known level faces.
+#   - There is no adopted position to compare against, so there is no gain.
+#     ln R itself is the verdict.
+#   - The look-elsewhere problem is the whole window rather than the distance
+#     between two candidates: a scan that returns n positive maxima has had n
+#     chances at every one of them, so look = ln R - ln n is what a position
+#     is worth after the search that found it is paid for.  It is the same
+#     correction the audit applies to a relocation.
+#
+# THE PREDICTED INTENSITIES ARE FIXED AT E_calc and not recomputed as the scan
+# moves.  I = C gA (nu/1e8) exp(-E_up/kT) does depend on the trial energy
+# through both nu and the Boltzmann factor, but over a window of a few hundred
+# wavenumbers out of a hundred thousand that is a few per cent, against an
+# observed-to-predicted scatter of a factor of three.  It is also exactly what
+# the scan of a known level already does, so the two are comparable.
+UNKNOWN_ID = '(unknown)'   # the level_id an unfound level is scanned under
+
+
+def unfound_theory(ctx, log=print):
+    """The calculated level list, Cowan's transitions and the partner energies.
+
+    Returned as ``(en, trans, mapping, e_meas, per_cfg, whole, id_of)``: the
+    rows of enlev.dat indexed by their IDEN2 row number, Cowan's E1 transition
+    list, the ``{Cowan level number: IDEN2 row}`` correspondence, the measured
+    energy of every found row, the rms of E_obs - E_calc per configuration and
+    over the whole list, and the ``{IDEN2 row: level_id}`` map.
+
+    unfound_levels.py imports THIS module, so it can only be imported from
+    inside a function here, once this module is built.  It is worth the
+    awkwardness: the reading of Cowan's table, the matching of its level
+    numbering to IDEN2's and the per-configuration windows are all measured
+    and tested there, and a second copy of them would be a second answer.
+    """
+    import cowan_gA
+    import unfound_levels as uf
+    en, trans, mapping = uf.read_theory(log=log)
+    e_meas = uf.measured_energies(en, e_final=ctx.e_final, log=log)
+    per_cfg, whole = uf.windows(en, log=log)
+    return en, trans, mapping, e_meas, per_cfg, whole, cowan_gA.read_id_map(
+        uf.IDS)
+
+
+def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
+    """Give the calculated level of IDEN2 row ``idx`` a set of predictions.
+
+    They are entered in ctx under UNKNOWN_ID, so that ln_ratio, support and
+    print_detail work on it unchanged.  Only transitions to levels that have
+    been found are kept: the other end of the rest is itself unplaced, so no
+    wavenumber can be predicted for them at all.  Returns the number of
+    predictions the level is left with.
+    """
+    a = np.array([mapping.get(int(v), -1) for v in trans['lid1']])
+    b = np.array([mapping.get(int(v), -1) for v in trans['lid2']])
+    gA = trans['gA'].to_numpy(dtype=float)
+    hit = ((a == idx) | (b == idx)) & (a > 0) & (b > 0) & (gA > 0)
+    other = np.where(a[hit] == idx, b[hit], a[hit])
+    gA = gA[hit]
+    known = en['known'].to_dict()
+    keep = np.array([bool(known.get(int(i), False)) for i in other],
+                    dtype=bool)
+    other, gA = other[keep], gA[keep]
+
+    pid = np.array([str(id_of.get(int(i), '')) for i in other])
+    in_run = np.array([p in ctx.e_final for p in pid], dtype=bool)
+    if not in_run.all():
+        log(f"  {int((~in_run).sum())} partners are found in enlev.dat but "
+            f"are not levels of this run; their transitions are dropped")
+    other, gA, pid = other[in_run], gA[in_run], pid[in_run]
+
+    E_c = float(en['E_calc'][idx])
+    E_p = np.array([float(e_meas[int(i)]) for i in other])
+    C = float(cl.CFG.intensity_model['C'])
+    kT = float(cl.CFG.intensity_model['kT'])
+    nu = np.abs(E_c - E_p)
+    i_pred = C * gA * (nu / 1.0e8) * np.exp(-np.maximum(E_c, E_p) / kT)
+
+    ctx.by_level[UNKNOWN_ID] = dict(
+        partner=pid,
+        sign=np.where(E_c > E_p, 1.0, -1.0),
+        i_pred=i_pred,
+        e_m=E_p,
+        u_m=np.array([ctx.u_M.get(p, 0.0) for p in pid]),
+        degenerate=np.array([ctx.n_acc_level.get(p, 0) <= 0 for p in pid]))
+    ctx.e_final[UNKNOWN_ID] = E_c
+    return len(pid)
+
+
+def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0):
+    """Every position in the calculation's window where the lines want a level.
+
+    The window is E_calc +/- three times the rms of E_obs - E_calc over the
+    FOUND levels of the same configuration - the same interval a known level
+    of that configuration is scanned over, and for the same reason: how far
+    the calculation can be wrong is a property of the configuration, not of
+    the level.  Maxima closer together than ALT_SEP are one maximum.
+    """
+    E_c = float(en['E_calc'][idx])
+    W = float(per_cfg.get(en['cfg'][idx], whole))
+    lo, hi = scan_interval(E_c, E_c, W)
+    n = int((hi - lo) / step) + 1
+    if n > GRID_MAX:
+        step = (hi - lo) / (GRID_MAX - 1)
+        n = GRID_MAX
+    grid = lo + step * np.arange(n)
+    y, _ = ln_ratio(ctx, UNKNOWN_ID, grid)
+    hits = [(float(grid[i]), float(y[i])) for i in local_maxima(y)
+            if y[i] > min_ln_r]
+    hits.sort(key=lambda z: -z[1])
+    kept = []
+    for e, v in hits:
+        if all(abs(e - k[0]) >= ALT_SEP for k in kept):
+            kept.append((e, v))
+    return dict(idx=idx, E_calc=E_c, W=W, lo=lo, hi=hi, step=step,
+                grid=grid, y=y, positions=kept,
+                ln_R_best=float(y.max()) if len(y) else float('nan'),
+                E_best=float(grid[int(np.argmax(y))]) if len(y) else
+                float('nan'))
+
+
+def unknown_table(ctx, r):
+    """One row per candidate position, best first.
+
+    ln_R    the verdict at that energy
+    look    ln R after the look-elsewhere correction for the whole scan
+    dE, z   how far it is from the calculated energy, in cm^-1 and in units
+            of that configuration's own scatter.  A position at z = 2.8 is
+            asking the calculation to be wrong by nearly three times as much
+            as it usually is for that configuration.
+    n_obs   predictions that could have been recorded there (P_obs >= P_SEEN)
+    n_match how many of those found a recorded line - the count to read
+            against n_obs, since a position that predicts twenty observable
+            lines and matches three is contradicted, not supported
+    n_free  of the matches, the well-centred ones on features no accepted
+            transition already claims: the lines the level could take without
+            taking them from a level already found
+    free_gain  what those free lines are worth in ln R
+    top_share  the largest single line's share of the positive evidence
+    verdict how the audit above would read that support, by exactly the same
+            constants: `firm` where a relocation would be called firm, `no
+            support` where one line is the whole case or there are fewer than
+            two free ones, `weak` in between.  A level nobody has found is
+            held to the standard a level of the run is held to, because the
+            evidence for it is the same kind of evidence and the scan that
+            found it had the same freedom to look.
+    """
+    rows = []
+    n = max(len(r['positions']), 1)
+    for e, v in r['positions']:
+        sup = support(ctx, UNKNOWN_ID, e)
+        rows.append(dict(E=e, ln_R=v, look=v - math.log(n),
+                         dE=e - r['E_calc'],
+                         z=(e - r['E_calc']) / r['W'] if r['W'] > 0
+                         else np.nan,
+                         n_obs=sup['n_obs_alt'], n_match=sup['n_seen_alt'],
+                         n_miss=sup['n_miss_alt'], n_free=sup['n_free'],
+                         free_gain=sup['free_gain'],
+                         top_share=sup['top_share'],
+                         verdict=position_verdict(
+                             sup['n_free'], sup['free_gain'],
+                             sup['top_share'], v - math.log(n))))
+    tab = pd.DataFrame(rows, columns=['E', 'ln_R', 'look', 'dE', 'z',
+                                      'n_obs', 'n_match', 'n_miss',
+                                      'n_free', 'free_gain', 'top_share',
+                                      'verdict'])
+    if tab.empty:
+        return tab
+    rank = {'firm': 0, 'weak': 1, 'no support': 2}
+    tab['_r'] = [rank[x] for x in tab['verdict']]
+    return tab.sort_values(['_r', 'ln_R'], ascending=[True, False]).drop(
+        columns='_r').reset_index(drop=True)
+
+
+def position_verdict(n_free, free_gain, top_share, look):
+    """What the audit's own constants make of one candidate position.
+
+    The tests are those of disposition(): AUDIT_MIN_FEW free lines before
+    there is any support at all, AUDIT_ANY_SHARE above which one line IS the
+    case, and the four a firm relocation has to pass.  There is no ln R of an
+    adopted position to beat here - the level has no adopted position - so ln
+    R itself, after the look-elsewhere correction, plays the part the gain
+    plays there.
+    """
+    share = top_share
+    if n_free < AUDIT_MIN_FEW or (np.isfinite(share)
+                                  and share > AUDIT_ANY_SHARE):
+        return 'no support'
+    if (n_free >= AUDIT_MIN_FREE and free_gain >= AUDIT_MIN_GAIN
+            and np.isfinite(share) and share <= AUDIT_MAX_SHARE
+            and look >= AUDIT_MIN_LOOK):
+        return 'firm'
+    return 'weak'
+
+
+def print_unknown(ctx, idx, en, r, n_pred, top=0):
+    """The report for one unfound level."""
+    row = en.loc[idx]
+    print(f"\nIDEN2 row {idx}  {row['label']}  J = {row['J']}  "
+          f"{'FOUND' if row['known'] else 'not found'}")
+    print(f"  calculated at {r['E_calc']:.1f} cm^-1; levels of {row['cfg']} "
+          f"turn out to be {r['W']:.1f} cm^-1 from where the calculation "
+          f"puts them (rms)")
+    at_calc = support(ctx, UNKNOWN_ID, r['E_calc'])
+    print(f"  {n_pred} calculated transitions to levels that HAVE been found, "
+          f"{at_calc['n_obs_alt']} of which could have been recorded at the "
+          f"calculated position")
+    print(f"  scanned {r['lo']:.1f} - {r['hi']:.1f} cm^-1 in steps of "
+          f"{r['step']:.3f}")
+    if at_calc['n_obs_alt'] < 2:
+        print(f"  With fewer than two transitions that could have been "
+              f"recorded, nothing in this window can be believed: one line "
+              f"can be made to fit any energy, and a scan over hundreds of "
+              f"wavenumbers will always find one.  unfound_levels.py ranks "
+              f"the levels by how many such transitions they have, and this "
+              f"one is not worth a search.")
+    if not r['positions']:
+        print(f"  no position in the window where ln R > 0.  The best the "
+              f"window offers is {r['ln_R_best']:+.2f} at "
+              f"{r['E_best']:.3f} cm^-1, which is not a candidate: the "
+              f"recorded lines are no more likely with a level there than "
+              f"with none.")
+        return
+    tab = unknown_table(ctx, r)
+    counts = tab['verdict'].value_counts()
+    shown = tab if not top else tab.head(top)
+    print(f"  {len(tab)} positions where ln R > 0: "
+          + ', '.join(f"{int(counts.get(k, 0))} {k}"
+                      for k in ('firm', 'weak', 'no support'))
+          + (f"; the best {len(shown)} shown" if len(shown) < len(tab)
+             else ''))
+    with pd.option_context('display.width', 200, 'display.max_columns', 16):
+        print()
+        print(shown.to_string(index=False, na_rep='-',
+                              float_format=lambda x: f'{x:.3f}'))
+    print(f"\n  --unknown {idx} --at E lists the transitions at any one of "
+          f"these energies.")
+    if not int(counts.get('firm', 0)) and not int(counts.get('weak', 0)):
+        print(f"  Every one of them rests on one line or on none that is "
+              f"free, which is what a scan of {r['hi'] - r['lo']:.0f} cm^-1 "
+              f"finds when there is nothing there.")
+    print(f"  A position here is conditional on the rest of the level list, "
+          f"exactly as an alternate position is: the lines it takes are "
+          f"lines its neighbours could take instead.")
 
 
 def parse_args(argv):
@@ -1659,6 +3035,22 @@ def parse_args(argv):
                    help='--detail lists every prediction, including the faint '
                         'ones that could not have been recorded and found no '
                         'line (default: only the observable and the matched)')
+    p.add_argument('--unknown', nargs='+', metavar='IDEN2_ROW', type=int,
+                   default=None,
+                   help='search for a level of the CALCULATION by its row '
+                        'number in IDEN2/enlev.dat, starting from the E_calc '
+                        'of that row: scan the window the calculation allows '
+                        'and report every position where ln R > 0, with what '
+                        'each one rests on.  The row need not be one of the '
+                        'levels that have been found')
+    p.add_argument('--min-ln-r', type=float, default=0.0, metavar='X',
+                   help='--unknown reports the positions with ln R above this '
+                        '(default %(default)s: the energies at which the '
+                        'recorded lines are more likely with a level there '
+                        'than without one)')
+    p.add_argument('--top', type=int, default=0, metavar='N',
+                   help='--unknown lists only the best N positions '
+                        '(default: all of them)')
     p.add_argument('--scan', action='store_true',
                    help='scan the alternate-position window of every level')
     p.add_argument('--audit', action='store_true',
@@ -1685,6 +3077,12 @@ def parse_args(argv):
                         'second run fast; a level is re-scanned the moment '
                         'its energy, one of its partners, or an accepted '
                         'assignment within reach of its predictions moves')
+    p.add_argument('--plain-background', action='store_true',
+                   help='take the background of unrelated lines from the whole '
+                        'observed list, as the runs made before the '
+                        'transition-probability file was available did, '
+                        'instead of from the free lines and the predicted '
+                        'transitions of the levels that have not been found')
     p.add_argument('--lopt', default=None,
                    help='build the run from a LOPT line-output file')
     p.add_argument('--lopt-levels', default=None)
@@ -1692,12 +3090,39 @@ def parse_args(argv):
     p.add_argument('--energies-csv', default=None,
                    help='csv of revised adopted energies (level_id,E_input)')
     p.add_argument('--out', default='level_positions.csv')
+    p.add_argument('--fit-hfs', action='store_true',
+                   help='re-fit one hyperfine width per level on the 1974 '
+                        'lines of the run, write level_hfs_widths.csv and '
+                        'stop; nothing else is scanned')
     return p.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv)
-    if not args.detail:
+    if args.fit_hfs:
+        output_files.require_writable([HFS_FILE], 'hyperfine width file')
+        if args.lopt:
+            ls.LOPT_LINES = args.lopt
+            ls.LOPT_LEVELS = args.lopt_levels
+            ls.ENERGIES = args.energies
+        if args.energies_csv:
+            ls.E_INPUT_CSV = args.energies_csv
+        levels, real, _ = ls.read_run()
+        acc = real[real['accepted'] == 1].copy()
+        acc['low_id'] = acc['low_id'].astype(str)
+        acc['upp_id'] = acc['upp_id'].astype(str)
+        w = fit_hfs_widths(acc, levels)
+        w.to_csv(HFS_FILE, index=False, lineterminator='\n')
+        used = w[w['w_applied'] > 0]
+        marked = used[used['w_applied'] > HFS_MARK]
+        n_cfg = int((w['w_source'] == 'configuration').sum())
+        print(f"\n{HFS_FILE}: {len(w)} levels, {len(used)} carry a width "
+              f"({n_cfg} of them their configuration's, the fit having too "
+              f"few lines of their own), {len(marked)} marked as having "
+              f"a large hyperfine structure")
+        print(marked.sort_values('E_input').to_string(index=False))
+        return 0
+    if not args.detail and not args.unknown:
         output_files.require_writable(output_files.with_twin(args.out),
                                       'report file')
         if args.firm and (args.scan or args.audit):
@@ -1707,6 +3132,28 @@ def main(argv=None):
     if args.detail:
         print_detail(ctx, args.detail, args.at, args.detail_all,
                      args.alt_drop)
+        return 0
+
+    if args.unknown:
+        en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+        for idx in args.unknown:
+            if idx not in en.index:
+                print(f"\nIDEN2 row {idx} is not in enlev.dat")
+                continue
+            n_pred = register_unknown(ctx, idx, en, trans, mapping, e_meas,
+                                      id_of)
+            if not n_pred:
+                print(f"\nIDEN2 row {idx} has no calculated transition to "
+                      f"any level that has been found: there is nothing to "
+                      f"search on")
+                continue
+            if args.at is not None:
+                print_detail(ctx, UNKNOWN_ID, args.at, args.detail_all,
+                             args.alt_drop)
+                continue
+            r = scan_unknown(ctx, idx, en, per_cfg, whole, step=args.step,
+                             min_ln_r=args.min_ln_r)
+            print_unknown(ctx, idx, en, r, n_pred, top=args.top)
         return 0
 
     ids = args.levels if args.levels else list(ctx.per['level_id'])
@@ -1726,8 +3173,10 @@ def main(argv=None):
                   f"settled; --use-firm skips their scans")
         glob = run_digest(ctx)
         acc_wn, acc_key = accepted_index(ctx)
-        print(f"\nscanning {len(ids)} levels "
-              f"({len(unmatched)} matched no row of enlev.dat)")
+        print(f"\n{len(ids)} levels to consider "
+              f"({len(unmatched)} matched no row of enlev.dat)"
+              + (f"; the registry may spare some of them their scan"
+                 if known else ''))
         n_alt, best_alt, d_alt, sep, width = [], [], [], [], []
         scanned, fresh = [], {k: dict(v) for k, v in registry.items()}
         # a maximum that falls on another level of the run is a different
@@ -1800,9 +3249,9 @@ def main(argv=None):
         tab['question'] = np.where(np.asarray(n_alt) > 0, '?', '')
         tab['scanned'] = scanned
         n_cached = scanned.count('registry')
-        if n_cached:
-            print(f"  {n_cached} of them were taken from the registry and not "
-                  f"re-scanned")
+        print(f"  windows actually scanned: {len(scanned) - n_cached}"
+              + (f"; the other {n_cached} were taken from the registry "
+                 f"unchanged" if n_cached else ''))
         if args.firm:
             write_firm(args.firm, list(fresh.values()))
         if args.audit:
@@ -1813,7 +3262,7 @@ def main(argv=None):
         'E': 4, 'ln_R': 3, 'ln_R_match': 3, 'ln_R_miss': 3,
         'sum_lnG': 3, 'ln_R_alt': 3, 'd_ln_R': 3, 'dE_alt': 4,
         'near_dE': 4, 'scan_width': 1, 'gain': 3, 'look': 3,
-        'free_gain': 3, 'top_share': 3, 'z_alt': 2})
+        'free_gain': 3, 'top_share': 3, 'kept_light': 3, 'z_alt': 2})
     print(f"ln R at the adopted position: median {tab['ln_R'].median():.1f}, "
           f"{int((tab['ln_R'] <= 0).sum())} at or below zero, "
           f"{int((tab['ln_R'] < 10).sum())} below 10")

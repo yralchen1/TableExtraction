@@ -1,7 +1,7 @@
-LOPT_input_lines.txt      ; TRANSITIONS input file name; Explanations are below!
-LOPT_fixlev.txt                   ; FIXED LEVELS input file name
-LOPT_output_levels.txt     ; Levels OUTPUT file name
-LOPT_output_lines.txt      ; Transitions OUTPUT file name
+LOPT_input_lines.txt          ; TRANSITIONS input file name; Explanations are below!
+LOPT_fixlev.txt                       ; FIXED LEVELS input file name
+LOPT_output_levels.txt         ; Levels OUTPUT file name
+LOPT_output_lines.txt          ; Transitions OUTPUT file name
 N                 ; OMIT calc. wavelengths in ANGSTROMS in the output (Y/N)?
 Y                 ; TUNE single-line levels (Y/N)?
 N                 ; Print listing of correlated-lines uncert. effects (Y/N)?
@@ -10,8 +10,8 @@ N       ; Write virtual lines (Y/N)?
 N       ; Divide levels into independent groups (Y/N)?
 5000    ; MIN. wavenumber for AIR wavelength [cm-1]
 50000   ; MAX. wavenumber for AIR wavelength [cm-1]
-99.0     ; ROUND-OFF threshold for output LEVELS
-99.0     ; ROUND-OFF threshold for output LINES
+99999.0     ; ROUND-OFF threshold for output LEVELS
+99999.0     ; ROUND-OFF threshold for output LINES
  1       ; 1st column of WAVELENGTH in the transitions-input file
  12      ; LAST column of WAVELENGTH in the transitions-input file
  14      ;1st column of wavelength UNCERTAINTY in the transitions-input file

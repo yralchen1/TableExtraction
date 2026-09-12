@@ -273,6 +273,14 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
     return levels_dict, levels_list
 
 
+def _int_or_zero(value) -> int:
+    """`value` as an integer, or 0 when it is missing or not a number."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
 def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
     """Append the levels of `path` to the level list read from the workbook.
 
@@ -289,14 +297,27 @@ def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
     is the next one free - the last six digits of the largest id in use, plus
     one - so that it can never collide with a published one.
 
+    Two further columns are optional, written by insert_new_level.py:
+    iden2_row, the row of IDEN2/enlev.dat the level is, and cowan_lid, the
+    level number of the Cowan calculation.  cowan_lid is what
+    read_cowan_transitions() selects the level's calculated transitions by, so
+    a level that carries one needs no rows in files.icalc_extra at all.
+
+    The file may be comma-separated (.csv) or tab-separated (.txt); the
+    delimiter follows the extension.  The tab-separated form is the one to
+    use, because Excel turns the J value "7/2" into a date when it opens a
+    .csv and offers no way to stop it, whereas opening a .txt gives the import
+    dialogue where the column can be declared Text.
+
     The level is marked is_new = 1, like a level of the published list that is
     absent from the ASD: it is a level whose reality the work is establishing,
     so the decoy calibration must treat it as one of the levels under test.
     is_added = 1 records that it came from here rather than from the workbook.
     """
     added = 0
+    delim = '	' if os.path.splitext(path)[1].lower() == '.txt' else ','
     with open(path, newline='', encoding='utf-8-sig') as fh:
-        rdr = csv.DictReader(fh)
+        rdr = csv.DictReader(fh, delimiter=delim)
         missing = [c for c in ('level_id', 'E', 'J', 'parity')
                    if c not in (rdr.fieldnames or [])]
         if missing:
@@ -317,7 +338,9 @@ def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
                                  f"parity {parity!r}; expected 'e' or 'o'")
             lev = EnergyLevel(level_id=lid, energy=float(rec['E']),
                               parity=parity, J_str=j_str,
-                              J_val=parse_J(j_str), is_new=1, is_added=1)
+                              J_val=parse_J(j_str), is_new=1, is_added=1,
+                              iden2_row=_int_or_zero(rec.get('iden2_row')),
+                              cowan_lid=_int_or_zero(rec.get('cowan_lid')))
             levels_dict[lid] = lev
             levels_list.append(lev)
             added += 1
@@ -348,11 +371,20 @@ def read_energy_overrides(path: str) -> dict[str, float]:
         if missing:
             raise ValueError(f"{os.path.basename(path)}: missing column(s) "
                              f"{', '.join(missing)}")
-        for rec in rdr:
+        for n, rec in enumerate(rdr, start=2):
             lid = to_str_id(rec['level_id'])
             if lid == '':
                 continue
-            emap[lid] = float(rec['E_input'])
+            try:
+                emap[lid] = float(rec['E_input'])
+            except (TypeError, ValueError):
+                # a row half written by hand: the level has been named but
+                # its new energy not yet filled in.  Say which row, since the
+                # bare conversion error names neither the file nor the level.
+                raise ValueError(
+                    f"{os.path.basename(path)} line {n}: {lid} has no "
+                    f"E_input.  Fill the revised energy in, or delete the "
+                    f"row until it is known") from None
     return emap
 
 
@@ -995,9 +1027,110 @@ def read_transitions(levels_dict: dict) -> dict:
     if n_below:
         print(f"  Skipped {n_below} rows with gA < {CFG.gA_cutoff:g} s^-1 "
               f"(icalc.completeness.allow_below_cutoff = false).")
+    read_cowan_transitions(levels_dict, calc_trans_index)
     if ICALC_EXTRA:
         read_extra_transitions(levels_dict, calc_trans_index, ICALC_EXTRA)
     return calc_trans_index
+
+
+def read_cowan_transitions(levels_dict: dict, calc_trans_index: dict) -> int:
+    """Add the calculated transitions of the levels added by files.new_levels.
+
+    A level found since the adopted level list was published has no rows in
+    Icalc.xlsx: that file holds only the pairs whose two levels were both
+    experimentally known when it was made.  Its transitions are taken instead
+    straight from the source Icalc.xlsx itself was made from, the Cowan
+    transition list tp_E1_no_trials.xlsx, which holds every calculated
+    transition of the ion whether its levels are known or not.
+
+    The level says which calculated level it is through the cowan_lid column
+    of files.new_levels - the level number of the Cowan calculation, resolved
+    once by insert_new_level.py from the row of IDEN2/enlev.dat and written
+    down there, so that this function never has to repeat that matching.  The
+    transitions wanted are exactly the rows whose lid1 or lid2 is that number
+    and whose partner carries a Wyart identifier that the level list knows.
+
+    THE PREDICTED INTENSITY IS COMPUTED HERE FROM gA, by the relation the main
+    file obeys,
+
+        Icalc = C * gA * (rwn/1e8) * exp(-Eup/kT) ,
+
+    with C and kT from [intensity_model], exactly as read_extra_transitions
+    does and for the same reason: the rows must sit on the intensity scale the
+    rest of the table sits on, whatever scale it is currently fitted to.  The
+    wavenumber and the upper energy are the ADOPTED ones of the level list, not
+    the calculated ones, so the transition is predicted at its Ritz position.
+
+    Rows with gA below icalc.completeness.gA_cutoff are dropped, because that
+    is where Cowan's codes stopped printing and therefore where every other
+    level's list in Icalc.xlsx stops: were they kept, a new level would arrive
+    with a longer transition list than any published level has and the
+    completeness rule - a pair absent from the table has gA below the cutoff -
+    would mean something different for it than for the others.
+
+    A pair already in `calc_trans_index` is left alone, so that a hand-made row
+    of files.icalc_extra still has the last word.  Returns the number added.
+    """
+    wanted = {lev.cowan_lid: lev for lev in levels_dict.values()
+              if getattr(lev, 'cowan_lid', 0)}
+    if not wanted:
+        return 0
+
+    import cowan_gA
+    C = float(CFG.intensity_model['C'])
+    kT = float(CFG.intensity_model['kT'])
+    trans = cowan_gA.read_transitions(log=lambda msg: print(f"  {msg}"))
+
+    n, n_cut, n_unknown, n_kept = 0, 0, 0, 0
+    for lid, lev in sorted(wanted.items()):
+        rows = trans[(trans['lid1'] == lid) | (trans['lid2'] == lid)]
+        for _, r in rows.iterrows():
+            partner_id = r['id2'] if int(r['lid1']) == lid else r['id1']
+            partner_id = to_str_id(partner_id)
+            if not partner_id or partner_id not in levels_dict:
+                n_unknown += 1
+                continue
+            gA = float(r['gA'])
+            if not (gA >= CFG.gA_cutoff):
+                n_cut += 1
+                continue
+            partner = levels_dict[partner_id]
+            if partner.energy < lev.energy:
+                low, upp = partner, lev
+            else:
+                low, upp = lev, partner
+            key = (low.level_id, upp.level_id)
+            if key in calc_trans_index:
+                n_kept += 1
+                continue
+            rwn = upp.energy - low.energy
+            if rwn <= 0:
+                continue
+            u_calc = None
+            try:
+                u_calc = math.log(float(r['u_gA_pct']) / 100.0 + 1.0)
+            except (ValueError, TypeError):
+                pass
+            calc_trans_index[key] = {
+                'calc_intensity': C * gA * (rwn / 1e8)
+                                  * math.exp(-upp.energy / kT),
+                'u_calc': u_calc,
+                'assigned_to': None,
+            }
+            n += 1
+
+    print(f"  Read {n} calculated transitions of {len(wanted)} added level(s) "
+          f"from {os.path.basename(cowan_gA.TP_FILE)} (Icalc computed from gA "
+          f"with C = {C:.6g}, kT = {kT:.6g} cm^-1).")
+    if n_cut:
+        print(f"    {n_cut} dropped with gA < {CFG.gA_cutoff:g} s^-1, the "
+              f"printing cutoff Icalc.xlsx itself obeys.")
+    if n_unknown:
+        print(f"    {n_unknown} skipped: the partner level is not in the "
+              f"level list.")
+    if n_kept:
+        print(f"    {n_kept} left as they stand: already in the table.")
+    return n
 
 
 def read_extra_transitions(levels_dict: dict, calc_trans_index: dict,

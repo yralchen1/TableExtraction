@@ -13,6 +13,9 @@ class EnergyLevel:
     is_decoy: int = 0                      # 1 = decoy (shadow) copy used for false-positive calibration
     is_added: int = 0                      # 1 = level found since the adopted level list was published,
                                            #     read from files.new_levels rather than from the workbook
+    iden2_row: int = 0                     # row of IDEN2/enlev.dat this level is, 0 = unknown; set for added levels
+    cowan_lid: int = 0                     # level number of the Cowan calculation (tp_E1_no_trials.xlsx),
+                                           #     0 = unknown; how an added level's calculated transitions are found
     intens_from_factor: float = 0.0        # weighted mean of ln(I_obs/I_calc) for transitions FROM this level (upper)
     u_intens_from_factor: float = 0.0      # uncertainty (chi²-inflated)
     intens_to_factor: float = 0.0          # same, for transitions TO this level (lower)

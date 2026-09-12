@@ -291,14 +291,28 @@ calculated transitions in `Icalc.xlsx`. Nothing could therefore ever propose an
 observed line for it, and a `line_decisions.csv` row accepting one of its lines
 would be ruling on a candidate that is never generated — a silent no-op.
 
-Two further files, both named in `[files]`, are how such a level enters.
+`files.new_levels`, named in `[files]`, is how such a level enters — and
+`insert_new_level.py` (below) is what writes it, along with everything else the
+new level needs.
 
-**`files.new_levels`** (`new_levels.csv`) — one row per level:
+**`files.new_levels`** (`new_levels.txt`) — one row per level, **tab**-separated:
 
 ```
-level_id,E,J,parity,comment
-059003.000623,132958.176,7/2,o,"Found in IDEN2; 7 lines (2 doubly classified …)"
+level_id	E	J	parity	iden2_row	cowan_lid	comment
+059003.000623	132958.176	7/2	o	474	396	Found in IDEN2; 7 lines …
 ```
+
+The file is tab-separated and named `.txt` for one reason: Excel turns the J
+value `7/2` into the date 7 February when it opens a `.csv`, and offers no way
+to stop it, whereas opening a `.txt` gives the import dialogue, where the J
+column can be declared Text. A `.csv` is still read — the delimiter follows the
+extension — so the older form goes on working.
+
+`iden2_row` and `cowan_lid` are optional and are written by
+`insert_new_level.py`: the row of `IDEN2/enlev.dat` the level is, and its level
+number in the Cowan calculation. `cowan_lid` is what its calculated transitions
+are found by, so a level that carries one needs no `icalc_extra` rows at all
+(see below).
 
 `level_id` is the next one free: the last six digits of the largest identifier
 in use, plus one. The level enters the run marked `is_new = 1`, exactly like a
@@ -308,9 +322,23 @@ same footing as the others — and `is_added = 1` records that it came from here
 rather than from the workbook. Reusing an identifier that is already in the
 level list is an error, not a silent overwrite.
 
-**`files.icalc_extra`** (`icalc_new.xlsx`) — the calculated transitions of
-those levels, in the layout of `Icalc.xlsx` (same worksheet name, same column
-names). Only the pairs involving a new level need be listed. The complete
+**The calculated transitions of a new level** are derived on the fly, by
+`classify_lines.read_cowan_transitions()`, from the Cowan transition list
+`tp_E1_no_trials.xlsx` — the very file `Icalc.xlsx` was made from, which holds
+every calculated transition of the ion whether its levels are known or not.
+The level's `cowan_lid` selects its rows; every one of them whose partner
+carries a Wyart identifier the level list knows becomes a transition, with
+`Icalc` computed from `gA` as below and the same `gA` cutoff applied that
+`Icalc.xlsx` itself obeys, so that a new level's transition list stops where
+every other level's stops and the completeness rule keeps meaning the same
+thing. **`icalc_new.xlsx` is therefore no longer needed**, and the
+`icalc_extra` line of `lineclass_config.toml` is commented out.
+
+**`files.icalc_extra`** (formerly `icalc_new.xlsx`) — still supported, and
+still first in precedence: a pair listed there overrides the derived row, so a
+calculated transition can be corrected by hand without touching the
+calculation. In the layout of `Icalc.xlsx` (same worksheet name, same column
+names); only the pairs involving a new level need be listed. The complete
 calculated table for the ion, including every level not yet identified, is far
 too large to carry here; and a pair absent from *both* files is treated by the
 completeness rule exactly as before, as one whose `gA` falls below the printing
@@ -2870,7 +2898,9 @@ same formula when the feature is already explained by transitions that have noth
 the Ritz wavenumber is nu = E − E_M when L is the upper level and E_M − E when it is the lower —
 the two move in *opposite* directions as E is scanned, which is what makes the maximum sharp
 rather than flat. Model the line list near nu as a Poisson process of unrelated lines of local
-density rho, plus, under H1, at most one genuine line, present with probability P = c(lambda)·D(z)
+density rho — *unrelated*, so the density is that of the lines the level list does not already
+account for, not of the whole recorded list; see **The background of unrelated lines** below —
+plus, under H1, at most one genuine line, present with probability P = c(lambda)·D(z)
 and placed Gaussian about nu. The Poisson background is identical under both hypotheses and
 cancels, leaving, with p = P(1 − eta):
 
@@ -2924,6 +2954,110 @@ in the window, and the best attainable R_t falls from about 25 to 3.2. In the in
 question stops being "is a line of this brightness here" and becomes "does adding the predicted
 intensity of t improve an account of that brightness which already works".
 
+**Two readings of a match, and the row is worth the better of them.** A matched free feature can
+be read two ways. Either *the feature is the transition* — its position drawn from N(d; 0, sigma)
+against the local line density rho, its brightness from N(ln I_obs; ln(I_t·f), s) against g — or
+*the transition is hidden in a feature that is there anyway*, carrying light nobody has identified.
+Under the second reading H0 has the line present with certainty, so rho is 1/(2W) as for a blend
+and the brightness says nothing either way; the best it can be worth is 3.2 against the first
+reading's 25. R_t takes whichever is larger.
+
+Taking the intensity floor without also replacing rho was the error: it read the brightness under
+the second hypothesis and the position under the first. A prediction of I = 0.2 landing on a
+feature of 13372 then kept the whole of the positional credit — ln R_t = +1.4 for a transition with
+a 1.5 % chance of having been recorded at all. Rows of that kind are the strong observed line
+assigned to the very weak transition, the assignment `classify_lines.py` refuses and the analyst
+leaves free for a more adequate one, and half a dozen of them were carrying four levels of the
+2026-09-10 audit (`059003.000521`, `.000522`, `.000534`, `.000536`) to alternate positions. Taking
+the better of the two readings, rather than switching on the floor, is what leaves a genuine line
+alone: one under-predicted by a factor of thirty is still far better explained as the transition
+than as a coincidence, and it goes on being read that way. A row the second reading wins counts as
+neither free support (`n_free`) nor evidence in the level offset, and `--detail` marks it `bright`
+in the `what` column. In the 2026-09-10 run the correction leaves the median `ln R` at 22.4, takes
+the preferred alternates from 57 to 30 and the `refit` rows from 5 to 1, and — because it lowers
+`ln R` at an adopted position as readily as at an alternate — promotes one level, `059003.000477`,
+from `weak` to firm grounds for relocation: the four free lines 100.5 cm⁻¹ away were always worth
+`ln R` = +2.5, and what changed is that the position it sits on now scores −5.4 instead of −3.3.
+
+**The background of unrelated lines.** rho is the rate at which a line the level under test has
+nothing to do with turns up near nu, and g is the brightness such a line would have. Both were
+first measured on the whole recorded list, from the 41 and 201 nearest lines. That is the wrong
+population, in both halves. Of the 6668 recorded lines, 4526 already carry an accepted transition:
+they are explained without the level under test, and they are systematically the *bright* ones,
+because a line was identified in the first place partly by being strong enough to measure well.
+Only the remaining 2142 can be what a coincidence is drawn from. Using all 6668 puts rho about two
+and a half times too high and the mean of g about 0.6 in ln I too high — a bias that understates
+every matched free row, by ln(0.094/0.039) ≈ 0.9 in the positional half alone.
+
+The free lines are not a mystery, and this is where `tp_E1_no_trials.xlsx` — Cowan's complete E1
+transition list, which was not in the project when the likelihood was written — earns its place in
+the null model. A recorded line that carries no accepted transition is, in this spectrum, almost
+always a transition of a level the calculation predicts and nobody has found: **658** of the 1253
+calculated levels of `IDEN2/enlev.dat` are in that state, **61290** of their E1 transitions have a
+partner that *has* been found, and summing the probability P that each would have been recorded
+gives **≈ 2970** expected lines — the same order as the 2142 free ones actually there. The file
+therefore predicts the very population rho and g describe, and predicts its *structure* as well as
+its size: the expected rate runs from 0.001 per cm⁻¹ below 10000 to 0.052 near 55000, more than an
+order of magnitude, which no single number and no 21-nearest-neighbour smoothing of sparse data can
+express.
+
+An unfound level's energy is known only to W, the rms of E_obs − E_calc over the found levels of
+its configuration (40 to 800 cm⁻¹), so one of its transitions predicts no position. Smeared over W
+it predicts a *rate*, which is exactly what a Poisson background needs:
+
+    rho_unk(nu) = Σ over unfound-level transitions of  P · N(nu; nu_calc, W_cfg)   per cm^-1
+
+and the same weights give the mean and spread of ln(I·f) — the brightness such a line would have.
+`unknown_transition_background()` builds both as one convolution per configuration width, about two
+seconds on top of `build()`.
+
+Two estimates of one population, then — the free lines actually recorded, and the lines the
+calculation says are missing — and they are combined by taking the **larger** of them, the larger
+rate and the larger of the two brightness densities. That is the conservative direction, since a
+bigger background is a smaller `ln R`, and it is the same device as the two readings of a match: an
+unrelated line is allowed whichever account of itself is the better. The result is capped above by
+the all-lines density (the free lines are a subset of the recorded ones) and floored at
+`RHO_BG_FLOOR` = 0.05 of it, because both estimates extrapolate where no free line is near and an
+extrapolated density must not buy unbounded credit; the brightness half is floored the same way at
+`LN_BG_DROP` = 3.0 below the all-lines value.
+
+Three places this deliberately does **not** reach. A *claimed* feature keeps the all-lines rate and
+the all-lines g: there rho has already been replaced by 1/(2W), and the one-sided floor of
+`ln_intensity` is a guard against an astronomically small denominator, for which the more generous
+distribution is the safer one. `eta` keeps the all-lines rate too: it is the rate at which a
+*genuine* line sits at an anomalous position, and the background it is mixed against is every line
+it could have been taken for. And rho_unk does not enter the *hidden in a feature that is there
+anyway* reading — that reading compares a world in which the observed feature is an unrelated line
+with one in which the same unrelated line has the transition blended into it, so the feature is
+present in both, its rate cancels, and only 2W·N(d; 0, sigma), the probability that the transition
+falls inside it, survives.
+
+**What it does to the run** (`--audit --no-firm`, both ways, 593 levels). Because the correction
+removes a background that was too large, every level's `ln R` **rises** — the median goes from 22.4
+to 31.6, a little under one unit per matched free line — so `FIRM_LN_R` and any threshold read off
+an absolute `ln R` mean slightly less than they did before. Differences between two positions of
+the *same* level, which is what the scan and the audit are about, are far less affected: the shift
+is common to both wherever they match the same number of free lines.
+
+| | plain background | unrelated-line background |
+|---|---|---|
+| median `ln R` at the adopted position | 22.4 | 31.6 |
+| levels at `ln R` ≤ 0 | 21 | 7 |
+| local maxima within `--alt-drop`, summed over all levels | 2823 | **1912** |
+| levels carrying a question mark | 85 | **68** |
+| of those, alternate preferred to the adopted position | 30 | 27 |
+| `relocate` / `interchange` / `refit` / `top line` / `weak` | 1 / 3 / 0 / 1 / 17 | 2 / 1 / 2 / 0 / 16 |
+
+The line that matters is the third. A third of the alternate positions were **manufactured by the
+background itself**: scoring a coincidence against a rate two and a half times too low made it look
+like a match, and enough such rows within a scan window raise a local maximum. With the right rate
+the surface is sharper and 911 of those maxima are gone, and with them 17 question marks. That also
+loosens the look-elsewhere correction, which is ln(n_alt): `059003.000228` moves from `weak` to
+firm grounds for relocation not because its alternate gained (it did, +5.9) but because the count of
+rival maxima in its window fell from 107 to 10, and ln(n_alt) is a proxy sensitive to exactly that.
+Read the new `look` values with that in mind. `--plain-background` restores the old behaviour
+exactly, for comparison.
+
 The C form is the branching-fraction form: ln(I_obs/((C + I_t)f)) is identically
 ln(I_obs·BF/(I_t·f)), since BF is by definition I_t/(C + I_t). One transition's prediction is
 never compared with a whole blended feature. C is used because it is defined at any scanned
@@ -2949,16 +3083,58 @@ number in it is a guess (values of the run of 2026-09-07, 594 levels, 29260 pred
 
 | ingredient | what it is | value |
 |---|---|---|
-| k(n) | how much a blend of n parts understates its own quoted position uncertainty | 1.011, 1.454, 1.197, 1.035 for n = 1…4 |
-| k(char) | the same by line-character code, on residuals already divided by k(n) | 0.65 (`**`) to 1.19 (`ch`), shrunk toward 1 by count |
+| sigma_meas | the width of the feature: a wavelength-constant reading error (0.0030 Å for 1974, 0.0040 Å for 1969), a precision floor of 0.0055 cm⁻¹, and an excess for the line's character code, wavelength-constant where the width comes from reading the plate and wavenumber-constant where it belongs to the line itself | 0.006 – 0.01 cm⁻¹ plain below 47500 cm⁻¹; `c` (1974) 0.0337 Å, `cl` (1969) 0.0044 Å, `d` 0.0073 Å, `ch` 0.0103 Å, `h` 0.0082 Å, `bl` 0.0085 Å, and `w` (1974) 0.0251 cm⁻¹ — the one code the residuals put in wavenumber |
+| w_hfs | hyperfine width of a LEVEL, constant in wavenumber, fitted on the 1974 lines alone and carried unchanged into 1969; a level with fewer than 4 lines of its own takes the typical width of its CONFIGURATION instead of zero | 274 levels carry one — 61 their own fitted width above 0.020 cm⁻¹, 213 their configuration's; 5 above 0.08 and marked as large; largest 0.102 cm⁻¹ |
+| w_cfg | the typical width of a configuration: the rms of the widths applied to the levels of it the fit can measure | 4f².6s 0.0642, 4f².6p 0.0237, 4f.5d² 0.0211, 4f².7s 0.0142, 4f².6d 0.0123, 4f².5g 0.0089, 4f².5f 0.0069, 4f³ 0.0047, 4f².5d 0.0043 cm⁻¹ |
+| k(n) | what is left over for a blend of n parts once that width is accounted for | 1.000, 1.483, 1.242, 1.116 for n = 1…4 |
 | eta | rate at which a genuine recorded line sits at an anomalous position | 0.0002 (2ΔNLL = 51 against eta = 0) |
-| rho | recorded lines per cm^-1, from the 41 nearest | 0.004 – 0.336, median 0.094 |
+| rho | UNRELATED lines per cm^-1: the free lines and what the calculation predicts for the unfound levels | median 0.039 (all recorded lines: 0.004 – 0.336, median 0.094) |
 | s, s_L | within-level and between-level spread of ln(I_obs·BF/I_pred·f) | 1.215, 0.280 |
 | u_M | partner energy uncertainty, D1 of `LOPT_output_levels.txt` | median 0.014, max 0.410 cm^-1 |
 
-sigma_t² = (k(n)·k(char)·unc_wn_obs)² + u_M², and the matching window is four sigma — set by
-whichever is worse, the uncertainty typical of the neighbourhood or the one the candidate line
-itself carries. That detail matters: taking the neighbourhood alone left 204 of the 4937 accepted
+sigma_t² = (k(n)·sigma_meas)² + w_hfs(low)² + w_hfs(upp)² + u_M², and the matching window is four
+sigma — set by whichever is worse, the width typical of the neighbourhood or the one the candidate
+line itself is modelled at. The quoted `unc_wn_obs` enters only as a floor, and only for a line
+quoted more than 1.5 times the usual value of its own character class: within a class the quoted
+value is the reading rule times one fixed factor and says nothing the class does not, but a line
+quoted far above its class was widened by hand on knowledge no flag records. The codes `**`
+(multiply classified) and `*v`/`*r` (hyperfine) carry no width of their own — the first is priced
+by k(n), the second by w_hfs. `level_hfs_widths.csv` holds the fitted widths and is rewritten by
+`python level_positions.py --fit-hfs`; its `w_applied` column is the width actually used, and
+`make_LOPT_input.py` reads the same column, so the uncertainties LOPT is given and the ones the
+scan uses cannot drift apart.
+
+**A level the fit cannot measure takes its configuration's width.** A level with fewer than four
+lines of 1974 has no width of its own, and used to be given zero — which asserts it has no
+hyperfine structure, when all that is known is that nobody has measured it. Its configuration is
+the right thing to ask, because that is what decides how strongly the outer electron feels the
+nuclear magnetic moment: an s electron has a non-zero probability density at the nucleus and feels
+it directly, a 5f or 5g electron never comes near it, and ¹⁴¹Pr is the only isotope, so there is
+no isotope shift mixed in. The fitted widths bear that out without being told — pooled by the
+outermost electron's orbital letter they come out s 0.0495, p 0.0214, d 0.0127, g 0.0089,
+f 0.0055 cm⁻¹, which is the order of penetration — and a permutation test on the configuration
+labels of the measured levels gives p < 5×10⁻⁵. A configuration with fewer than `HFS_CFG_MIN`
+measured levels of its own is answered for by its outermost orbital (4f.5d.6s takes the 6s width),
+then by that orbital's letter (4f².6f takes the f width), then by the list-wide value.
+
+The configuration itself is read from `IDEN2/enlev.dat`, and a level is tied to its row there
+through `IDEN2/IDEN_level_ids.txt`, the table giving every level identifier the number of its
+row — never by energy. The row number is what survives a level being moved: when a position is
+edited in IDEN2 the energy in `enlev.dat` changes and the row number does not, so an energy
+match loses exactly the levels that have just been worked on, and hands a level that has no
+energy yet whatever row lies nearest. All 595 levels of the run resolve through the table.
+
+Out of sample the rule is worth **+434 units of ln L** over the 2057 accepted unblended 1974
+lines, five-fold, against +23 (5–95 %: −42 to +124) when the configuration labels are shuffled
+among the levels — no shuffle of forty reached it. 462 of that is earned by 31 lines alone: the
+ones Sugar marked `*r` or `*v`, which are given no character width precisely because w_hfs is
+meant to carry them, and whose level the fit could not reach, so the model gave them nothing for
+hyperfine structure at all. Nothing changes for a level the fit can measure, and the precision
+floor is unmoved: re-fitted on the clean plain 1974 lines with the configuration widths in place
+it is 0.0054 (0.0049 – 0.0060) cm⁻¹, against 0.0059 (0.0054 – 0.0065) without them, so
+`UNC_FLOOR` stays at 0.0055.
+
+Taking the worse of the two widths for the window matters: the neighbourhood alone left 204 of the 4937 accepted
 lines outside their own window, because a line quoted to 0.6 cm^-1 among neighbours quoted to 0.1
 was being ruled out for lying 0.4 away. Taking the worse of the two leaves 1. Widening costs
 nothing, since a line far out has N(d; 0, sigma)/rho well below 1 and contributes the same
@@ -2992,6 +3168,12 @@ evidence this scan does not use — and not a free position nobody has claimed.
 **What it finds.** Over the 594 levels, ln R at the adopted position runs from −10 to +168 with a
 median of 22.6; 21 levels are at or below zero. 122 have at least one alternate position within 5
 units, 57 have one the lines actually prefer, and 5 of those fall on another level of the run.
+(These figures, and the table below, are from the run before the two-readings correction described
+two sections down. That correction moves the median by −0.2, to 22.4, and costs the line-rich low
+levels between 5 and 16 units each — it withdraws the positional credit their strongly
+under-predicted matches were collecting twice. It bites hardest where it should: the levels with
+an alternate within 5 units fall from 122 to 85 and those with a *preferred* alternate from 57 to
+30, because a large part of what made an alternate attractive was rows of that kind.)
 
 The test knows nothing about which levels are Wyart's established ones and which are under
 review, so the split between them is a check on the method rather than an input to it:
@@ -3080,16 +3262,43 @@ the audit separates them before anything is called a revision. Three corrections
   level of J = 9/2 is 6900 cm⁻¹ away in the odd system and 18900 in the even one. Across the whole
   run, 50 of the 57 preferred alternates have `n_vacant` = 0.
 
-What survives is sorted into five **dispositions**, named rather than ranked because they are five
+What survives is sorted into six **dispositions**, named rather than ranked because they are six
 different pieces of work:
 
 | `action` | what it means | what to do |
 |---|---|---|
 | `interchange` | the alternate lands on another level of the run (`\|near_dE\|` < 0.5) | `level_interchange.py`, which weighs evidence this scan does not use |
-| `refit` | the alternate is a fraction of a wavenumber away (`\|dE_alt\|` < 2) | nothing moves; some accepted line is dragging the LOPT fit off the position the level's own lines want |
-| `relocate` | a free position, ≥ 4 free lines worth ≥ 8, no line carrying more than 45 % of the case, `look` ≥ 3, **and `ln R` positive there** — convincing in its own right, not merely better than where the level is now | a candidate revision |
-| `weak` | a free position with thin support | leave it until the region around it is settled |
+| `refit` | the alternate is a fraction of a wavenumber away (`\|dE_alt\|` < 2), **the level keeps more than half of the recorded lines it is assigned now** (`n_kept` > `n_own`/2) **and more than half of their light** (`kept_light` > 0.5) | nothing is re-identified; some accepted line is dragging the LOPT fit off the position the level's own lines want |
+| `top line` | the same short move, keeping most of the lines by count but **half or less of the light** (`kept_light` ≤ 0.5): the line it drops is the level's strongest | look at that line — its wavenumber, whether it is a blend, whether the identification is right — not at the position |
+| `relocate` | a free position, ≥ 4 free lines worth ≥ 8, no line carrying more than 45 % of the case, `look` ≥ 3, **and `ln R` positive there** — convincing in its own right, not merely better than where the level is now. How far away it is does not enter | a candidate revision |
+| `weak` | a move whose support is thin | leave it until the region around it is settled |
 | `no support` | one free line, or none | no case at all |
+
+**What separates a refit from a relocation is not distance — it is whether the level keeps its
+lines.** `n_own` counts the recorded lines the level is assigned now and `n_kept` how many of them
+the alternate still matches, and the two decide which of two opposite pieces of work the level
+needs. A level that keeps most of them stays where it is: one bad assignment is pulling the
+least-squares fit a fraction of a wavenumber off the position its own lines want, and correcting
+that is a refit and nothing more — `059003.000457` keeps six of its seven at a position 0.51 cm⁻¹
+away. A level that keeps none of them has to be re-identified however short the move: every one of
+its present assignments is dropped, another set is made, and the level is entered in a ledger at a
+new position — `059003.000617` keeps **none** of its three at a position 1.32 cm⁻¹ away, and
+`059003.000602` two of its four at 0.79. Sorting the two by distance alone put them under the same
+heading and told the reader to do the opposite of the work required. With the test applied, the 7
+`refit` rows of the 2026-09-10 run become 5 refits and 2 relocations, both of which land in `weak`
+— they are moves, and the report now prints that group so they are not lost.
+
+**Counting the lines is not enough: the one being given up is usually the one that matters.**
+`kept_light` weighs what `n_kept` counts — the share of the level's own observed light the
+alternate still matches, each feature's measured intensity split among its accepted components by
+branching fraction, so that a level is never credited with the whole of a blend. `059003.000457`
+is the case that forced it: six of its seven lines survive a move of 0.51 cm⁻¹, which reads as one
+bad line dragging the fit — but the line it drops is 49280.699, its strongest by an order of
+magnitude (`kept_light` = 0.155), and the Ritz mismatch the move removes is the mismatch of the
+level's brightest branch. Removing it improves the fit by construction and leaves the level
+deprived of the transition that most defines it, which is a thing to explain and not a thing to
+discard. Such a row is now called `top line` instead of `refit`, and what wants opening in IDEN2
+is that line, not the position.
 
 **The rows are ordered best-first**, so the report can be read from the top: with `--audit`,
 relocations before interchanges before refits before the weak ones, and within each group the
@@ -3184,11 +3393,103 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `question` | `?` when `n_alt` > 0 |
 | `scanned` | `this run` when the window was scanned, `registry` when the level was taken unchanged from the registry of settled positions |
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
+| `n_own` / `n_kept` | recorded lines the level is assigned now, and how many of them the alternate still matches — the test that separates a refit from a relocation |
 | `gain` / `look` | the gain and its look-elsewhere correction |
 | `n_obs_alt` / `n_seen_alt` / `n_miss_alt` | the observable-prediction counts the level would have at the alternate |
 | `n_vacant` | unfound calculated levels of the same J and parity within one configuration window of the alternate |
 | `z_alt` | (E(alternate) − E_calc)/W: how far the alternate is from where the calculation puts the level, in units of that configuration's own scatter |
 | `action` | the disposition |
+
+### Searching for a level nobody has found: `level_positions.py --unknown`
+
+Everything above scans a level the run already has: an adopted energy, a set of accepted lines, a
+`level_id`. A level of the **calculation** that has never been found has none of those. What it has
+is a row in `IDEN2/enlev.dat` — a calculated energy `E_calc`, a `J`, a configuration label — and a
+place in Cowan's transition list, which gives it transitions to every other calculated level. The
+ones whose other end **has** been found are predictions with a known partner energy: at any trial
+energy E they predict a wavenumber, and a wavenumber is all `ln R` needs. So the same likelihood
+ratio can be evaluated for a level that does not exist yet, and **scanning it across the window the
+calculation allows is the search**. Where `ln R` > 0 the recorded lines are more likely with a level
+at that energy than with nothing there; where it is largest they are most likely.
+
+This is the scan done by hand in IDEN2, with the level list scrolled to a trial position and the
+predicted transitions checked against the plate list one at a time. The arithmetic is the same
+arithmetic. What it adds is that every position in the window is tried instead of the ones a person
+has the patience for, and that the **absences** count against a position as well as the coincidences
+count for it.
+
+**Three things differ from the scan of a level the run already has, and all three make the answer
+harsher rather than kinder.**
+
+- **The level owns no accepted line.** Every feature that an existing identification already claims
+  therefore counts against it in full through `C`. To be believed, an unfound level must explain
+  lines the levels already found have left alone — a stricter test than a known level faces.
+- **There is no adopted position to compare against**, so there is no `gain`. `ln R` itself is the
+  verdict.
+- **The look-elsewhere problem is the whole window**, not the distance between two candidates: a
+  scan returning *n* positive maxima has had *n* chances at every one of them, so
+  `look` = `ln R` − ln *n* is what a position is worth once the search that found it is paid for.
+
+The window is `E_calc` ± 3W, W being the rms of E_obs − E_calc over the **found** levels of the same
+configuration — the same interval a known level of that configuration is scanned over, and for the
+same reason: how far the calculation can be wrong is a property of the configuration, not of the
+level. The six configurations with no found level take the list-wide 132 cm⁻¹.
+
+The predicted intensities are computed once at `E_calc` and held fixed as the scan moves.
+`I = C·gA·(ν/1e8)·exp(−E_up/kT)` does depend on the trial energy through both ν and the Boltzmann
+factor, but over a few hundred wavenumbers out of a hundred thousand that is a few per cent, against
+an observed-to-predicted scatter of a factor of three — and it is exactly what the scan of a known
+level already does, so the two are comparable. The `gA` values, the matching of Cowan's level
+numbering to IDEN2's, and the per-configuration widths are all read through `unfound_levels.py`, so
+there is one answer to each of those questions and not two.
+
+**Each candidate position is graded by the audit's own constants**, because the evidence is the same
+kind of evidence and the scan that found it had the same freedom to look: `no support` when fewer
+than two free lines support it or one line carries more than 60 % of the case, `firm` when it would
+pass every test a firm relocation passes, `weak` in between.
+
+**What it finds.** IDEN2 row 742 — `f25f ~3F4G`, J = 5/2, calculated at 116406.7 and the top of
+`unfound_levels.py`'s list — has 95 calculated transitions to found levels, 40 of which could have
+been recorded. The scan of its 621 cm⁻¹ window returns two positions with `ln R` > 0:
+
+```
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+116327.610 9.180  8.487 -79.090 -0.765     40       20      20      10     23.200      0.132    firm
+116327.070 0.156 -0.537 -79.630 -0.770     40       19      21       9     14.832      0.196    weak
+```
+
+The first rests on ten free lines worth 23.2 in `ln R`, no one of them carrying more than 13 % of
+the case, and sits 0.77 configuration widths below the calculated energy. `--at 116327.610` lists
+them: all ten are transitions to levels of 4f².5d, spread from 987 to 1396 Å, each matched to a
+recorded line within 0.7 cm⁻¹ on a feature nothing else claims.
+
+The counter-example is as useful. IDEN2 row 1 — `f5d6d`, one of the six configurations with no found
+level — returns **269** positions with `ln R` > 0, and every one of them is `no support`: `n_obs` is
+zero at all of them, so not one of the level's 45 transitions could have been recorded, and the
+positive `ln R` comes entirely from faint coincidences: the six best carry `top_share` between 0.50
+and 0.92, which is to say one line is the whole of the case for each of them. That
+is what a 793 cm⁻¹ scan finds when there is nothing there, and the report says so in as many words.
+`look` is negative at every one of them.
+
+Usage:
+
+```bash
+python level_positions.py --unknown 742             # the candidate positions for one row
+python level_positions.py --unknown 742 913 986     # several at once
+python level_positions.py --unknown 742 --at 116327.610   # the transitions at one of them
+python level_positions.py --unknown 742 --top 10    # only the best ten positions
+python level_positions.py --unknown 742 --min-ln-r 3      # a higher bar than "better than nothing"
+```
+
+A run takes about three seconds after the 1.6 s the likelihood takes to build.
+
+**What this does not do.** It says which energies the recorded lines want a level at; it does not
+say the level is there. A position here is conditional on the rest of the level list exactly as an
+alternate position is — the lines it takes are lines its neighbours could take instead — so a
+candidate has to be checked against IDEN2 and accepted one at a time. And it searches only where
+`unfound_levels.py` says there is something to search on: a level with fewer than two transitions
+that could have been recorded is not searchable at all, one line being enough to fit any energy, and
+the report refuses to pretend otherwise.
 
 ### Limits of the validation (to be stated alongside the results)
 
@@ -3563,9 +3864,163 @@ unfound level is the upper or the lower of the two, and gives ν and λ at E_cal
 intensity, P_obs and the local line density. It is meant to be read beside IDEN2.
 
 **This is the first half of the search.** It says where to point a search, not what a search
-finds. Taking a level off this list and asking whether the lines actually put it somewhere —
-the scan of `ln R` over the window, at trial energies rather than at an adopted one — is the
-other half, and is not built yet.
+finds. Taking a level off this list and asking whether the lines actually put it somewhere — the
+scan of `ln R` over the window, at trial energies rather than at an adopted one — is the other half,
+and it is `level_positions.py --unknown`
+([Searching for a level nobody has found](#searching-for-a-level-nobody-has-found-level_positionspy---unknown)).
+
+### Putting a newly found level in: `insert_new_level.py`
+
+`level_positions.py --unknown` finds a position where a calculated level nobody
+has ever found would explain a group of observed lines. Accepting that position
+is a decision made by eye, in IDEN2. Everything that has to follow it is
+mechanical, and it used to be a dozen edits by hand across six files —
+`new_levels.txt`, `IDEN2/IDEN_level_ids.txt`, `LOPT_input_lines.txt`,
+`line_decisions.csv`, `IDEN2/trans.dat`, `IDEN2/enlev.dat` — with three programs
+and LOPT to be run in between, in the right order. A step forgotten leaves two
+of them describing different identifications, and the disagreement is silent.
+
+```
+python insert_new_level.py --iden2-row 742
+python insert_new_level.py --iden2-row 742 --yes \
+    --reject 91856.116="May add to pub line list as masked"
+python insert_new_level.py --iden2-row 742 --yes --rebuild \
+    --reject 91856.116="May add to pub line list as masked" \
+    --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
+```
+
+The first form writes nothing: it prints the proposal table and stops. What it
+does with `--yes`, in order:
+
+| | |
+|---|---|
+| **A** | every file the run can write is tested — `output_files.require_writable()`, so that a workbook open in Excel stops the run at the start rather than at the end — and then copied byte for byte into `insert_new_level_backup/` |
+| **B** | the level is added to `new_levels.txt` if it is not there: the next free identifier, the adopted energy and J of `enlev.dat`, the parity of the calculated level, `iden2_row` and `cowan_lid`. `IDEN2/IDEN_level_ids.txt` gets the identifier against the row |
+| **C** | the lines: what is already marked in `IDEN2/trans.dat` for that block, taken as given — and when there is any such mark, that is **all** the level gets; the tool's own proposals, only for a level with no mark anywhere; and `--reject WN=reason`, which writes a verdict and assigns nothing |
+| **D0** | `lopt.bat LOPT.par` on the untouched input, to have a fit to compare with |
+| **D** | one record per accepted assignment goes into `LOPT_input_lines.txt`, and every unflagged record of every observed line the run touches is re-weighted together |
+| **E** | `lopt.bat LOPT.par` again, then `RSS/degrees_of_freedom` before against after, then the four-sigma Ritz check |
+| **F** | `classify_lines.py` and the ledger rows, repeated until nothing new has to be written. **`make_LOPT_input.py` is not run** unless `--rebuild` asks for it |
+| **G** | `IDEN2/trans.dat` is made to show what the classification accepts **for this level**; anything else it has newly accepted is named and left alone, unless `--accept WN` names its line, and then it is written too |
+| **H** | `check_sync.py` must report **no errors**; warnings are printed and ignored |
+| **I** | `sync_IDEN2.py` finishes the job |
+| **J** | the report, on screen and in `insert_new_level.log` |
+
+Six things about it are worth knowing.
+
+**A level already marked up in IDEN2 gets nothing added to it.** The lines of a
+level that has been gone through on the screen, line by line, against the
+plates and the branch structure, are the whole of the answer: a line the
+analyst passed over was passed over for a reason none of the arithmetic here
+can see. So when `trans.dat` holds any mark for the level, the tool takes those
+marks and proposes nothing of its own; only a level straight out of
+`level_positions.py --unknown`, with no mark anywhere, is assigned
+automatically. `--propose` asks for proposals beside the hand marks and
+`--no-propose` for none ever.
+
+**`make_LOPT_input.py` is not run.** It rebuilds `LOPT_input_lines.txt` out of
+the whole classification, and so puts into the fit every assignment the
+classification accepts — including ones this run never proposed and nobody has
+looked at in IDEN2. The fit this run makes holds exactly the records step D put
+into it. The same applies in step G: adding a level to a line that already had
+components changes the intensity accounting on that line, and the
+classification can turn one of the other components from rejected into
+accepted on the strength of it. Those are named, not written, and the run is
+**held** there — everything it wrote stays in place so the assignments can be
+looked at in IDEN2, `check_sync.py`'s findings are printed, `sync_IDEN2.py` is
+not run, and `insert_new_level.py --undo` puts the whole run back if the
+verdict goes the other way. `--rebuild` asks for the rebuild explicitly, for
+when those verdicts have already been given.
+
+Naming such an assignment is not enough to decide it, so each one is printed
+together with **every** transition the classification puts on the same observed
+line — the new level's own among them, marked `*`, since it is the reason the
+rest of the line may have moved. For each: the predicted intensity, `dif_O-C`
+(the observed wavenumber less the Ritz wavenumber the two levels imply, in
+cm⁻¹) with its previous value if this run changed it, the grade, the verdict
+with its previous value if this run changed that, and the reason
+`classify_lines.py` gave. The head of the block carries the line's own observed
+wavenumber, uncertainty, intensity and character, and the rows of
+`line_classifications.xlsx` the block covers, so the workbook can be opened at
+the right place for anything the printout does not settle. This is what shows,
+for instance, that 95033.381 turned from rejected to accepted with its
+`dif_O-C` unchanged at −1.025 cm⁻¹: what changed was the centre of gravity of
+the blend it now forms with the new level's line, which is exactly the kind of
+reasoning the verdict has to be judged on.
+
+**`--accept WN` is how the verdict is given.** Neither `--yes` nor `--rebuild`
+decides these assignments — `--yes` authorizes the run to write what it
+proposed itself, `--rebuild` only says the fit's input may be built from the
+whole classification — so a run that repeats them holds again, in the same
+place, with the same list. `--accept 95033.381`, repeatable and taking an
+optional `=reason`, says that the assignments printed for that observed line
+have been looked at and are good: each one the classification accepts on that
+line and this level is not part of gets an accept row in `line_decisions.csv`
+and a mark in `IDEN2/trans.dat`, exactly as the level's own do, and the run
+goes on through `check_sync.py` to `sync_IDEN2.py`. A component of that line
+the classification *rejects* is left rejected — `--accept` adopts what was
+shown, never everything on the line — and one IDEN2 already shows is left
+alone rather than given a ledger row, since a published identification nobody
+questioned is not this run's decision to claim. A line that should not be taken
+goes in as `--reject WN=reason` instead. Because these assignments enter the
+fit only through the classification, the run that adopts them wants `--rebuild`
+as well; the held run prints the exact command line to use.
+
+**`RSS/degrees_of_freedom` is reported before and after.** This is LOPT's own
+measure of how well the whole fit holds together: the sum, over every observed
+line the fit uses, of the squared difference between the observed wavenumber
+and the one the fitted levels imply, each divided by that line's own
+statistical uncertainty, per degree of freedom (lines less levels determined).
+It is about 1 when the uncertainties are honest and the identifications are
+right, and it grows when a line is put where it does not belong — so it is the
+one number that says whether a new level has been paid for by making
+everything else fit worse. It stands at 1.16. `--max-rss R` stops the run if
+it comes out above `R`; by default it is only reported.
+
+**A line shared with another transition has no residual of its own.** LOPT
+fits such a line as one blended feature — its centroid against the
+intensity-weighted mean of the components' Ritz wavenumbers — so there is one
+residual for the feature and `_` in each component's O−C column. Those
+assignments are in the fit and carrying their weight; the four-sigma check
+simply has nothing to test them with, and they are listed separately rather
+than passed over in silence. Six of level 742's sixteen lines are of this kind.
+
+**Where the level goes.** `enlev.dat` carries a measured energy for a row only
+once the position has been accepted in IDEN2 and written there. Until then the
+row holds the calculated position, which is nowhere near good enough to search
+on, and `--energy E` says where to put the level. Given as well as a measured
+energy, it overrides it.
+
+**A line much stronger than predicted is never proposed.** It is listed as left
+free, with the factor and how many standard deviations of `ln(I_obs/I_calc)` it
+amounts to. A line whose strength the new level cannot account for belongs to
+some other transition; taking it would both misplace this level and hide the
+real owner. The 91856.116 cm⁻¹ line of level 742 — 58 times its predicted
+intensity, 4.5 σ — is the case the rule was written for. The threshold
+(`--strong-sigma`, 3 σ) is deliberately generous, and so is the window a line
+must fall in before the tool will propose it at all (`--propose-window`,
+1 cm⁻¹, against the 2 cm⁻¹ it looks in): the tool is not trying to reproduce
+the analyst's judgement, only to decline the cases that are not simple. Nothing
+here overrules a mark made by hand in IDEN2, which is read as a decision
+already taken.
+
+**Anything that goes wrong puts every file back.** A Ritz residual above four
+times a line's own uncertainty, an unexplained error from `check_sync.py`, a
+hand mark the classification will not accept even with the ledger rows the run
+wrote, a bug, a Ctrl-C: the culprits are named and every backed-up file is
+restored byte for byte. (A *hold* is the one stop that does not restore, because
+the files have to stay as they are for the decision to be made on them;
+`--undo` restores them.) `--dry-run` does the same thing on purpose — it runs the whole sequence,
+programs and all, and then puts everything back, which is the only way to see
+what the classification and the fit will say before committing to them.
+
+**The weights of a shared line are all recomputed, not just the new one.** When
+a new transition joins an observed line that another transition already had,
+the line has to be divided again, in proportion to the calculated intensities;
+the component that was there alone loses exactly what the new one gains. The
+records carrying the `P` flag — candidates LOPT is shown but does not fit — are
+not components and stay at weight zero. This is
+`make_LOPT_input.blend_weights()`, the same rule that a full rebuild applies.
 
 ### Excel-friendly output files
 
@@ -3582,6 +4037,8 @@ python level_interchange.py  # 5. interchanged identities → level_interchange.
 python level_positions.py --scan  # 6. alternate positions, question marks → level_positions.csv
 python check_sync.py         # 7. do all the files still describe the same identification?
 python unfound_levels.py     # 8. which levels nobody has found are worth searching for
+python level_positions.py --unknown 742   # 9. and where the lines want one of them
+python insert_new_level.py --iden2-row 742   # 10. and how one of them gets in
 ```
 
 Repairing an interchange that step 5 flags is a separate act, done once and by hand:
@@ -3634,7 +4091,7 @@ Relative paths are taken relative to the directory holding the configuration fil
 
 | section                     | what it fixes                                                                     |
 |-----------------------------|-----------------------------------------------------------------------------------|
-| `[files]`                   | the input/output workbook names, plus four optional overlays: `level_overrides` (revised adopted energies), `line_decisions` (the decision ledger), `new_levels` (levels found since the level list was published) and `icalc_extra` (their calculated transitions) |
+| `[files]`                   | the input/output workbook names, plus four optional overlays: `level_overrides` (revised adopted energies), `line_decisions` (the decision ledger), `new_levels` (levels found since the level list was published) and `icalc_extra` (calculated transitions supplied by hand; commented out, since a new level's are now derived from `tp_E1_no_trials.xlsx`) |
 | `[range]`                   | `wn_min`, `wn_max`: the wavenumber interval (cm⁻¹) in which candidate transitions are generated |
 | `[levels.layout]`, `[lines.layout]`, `[icalc.layout]` | worksheet name and column names of each input file            |
 | `[icalc.completeness]`      | `gA_cutoff`: the printing threshold of Cowan's codes, 1000 s⁻¹ — the basis of the censoring correction above |
@@ -3720,10 +4177,13 @@ LineClass/
 ├── Pr3_Sugar69_extracted_*.xlsm  # Source: the checked extraction of Sugar 1969, Table 1
 ├── Pr_3_Sugar74_Table1_*.xlsm    # Source: the checked extraction of Sugar 1974, Table 1
 ├── intensity_correction_functions.txt  # Input (optional): Sugar plate-intensity calibration
-├── new_levels.csv                # Input (optional): levels found since the level list
-│                                 #   was published (level_id, E, J, parity, comment)
-├── icalc_new.xlsx                # Input (optional): their calculated transitions,
-│                                 #   in the layout of Icalc.xlsx
+├── new_levels.txt                # Input (optional): levels found since the level list
+│                                 #   was published, tab-separated (level_id, E, J,
+│                                 #   parity, iden2_row, cowan_lid, comment)
+├── new_levels.csv                # The comma-separated form it replaced, kept as a backup
+├── icalc_new.xlsx                # Retired: the calculated transitions of those levels,
+│                                 #   now derived from tp_E1_no_trials.xlsx instead
+├── insert_new_level.py           # Puts a newly found level into the pipeline, end to end
 ├── revised_level_energies.csv    # Input (optional): revised adopted energies
 ├── line_decisions.csv            # Input (optional): the decision ledger
 ├── IDEN2/                        # The IDEN2 working files as last saved (dlv.dat,

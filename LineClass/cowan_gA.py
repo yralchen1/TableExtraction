@@ -300,7 +300,10 @@ def match_to_enlev(calc_levels, enlev_levels, id_map=None, tol=CROSS_TOL):
     :func:`read_enlev_levels` returns.  ``id_map`` is
     ``{IDEN2 index: level_id}`` from :func:`read_id_map`; when it is given,
     every level it names must come out matched to the spreadsheet row carrying
-    the same level_id, and :class:`MatchError` is raised if one does not.
+    the same level_id, and :class:`MatchError` is raised if one does not.  A
+    row whose spreadsheet identifier is blank is passed over: that is a level
+    identified since the identifiers of the calculation were written down, so
+    there is nothing there to contradict anything.
 
     Returns ``(mapping, report)``.  ``report`` is a dict with ``n_matched``,
     ``max_dE`` (the largest energy disagreement of a matched pair, in cm^-1),
@@ -339,7 +342,11 @@ def match_to_enlev(calc_levels, enlev_levels, id_map=None, tol=CROSS_TOL):
         wrong = []
         for a, b in pairs:
             expect = id_map.get(int(idx[a]))
-            if expect and expect != wanted[b]:
+            # An identifier the spreadsheet does not carry belongs to a level
+            # found since the calculation's identifiers were written down:
+            # there is nothing to check it against, and its absence is not a
+            # disagreement.
+            if expect and wanted[b] and expect != wanted[b]:
                 wrong.append('enlev.dat row %d is %s, but it was matched to '
                              'the calculated level %d, which the spreadsheet '
                              'calls %r'

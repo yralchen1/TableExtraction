@@ -127,7 +127,6 @@ wn_obs,low_id,upp_id,decision,date,reason
 91572.405,059003.000039,059003.000330,reject,9/5/2026,Taken by stronger transition with better Ritz match
 38052.91849266707,059003.000230,059003.000336,reject,9/5/2026,manual with IDEN2; may include the ID in pub line list as masked but exclude from LOPT
 91330.20364856097,059003.000105,059003.000384,reject,9/5/2026,Taken by other transition with better intensity and Ritz match
-94950.80068530583,059003.000076,059003.000384,reject,9/5/2026,manual with IDEN2; may include the ID in pub line list as masked but exclude from LOPT
 94964.88221321533,059003.000085,059003.000392,reject,9/3/2026,manual with IDEN2
 11890.16746003981,059003.000318,059003.000463,reject,9/5/2026,Taken by stronger transition with better Ritz match
 83162.62841792723,059003.000133,059003.000468,reject,9/5/2026,manual with IDEN2; may include the ID in pub line list as masked but exclude from LOPT
@@ -272,3 +271,25 @@ wn_obs,low_id,upp_id,decision,date,reason
 29405.16,059003.000172,059003.000251,accept,9/9/2026,IDEN2/LOPT
 96783.112,059003.000081,059003.000485,accept,9/10/2026,IDEN2/LOPT; multiple assignments supported by cl char.
 93973.726,059003.000101,059003.000402,reject,9/10/2026,Too small predicted intensity. Free the line for other assignments.
+96952.302,059003.000104,059003.000493,accept,9/10/2026,IDEN2/LOPT/level_positions
+92145.832,059003.000130,059003.000493,accept,9/10/2026,IDEN2/LOPT/level_positions
+22397.969,059003.000389,059003.000617,accept,9/10/2026,IDEN2/LOPT/level_positions
+94246.187,059003.000085,059003.000624,accept,9/10/2026,IDEN2/LOPT
+94050.8088,059003.000086,059003.000624,accept,9/10/2026,IDEN2/LOPT
+10682.643,059003.000328,059003.000369,reject,9/11/2026,"Insufficient evidence to force the levels to accommodate this line. Ritz discrepancy without it is 13sigma, with it 3.4sigma. Additional evidence is needed."
+38411.4,059003.000204,059003.000318,accept,9/11/2026,Blend improves intensity agreement; cg is compatible with Ritz.
+41260.611,059003.000199,059003.000326,accept,9/11/2026,Blend is compatible with w char and improves intensity agreement; cg is compatible with Ritz.
+94403.676,059003.000064,059003.000360,reject,9/11/2026,Pulls cg in wrong direction.
+94650.523,059003.000078,059003.000384,accept,9/11/2026,IDEN2/LOPT
+94950.80068530583,059003.000076,059003.000384,accept,9/11/2026,IDEN2/LOPT
+98546.421,059003.000075,059003.000487,accept,9/11/2026,Blend improves cg Ritz
+18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT
+94406.411,059003.000166,059003.000422,accept,9/11/2026,Blend is compatible with cl  char; cg is compatible with Ritz.
+30126.309,059003.000141,059003.000210,reject,9/11/2026,IDEN2: looks wrong
+37051,059003.000127,059003.000224,reject,9/11/2026,IDEN2: looks wrong
+32573.929,059003.000145,059003.000234,reject,9/11/2026,IDEN2: looks wrong; weak component; pulls cg in wrong direction.
+32573.929,059003.000150,059003.000244,accept,9/11/2026,IDEN2
+37863.349,059003.000248,059003.000343,reject,9/11/2026,Too small predicted intensity to contribute to blend.
+17195.128,059003.000322,059003.000487,accept,9/11/2026,IDEN2
+39917.569,059003.000127,059003.000248,reject,9/12/2026,hfs analysys rejects it.
+34926.912,059003.000134,059003.000223,reject,9/12/2026,hfs analysys rejects it.

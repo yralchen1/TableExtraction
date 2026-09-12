@@ -72,6 +72,10 @@ output/
 *.pdf
 LineClass/sync_report.txt
 LineClass/level_positions_firm.csv
+LineClass/level_positions_scan.xlsx
+LineClass/level_positions_audit.xlsx
+LineClass/sync_report.txt
+LineClass/Work_on_hfs_plan.md
 
 # Excel lock files
 ~$*.xlsx
@@ -99,3 +103,7 @@ LineClass/PLAN*
 LineClass/baseline/**/*.xlsx
 LineClass/tp_E1_no_trials.cache.csv
 LineClass/IDEN2/*.presync
+LineClass/sync_report.txt
+LineClass/sync_report.txt
+LineClass/insert_new_level_backup/
+LineClass/insert_new_level.log

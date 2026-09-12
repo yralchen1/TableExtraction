@@ -45,6 +45,30 @@ significant figures, and no component rounds to 0.0000.  If a future table
 ever holds a blend so lopsided that a real component would round away, the
 script says so and stops rather than writing a silent zero.
 
+The uncertainty written for a line is not the one quoted in the line list.
+The quoted value, unc_wn_obs, is the uncertainty of the *measurement* - the
+reading error of its era, the precision floor, and whatever the character flag
+of the line says about its width.  A line also carries the hyperfine structure
+of the two levels it joins: a level whose nuclear spin splits it into unresolved
+components displaces every one of its lines, and level_positions.py fits one
+width per level from the residuals of the 1974 lines and writes them to
+level_hfs_widths.csv, in its w_applied column - which for a level with too few
+lines of its own is the typical width of the level's configuration, that being
+what governs a hyperfine splitting.  That part cannot be quoted per line,
+because it depends
+on which two levels the line was assigned to, and the two components of a blend
+may sit on levels of different widths.  So it is added here, where the
+assignment is known:
+
+    unc = sqrt(unc_wn_obs^2 + w_hfs(lower)^2 + w_hfs(upper)^2)
+
+The blending factor k(n) of level_positions.py is deliberately NOT included.
+LOPT.par sets BLEND TREATMENT = centroid, so LOPT already compares the observed
+wavenumber against the intensity-weighted centroid of a blend's components and
+reports the correction as dEcent; k(n) measures the spread of the components
+about that centroid, which LOPT has thus already removed, and adding it would
+charge the same effect twice.  --no-hfs turns the hyperfine term off.
+
 The rows are written in order of decreasing wavenumber, as in the sample.
 
 Usage
@@ -66,6 +90,14 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEF_CLASSIFICATIONS = 'line_classifications.csv'
 DEF_SAMPLE_PAR = 'Pr3_line_class13.par'
 DEF_SAMPLE_FIXLEV = 'Pr3_line_class5_fixlev.txt'
+DEF_HFS_WIDTHS = 'level_hfs_widths.csv'
+
+# The admission rule for a fitted hyperfine width, as in level_positions.py:
+# a width below HFS_APPLY changes no sigma measurably and is consistent with
+# the noise of a fit that cannot return a negative width, and a level with
+# fewer than HFS_MIN_LINES lines of 1974 has too few residuals to fit one.
+HFS_APPLY = 0.02        # cm^-1
+HFS_MIN_LINES = 4
 DEF_LINES_OUT = 'LOPT_input_lines.txt'
 DEF_FIXLEV_OUT = 'LOPT_fixlev.txt'
 DEF_PAR_OUT = 'LOPT.par'
@@ -148,6 +180,49 @@ def is_accepted(row):
     return float(row['accepted'] or 0) == 1
 
 
+def read_hfs_widths(path):
+    """{level_id: hyperfine width} from level_hfs_widths.csv, in cm^-1.
+
+    The file is written by level_positions.py.  Its w_applied column already
+    holds that module's whole admission rule - a level the fit can measure
+    carries its own fitted width, a level it cannot carries the typical width
+    of its configuration - so reading that column is what keeps the two in
+    step.  A file written before the column existed is read the old way,
+    above HFS_APPLY on at least HFS_MIN_LINES lines, which was the rule then.
+    A missing file means no hyperfine term is added at all.
+    """
+    if not path or not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path, newline='', encoding='utf-8') as fh:
+        for rec in csv.DictReader(fh):
+            if 'w_applied' in rec:
+                try:
+                    w = float(rec['w_applied'])
+                except (TypeError, ValueError):
+                    continue
+                if w > 0:
+                    out[rec['level_id'].strip()] = w
+                continue
+            try:
+                w = float(rec['w_hfs'])
+                n = float(rec['n_1974'])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if w > HFS_APPLY and n >= HFS_MIN_LINES:
+                out[rec['level_id'].strip()] = w
+    return out
+
+
+def total_unc(unc, low_id, upp_id, w_hfs):
+    """The uncertainty LOPT is given: the measurement and the two level widths."""
+    a = w_hfs.get(low_id, 0.0)
+    b = w_hfs.get(upp_id, 0.0)
+    if not a and not b:
+        return unc
+    return (unc ** 2 + a ** 2 + b ** 2) ** 0.5
+
+
 def blend_weights(rows):
     """Return {id(row): weight} for the accepted rows of one observed line.
 
@@ -166,8 +241,14 @@ def blend_weights(rows):
     return {id(r): c / total for r, c in zip(rows, calc)}
 
 
-def write_lines_file(rows, path):
-    """Write the LOPT transitions file; return (written, accepted, flagged)."""
+def write_lines_file(rows, path, w_hfs=None):
+    """Write the LOPT transitions file; return (written, accepted, flagged, widened).
+
+    `w_hfs` is {level_id: hyperfine width}; the width of the two levels a line
+    joins is added to its quoted uncertainty in quadrature.  `widened` counts
+    the records that got one.
+    """
+    w_hfs = w_hfs or {}
     # The accepted classifications of one observed line share its weight, so
     # they have to be weighed together; wn_obs identifies the observed line.
     groups = {}
@@ -180,9 +261,13 @@ def write_lines_file(rows, path):
 
     records = []
     n_accepted_rows = 0
+    n_widened = 0
     for r in rows:
         wn = float(r['wn_obs'])
-        unc = float(r['unc_wn_obs'])
+        quoted = float(r['unc_wn_obs'])
+        unc = total_unc(quoted, r['low_id'].strip(), r['upp_id'].strip(), w_hfs)
+        if unc > quoted:
+            n_widened += 1
         intens = float(r['obs_intens'])
         if is_accepted(r):
             flag, weight = '', weights[id(r)]
@@ -205,7 +290,8 @@ def write_lines_file(rows, path):
     with open(path, 'w', newline='', encoding='ascii') as fh:
         for _, text in records:
             fh.write(text + EOL_LINES)
-    return len(records), n_accepted_rows, len(records) - n_accepted_rows
+    return (len(records), n_accepted_rows,
+            len(records) - n_accepted_rows, n_widened)
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +365,11 @@ def parse_args(argv=None):
                         'to be reused')
     p.add_argument('--sample-fixlev', default=DEF_SAMPLE_FIXLEV,
                    help='fixed-levels file to copy')
+    p.add_argument('--hfs-widths', default=DEF_HFS_WIDTHS,
+                   help='per-level hyperfine widths (level_hfs_widths.csv); '
+                        'added to each line uncertainty in quadrature')
+    p.add_argument('--no-hfs', action='store_true',
+                   help='do not add the hyperfine widths to the uncertainties')
     p.add_argument('--lines-out', default=DEF_LINES_OUT,
                    help='transitions file to write')
     p.add_argument('--fixlev-out', default=DEF_FIXLEV_OUT,
@@ -315,7 +406,9 @@ def main(argv=None):
     output_files.require_writable([lines_out, fixlev_out, par_out])
 
     rows = read_classifications(args.classifications)
-    written, accepted, flagged = write_lines_file(rows, lines_out)
+    w_hfs = {} if args.no_hfs else read_hfs_widths(in_dir(args.hfs_widths))
+    written, accepted, flagged, widened = write_lines_file(
+        rows, lines_out, w_hfs)
     write_fixlev_file(args.sample_fixlev, fixlev_out)
     # The parameter file must name the input files as LOPT will look for
     # them; LOPT resolves them next to itself, so bare names are written.
@@ -325,6 +418,11 @@ def main(argv=None):
 
     print(f'{lines_out}: {written} transitions '
           f'({accepted} weighted, {flagged} flagged "P")')
+    if w_hfs:
+        print(f'  hyperfine widths: {len(w_hfs)} levels carry one; '
+              f'{widened} transitions had their uncertainty widened by it')
+    else:
+        print('  no hyperfine widths applied')
     print(f'{fixlev_out}: copied from {args.sample_fixlev}')
     print(f'{par_out}: copied from {args.sample_par} with new file names')
     return 0

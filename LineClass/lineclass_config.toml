@@ -39,15 +39,28 @@ line_decisions = "line_decisions.csv"
 # exact analogue of revised_level_energies.csv - small csv/xlsx files under
 # the analyst's hand, added to inputs that are never edited.  The level id is
 # the next one free: the last six digits of the largest id in use, plus one.
-new_levels = "new_levels.csv"
+# Tab-separated, because Excel turns the J value "7/2" into a date when it
+# opens a .csv and offers no way to stop it; opening a .txt gives the import
+# dialogue, where the J column can be declared Text.  A .csv is still read
+# (the delimiter follows the extension).  Two further columns, written by
+# insert_new_level.py, say which calculated level the new level is: iden2_row,
+# its row of IDEN2/enlev.dat, and cowan_lid, its level number in the Cowan
+# calculation.  cowan_lid is what its calculated transitions are found by.
+new_levels = "new_levels.txt"
 # The calculated transitions of those levels, in the layout of Icalc.xlsx.
-# Only the pairs involving a new level need be listed; the full calculated
-# table for the whole ion is far too large to carry, and every pair absent
-# from both files is treated by the completeness rule exactly as before (gA
-# below the printing cutoff of Cowan's codes).  The Icalc column is RECOMPUTED
-# from gA with the C and kT of [intensity_model] on reading, so that these
-# rows sit on the same intensity scale as Icalc.xlsx however they were made.
-icalc_extra = "icalc_new.xlsx"
+# NO LONGER NEEDED, and commented out: a level carrying a cowan_lid has its
+# transitions read straight from the Cowan transition list tp_E1_no_trials.xlsx
+# by classify_lines.read_cowan_transitions(), which is where the rows of this
+# workbook were copied from by hand in the first place.  The setting is kept
+# because it still works and still has the last word - a pair listed here
+# overrides the derived one - so a transition can be corrected by hand without
+# touching the calculation.  Only the pairs involving a new level need be
+# listed; every pair absent from all of them is treated by the completeness
+# rule as before (gA below the printing cutoff of Cowan's codes).  The Icalc
+# column is RECOMPUTED from gA with the C and kT of [intensity_model] on
+# reading, so that these rows sit on the same intensity scale as Icalc.xlsx
+# however they were made.
+# icalc_extra = "icalc_new.xlsx"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions
