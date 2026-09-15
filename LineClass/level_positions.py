@@ -601,14 +601,23 @@ with --scan, for the best alternate position found:
                  clearer sign: gain = -d_ln_R, positive = the alternate wins.)
     dE_alt       E_alternate - E_adopted, cm^-1: how far the move would be
     near_level   the level of the run whose energy is CLOSEST TO THE
-                 ALTERNATE.  It is a neighbourhood label, not a rival: it is
-                 filled in for every alternate, and for most of them it names
-                 a level that merely happens to lie nearby and wants nothing.
-                 Only when near_dE is small - under INTERCHANGE_DE, half a
-                 wavenumber - does it mean anything, and then it means the
-                 alternate IS that level's position, so the two identities may
-                 need exchanging rather than either of them moving.  A
-                 near_level several cm^-1 away is noise; read dE_alt instead.
+                 ALTERNATE, AMONG THE LEVELS OF THE SAME J AND PARITY.  Only
+                 those can be the other half of an interchange: an interchange
+                 exchanges two identities, and a level of J = 5/2 cannot take
+                 over the lines of a level of J = 17/2 however close the two
+                 energies are - the selection rules give the two of them
+                 different transitions altogether.  A level of another J
+                 sitting on the alternate is not a rival and is not named
+                 here; the column is empty when the run has no other level of
+                 that J and parity.  Even within one J it is a neighbourhood
+                 label rather than a rival: it is filled in for every
+                 alternate, and for most of them it names a level that merely
+                 happens to lie nearby and wants nothing.  Only when near_dE
+                 is small - under INTERCHANGE_DE, half a wavenumber - does it
+                 mean anything, and then it means the alternate IS that
+                 level's position, so the two identities may need exchanging
+                 rather than either of them moving.  A near_level several
+                 cm^-1 away is noise; read dE_alt instead.
     near_dE      E_alternate - E(near_level), cm^-1
     question     '?' when n_alt > 0
     scanned      `this run` when the window was scanned, `registry` when the
@@ -1562,7 +1571,15 @@ def free_line_background(ctx, args, log=print):
         ctx.bg_mu_f = ctx.bg_mu_o.copy()
         ctx.bg_sd_f = ctx.bg_sd_o.copy()
 
-    unk = unknown_transition_background(ctx, log=log)
+    # The modelled half depends on the calculated transition list and the
+    # partner energies, not on which observed features are claimed, so it
+    # survives a release of assignments unchanged and is computed once.  The
+    # empirical half above does depend on it, and has just been re-measured.
+    if hasattr(ctx, 'unk_bg'):
+        unk = ctx.unk_bg
+    else:
+        unk = unknown_transition_background(ctx, log=log)
+        ctx.unk_bg = unk
     if unk is not None:
         grid, rate, mu, sd = unk
         ctx.rho_unk_o = np.interp(ctx.wn_o, grid, rate)
@@ -2389,6 +2406,56 @@ def j_value(j):
         return float('nan')
 
 
+def level_kinds(per):
+    """The levels of the run grouped by (J, parity), energies sorted.
+
+    Returns ``(kinds, kind_of)``: ``{(J, parity): (energies, level ids)}`` and
+    ``{level_id: (J, parity)}``.  A level whose J cannot be read is in
+    neither.
+    """
+    j = np.array([j_value(x) for x in per['J']])
+    par = np.array([str(x) for x in per['parity']])
+    e = per['E_final'].to_numpy(dtype=float)
+    lid = per['level_id'].to_numpy()
+    kind_of = {str(i): (jj, pp) for i, jj, pp in zip(lid, j, par)
+               if np.isfinite(jj)}
+    kinds = {}
+    for key in set(kind_of.values()):
+        m = (j == key[0]) & (par == key[1])
+        o = np.argsort(e[m])
+        kinds[key] = (e[m][o], lid[m][o])
+    return kinds, kind_of
+
+
+def nearest_same_kind(kinds, kind_of, level_id, e):
+    """The level of the same J and parity whose energy is nearest to E.
+
+    Returns ``(level_id, E - E(that level))``, or ``('', nan)`` when the run
+    holds no OTHER level of that J and parity - and then the alternate cannot
+    be an interchange whatever sits near it, so there is nothing to name.
+
+    Restricting the search to one J and one parity is the point of the column.
+    An interchange is an exchange of two identities: each level takes the
+    other's energy and, with it, the other's lines.  Two levels of different J
+    do not have the same lines to take - their transitions go to different
+    partners entirely - so a near-coincidence of their energies says nothing,
+    and a swap of them is not a thing that can be carried out.  The level
+    itself is excluded as well: an alternate is always at least ALT_SEP from
+    where the level stands, so the level's own position is never the answer,
+    and naming it would turn a plain move into a self-interchange.
+    """
+    key = kind_of.get(str(level_id))
+    if key is None:
+        return '', float('nan')
+    ev, iv = kinds.get(key, (np.empty(0), np.empty(0, dtype=object)))
+    m = np.array([str(x) != str(level_id) for x in iv], dtype=bool)
+    if not m.any():
+        return '', float('nan')
+    ev, iv = ev[m], iv[m]
+    k = int(np.argmin(np.abs(ev - float(e))))
+    return str(iv[k]), float(e - ev[k])
+
+
 def observed_index(ctx, wn):
     """Where these recorded wavenumbers sit in the observed line list.
 
@@ -2525,8 +2592,10 @@ def disposition(row):
     Five different pieces of work, which is why they are named rather than
     ranked:
 
-      interchange  the alternate lands on another level of the run.  Nothing
-                   moves anywhere new; the two identities may be swapped, and
+      interchange  the alternate lands on another level of the run OF THE
+                   SAME J AND PARITY - the only kind of level whose identity
+                   this one could be exchanged with.  Nothing moves anywhere
+                   new; the two identities may be swapped, and
                    level_interchange.py decides that on evidence this scan
                    does not look at.
       refit        the alternate is a fraction of a wavenumber away AND
@@ -2828,6 +2897,26 @@ def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
     been found are kept: the other end of the rest is itself unplaced, so no
     wavenumber can be predicted for them at all.  Returns the number of
     predictions the level is left with.
+
+    WHEN THE ROW IS A LEVEL THE RUN HAS ALREADY FOUND - and it may be: the
+    search is run on found rows to ask whether the position they hold is the
+    one the lines want - that level's own accepted assignments are handed to
+    the search.  ctx.own_claim[UNKNOWN_ID] is set to the level's own claims,
+    which is exactly what the scan of a known level does with them: through C
+    in ln_ratio, a feature the level itself claims is then read as FREE, and
+    only the light OTHER levels have put on it counts against the position.
+
+    Without this the search is asked an impossible question.  Every line the
+    level is assigned now is a line some level has claimed, so at the level's
+    own position each of its own assignments is charged to it as a blend with
+    itself: 059003.000538, which holds 139081.51 cm^-1 on four accepted
+    lines and scores ln R = +12.9 as a known level, came out at +0.4 with no
+    free line at all, ranked below three positions in the window that rest on
+    nothing.  The level was being made to compete with itself, and it lost.
+
+    n_own and n_kept in the support columns then read as they do in the
+    audit: how many recorded lines the level is assigned now, and how many of
+    them a candidate position still matches.
     """
     a = np.array([mapping.get(int(v), -1) for v in trans['lid1']])
     b = np.array([mapping.get(int(v), -1) for v in trans['lid2']])
@@ -2862,7 +2951,104 @@ def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
         u_m=np.array([ctx.u_M.get(p, 0.0) for p in pid]),
         degenerate=np.array([ctx.n_acc_level.get(p, 0) <= 0 for p in pid]))
     ctx.e_final[UNKNOWN_ID] = E_c
+
+    lid = str(id_of.get(int(idx), ''))
+    ctx.unknown_level = None
+    ctx.own_claim.pop(UNKNOWN_ID, None)
+    if lid:
+        own = ctx.own_claim.get(lid, {}) if lid in ctx.e_final else {}
+        ctx.unknown_level = dict(
+            level_id=lid, in_run=lid in ctx.e_final,
+            E=float(ctx.e_final[lid]) if lid in ctx.e_final else float('nan'),
+            n_own=len(own), released=lid in getattr(ctx, 'released', set()))
+        if own:
+            ctx.own_claim[UNKNOWN_ID] = dict(own)
     return len(pid)
+
+
+def questionable_levels(path, log=print):
+    """The levels the last report of ``path`` marks with a question mark.
+
+    That is the `question` column of level_positions.csv: '?' wherever the
+    scan found an alternate position within --alt-drop of the adopted one.  It
+    is the run's own record of which positions are not settled, written by the
+    last --scan or --audit.
+    """
+    if not os.path.exists(path):
+        raise SystemExit(f"{path} not found: --drop-all-questionable needs "
+                         f"the report of a previous --scan or --audit run")
+    t = pd.read_csv(path, dtype={'level_id': str})
+    if 'question' not in t.columns:
+        raise SystemExit(f"{path} has no `question` column: it was not "
+                         f"written by a --scan or --audit run")
+    q = t[t['question'].astype(str).str.strip() == '?']
+    return [str(x) for x in q['level_id']]
+
+
+def release_levels(ctx, ids, args, log=print):
+    """Drop every accepted assignment of these levels; free their lines.
+
+    What a released level loses is its CLAIM on the recorded features: its
+    accepted rows are subtracted from C, from the count of accepted
+    transitions on each feature, and from the own_claim of both levels the row
+    joined.  A feature that no other accepted transition claims is then free,
+    and the unrelated-line background is re-measured over the enlarged free
+    set - a release makes free lines commoner, and a commoner background is a
+    smaller ln R, so the position being searched for is not handed the lines
+    for nothing.
+
+    What a released level KEEPS is its adopted energy.  It goes on serving as
+    a partner: a transition to it is still predicted at a definite wavenumber,
+    and that is the whole point of releasing it - the lines it was holding are
+    offered to the level under test while the predictions that reach them
+    survive.  Its energy is of course conditional on the very assignments that
+    have just been dropped, which is the standing caveat on a questionable
+    level and the reason it is marked one.
+
+    Returns the number of accepted rows dropped.
+    """
+    ids = set(str(i) for i in ids)
+    ctx.released = ids
+    acc = ctx.acc
+    lo = acc['low_id'].astype(str).to_numpy()
+    up = acc['upp_id'].astype(str).to_numpy()
+    sel = np.array([(a in ids) or (b in ids) for a, b in zip(lo, up)],
+                   dtype=bool)
+    if not sel.any():
+        log(f"  none of the {len(ids)} levels named carries an accepted "
+            f"line; nothing is released")
+        return 0
+    li_ = acc['line_idx'].to_numpy(dtype=int)[sel]
+    ic = acc['calc_intens'].fillna(0.0).to_numpy(dtype=float)[sel]
+    np.add.at(ctx.claimed_tot, li_, -ic)
+    ctx.claimed_tot = np.maximum(ctx.claimed_tot, 0.0)
+    np.add.at(ctx.n_acc_line, li_, -1)
+    ctx.n_acc_line = np.maximum(ctx.n_acc_line, 0)
+    for a, b, i, c in zip(lo[sel], up[sel], li_, ic):
+        for who in (a, b):
+            m = ctx.own_claim.get(who)
+            if m is None or int(i) not in m:
+                continue
+            m[int(i)] -= float(c)
+            if m[int(i)] <= 1e-12:
+                del m[int(i)]
+            if not m:
+                ctx.own_claim.pop(who, None)
+    # ctx.n_acc_level is NOT recomputed: it is what marks a partner degenerate
+    # - a level with no accepted line of its own has no independently measured
+    # energy - and a released level's energy is still the one the run adopted.
+    # Recomputing it here would strike out exactly the predictions that reach
+    # the lines the release has just freed, which is the opposite of the
+    # intent.
+    n_free_now = int((ctx.n_acc_line == 0).sum())
+    free_line_background(ctx, args, log=lambda *a, **k: None)
+    log(f"  released {int(sel.sum())} accepted assignments of "
+        f"{len(ids)} questionable levels; {n_free_now} of "
+        f"{len(ctx.wn_o)} recorded lines now carry no accepted transition")
+    log(f"    the unrelated-line background is re-measured over them: "
+        f"density {np.median(ctx.rho_bg_o):.4f} per cm^-1 (median), ln I of "
+        f"a free line {np.nanmedian(ctx.bg_mu_f):.2f}")
+    return int(sel.sum())
 
 
 def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0):
@@ -2976,6 +3162,29 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0):
     row = en.loc[idx]
     print(f"\nIDEN2 row {idx}  {row['label']}  J = {row['J']}  "
           f"{'FOUND' if row['known'] else 'not found'}")
+    held = getattr(ctx, 'unknown_level', None)
+    if held is not None and not held['in_run']:
+        print(f"  enlev.dat calls this row found, as {held['level_id']}, but "
+              f"that level is not one of this run's: it has nothing of its "
+              f"own here, and the window is searched as for a level nobody "
+              f"has found")
+    elif held is not None:
+        n_own = held['n_own']
+        print(f"  this row IS a level of the run: {held['level_id']}, which "
+              f"holds {held['E']:.3f} cm^-1")
+        if n_own:
+            print(f"  its {n_own} accepted line"
+                  f"{' is' if n_own == 1 else 's are'} released for the "
+                  f"search, so the position it holds now is scanned on the "
+                  f"same footing as every other: it does not have to compete "
+                  f"with itself for its own lines")
+        elif held['released']:
+            print(f"  it is itself one of the questionable levels, so its "
+                  f"assignments have already been freed for every level in "
+                  f"this run of the search, this one included")
+        else:
+            print(f"  it carries no accepted line, so there is nothing of "
+                  f"its own to release")
     print(f"  calculated at {r['E_calc']:.1f} cm^-1; levels of {row['cfg']} "
           f"turn out to be {r['W']:.1f} cm^-1 from where the calculation "
           f"puts them (rms)")
@@ -3043,6 +3252,18 @@ def parse_args(argv):
                         'and report every position where ln R > 0, with what '
                         'each one rests on.  The row need not be one of the '
                         'levels that have been found')
+    p.add_argument('--drop-all-questionable', '--drop_all_questionable',
+                   dest='drop_questionable', action='store_true',
+                   help='before searching with --unknown, drop every accepted '
+                        'assignment of every level the last report (--out, '
+                        'default level_positions.csv) marks questionable - '
+                        'the levels whose `question` column is `?`, those the '
+                        'scan found an alternate position for - so that their '
+                        'lines are free for the level being searched for.  '
+                        'The released levels keep their adopted energies and '
+                        'go on serving as partners; only their claim on the '
+                        'recorded features is dropped, and the unrelated-line '
+                        'background is re-measured over the enlarged free set')
     p.add_argument('--min-ln-r', type=float, default=0.0, metavar='X',
                    help='--unknown reports the positions with ln R above this '
                         '(default %(default)s: the energies at which the '
@@ -3099,6 +3320,12 @@ def parse_args(argv):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.drop_questionable and not args.unknown:
+        raise SystemExit('--drop-all-questionable only has a meaning with '
+                         '--unknown: it frees the lines of the questionable '
+                         'levels for a level being searched for, and a report '
+                         'written with those lines free would not be a report '
+                         'of this run')
     if args.fit_hfs:
         output_files.require_writable([HFS_FILE], 'hyperfine width file')
         if args.lopt:
@@ -3135,6 +3362,8 @@ def main(argv=None):
         return 0
 
     if args.unknown:
+        if args.drop_questionable:
+            release_levels(ctx, questionable_levels(args.out), args)
         en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
         for idx in args.unknown:
             if idx not in en.index:
@@ -3179,14 +3408,15 @@ def main(argv=None):
                  if known else ''))
         n_alt, best_alt, d_alt, sep, width = [], [], [], [], []
         scanned, fresh = [], {k: dict(v) for k, v in registry.items()}
-        # a maximum that falls on another level of the run is a different
-        # question from one that falls on empty energy: the first is an
-        # interchange, which level_interchange.py judges on evidence this
-        # scan does not use, the second a position nobody has claimed
-        lev_e = ctx.per['E_final'].to_numpy(dtype=float)
-        lev_id = ctx.per['level_id'].to_numpy()
-        o = np.argsort(lev_e)
-        lev_e, lev_id = lev_e[o], lev_id[o]
+        # a maximum that falls on another level of the run OF THE SAME J
+        # AND PARITY is a different question from one that falls on empty
+        # energy: the first is an interchange, which level_interchange.py
+        # judges on evidence this scan does not use, the second a position
+        # nobody has claimed.  A level of a different J or parity sitting at
+        # the same energy is neither - it has different transitions, so it is
+        # not competing for these lines and the two identities cannot be
+        # exchanged - and it is not named at all.
+        kinds, kind_of = level_kinds(ctx.per)
         alt_lev, alt_lev_dE = [], []
         for lid, ln_r in zip(tab['level_id'], tab['ln_R']):
             e_a, ln_r = ctx.e_final[lid], float(ln_r)
@@ -3227,12 +3457,9 @@ def main(argv=None):
                 best_alt.append(v_a)
                 d_alt.append(r['ln_R'] - v_a)
                 sep.append(e_a - r['e_adopted'])
-                k = int(np.clip(np.searchsorted(lev_e, e_a), 1,
-                                len(lev_e) - 1))
-                if abs(lev_e[k] - e_a) >= abs(lev_e[k - 1] - e_a):
-                    k -= 1
-                alt_lev.append(lev_id[k])
-                alt_lev_dE.append(float(e_a - lev_e[k]))
+                nid, ndE = nearest_same_kind(kinds, kind_of, lid, e_a)
+                alt_lev.append(nid)
+                alt_lev_dE.append(ndE)
             else:
                 best_alt.append(np.nan)
                 d_alt.append(np.nan)
@@ -3274,9 +3501,10 @@ def main(argv=None):
               f"{args.alt_drop:g} of the adopted one: {len(q)} of {len(tab)}")
         print(f"  of these, {int((q['d_ln_R'] < 0).sum())} have an alternate "
               f"the lines prefer to the adopted position")
-        onlev = (q['near_dE'].abs() < 0.5).sum()
+        onlev = (q['near_dE'].abs() < INTERCHANGE_DE).sum()
         print(f"  {int(onlev)} of the best alternates fall on another level "
-              f"of the run - an interchange, not a free position")
+              f"of the run of the same J and parity - an interchange, not a "
+              f"free position")
         cols = ['level_id', 'E', 'n_obs', 'n_seen', 'n_miss', 'ln_R',
                 'n_alt', 'ln_R_alt', 'd_ln_R', 'dE_alt', 'near_level',
                 'near_dE']

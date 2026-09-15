@@ -31,6 +31,63 @@ This module is the deterministic successor to the LLM-based post-processing that
 
 ---
 
+## Work to do
+
+In order. Each item must be finished before the next is started, because each
+one changes the input the next one is computed from.
+
+1. **Finish the revision of the questionable levels.** Every question mark
+   raised by `level_positions.py --scan` accepted or rejected by hand, with its
+   row in `line_decisions.csv`.
+
+2. **Finish the assignment of the new levels.** The `insert_new_level.py` work:
+   the level at IDEN2 row 742 already accepted by hand, and the candidates that
+   `level_positions.py --unknown` and `unfound_levels.py` point to.
+
+3. **The hyperfine-structure (hfs) work.** Planned in full in
+   [`Work_on_hfs_plan.md`](Work_on_hfs_plan.md); it is not started, and it must
+   not start before items 1 and 2 are closed.
+
+   Pr III lines are hyperfine patterns, not single lines. Sugar flagged 296 of
+   the 1974 lines `*r` or `*v` for a visibly displaced strongest component, but
+   the displacement does not stop at the flagged lines: it reaches about
+   1 cm<sup>-1</sup> where the measured wavenumber is near 0.006 cm<sup>-1</sup>
+   precise. The work produces **two result sets**: *Set 1*, Sugar's measured
+   wavenumbers with honest uncertainties, whose levels are effective
+   (hfs-displaced) positions; and *Set 2*, wavenumbers corrected to the centre
+   of gravity of each pattern, whose levels are physical centres of gravity.
+
+   The main tasks:
+
+   - derive the hfs trends from **Sugar's own stated uncertainties** (0.004 A
+     in 1969; 0.003 A for plain lines and 0.007 A average deviation from Ritz
+     for blended and complex lines in 1974) rather than from the inflated
+     `unc_own` column, which exists for Set 1 and would bias any trend fitted
+     through it; adopt the filtered per-character, per-era rms as the published
+     uncertainty;
+   - use the **501 hfs component wavelengths** that Sugar printed for the
+     flagged lines and that `Pr3_lines.xlsx` does not carry. They are in
+     `Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm`, sheet
+     `Table 1`, as the rows with `Intens = 0` in column 3, with the wavenumber
+     in column 31 (`wn adopted`). They measure the pattern geometry directly
+     instead of inferring it;
+   - compute the hyperfine constant *A* of each level from the calculated
+     compositions in `levels_pub.xlsx` and the radial parameters of Reader &
+     Sugar (1965), extending the calculation to the LS-coupled 4f5d<sup>2</sup>
+     and 4f<sup>3</sup> levels;
+   - apply the correction inside `make_LOPT_input.py` behind a switch, leaving
+     `Pr3_lines.xlsx` as the record of what was measured, and refit with LOPT.
+
+   The working hypothesis on the measurement convention is that Sugar measured
+   the **centre of gravity** of every line except those he flagged, supported
+   by his own statement for Pr IV; it may have to be revised per line or per
+   era if the Pr III data say otherwise.
+
+   Every external datum used must be cited to a checkable source, collected in
+   section 9 of the plan.
+
+---
+
 ## Prerequisites
 
 - **Python 3.10+** — the code uses PEP 604 union annotations (`dict | None`) and builtin-generic hints (`dict[str, EnergyLevel]`, `tuple[...]`).
@@ -3161,9 +3218,13 @@ E_obs − E_calc over the known levels of the same dominant configuration
 (`level_interchange.configuration_windows`) — 133 cm^-1 wide for the best-determined
 configurations, 2425 for the worst. The predicted intensities are held fixed while E moves: over
 a few hundred cm^-1 the Boltzmann factor with kT = 12900 cm^-1 changes by about two per cent, far
-below s. A maximum that lands on another level of the run is reported as such (`near_level`,
-`near_dE`), because that is an interchange — `level_interchange.py`'s question, judged on
-evidence this scan does not use — and not a free position nobody has claimed.
+below s. A maximum that lands on another level of the run **of the same J and parity** is
+reported as such (`near_level`, `near_dE`), because that is an interchange —
+`level_interchange.py`'s question, judged on evidence this scan does not use — and not a free
+position nobody has claimed. Levels of any other J or parity are not looked at: an interchange
+exchanges two identities, each level taking the other's energy and with it the other's lines, and
+two levels of different J have no lines in common to exchange. A J = 5/2 level and a J = 17/2 one
+sitting at the same energy are a coincidence, not a swap.
 
 **What it finds.** Over the 594 levels, ln R at the adopted position runs from −10 to +168 with a
 median of 22.6; 21 levels are at or below zero. 122 have at least one alternate position within 5
@@ -3220,11 +3281,21 @@ prediction that found a line, faint coincidences included, and is kept in the cs
 number *not* to quote.
 
 **`near_level` is a neighbourhood label, not a rival.** It names the level of the run whose energy
-is closest to the alternate position, and `near_dE` is the gap between them. It is filled in for
-every alternate, so for most rows it names a level that merely happens to lie nearby and wants
-nothing: read `dE_alt`, the size of the move, instead. Only when `|near_dE|` is under half a
-wavenumber does it carry information, and then it says the alternate *is* that level's position —
-an interchange, where the two identities may need exchanging rather than either level moving.
+is closest to the alternate position **among the levels of the same J and parity**, and `near_dE`
+is the gap between them. It is filled in for every alternate that has such a neighbour, so for most
+rows it names a level that merely happens to lie nearby and wants nothing: read `dE_alt`, the size
+of the move, instead. Only when `|near_dE|` is under half a wavenumber does it carry information,
+and then it says the alternate *is* that level's position — an interchange, where the two
+identities may need exchanging rather than either level moving.
+
+**Only a level of the same J and parity can be the other half of it.** The column is empty when the
+run holds no other level of that J and parity, and a level of a different J that happens to sit on
+the alternate is neither named nor counted. It is not a rival for the lines — its transitions go to
+different partners entirely — and the two identities cannot be exchanged, so a `near_dE` of a
+hundredth of a wavenumber between a J = 5/2 level and a J = 17/2 one means nothing whatever. The
+level itself is excluded too: an alternate always lies at least `ALT_SEP` from where the level
+stands, so its own position is never the answer, and naming it would turn a plain move into a
+self-interchange.
 
 **The audit (`--audit`).** `ln R` says which of two energies the lines prefer. It does not say the
 preference is worth acting on, and several quite different situations produce the same number, so
@@ -3267,7 +3338,7 @@ different pieces of work:
 
 | `action` | what it means | what to do |
 |---|---|---|
-| `interchange` | the alternate lands on another level of the run (`\|near_dE\|` < 0.5) | `level_interchange.py`, which weighs evidence this scan does not use |
+| `interchange` | the alternate lands on another level of the run **of the same J and parity** (`\|near_dE\|` < 0.5) | `level_interchange.py`, which weighs evidence this scan does not use |
 | `refit` | the alternate is a fraction of a wavenumber away (`\|dE_alt\|` < 2), **the level keeps more than half of the recorded lines it is assigned now** (`n_kept` > `n_own`/2) **and more than half of their light** (`kept_light` > 0.5) | nothing is re-identified; some accepted line is dragging the LOPT fit off the position the level's own lines want |
 | `top line` | the same short move, keeping most of the lines by count but **half or less of the light** (`kept_light` ≤ 0.5): the line it drops is the level's strongest | look at that line — its wavenumber, whether it is a blend, whether the identification is right — not at the position |
 | `relocate` | a free position, ≥ 4 free lines worth ≥ 8, no line carrying more than 45 % of the case, `look` ≥ 3, **and `ln R` positive there** — convincing in its own right, not merely better than where the level is now. How far away it is does not enter | a candidate revision |
@@ -3389,7 +3460,7 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `ln_R_alt` | `ln R` at the best of them |
 | `d_ln_R` | `ln_R` − `ln_R_alt`; **negative means the lines prefer the alternate** (`gain` is the same quantity with the clearer sign) |
 | `dE_alt` | E(alternate) − E(adopted): the size of the move |
-| `near_level` / `near_dE` | the run's level nearest the alternate, and the gap — see above |
+| `near_level` / `near_dE` | the run's level of the same J and parity nearest the alternate, and the gap — see above (empty when there is none) |
 | `question` | `?` when `n_alt` > 0 |
 | `scanned` | `this run` when the window was scanned, `registry` when the level was taken unchanged from the registry of settled positions |
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
@@ -3424,6 +3495,9 @@ harsher rather than kinder.**
 - **The level owns no accepted line.** Every feature that an existing identification already claims
   therefore counts against it in full through `C`. To be believed, an unfound level must explain
   lines the levels already found have left alone — a stricter test than a known level faces.
+  (The one exception is the row that *is* a level of the run — see **Searching on a row that has
+  already been found** below: there the level's own assignments are handed to the search, exactly
+  as the scan of a known level treats them.)
 - **There is no adopted position to compare against**, so there is no `gain`. `ln R` itself is the
   verdict.
 - **The look-elsewhere problem is the whole window**, not the distance between two candidates: a
@@ -3471,6 +3545,54 @@ and 0.92, which is to say one line is the whole of the case for each of them. Th
 is what a 793 cm⁻¹ scan finds when there is nothing there, and the report says so in as many words.
 `look` is negative at every one of them.
 
+**Searching on a row that has already been found.** `--unknown` accepts a row of `enlev.dat` that
+the run has already identified, and that is a useful thing to ask: it scans the whole window the
+configuration allows and reports where the lines want the level, without reference to the position
+it currently holds. For that question the level's **own accepted assignments are released** before
+the scan — `ctx.own_claim` is set for the search exactly as the scan of a known level sets it — so
+that at the position it holds now its own lines read as free, and only the light *other* levels
+have put on them counts against it through `C`.
+
+Without that release the search was asked an impossible question. Every line the level is assigned
+now is a line some level has claimed, so at its own position each of its own assignments was
+charged to it as a blend with itself. `059003.000538` (IDEN2 row 271), which holds 139081.51 cm⁻¹
+on four accepted lines and scores `ln R` = +12.9 as a known level, came out at **+0.4 with no free
+line at all**, ranked below three positions in the window that rest on nothing. The level was being
+made to compete with itself, and it lost. With its lines released it comes out where it stands:
+
+```
+         E   ln_R   look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+139081.520 12.761 11.375  87.920 1.935      4        2       2       2     10.476      0.479    weak
+139082.540  8.738  7.352  88.940 1.957      4        2       2       2      6.465      0.390    weak
+```
+
+**Releasing the questionable levels (`--drop-all-questionable`).** A candidate position is always
+conditional on the rest of the level list: the lines it would take are lines its neighbours are
+holding. Where those neighbours are themselves unsettled — the levels the last report marks `?`,
+which is to say the levels the scan found an alternate position for — that conditioning is
+circular, and a real level can be hidden behind assignments that may not survive the next revision.
+`--drop-all-questionable` removes it. Every accepted assignment of every level whose `question`
+column in `--out` (default `level_positions.csv`) is `?` is dropped before the search: subtracted
+from `C`, from the count of accepted transitions on each feature, and from the `own_claim` of both
+levels the row joined. In the run of 2026-09-14 that is **263 assignments of 69 levels**, and it
+takes the recorded lines carrying no accepted transition from 2125 to 2314 of 6668.
+
+Two things the release deliberately does *not* do:
+
+- **The released levels keep their adopted energies** and go on serving as partners, so the
+  transitions that reach the freed lines are still predicted at a definite wavenumber. Striking
+  them out as well would remove exactly the predictions the release exists to make available. Their
+  energies are of course conditional on the assignments just dropped, which is the standing caveat
+  on a questionable level and the reason it carries the mark.
+- **The unrelated-line background is re-measured** over the enlarged free set (density 0.0380 →
+  0.0396 per cm⁻¹, `ln I` of a free line 8.17 → 8.30 in that run). Freeing lines makes free lines
+  commoner, a commoner background is a smaller `ln R`, and the position being searched for is not
+  handed the lines for nothing. The modelled half of the background — the transitions of the levels
+  nobody has found — does not depend on which features are claimed and is not recomputed.
+
+The option only has a meaning with `--unknown` and is refused without it: a report written with
+those lines free would not be a report of this run.
+
 Usage:
 
 ```bash
@@ -3479,6 +3601,10 @@ python level_positions.py --unknown 742 913 986     # several at once
 python level_positions.py --unknown 742 --at 116327.610   # the transitions at one of them
 python level_positions.py --unknown 742 --top 10    # only the best ten positions
 python level_positions.py --unknown 742 --min-ln-r 3      # a higher bar than "better than nothing"
+python level_positions.py --unknown 271             # a row the run has already found: its own
+                                                    #   lines are released for the scan
+python level_positions.py --unknown 271 --drop-all-questionable   # ... and so are the lines of
+                                                    #   every level the last report marks `?`
 ```
 
 A run takes about three seconds after the 1.6 s the likelihood takes to build.

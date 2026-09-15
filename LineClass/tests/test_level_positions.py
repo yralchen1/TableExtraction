@@ -768,3 +768,203 @@ def test_a_level_the_table_does_not_list_is_reported_not_hidden():
         got = lp.read_level_configs(lv, log=said.append, enlev=en, ids=ids)
     assert got == {}
     assert any('wants checking' in s for s in said)
+
+
+# ---------------------------------------------------------------------------
+# An interchange is an exchange of identities, so only a level of the same J
+# and parity can be the other half of one
+# ---------------------------------------------------------------------------
+def _kinds():
+    per = pd.DataFrame({
+        'level_id': ['L1', 'L2', 'L3', 'L4'],
+        'E_final': [10000.0, 10000.2, 10040.0, 10000.1],
+        'J': ['5/2', '17/2', '5/2', '5/2'],
+        'parity': ['e', 'e', 'e', 'o']})
+    return lp.level_kinds(per)
+
+
+def test_a_level_of_another_j_is_not_the_other_half_of_an_interchange():
+    """L2 lies 0.2 cm^-1 from the alternate and L3 forty; L3 is the answer,
+    because L2 is J = 17/2 and has none of L1's lines to exchange."""
+    kinds, kind_of = _kinds()
+    nid, dE = lp.nearest_same_kind(kinds, kind_of, 'L1', 10040.0)
+    assert nid == 'L3'
+    assert dE == pytest.approx(0.0)
+
+
+def test_a_level_of_the_other_parity_is_not_either():
+    kinds, kind_of = _kinds()
+    nid, _ = lp.nearest_same_kind(kinds, kind_of, 'L1', 10000.1)
+    assert nid == 'L3'
+
+
+def test_the_level_itself_is_never_its_own_near_level():
+    kinds, kind_of = _kinds()
+    nid, _ = lp.nearest_same_kind(kinds, kind_of, 'L1', 10000.05)
+    assert nid == 'L3'
+
+
+def test_no_other_level_of_that_j_names_none_at_all():
+    kinds, kind_of = _kinds()
+    nid, dE = lp.nearest_same_kind(kinds, kind_of, 'L2', 10000.0)
+    assert nid == ''
+    assert math.isnan(dE)
+
+
+def test_an_interchange_needs_the_near_level_of_the_same_kind():
+    """disposition() reads near_dE, and near_dE is now only ever filled in
+    from a level that could actually be swapped with this one."""
+    kinds, kind_of = _kinds()
+    _, dE = lp.nearest_same_kind(kinds, kind_of, 'L1', 10000.2)
+    assert abs(dE) > lp.INTERCHANGE_DE
+
+
+# ---------------------------------------------------------------------------
+# --unknown on a row the run has already found
+# ---------------------------------------------------------------------------
+def _found_ctx():
+    """The miniature run with level 4 already found as L004, holding one
+    accepted line - the 90000 cm^-1 feature, which is its transition to L001
+    and which nothing else claims.  The recorded intensities are those the
+    level's own predictions ask for, so that a match is read as the line
+    rather than as a transition hidden in a much brighter feature."""
+    ctx = fake_ctx([70000.0, 80000.0, 90000.0],
+                   i_obs=[1.2e6, 1.38e6, 1.55e6],
+                   claimed=[0.0, 0.0, 1.55e6])
+    en, trans, mapping, e_meas, id_of = theory(LEVELS, TRANS)
+    for i in (1, 2, 3):
+        ctx.e_final[f'L{i:03d}'] = float(en['E_obs'][i])
+        ctx.n_acc_level[f'L{i:03d}'] = 5
+    ctx.e_final['L004'] = 90000.0
+    ctx.own_claim['L004'] = {2: 1.55e6}
+    ctx.n_acc_level['L004'] = 1
+    return ctx, en, trans, mapping, e_meas, id_of
+
+
+def test_a_found_rows_own_lines_are_released_to_the_search():
+    ctx, en, trans, mapping, e_meas, id_of = _found_ctx()
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    # the search reads the level's own claims as its own, exactly as the scan
+    # of a known level does, so its own lines come out free rather than as a
+    # blend of the level with itself
+    assert ctx.own_claim[lp.UNKNOWN_ID] == {2: 1.55e6}
+    assert ctx.unknown_level['level_id'] == 'L004'
+    assert ctx.unknown_level['in_run'] is True
+    assert ctx.unknown_level['n_own'] == 1
+
+
+def test_the_released_lines_make_the_position_the_level_holds_score():
+    ctx, en, trans, mapping, e_meas, id_of = _found_ctx()
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    with_release = lp.support(ctx, lp.UNKNOWN_ID, 90000.0)
+    ctx.own_claim.pop(lp.UNKNOWN_ID)          # as it was before the fix
+    without = lp.support(ctx, lp.UNKNOWN_ID, 90000.0)
+    assert with_release['n_free'] > without['n_free']
+    assert with_release['ln_R'] > without['ln_R']
+    # and the cost of a move is reported: the level has one line of its own
+    assert with_release['n_own'] == 1
+    assert with_release['n_kept'] == 1
+
+
+def test_a_row_found_in_enlev_but_absent_from_the_run_releases_nothing():
+    ctx = fake_ctx([70000.0, 80000.0, 90000.0])
+    en, trans, mapping, e_meas, id_of = theory(LEVELS, TRANS)
+    for i in (1, 2, 3):
+        ctx.e_final[f'L{i:03d}'] = float(en['E_obs'][i])
+        ctx.n_acc_level[f'L{i:03d}'] = 5
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    assert lp.UNKNOWN_ID not in ctx.own_claim
+    assert ctx.unknown_level['in_run'] is False
+
+
+def test_one_rows_release_does_not_carry_over_to_the_next():
+    ctx, en, trans, mapping, e_meas, id_of = _found_ctx()
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    del ctx.e_final['L004']                   # row 5 is not a level of the run
+    lp.register_unknown(ctx, 5, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    assert lp.UNKNOWN_ID not in ctx.own_claim
+
+
+# ---------------------------------------------------------------------------
+# --drop-all-questionable
+# ---------------------------------------------------------------------------
+class _Args:
+    plain_background = True
+
+
+def _claimed_ctx():
+    """Three recorded lines, two of them claimed: one by a questionable level
+    Q alone, one by Q sharing the feature with K."""
+    ctx = fake_ctx([70000.0, 80000.0, 90000.0], claimed=[0.0, 3.0, 7.0])
+    ctx.acc = pd.DataFrame([
+        dict(low_id='K', upp_id='Q', line_idx=1, calc_intens=3.0),
+        dict(low_id='K', upp_id='Q', line_idx=2, calc_intens=4.0),
+        dict(low_id='K', upp_id='M', line_idx=2, calc_intens=3.0)])
+    ctx.own_claim = {'Q': {1: 3.0, 2: 4.0}, 'K': {1: 3.0, 2: 7.0},
+                     'M': {2: 3.0}}
+    ctx.n_acc_line = np.array([0, 1, 2])
+    ctx.n_acc_level = {'Q': 2, 'K': 2, 'M': 1}
+    return ctx
+
+
+def test_releasing_a_level_frees_the_feature_it_held_alone():
+    ctx = _claimed_ctx()
+    n = lp.release_levels(ctx, ['Q'], _Args(), log=lambda *a: None)
+    assert n == 2
+    assert ctx.claimed_tot[1] == pytest.approx(0.0)
+    assert ctx.n_acc_line[1] == 0
+    assert 'Q' not in ctx.own_claim
+
+
+def test_releasing_a_level_leaves_the_other_claims_on_a_shared_feature():
+    ctx = _claimed_ctx()
+    lp.release_levels(ctx, ['Q'], _Args(), log=lambda *a: None)
+    # the 4.0 of the Q-K row goes; the 3.0 of the K-M row stays, and so does
+    # the feature's second claimant
+    assert ctx.claimed_tot[2] == pytest.approx(3.0)
+    assert ctx.n_acc_line[2] == 1
+    assert ctx.own_claim['M'] == {2: 3.0}
+    assert ctx.own_claim['K'] == {2: pytest.approx(3.0)}
+
+
+def test_a_released_level_still_serves_as_a_partner():
+    """Its energy is what it was, and n_acc_level - which is what marks a
+    partner degenerate - is untouched, or the release would strike out the
+    very predictions that reach the lines it has just freed."""
+    ctx = _claimed_ctx()
+    lp.release_levels(ctx, ['Q'], _Args(), log=lambda *a: None)
+    assert ctx.n_acc_level['Q'] == 2
+
+
+def test_releasing_levels_that_hold_nothing_changes_nothing():
+    ctx = _claimed_ctx()
+    before = ctx.claimed_tot.copy()
+    n = lp.release_levels(ctx, ['Z'], _Args(), log=lambda *a: None)
+    assert n == 0
+    assert np.array_equal(ctx.claimed_tot, before)
+
+
+def test_the_questionable_levels_are_the_ones_the_report_marks():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, 'level_positions.csv')
+        pd.DataFrame({'level_id': ['L1', 'L2', 'L3'],
+                      'question': ['?', '', '?']}).to_csv(path, index=False)
+        assert lp.questionable_levels(path) == ['L1', 'L3']
+
+
+def test_a_report_without_the_column_is_refused_not_guessed_at():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, 'level_positions.csv')
+        pd.DataFrame({'level_id': ['L1']}).to_csv(path, index=False)
+        with pytest.raises(SystemExit):
+            lp.questionable_levels(path)
+
+
+def test_the_option_is_refused_without_unknown():
+    with pytest.raises(SystemExit):
+        lp.main(['--drop-all-questionable'])

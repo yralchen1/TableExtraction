@@ -1,3 +1,10 @@
 level_id	E	J	parity	iden2_row	cowan_lid	comment
 059003.000623	132958.176	7/2	o	474	396	Found in IDEN2; 7 lines (2 doubly classified and one triply classified). This is in fact Wyart's level 000503; was wrongly identified in LSF.
-059003.000624	116327.560	5/2	o	742	294	Found with level_positions --unknown 742. 17 lines (6 doubly classified). New level.
+059003.000624	116327.56	5/2	o	742	294	Found with level_positions --unknown 742. 17 lines (6 doubly classified). New level.
+059003.000625	108117.25	7/2	e	828	2041	"IDEN2, 5 lines"
+059003.000626	92091.785	7/2	o	913	210	Found with level_positions --unknown 913. 13 lines (4 doubly classified). New level.
+059003.000627	91197.835	5/2	o	914	209	Found with level_positions --unknown 914. 15 lines (4 doubly classified). New level.
+059003.000628	117712.656	9/2	o	719	314	Found with level_positions --unknown 719. 9 lines (4 doubly classified). New level.
+059003.000629	90481.355	7/2	o	918	205	Found with level_positions. 14 lines (7 doubly classified). New level.
+059003.000630	116074.989	13/2	o	747	289	Found with level_positions. 12 lines (4 doubly classified). New level.
+059003.000631	70477.791	3/2	o	1007	117	Found with level_positions. 8 lines (4 doubly classified). New level.
