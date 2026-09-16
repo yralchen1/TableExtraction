@@ -481,3 +481,32 @@ def test_the_calibration_sample_stops_at_the_outer_edge():
     _cand, null = li.search_pairs(lv, min_lines=3, window=1.0,
                                   null_window=10.0)
     assert null == []
+
+
+def test_a_level_in_the_id_table_is_tied_to_its_row_not_by_energy():
+    """CLAUDE.md: join through IDEN_level_ids.txt, never by energy.
+
+    The level has just been moved in the run, so its energy is nowhere near
+    the E_obs enlev.dat still holds, and the nearest starred row is a different
+    level.  The table's row is the one taken.
+    """
+    rows = ['  10  120000.000     0.200  120050.000 *      50.000  2.5 /f25f _3P4D/',
+            '  11  121000.000     0.200  121000.000 *       0.000  2.5 /f27p ~3H4H/']
+    import tempfile
+    with tempfile.NamedTemporaryFile('w', suffix='.dat', delete=False,
+                                     encoding='latin-1') as fh:
+        fh.write('\n'.join(rows) + '\n')
+        path = fh.name
+    en = li.read_enlev(path)
+    os.unlink(path)
+    levels = pd.DataFrame({'level_id': ['059003.000900'],
+                           'E_final': [120990.0]})
+    win = li.configuration_windows(en)
+    by_energy, _ = li.attach_identities(levels, en, win, tol=50.0)
+    assert by_energy.loc[0, 'cfg'] == 'f27p'
+    out, unmatched = li.attach_identities(levels, en, win, tol=50.0,
+                                          row_of_id={'059003.000900': 10})
+    assert unmatched == []
+    assert (out.loc[0, 'cfg'], out.loc[0, 'term']) == ('f25f', '_3P4D')
+    assert out.loc[0, 'E_calc'] == pytest.approx(120000.0)
+    assert out.loc[0, 'omc'] == pytest.approx(990.0)

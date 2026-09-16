@@ -390,6 +390,30 @@ every other level's stops and the completeness rule keeps meaning the same
 thing. **`icalc_new.xlsx` is therefore no longer needed**, and the
 `icalc_extra` line of `lineclass_config.toml` is commented out.
 
+**Every program that judges a level reads the new ones, the same way.**
+`classify_lines.read_new_level_records()` is the one reader of `new_levels.txt`
+(delimiter by extension; a file lacking `level_id`, `E`, `J` or `parity` is an
+error, never an empty list), and `classify_lines.cowan_transitions_of()` the one
+selection of their calculated transitions. `chance_mc.read_input_levels()` —
+the level list of `level_shifts.py`, `level_positions.py`,
+`level_interchange.py` and `decoy_mc.py` — reads the file through the first;
+`level_shifts.load_predictions()` and `level_interchange.read_gA()` take the new
+levels' predictions and `gA` through the second, with the same cutoff and the
+same `Icalc` relation, the Ritz wavenumber from the run's own energies. Until
+this was so, `read_input_levels()` read the tab-separated file with a comma, got
+one header column, found no `level_id` in any row and skipped every added level
+without a word, and `load_predictions()` had nothing for them either:
+`level_positions.py --audit` considered 593 levels and none of the 16 new ones.
+It now names any level it has to leave out for want of a predicted transition.
+
+**A level is tied to its row of `enlev.dat` through `IDEN_level_ids.txt`.**
+`level_interchange.attach_identities()` — which gives the scan and the audit a
+level's configuration, `E_calc` and search window — takes the row the table
+names (`row_of_id`, read by `level_interchange.id_rows()`) and falls back on the
+nearest starred energy only for a level the table does not list. Matching by
+energy loses exactly the levels that have just been moved, which the new
+levels usually are.
+
 **`files.icalc_extra`** (formerly `icalc_new.xlsx`) — still supported, and
 still first in precedence: a pair listed there overrides the derived row, so a
 calculated transition can be corrected by hand without touching the

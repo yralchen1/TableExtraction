@@ -760,8 +760,9 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
     optimized energies) lies inside the observed range [WN_MIN, WN_MAX].
     Returns a DataFrame with columns lo_id, up_id, I_pred.
 
-    The supplementary file files.icalc_extra is read after the main one, so
-    that a level added by files.new_levels has predicted transitions here too.
+    A level added by files.new_levels has predicted transitions here too: from
+    the Cowan transition list through its cowan_lid (_cowan_predictions), and
+    from the supplementary file files.icalc_extra where one is still named.
     Without it such a level would arrive at the intensity-pattern test with no
     predictions at all, and the test - which asks how much of what theory
     expects to see was in fact found - would return nothing for precisely the
@@ -776,7 +777,47 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
         files.append((cl.ICALC_EXTRA, True))
     for path, recompute in files:
         rows.extend(_read_predictions(path, level_ids, e_final, recompute))
+    rows.extend(_cowan_predictions(level_ids, e_final, rows))
     return pd.DataFrame(rows, columns=['lo_id', 'up_id', 'I_pred'])
+
+
+def _cowan_predictions(level_ids, e_final, have):
+    """The predictions of the levels files.new_levels adds, from the Cowan list.
+
+    Such a level has no row in Icalc.xlsx, and files.icalc_extra - where its
+    transitions used to be written by hand - is retired: classify_lines.py
+    takes them from tp_E1_no_trials.xlsx through the cowan_lid column instead
+    (classify_lines.cowan_transitions_of).  This reads them the same way, with
+    the same gA cutoff and the same intensity relation, so that the level is
+    predicted here exactly as it was when its lines were classified.  Without
+    it every such level had no predictions at all, and level_positions.py,
+    which scans only levels that have some, left all of them out.
+
+    The Ritz wavenumber is taken from e_final, as for every other row, and a
+    pair already read from Icalc.xlsx or files.icalc_extra is not added again.
+    """
+    lids = {k: v for k, v in cl.new_level_cowan_lids().items() if k in level_ids}
+    if not lids:
+        return []
+    C = float(cl.CFG.intensity_model['C'])
+    kT = float(cl.CFG.intensity_model['kT'])
+    seen = {tuple(sorted((a, b))) for a, b, _ in have}
+    found, _n_cut, _n_unknown = cl.cowan_transitions_of(lids, set(level_ids))
+    out = []
+    for new_id, partner_id, gA, _u in found:
+        lo, up = sorted((new_id, partner_id), key=lambda x: e_final[x])
+        if (tuple(sorted((lo, up))) in seen or lo not in e_final
+                or up not in e_final):
+            continue
+        wn = e_final[up] - e_final[lo]
+        if wn < cl.WN_MIN or wn > cl.WN_MAX:
+            continue
+        i_pred = C * gA * (wn / 1e8) * math.exp(-e_final[up] / kT)
+        if i_pred <= 0:
+            continue
+        seen.add(tuple(sorted((lo, up))))
+        out.append((lo, up, i_pred))
+    return out
 
 
 def _read_predictions(path, level_ids, e_final, recompute):

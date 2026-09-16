@@ -51,7 +51,6 @@ Usage:
     python chance_mc.py --smoke              # quick plumbing test: one shift, 2 cycles
     python chance_mc.py --missing-gA impute  # override missing_gA.policy
 """
-import csv
 import os
 import sys
 import time
@@ -185,14 +184,17 @@ def read_input_levels() -> pd.DataFrame:
     # very levels whose reality is least established.  They are new by
     # definition (is_new_level = 1), which is what puts them among the tested
     # levels of level_shifts.py and gives them decoys in decoy_mc.py.
+    # The file is read by classify_lines' own reader, which takes the delimiter
+    # from the extension: read here as a comma-separated file, the tab-
+    # separated new_levels.txt gave a single header column, no row had a
+    # level_id, and every added level was dropped without a word.
     if getattr(cl, 'NEW_LEVELS', ''):
-        with open(cl.NEW_LEVELS, newline='', encoding='utf-8-sig') as fh:
-            for rec in csv.DictReader(fh):
-                lid = cl.to_str_id(rec.get('level_id'))
-                if not lid:
-                    continue
-                recs.append((lid, float(rec['E']), 1, 'N',
-                             str(rec['J']).strip(), str(rec['parity']).strip()))
+        for rec in cl.read_new_level_records(cl.NEW_LEVELS):
+            lid = cl.to_str_id(rec.get('level_id'))
+            if not lid:
+                continue
+            recs.append((lid, float(rec['E']), 1, 'N',
+                         str(rec['J']).strip(), str(rec['parity']).strip()))
     df = pd.DataFrame(recs, columns=['level_id', 'E_input', 'is_new_level',
                                      'note', 'J', 'parity'])
     if cl.LEVEL_OVERRIDES:

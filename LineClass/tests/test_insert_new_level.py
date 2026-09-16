@@ -947,3 +947,70 @@ def test_standing_needs_both_a_touched_line_and_a_holder():
                         set()) is False
     assert INL.standing(11476.092, _WEAK[1], _WEAK[2], {11476.09}, set(),
                         set()) is False
+
+
+# ---------------------------------------------------------------------------
+# Every program reads the added levels, and predicts them
+# ---------------------------------------------------------------------------
+# level_positions.py --audit once considered 593 levels and none of the 16 of
+# new_levels.txt.  chance_mc.read_input_levels() - which level_shifts.py,
+# level_positions.py and level_interchange.py all take their level list from -
+# read the file with a comma, so its tab-separated header was a single column,
+# no row had a level_id, and every one was skipped without a word.  And had
+# they been read, level_shifts.load_predictions() gave them no predicted
+# transition (Icalc.xlsx lacks them and icalc_extra is retired), and the audit
+# leaves out a level with none.
+def test_a_file_without_the_columns_is_an_error_not_an_empty_list(tmp_path):
+    path = tmp_path / 'new_levels.txt'
+    path.write_text(TAB_FILE.replace('\t', ';'), encoding='utf-8')
+    with pytest.raises(ValueError, match='missing column'):
+        CL.read_new_level_records(str(path))
+
+
+def test_read_input_levels_takes_the_levels_of_a_tab_file(tmp_path,
+                                                          monkeypatch):
+    import chance_mc as MC
+    path = tmp_path / 'new_levels.txt'
+    path.write_text(TAB_FILE, encoding='utf-8')
+    monkeypatch.setattr(CL, 'NEW_LEVELS', str(path))
+    monkeypatch.setattr(CL, 'LEVEL_OVERRIDES', '')
+    df = MC.read_input_levels()
+    row = df[df['level_id'] == '059003.000900']
+    assert len(row) == 1
+    assert row['E_input'].iloc[0] == pytest.approx(100000.5)
+    assert row['is_new_level'].iloc[0] == 1
+    assert row['J'].iloc[0] == '7/2'
+
+
+def test_new_level_cowan_lids(tmp_path):
+    path = tmp_path / 'new_levels.txt'
+    path.write_text(TAB_FILE, encoding='utf-8')
+    assert CL.new_level_cowan_lids(str(path)) == {'059003.000900': 294}
+
+
+def test_an_added_level_gets_predictions_from_the_cowan_list(monkeypatch):
+    """Same selection, same gA cutoff, same intensity relation as the
+    classification; the Ritz wavenumber from the run's own energies."""
+    import level_shifts as LS
+    rows = [
+        {'lid1': 294, 'lid2': 7, 'id1': '', 'id2': '059003.000047',
+         'gA': 5.0e4, 'u_gA_pct': 50.0},
+        {'lid1': 294, 'lid2': 8, 'id1': '', 'id2': '059003.000047',
+         'gA': 5.0e2, 'u_gA_pct': 50.0},         # below the cutoff
+    ]
+    import cowan_gA
+    monkeypatch.setattr(cowan_gA, 'read_transitions',
+                        lambda **kw: _FakeTrans(rows))
+    monkeypatch.setattr(CL, 'new_level_cowan_lids',
+                        lambda path='': {'059003.000900': 294})
+    e = {'059003.000900': 100000.0, '059003.000047': 20000.0}
+    out = LS._cowan_predictions(set(e), e, [])
+    assert len(out) == 1
+    lo, up, i_pred = out[0]
+    assert (lo, up) == ('059003.000047', '059003.000900')
+    C = float(CL.CFG.intensity_model['C'])
+    kT = float(CL.CFG.intensity_model['kT'])
+    want = C * 5.0e4 * (80000.0 / 1e8) * math.exp(-100000.0 / kT)
+    assert i_pred == pytest.approx(want, rel=1e-12)
+    # a pair Icalc.xlsx already predicts is not predicted twice
+    assert LS._cowan_predictions(set(e), e, [(lo, up, 1.0)]) == []

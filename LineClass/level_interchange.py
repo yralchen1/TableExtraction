@@ -318,11 +318,34 @@ def configuration_windows(en: pd.DataFrame) -> pd.Series:
         lambda s: float(np.sqrt(float((s ** 2).mean()))))
 
 
+def id_rows(path: str = '') -> dict:
+    """{level_id: row of enlev.dat}, from IDEN2/IDEN_level_ids.txt.
+
+    Empty when the table cannot be read; attach_identities() then ties every
+    level by energy, as it did before the table existed.
+    """
+    import cowan_gA
+    path = path or os.path.join(HERE, 'IDEN2', 'IDEN_level_ids.txt')
+    try:
+        return {v: int(k) for k, v in cowan_gA.read_id_map(path).items()}
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
 def attach_identities(levels: pd.DataFrame, en: pd.DataFrame,
-                      windows: pd.Series, tol: float = ENLEV_MATCH_TOL):
+                      windows: pd.Series, tol: float = ENLEV_MATCH_TOL,
+                      row_of_id: dict = None):
     """Give every level of the run its configuration, E_calc and window.
 
-    The two lists share no key, so they are tied by energy: enlev.dat holds
+    ``row_of_id`` is {level_id: row of enlev.dat}, from
+    IDEN2/IDEN_level_ids.txt (id_rows()).  A level it lists is tied to that row
+    and to no other: when a level is re-positioned in IDEN2 its energy in
+    enlev.dat changes and its row does not, so an energy match loses exactly
+    the levels that have just been worked on - the levels added through
+    files.new_levels among them.  A listed level is taken whether or not its
+    row is starred yet.
+
+    A level the table does not list is tied by energy: enlev.dat holds
     the observed energies of the same identification work.  Only the rows
     marked found - the starred ones - carry a real observed energy; in the rest
     E_obs is a copy of E_calc, and matching against those would tie a level of
@@ -333,7 +356,18 @@ def attach_identities(levels: pd.DataFrame, en: pd.DataFrame,
     known = en[en['known']].sort_values('E_obs').reset_index(drop=True)
     e_arr = known['E_obs'].to_numpy()
     cfg, term, e_calc, omc, unmatched = [], [], [], [], []
+    by_row = en.set_index('idx') if row_of_id else None
     for lid, e in zip(levels['level_id'], levels['E_final']):
+        r = (row_of_id or {}).get(str(lid))
+        if r is not None and r in by_row.index:
+            row = by_row.loc[r]
+            cfg.append(row['cfg'])
+            term.append(row['term'])
+            e_calc.append(float(row['E_calc']))
+            # the run's own energy, which is the one IDEN2 has not yet been
+            # told about when the level has just moved
+            omc.append(float(e) - float(row['E_calc']))
+            continue
         i = int(np.argmin(np.abs(e_arr - float(e))))
         if abs(e_arr[i] - float(e)) > tol:
             unmatched.append(lid)
@@ -374,13 +408,15 @@ def nearest_enlev_row(en: pd.DataFrame, e: float):
 # The calculated transition strengths
 # ---------------------------------------------------------------------------
 def read_gA() -> dict:
-    """{(lower id, upper id) sorted: gA} from Icalc.xlsx and icalc_new.xlsx.
+    """{(lower id, upper id) sorted: gA} from Icalc.xlsx and the Cowan list.
 
     gA (statistical weight times transition probability, s^-1) is the quantity
     the swap exchanges: it belongs to the theoretical level, not to the
     observed one.  The supplementary file is read after the main one for the
     same reason as in level_shifts.load_predictions - a level found since the
-    calculated table was made has its transitions only there.
+    calculated table was made has its transitions only there - and the levels
+    of files.new_levels take theirs from tp_E1_no_trials.xlsx through their
+    cowan_lid, as classify_lines.py does.
     """
     import openpyxl
     out = {}
@@ -404,6 +440,14 @@ def read_gA() -> dict:
             if g > 0:
                 out[tuple(sorted((a, b)))] = g
         wb.close()
+    # the levels files.new_levels adds: from the Cowan list, as
+    # classify_lines.py takes them, where no file above has the pair
+    lids = cl.new_level_cowan_lids()
+    if lids:
+        known = set(mc.read_input_levels()['level_id'])
+        rows, _c, _u = cl.cowan_transitions_of(lids, known)
+        for a, b, g, _pct in rows:
+            out.setdefault(tuple(sorted((a, b))), g)
     return out
 
 
@@ -860,7 +904,8 @@ def build_context(args, verbose: bool = True):
 
     en = read_enlev(args.enlev)
     windows = configuration_windows(en)
-    per, unmatched = attach_identities(per, en, windows)
+    per, unmatched = attach_identities(per, en, windows,
+                                       row_of_id=id_rows())
 
     gA = read_gA()
     g_imp = imputed_gA()

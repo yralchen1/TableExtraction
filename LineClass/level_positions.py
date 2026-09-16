@@ -2277,7 +2277,7 @@ def detail_energy(ctx, level_id, at, alt_drop=ALT_DROP):
         return float(at), 'the energy asked for'
     en = li.read_enlev()
     win = li.configuration_windows(en)
-    lv, _ = li.attach_identities(ctx.per, en, win)
+    lv, _ = li.attach_identities(ctx.per, en, win, row_of_id=li.id_rows())
     e_calc = dict(zip(lv['level_id'], lv['E_calc']))
     w_of = dict(zip(lv['level_id'], lv['W']))
     r = scan_level(ctx, level_id, e_adopted, e_calc.get(level_id, np.nan),
@@ -3386,13 +3386,21 @@ def main(argv=None):
         return 0
 
     ids = args.levels if args.levels else list(ctx.per['level_id'])
+    # a level with no predicted transition cannot be scanned; it is named,
+    # not dropped in silence - that is how every level of files.new_levels
+    # once went missing from the audit without a word
+    dropped = [i for i in ids if i not in ctx.by_level]
     ids = [i for i in ids if i in ctx.by_level]
+    if dropped:
+        print(f"\n{len(dropped)} level(s) have no predicted transition and "
+              f"cannot be considered: {', '.join(map(str, dropped))}")
     tab = report_table(ctx, ids)
 
     if args.scan or args.audit:
         en = li.read_enlev()
         win = li.configuration_windows(en)
-        lv, unmatched = li.attach_identities(ctx.per, en, win)
+        lv, unmatched = li.attach_identities(ctx.per, en, win,
+                                             row_of_id=li.id_rows())
         e_calc = dict(zip(lv['level_id'], lv['E_calc']))
         w_of = dict(zip(lv['level_id'], lv['W']))
         registry = read_firm(args.firm)

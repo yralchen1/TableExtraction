@@ -290,6 +290,42 @@ def _int_or_zero(value) -> int:
         return 0
 
 
+def read_new_level_records(path: str) -> list:
+    """The rows of files.new_levels, as dicts keyed by the header.
+
+    The one reader of that file, so that every program sees the same levels.
+    The delimiter follows the extension - tab for .txt, comma for .csv - and a
+    file without the columns level_id, E, J and parity is an error, not an
+    empty list: read with the wrong delimiter the whole header becomes one
+    column, and a reader that only skipped rows without a level_id would then
+    drop every level found since the list was published without saying so.
+    That is how level_positions.py --audit came to consider 593 levels and not
+    the new ones.
+    """
+    delim = '\t' if os.path.splitext(path)[1].lower() == '.txt' else ','
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh, delimiter=delim)
+        missing = [c for c in ('level_id', 'E', 'J', 'parity')
+                   if c not in (rdr.fieldnames or [])]
+        if missing:
+            raise ValueError(f"{os.path.basename(path)}: missing column(s) "
+                             f"{', '.join(missing)}")
+        return list(rdr)
+
+
+def new_level_cowan_lids(path: str = '') -> dict:
+    """{level_id: cowan_lid} of the levels of files.new_levels that carry one."""
+    path = path or NEW_LEVELS
+    if not path or not os.path.exists(path):
+        return {}
+    out = {}
+    for rec in read_new_level_records(path):
+        lid, n = to_str_id(rec.get('level_id')), _int_or_zero(rec.get('cowan_lid'))
+        if lid and n:
+            out[lid] = n
+    return out
+
+
 def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
     """Append the levels of `path` to the level list read from the workbook.
 
@@ -324,37 +360,29 @@ def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
     is_added = 1 records that it came from here rather than from the workbook.
     """
     added = 0
-    delim = '	' if os.path.splitext(path)[1].lower() == '.txt' else ','
-    with open(path, newline='', encoding='utf-8-sig') as fh:
-        rdr = csv.DictReader(fh, delimiter=delim)
-        missing = [c for c in ('level_id', 'E', 'J', 'parity')
-                   if c not in (rdr.fieldnames or [])]
-        if missing:
-            raise ValueError(f"{os.path.basename(path)}: missing column(s) "
-                             f"{', '.join(missing)}")
-        for rec in rdr:
-            lid = to_str_id(rec['level_id'])
-            if lid == '':
-                continue
-            if lid in levels_dict:
-                raise ValueError(
-                    f"{os.path.basename(path)}: level id {lid} is already in "
-                    f"the level list; a new level must take the next id free")
-            j_str = str(rec['J']).strip()
-            parity = str(rec['parity']).strip()
-            if parity not in ('e', 'o'):
-                raise ValueError(f"{os.path.basename(path)}: level {lid} has "
-                                 f"parity {parity!r}; expected 'e' or 'o'")
-            lev = EnergyLevel(level_id=lid, energy=float(rec['E']),
-                              parity=parity, J_str=j_str,
-                              J_val=parse_J(j_str), is_new=1, is_added=1,
-                              iden2_row=_int_or_zero(rec.get('iden2_row')),
-                              cowan_lid=_int_or_zero(rec.get('cowan_lid')))
-            levels_dict[lid] = lev
-            levels_list.append(lev)
-            added += 1
-            print(f"    {lid}  E = {lev.energy:.4f} cm^-1, J = {j_str}, "
-                  f"parity {parity}")
+    for rec in read_new_level_records(path):
+        lid = to_str_id(rec['level_id'])
+        if lid == '':
+            continue
+        if lid in levels_dict:
+            raise ValueError(
+                f"{os.path.basename(path)}: level id {lid} is already in "
+                f"the level list; a new level must take the next id free")
+        j_str = str(rec['J']).strip()
+        parity = str(rec['parity']).strip()
+        if parity not in ('e', 'o'):
+            raise ValueError(f"{os.path.basename(path)}: level {lid} has "
+                             f"parity {parity!r}; expected 'e' or 'o'")
+        lev = EnergyLevel(level_id=lid, energy=float(rec['E']),
+                          parity=parity, J_str=j_str,
+                          J_val=parse_J(j_str), is_new=1, is_added=1,
+                          iden2_row=_int_or_zero(rec.get('iden2_row')),
+                          cowan_lid=_int_or_zero(rec.get('cowan_lid')))
+        levels_dict[lid] = lev
+        levels_list.append(lev)
+        added += 1
+        print(f"    {lid}  E = {lev.energy:.4f} cm^-1, J = {j_str}, "
+              f"parity {parity}")
     if added:
         print(f"  Added {added} level(s) found since the level list was "
               f"published, from {os.path.basename(path)}.")
@@ -1127,6 +1155,43 @@ def read_transitions(levels_dict: dict) -> dict:
     return calc_trans_index
 
 
+def cowan_transitions_of(cowan_lids: dict, known: set, trans=None):
+    """The calculated transitions of the levels named in ``cowan_lids``.
+
+    ``cowan_lids`` is {level_id: level number of the Cowan calculation}, as
+    new_level_cowan_lids() reads it; ``known`` the level ids a partner must be
+    among.  Returns ``(rows, n_cut, n_unknown)``: ``rows`` a list of
+    ``(level_id, partner_id, gA, u_gA_pct)`` from tp_E1_no_trials.xlsx, with gA
+    at or above icalc.completeness.gA_cutoff and the partner known; ``n_cut``
+    how many were dropped below that cutoff; ``n_unknown`` how many had a
+    partner the level list does not hold.
+
+    This is the one place the selection is made.  classify_lines.py builds its
+    candidates from it (read_cowan_transitions), and level_shifts.py,
+    level_positions.py and level_interchange.py their predictions and gA from
+    it, so that a level added through files.new_levels is predicted the same
+    way by every program that judges it.
+    """
+    import cowan_gA
+    if trans is None:
+        trans = cowan_gA.read_transitions(log=lambda msg: print(f"  {msg}"))
+    rows, n_cut, n_unknown = [], 0, 0
+    for level_id, lid in sorted(cowan_lids.items(), key=lambda t: t[1]):
+        sel = trans[(trans['lid1'] == lid) | (trans['lid2'] == lid)]
+        for _, r in sel.iterrows():
+            partner_id = r['id2'] if int(r['lid1']) == lid else r['id1']
+            partner_id = to_str_id(partner_id)
+            if not partner_id or partner_id not in known:
+                n_unknown += 1
+                continue
+            gA = float(r['gA'])
+            if not (gA >= CFG.gA_cutoff):
+                n_cut += 1
+                continue
+            rows.append((level_id, partner_id, gA, r['u_gA_pct']))
+    return rows, n_cut, n_unknown
+
+
 def read_cowan_transitions(levels_dict: dict, calc_trans_index: dict) -> int:
     """Add the calculated transitions of the levels added by files.new_levels.
 
@@ -1165,7 +1230,7 @@ def read_cowan_transitions(levels_dict: dict, calc_trans_index: dict) -> int:
     A pair already in `calc_trans_index` is left alone, so that a hand-made row
     of files.icalc_extra still has the last word.  Returns the number added.
     """
-    wanted = {lev.cowan_lid: lev for lev in levels_dict.values()
+    wanted = {lev.level_id: lev.cowan_lid for lev in levels_dict.values()
               if getattr(lev, 'cowan_lid', 0)}
     if not wanted:
         return 0
@@ -1173,45 +1238,34 @@ def read_cowan_transitions(levels_dict: dict, calc_trans_index: dict) -> int:
     import cowan_gA
     C = float(CFG.intensity_model['C'])
     kT = float(CFG.intensity_model['kT'])
-    trans = cowan_gA.read_transitions(log=lambda msg: print(f"  {msg}"))
+    rows, n_cut, n_unknown = cowan_transitions_of(wanted, set(levels_dict))
 
-    n, n_cut, n_unknown, n_kept = 0, 0, 0, 0
-    for lid, lev in sorted(wanted.items()):
-        rows = trans[(trans['lid1'] == lid) | (trans['lid2'] == lid)]
-        for _, r in rows.iterrows():
-            partner_id = r['id2'] if int(r['lid1']) == lid else r['id1']
-            partner_id = to_str_id(partner_id)
-            if not partner_id or partner_id not in levels_dict:
-                n_unknown += 1
-                continue
-            gA = float(r['gA'])
-            if not (gA >= CFG.gA_cutoff):
-                n_cut += 1
-                continue
-            partner = levels_dict[partner_id]
-            if partner.energy < lev.energy:
-                low, upp = partner, lev
-            else:
-                low, upp = lev, partner
-            key = (low.level_id, upp.level_id)
-            if key in calc_trans_index:
-                n_kept += 1
-                continue
-            rwn = upp.energy - low.energy
-            if rwn <= 0:
-                continue
-            u_calc = None
-            try:
-                u_calc = math.log(float(r['u_gA_pct']) / 100.0 + 1.0)
-            except (ValueError, TypeError):
-                pass
-            calc_trans_index[key] = {
-                'calc_intensity': C * gA * (rwn / 1e8)
-                                  * math.exp(-upp.energy / kT),
-                'u_calc': u_calc,
-                'assigned_to': None,
-            }
-            n += 1
+    n, n_kept = 0, 0
+    for new_id, partner_id, gA, u_pct in rows:
+        lev, partner = levels_dict[new_id], levels_dict[partner_id]
+        if partner.energy < lev.energy:
+            low, upp = partner, lev
+        else:
+            low, upp = lev, partner
+        key = (low.level_id, upp.level_id)
+        if key in calc_trans_index:
+            n_kept += 1
+            continue
+        rwn = upp.energy - low.energy
+        if rwn <= 0:
+            continue
+        u_calc = None
+        try:
+            u_calc = math.log(float(u_pct) / 100.0 + 1.0)
+        except (ValueError, TypeError):
+            pass
+        calc_trans_index[key] = {
+            'calc_intensity': C * gA * (rwn / 1e8)
+                              * math.exp(-upp.energy / kT),
+            'u_calc': u_calc,
+            'assigned_to': None,
+        }
+        n += 1
 
     print(f"  Read {n} calculated transitions of {len(wanted)} added level(s) "
           f"from {os.path.basename(cowan_gA.TP_FILE)} (Icalc computed from gA "
