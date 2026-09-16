@@ -215,3 +215,21 @@ kT = 12233.068631
 # Warn if a re-fit on the file disagrees with C or kT by more than this
 # fraction, instead of silently adopting the new values.
 verify_tolerance = 0.01
+
+[decisions]
+# The decision ledger (files.line_decisions) is obeyed to the letter: an
+# "accept" row puts its assignment into the run even when the automatic
+# matching would never propose it, because a hand-made identification often
+# rests on evidence the matching does not use.  That makes a row which has
+# gone stale - one written while a level stood at an energy it has since been
+# moved from - dangerous: it would drag the level back with the full weight of
+# the line it names.  A row whose Ritz wavenumber E(upper) - E(lower), at the
+# energies the run starts from, misses the wavenumber of its own line by more
+# than this many cm^-1 therefore stops the run, and the message says which of
+# the two levels was moved and when.
+#
+# 5.0 leaves room above the widest offset in the present ledger (2.13 cm^-1
+# on 246 accepted rows, median 0.18).  A single row that is deliberately this
+# far out is exempted by writing offset-ok anywhere in its reason column,
+# rather than by raising the limit for every row.
+max_forced_offset = 5.0

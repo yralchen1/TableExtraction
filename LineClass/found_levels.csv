@@ -1,0 +1,107 @@
+idx,label,J,parity,cfg,E_calc,W,E_found,verdict,n_found,ln_R,n_match,n_free,dE_o_c,cowan_lid,unique_found,not_found,Note
+742,f25f ~3F4G,2.5,o,f25f,116406.7,103.6,116617.169,firm,2,8.352,20,9,210.469,294,False,False,
+913,f5d6s~3D4D,3.5,o,f5d6s,92210.7,177.3,92091.771,firm,1,7.035,12,7,-118.929,210,True,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+914,f5d6s~3D4D,2.5,o,f5d6s,91642.6,177.3,91197.851,firm,1,16.917,15,11,-444.749,209,True,False,"duplicate with row 915 (J 1.5), 0.080 cm^-1 away; this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+906,f5d6s~1F2F,2.5,o,f5d6s,94239.8,177.3,,,0,,,,,217,False,True,
+986,f5d2 ~3P4D,1.5,o,f5d2,75159.9,212.7,,,0,,,,,138,False,True,
+719,f27p ~3H2G,4.5,o,f27p,117665.3,32.2,117712.65,firm,1,12.213,11,5,47.35,314,True,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+918,f5d6s~1F2F,3.5,o,f5d6s,90172.3,177.3,90481.351,firm,1,7.492,14,7,309.051,205,True,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+747,f27p ~3H4H,6.5,o,f27p,116010.0,32.2,116074.99,firm,1,28.864,12,7,64.99,289,True,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+951,f5d2 ~3P2F,2.5,o,f5d2,83140.8,212.7,82633.509,weak,1,0.972,5,4,-507.291,172,False,False,
+691,f27p ~3F4G,4.5,o,f27p,118596.3,32.2,,,0,,,,,332,False,True,
+924,f5d6s~1D2D,2.5,o,f5d6s,88538.4,177.3,,,0,,,,,199,False,True,
+998,f5d2 ~3P2D,1.5,o,f5d2,72363.6,212.7,71767.229,firm,1,10.576,7,6,-596.371,126,True,False,
+496,f27d _3H4H,5.5,e,f27d,131987.2,87.9,131910.547,firm,1,6.906,6,5,-76.653,2219,True,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+497,f27d _3H4H,4.5,e,f27d,131895.4,87.9,131776.407,firm,2,7.124,6,4,-118.993,2218,False,False,"this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+919,f5d6s~3D4D,2.5,o,f5d6s,90091.7,177.3,90050.031,weak,1,2.117,9,5,-41.669,204,False,False,
+955,f5d2 ~3P2G,4.5,o,f5d2,82034.3,212.7,82084.069,firm,1,6.504,11,5,49.769,168,True,False,
+513,f27d _3H4G,3.5,e,f27d,130272.1,87.9,130096.087,firm,2,5.351,7,6,-176.013,2205,False,False,
+499,f27d _3H4I,5.5,e,f27d,131826.4,87.9,131665.067,firm,2,4.296,5,5,-161.333,2216,False,False,
+994,f5d2 ~3F2D,1.5,o,f5d2,73369.9,212.7,,,0,,,,,130,False,True,
+491,f27d _3H4G,4.5,e,f27d,132226.2,87.9,,,0,,,,,2224,False,True,
+522,f27d _3H4K,5.5,e,f27d,129628.2,87.9,129498.087,firm,4,8.093,4,4,-130.113,2197,False,False,
+987,f5d2 ~3P4F,2.5,o,f5d2,74670.6,212.7,74456.629,weak,1,0.41,10,4,-213.971,137,False,False,
+705,f27p ~3F2G,3.5,o,f27p,118086.9,32.2,,,0,,,,,324,False,True,
+501,f28s _3H4H,5.5,e,f28s,131319.4,74.5,,,0,,,,,2214,False,True,
+675,f27p ~3F4G,4.5,o,f27p,119248.3,32.2,,,0,,,,,340,False,True,
+828,f26d _3F2G,3.5,e,f26d,108099.1,61.0,,,0,,,,,2041,False,True,
+932,f5d6s~3H4H,3.5,o,f5d6s,86015.9,177.3,86011.991,weak,1,0.965,7,4,-3.909,191,False,False,
+439,f27d _3H2I,6.5,e,f27d,134204.5,87.9,134004.067,weak,5,1.693,7,3,-200.433,2241,False,False,"duplicate with row 447 (J 6.5), 0.000 cm^-1 away; duplicate with row 446 (J 7.5), 0.000 cm^-1 away"
+442,fd6p _1H2I,5.5,e,fd6p,134118.1,404.2,134104.875,weak,7,4.404,7,4,-13.225,2238,False,False,
+666,f27p ~3F4G,5.5,o,f27p,119778.7,32.2,119809.29,firm,1,11.884,10,4,30.59,344,True,False,
+375,5d3  _4F4F,2.5,e,5d3,135976.6,132.1,,,0,,,,,2279,False,True,
+672,fd6p _1G2H,5.5,e,fd6p,119339.6,404.2,119552.395,firm,3,10.976,8,6,212.795,2085,False,False,
+521,f27d _3H4H,3.5,e,f27d,129738.7,87.9,129877.147,firm,3,5.196,5,4,138.447,2198,False,False,"duplicate with row 518 (J 2.5), 0.000 cm^-1 away"
+488,f27d _3H2G,3.5,e,f27d,132460.5,87.9,132390.687,weak,3,2.251,6,3,-69.813,2226,False,False,
+661,f27p ~3F4F,4.5,o,f27p,119970.6,32.2,119998.51,firm,1,11.712,13,5,27.91,347,True,False,
+632,f25f ~1G2D,2.5,o,f25f,121757.4,103.6,,,0,,,,,361,False,True,
+944,f5d2 ~1G2D,2.5,o,f5d2,84315.7,212.7,84588.589,firm,3,17.005,10,7,272.889,179,False,False,
+315,5d3  _4F4F,3.5,e,5d3,137284.3,132.1,137068.173,weak,2,1.678,7,5,-216.127,2321,False,False,"duplicate with row 316 (J 3.5), 0.002 cm^-1 away"
+825,f26d _3F2F,3.5,e,f26d,108201.7,61.0,,,0,,,,,2043,False,True,
+1010,f5d2 ~3P2D,2.5,o,f5d2,70304.2,212.7,70477.749,weak,3,4.319,8,3,173.549,114,False,False,"duplicate with row 1007 (J 1.5), 0.040 cm^-1 away; duplicate with the position IDEN2 holds for row 1007 (J 1.5), which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline, 0.042 cm^-1 away"
+449,fd6p _1H2I,5.5,e,fd6p,133993.0,404.2,133745.955,weak,11,3.806,4,4,-247.045,2234,False,False,
+710,f27p ~3F4F,2.5,o,f27p,117972.7,32.2,,,0,,,,,320,False,True,
+1007,f5d2 ~1D2D,1.5,o,f5d2,70577.9,212.7,70477.789,firm,1,25.264,9,7,-100.111,117,True,False,"duplicate with row 1010 (J 2.5), 0.040 cm^-1 away; this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline"
+523,f27d _3H4I,4.5,e,f27d,129564.0,87.9,129454.487,firm,3,11.695,6,5,-109.513,2196,False,False,"duplicate with the position IDEN2 holds for row 525 (J 4.5), as 059003.000572, 0.015 cm^-1 away"
+937,f5d6s~3F4F,2.5,o,f5d6s,84871.5,177.3,84914.831,firm,3,8.794,8,6,43.331,186,False,False,
+432,f27d _3H4G,5.5,e,f27d,134353.1,87.9,134503.407,weak,5,1.912,5,3,150.307,2242,False,False,
+372,f28s _3F2F,3.5,e,f28s,136082.5,74.5,135946.217,weak,2,1.71,7,3,-136.283,2281,False,False,
+940,f26p ~3P2P,0.5,o,f26p,84630.8,112.5,84592.032,firm,12,24.122,8,7,-38.768,183,False,False,
+670,f27p ~3F4F,3.5,o,f27p,119376.3,32.2,,,0,,,,,343,False,True,
+500,fd6p _1H2H,4.5,e,fd6p,131498.1,404.2,130461.215,weak,8,4.516,6,3,-1036.885,2215,False,False,
+711,fd6p _3H4I,5.5,e,fd6p,117932.1,404.2,117889.035,firm,5,16.86,10,7,-43.065,2068,False,False,
+316,fd6p _1H2G,3.5,e,fd6p,137240.9,404.2,137068.175,weak,9,3.587,6,5,-172.725,2320,False,False,"duplicate with row 315 (J 3.5), 0.002 cm^-1 away"
+421,f27d _3H4F,4.5,e,f27d,134464.0,87.9,134222.847,weak,2,1.519,4,3,-241.153,2251,False,False,
+492,f27d _3H4G,3.5,e,f27d,132136.0,87.9,131861.987,weak,2,0.916,4,2,-274.013,2223,False,False,
+834,f26d _3F2F,2.5,e,f26d,107743.5,61.0,,,0,,,,,2035,False,True,
+447,f27d _3H4H,6.5,e,f27d,134001.6,87.9,134004.067,weak,12,3.838,7,3,2.467,2235,False,False,"duplicate with row 439 (J 6.5), 0.000 cm^-1 away; duplicate with row 446 (J 7.5), 0.000 cm^-1 away"
+389,f27d _3H2F,3.5,e,f27d,135213.6,87.9,134998.387,weak,1,0.136,7,4,-215.213,2273,False,False,
+441,f28s _3F4F,2.5,e,f28s,134186.8,74.5,134074.417,firm,1,8.166,8,5,-112.383,2239,True,False,
+465,f25f ~1I2F,3.5,o,f25f,133412.3,103.6,133624.669,firm,1,12.693,6,4,212.369,403,True,False,
+799,f26d _1G2F,3.5,e,f26d,111465.9,61.0,111600.541,weak,1,7.209,7,3,134.641,2058,False,False,
+443,f26f ~3H2G,3.5,o,f26f,134099.0,45.4,133964.28,weak,4,1.843,6,3,-134.72,418,False,False,
+345,f25g _3H4H,3.5,e,f25g,136591.4,24.0,136638.504,weak,5,2.605,4,2,47.104,2298,False,False,"duplicate with the position IDEN2 holds for row 337 (J 3.5), as 059003.000600, 0.011 cm^-1 away"
+518,f27d _3H4G,2.5,e,f27d,130042.0,87.9,129877.147,firm,8,6.981,6,4,-164.853,2201,False,False,"duplicate with row 521 (J 3.5), 0.000 cm^-1 away"
+319,f27d _3F2H,5.5,e,f27d,136995.0,87.9,136902.907,weak,7,3.568,6,3,-92.093,2317,False,False,"duplicate with row 321 (J 3.5), 0.020 cm^-1 away"
+329,f27d _3F4G,5.5,e,f27d,136692.4,87.9,,error,,,,,,2309,False,False,
+269,f28s _1G2G,4.5,e,f28s,139026.9,74.5,,error,,,,,,2347,False,False,
+611,f27p ~1G2H,5.5,o,f27p,122933.4,32.2,,error,,,,,,365,False,False,
+996,f5d2 ~3P4D,0.5,o,f5d2,72944.7,212.7,72705.869,firm,11,13.078,7,6,-238.831,128,False,False,
+735,f25f ~3F4P,0.5,o,f25f,116804.7,103.6,116927.749,weak,5,5.69,6,2,123.049,300,False,False,
+446,f27d _3H4I,7.5,e,f27d,134002.0,87.9,134004.067,weak,14,9.084,5,3,2.067,2236,False,False,"duplicate with row 439 (J 6.5), 0.000 cm^-1 away; duplicate with row 447 (J 6.5), 0.000 cm^-1 away"
+445,f28s _3F4F,1.5,e,f28s,134076.9,74.5,134074.257,weak,7,4.39,5,3,-2.643,2237,False,False,
+949,f26p ~3P4P,0.5,o,f26p,83488.4,112.5,83426.172,firm,26,14.089,6,4,-62.228,174,False,False,
+692,f27p ~3F4D,3.5,o,f27p,118504.2,32.2,118570.37,weak,1,0.722,9,2,66.17,331,False,False,
+936,f5d2 ~3P2F,3.5,o,f5d2,84887.0,212.7,85186.689,firm,5,16.156,8,4,299.689,187,False,False,
+713,f27p ~3F4D,2.5,o,f27p,117888.6,32.2,117815.35,weak,1,0.606,8,2,-73.25,319,False,False,
+741,f27p ~3F4G,2.5,o,f27p,116437.2,32.2,,,0,,,,,295,False,True,
+558,fd6p _3G2H,4.5,e,fd6p,126138.2,404.2,125181.595,weak,5,1.512,5,4,-956.605,2173,False,False,
+915,f5d6s~1D2D,1.5,o,f5d6s,91039.2,177.3,91197.771,firm,5,6.564,9,6,158.571,208,False,False,"duplicate with row 914 (J 2.5), 0.080 cm^-1 away; duplicate with the position IDEN2 holds for row 914 (J 2.5), which has no level_id yet: it is marked in IDEN2 but is not a level of the pipeline, 0.064 cm^-1 away"
+900,f5d6s~3D2D,2.5,o,f5d6s,98148.6,177.3,97740.311,firm,3,22.936,10,9,-408.289,223,False,False,
+299,5d3  _4F4F,4.5,e,5d3,138572.7,132.1,138832.073,weak,2,0.522,6,2,259.373,2327,False,False,
+1014,f5d2 ~3F4P,1.5,o,f5d2,69366.4,212.7,68890.189,firm,14,16.438,7,5,-476.211,110,False,False,
+381,f28s _3F2F,2.5,e,f28s,135576.6,74.5,135482.057,weak,2,1.501,7,5,-94.543,2276,False,False,
+803,f26d _1G2H,4.5,e,f26d,111244.7,61.0,111250.501,no support,1,0.272,3,1,5.801,2057,False,False,
+824,f26d _3F2D,2.5,e,f26d,108488.4,61.0,108592.021,weak,1,2.027,5,3,103.621,2044,False,False,
+406,f27d _3H2G,4.5,e,f27d,134714.8,87.9,134696.627,firm,4,6.655,4,4,-18.173,2263,False,False,
+658,fd6p _3H4I,5.5,e,fd6p,120416.4,404.2,120805.375,weak,11,5.169,7,4,388.975,2093,False,False,
+856,f26d _3F4G,2.5,e,f26d,105790.1,61.0,105721.301,weak,4,3.106,5,3,-68.799,2013,False,False,
+392,f27d _3F4G,3.5,e,f27d,135131.5,87.9,135325.387,weak,2,0.393,3,2,193.887,2271,False,False,
+318,f27d _3F2F,3.5,e,f27d,137023.4,87.9,136758.847,firm,7,6.606,7,6,-264.553,2318,False,False,
+1093,f26s _3P4P,0.5,e,f26s,49610.2,98.6,49653.82,firm,6,30.27,7,7,43.62,1966,False,False,
+321,f27d _3F4D,3.5,e,f27d,136881.7,87.9,136902.927,weak,5,5.881,7,4,21.227,2315,False,False,"duplicate with row 319 (J 5.5), 0.020 cm^-1 away"
+479,f25f ~3P4G,4.5,o,f25f,132959.2,103.6,132903.469,firm,2,9.441,7,4,-55.731,392,True,False,
+903,f5d6s~3D2D,1.5,o,f5d6s,95551.5,177.3,95003.911,firm,5,25.433,10,8,-547.589,220,False,False,
+621,f25f ~1G2D,1.5,o,f25f,122593.3,103.6,122646.949,weak,1,3.36,4,2,53.649,363,False,False,
+252,f27d _1G2H,4.5,e,f27d,139805.3,87.9,139996.707,weak,4,1.599,2,2,191.407,2360,False,False,
+339,f27d _3F2F,2.5,e,f27d,136605.7,87.9,136728.767,weak,8,1.329,5,4,123.067,2302,False,False,"duplicate with the position IDEN2 holds for row 332 (J 1.5), as 059003.000604, 0.010 cm^-1 away"
+376,fd6p _1H2I,6.5,e,fd6p,135975.5,404.2,134872.295,weak,19,6.51,3,3,-1103.205,2278,False,False,
+506,f27d _3H4F,2.5,e,f27d,130935.4,87.9,130744.947,weak,8,1.094,3,2,-190.453,2209,False,False,
+418,f27d _3H2K,7.5,e,f27d,134489.3,87.9,134475.167,weak,8,7.661,4,2,-14.133,2254,False,False,
+484,f27d _3H2F,2.5,e,f27d,132788.5,87.9,132566.247,weak,8,1.615,3,2,-222.253,2227,False,False,
+489,f25f ~3P4G,2.5,o,f25f,132356.8,103.6,132260.509,weak,2,4.309,6,2,-96.291,384,False,False,
+212,f25g _3F4I,6.5,e,f25g,140972.0,24.0,140942.824,weak,6,3.784,3,3,-29.176,2381,False,False,
+402,5d3  _4F4F,1.5,e,5d3,134848.3,132.1,134645.813,weak,8,2.647,3,2,-202.487,2265,False,False,
+209,f25g _3F4G,5.5,e,f25g,140979.5,24.0,140917.044,weak,2,3.327,4,3,-62.456,2383,False,False,
+254,f25g _3F2I,5.5,e,f25g,139570.6,24.0,139554.264,weak,1,0.562,2,2,-16.336,2358,False,False,
+495,f27d _3H4K,7.5,e,f27d,132069.6,87.9,132205.407,weak,15,5.566,2,2,135.807,2220,False,False,

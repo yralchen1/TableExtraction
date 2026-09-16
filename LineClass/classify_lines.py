@@ -17,6 +17,7 @@ Steps:
 
 import argparse
 import csv
+import sys
 import os
 import math
 import re
@@ -25,6 +26,7 @@ import numpy as np
 import bisect
 import pandas as pd
 import openpyxl
+from openpyxl.utils import get_column_letter
 import config
 import gA_imputation
 import output_files
@@ -53,6 +55,12 @@ MISSING_POLICY = 'none'  # missing_gA.policy in force: 'none' or 'impute'
 _IMPUTED = None          # cached imputation constants; see imputed_values()
 LEGACY_MOVED = set()     # levels re-positioned by hand; see read_level_provenance()
 LEGACY_SWAPPED = {}      # level -> the level its measured position went to
+LEVEL_REVISIONS = {}     # level_id -> (energy before, energy after, comment), from
+                         #   the revised-energies file; see apply_energy_overrides()
+MAX_FORCED_OFFSET = 5.0  # cm^-1; how far a ledger-accepted pair's Ritz wavenumber
+                         #   may sit from its own line; see check_forced_decisions()
+OFFSET_OK = 'offset-ok'  # written in a ledger row's reason column, exempts that one
+                         #   row from the MAX_FORCED_OFFSET test
 
 
 def apply_config(cfg, policy: str = None) -> None:
@@ -63,7 +71,7 @@ def apply_config(cfg, policy: str = None) -> None:
     """
     global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
-    global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED
+    global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
     LINES_FILE = cfg.lines_file
@@ -76,6 +84,7 @@ def apply_config(cfg, policy: str = None) -> None:
     ICALC_EXTRA = cfg.icalc_extra
     WN_MIN = cfg.wn_min
     WN_MAX = cfg.wn_max
+    MAX_FORCED_OFFSET = cfg.max_forced_offset
     MISSING_POLICY = policy if policy is not None else cfg.missing_gA['policy']
     if MISSING_POLICY not in ('none', 'impute'):
         raise config.ConfigError(
@@ -622,24 +631,69 @@ def retag_legacy_identifications(observed_lines: list, levels_dict: dict = None,
               f"are no longer candidates on their lines.")
 
 
+def read_override_comments(path: str) -> dict[str, str]:
+    """{level_id: the comment written beside its revised energy}.
+
+    The comment is what the analyst wrote about the move - where the new
+    energy came from, how far it is from the old one, how many assignments
+    were made at it.  It carries no meaning for the arithmetic, and is kept
+    only so that a later fault can be reported in the analyst's own words
+    (see check_forced_decisions and check_double_acceptances).
+    """
+    notes = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        for rec in csv.DictReader(fh):
+            lid = to_str_id(rec.get('level_id'))
+            if lid:
+                notes[lid] = (rec.get('comment') or '').strip()
+    return notes
+
+
 def apply_energy_overrides(levels_dict: dict, path: str) -> None:
     """Move the levels listed in `path` to their revised energies, in place.
 
     Raises if the file names a level that is not in the level list, so that a
     typo cannot pass silently as "no level was moved".
+
+    What each move was - the energy before, the energy after and the comment -
+    is kept in LEVEL_REVISIONS, so that a check later in the run can say which
+    move a fault came from instead of merely reporting the fault.
     """
+    global LEVEL_REVISIONS
     emap = read_energy_overrides(path)
+    notes = read_override_comments(path)
     unknown = sorted(set(emap) - set(levels_dict))
     if unknown:
         raise ValueError(f"{os.path.basename(path)}: level id(s) not in the "
                          f"level list: {', '.join(unknown)}")
     print(f"  Energies overridden for {len(emap)} level(s) from "
           f"{os.path.basename(path)}:")
+    LEVEL_REVISIONS = {}
     for lid, e in sorted(emap.items()):
         lev = levels_dict[lid]
         print(f"    {lid}  {lev.energy:.4f} -> {e:.4f} "
               f"({e - lev.energy:+.4f} cm^-1)")
+        LEVEL_REVISIONS[lid] = (lev.energy, e, notes.get(lid, ''))
         lev.energy = e
+
+
+def revision_note(level_id: str, indent: str = '        ') -> str:
+    """Lines describing what the revised-energies file did to this level.
+
+    The empty string for a level the file does not name; otherwise the old
+    energy, the new one, the shift and the comment, ready to be appended to a
+    fault report.
+    """
+    rev = LEVEL_REVISIONS.get(level_id)
+    if rev is None:
+        return ''
+    was, now, comment = rev
+    text = ("\n" + indent + f"{level_id} was moved by "
+            f"{os.path.basename(LEVEL_OVERRIDES)}: "
+            f"{was:.4f} -> {now:.4f} ({now - was:+.4f} cm^-1)")
+    if comment:
+        text += "\n" + indent + f"  its comment there reads: {comment}"
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -836,7 +890,24 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
         can exist, so the row is a mistake;
       * the same pair of levels accepted on two different observed lines - one
         transition can belong to only one line, so the two orders contradict
-        each other.
+        each other;
+      * an accepted pair whose Ritz wavenumber, at the energies THIS run starts
+        from, misses the wavenumber of the line it is accepted on by more than
+        MAX_FORCED_OFFSET (decisions.max_forced_offset in the configuration).
+        This is the stale row: it was written while one of its two levels stood
+        somewhere else, and the position has since been revised in the
+        revised-energies file, or the identifier now names a different level.
+        Because the row is obeyed whatever the matching says, and because the
+        line it names carries a weight the level's other lines cannot answer,
+        such a row silently drags its levels back towards the position it was
+        written at, and every transition of those levels that then finds a
+        partner near the true position is accepted twice over.  The report says
+        which of the two levels was moved, from where to where, and quotes the
+        comment written beside the move, so the row can be judged without
+        tracing the run.  A row deliberately that far out - a hand-made
+        identification made to pull a level to a new position, which is what
+        the forcing is for - is exempted one row at a time by writing
+        "offset-ok" (OFFSET_OK) anywhere in its reason column.
 
     (Two rows that accept and reject the same pair on the SAME line are caught
     earlier, in read_line_decisions.  Accepting a pair on one line while
@@ -848,7 +919,7 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
     """
     faults = []
     accepted_at = {}
-    for (wn, low, upp), line, (decision, _reason) in sorted(sites):
+    for (wn, low, upp), line, (decision, reason) in sorted(sites):
         lev_lo, lev_up = levels_dict.get(low), levels_dict.get(upp)
         for lid, lev in ((low, lev_lo), (upp, lev_up)):
             if lev is None:
@@ -872,6 +943,29 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
             faults.append(f"{wn:12.4f}  {low}-{upp}  accept: the Ritz "
                           f"wavenumber {ritz:.4f} cm^-1 is outside the range "
                           f"[{WN_MIN:g}, {WN_MAX:g}] cm^-1 of this run")
+        offset = ritz - wn
+        if (abs(offset) > MAX_FORCED_OFFSET
+                and OFFSET_OK not in (reason or '').lower()):
+            fault = (f"{wn:12.4f}  {low}-{upp}  accept: the Ritz wavenumber "
+                     f"{ritz:.4f} cm^-1 ({lev_up.energy:.4f} - "
+                     f"{lev_lo.energy:.4f}) misses this line by "
+                     f"{offset:+.4f} cm^-1, more than the "
+                     f"{MAX_FORCED_OFFSET:g} cm^-1 allowed by "
+                     f"decisions.max_forced_offset")
+            moved = revision_note(low) + revision_note(upp)
+            fault += moved if moved else (
+                "\n        Neither level has been moved by "
+                + (os.path.basename(LEVEL_OVERRIDES) or 'a revised-energies file')
+                + ", so the wavenumber or one of the two identifiers in this "
+                  "row is wrong.")
+            fault += ("\n        An accepted row is obeyed whether or not the "
+                      "matching proposes it, so this one would be put on the "
+                      "line with the full weight of the line's uncertainty and "
+                      "pull its levels back towards where it was written."
+                      "\n        Withdraw the row, or correct the level "
+                      "position, or - if the offset is meant - write "
+                      f"{OFFSET_OK} in its reason column.")
+            faults.append(fault)
         seen = accepted_at.get((low, upp))
         if seen is not None:
             faults.append(f"{wn:12.4f}  {low}-{upp}  accept: this pair is "
@@ -1883,6 +1977,58 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
     return df
 
 
+def _preset_excel_view(wb, ws):
+    """Set the view options the analyst would otherwise set by hand.
+
+    The workbook is a working table, not a report: it is opened, filtered,
+    sorted and scrolled.  Four settings make that possible the moment it
+    opens, and all four are stored in the file itself:
+
+    * a filter dropdown on every column heading;
+    * every column wide enough for its widest value, so that nothing shows
+      as ``####`` or is cut off;
+    * the heading row frozen, so it stays in view while the rows scroll;
+    * the formula reference style set to ``R1C1``.
+
+    The last one is a property of the workbook (``calcPr/@refMode``), not of
+    the sheet, and Excel adopts it for the whole application when it opens
+    the file - which is exactly the behaviour that makes the style revert to
+    ``A1`` after some other workbook has been opened.
+    """
+    # --- column widths -----------------------------------------------------
+    # Excel measures a column in characters of the default font.  The width
+    # needed is the longest text the column actually shows, which for a
+    # formatted number is not str(value): 116327.6130000001 is shown as
+    # 116327.613 under the format '0.000'.
+    widths = {}
+    # noinspection PyUnresolvedReferences
+    for cell in ws[1]:
+        # +3 leaves room for the filter dropdown arrow drawn over the heading
+        widths[cell.column] = len(str(cell.value)) + 3
+    # noinspection PyUnresolvedReferences
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            if cell.value is None:
+                continue
+            fmt = cell.number_format
+            if isinstance(cell.value, float) and fmt.startswith('0.'):
+                text = f"{cell.value:.{len(fmt.split('.')[1])}f}"
+            else:
+                text = str(cell.value)
+            width = len(text) + 1
+            if width > widths.get(cell.column, 0):
+                widths[cell.column] = width
+    for idx, width in widths.items():
+        # the cap keeps a stray long note from pushing every other column
+        # off the screen; such a cell is read by clicking it
+        ws.column_dimensions[get_column_letter(idx)].width = min(width, 60)
+
+    # --- filter, frozen heading, reference style ---------------------------
+    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = 'A2'
+    wb.calculation.refMode = 'R1C1'
+
+
 def write_output(df: pd.DataFrame):
     """Write the output DataFrame to Excel and CSV files.
 
@@ -1923,6 +2069,9 @@ def write_output(df: pd.DataFrame):
                 for cell in row:
                     if cell.value is not None:
                         cell.number_format = fmt
+
+    _preset_excel_view(wb, ws)
+
     wb.save(OUTPUT_FILE)
     wb.close()
 
@@ -3736,6 +3885,172 @@ def output_paths() -> list:
                          'unstable_candidates.csv')]
 
 
+def accepted_pairs_by_line(observed_lines: list) -> dict:
+    """{(lower_id, upper_id): [transitions accepted on each line]}.
+
+    One entry per pair of levels, holding every accepted assignment of that
+    pair anywhere in the run.  A list longer than one is a fault; see
+    check_double_acceptances().
+    """
+    pairs = {}
+    for line in observed_lines:
+        for t in line.assigned_transitions:
+            if t is UNASSIGNED or t.accepted != 1:
+                continue
+            key = (t.lower_level.level_id, t.upper_level.level_id)
+            pairs.setdefault(key, []).append(t)
+    return pairs
+
+
+def _implied_energy(t, level_id: str) -> float:
+    """The energy the accepted assignment `t` implies for one of its levels.
+
+    The other level is taken where it now stands, and the observed wavenumber
+    is added to it or subtracted from it.
+    """
+    if t.upper_level.level_id == level_id:
+        return t.lower_level.energy + t.assigned_to.wavenumber
+    return t.upper_level.energy - t.assigned_to.wavenumber
+
+
+def _pull_on_level(level, weights: dict, limit: int = 8) -> list:
+    """The accepted lines holding a level where it is, heaviest first.
+
+    Each entry is one printed line: the weight the optimizer gives the
+    assignment, the observed wavenumber, the pair, the energy the assignment
+    implies for this level, and whether it is a published identification, a
+    new one, or one the decision ledger ordered.  `limit` caps the list; the
+    weights below it are summed into a last row, so that the balance between
+    the few heavy lines and the many light ones is visible.
+
+    The weight is  w = (branching fraction)^2 / u(wavenumber)^2  as
+    calc_weights() builds it, which is what optimize_levels() actually uses;
+    a transition absent from `weights` falls back to 1/u^2, as it does there.
+    """
+    rows = []
+    for t in level.from_transitions + level.to_transitions:
+        if t is UNASSIGNED or t.accepted != 1 or t.assigned_to is None:
+            continue
+        w = weights.get(id(t))
+        if w is None:
+            u = t.assigned_to.wn_uncertainty
+            w = 1.0 / u ** 2 if u else 0.0
+        origin = ('ledger: ' + t.manual) if t.manual else (
+            'published identification' if t.new == 0 else 'new')
+        rows.append((w, t, origin))
+    rows.sort(key=lambda r: -r[0])
+    out = []
+    for w, t, origin in rows[:limit]:
+        out.append(f"w ={w:11.2f}  {t.assigned_to.wavenumber:12.4f}  "
+                   f"{t.lower_level.level_id}-{t.upper_level.level_id}  "
+                   f"implies {_implied_energy(t, level.level_id):.4f}  "
+                   f"({origin})")
+    if len(rows) > limit:
+        rest = sum(w for w, _t, _o in rows[limit:])
+        out.append(f"w ={rest:11.2f}  ... the remaining {len(rows) - limit} "
+                   f"accepted line(s) of this level, together")
+    return out
+
+
+def check_double_acceptances(observed_lines: list, input_energies: dict,
+                             weights: dict, strict: bool = True) -> int:
+    """Stop the run if one transition has been accepted on two observed lines.
+
+    A transition is a pair of levels, and the light it emits comes out at one
+    wavenumber.  So the same pair accepted on two different lines of the
+    observed list is never a physical result: one of the two lines is a
+    coincidence, and the classification, the LOPT input built from it and the
+    marks in IDEN2 are all wrong wherever it appears.
+
+    It happens when a level is fitted away from the position its published
+    identifications were made at.  Those identifications name the level in the
+    line workbook, which is never edited, and Step 3 keeps them unless
+    something positively rejects them ("old, no solid evidence for rejection"),
+    while the transitions of the level also find fresh partners near the new
+    position, which Step 1 accepts on their merits.  Both acceptances then
+    stand.  The level moves that way when one heavy line disagrees with many
+    light ones - an infrared line whose wavenumber uncertainty is twenty times
+    smaller than an ultraviolet one carries four hundred times its weight - and
+    most often when such a line is held on the level by a decision-ledger row
+    written before the level was moved.  check_forced_decisions() catches the
+    stale ledger row itself, before the work; this catches the outcome,
+    whatever produced it.
+
+    The report names, for every doubled pair, the lines it was accepted on with
+    the reason each acceptance was granted, and then, for every level involved,
+    how far the fit moved it from the energy the run started at and which
+    accepted lines hold it there, by weight.  That is the whole diagnosis: the
+    heavy line at the top of a moved level's list is the one to look at.
+
+    `input_energies` is {level_id: energy} as the run started, `weights` the
+    weights of the last optimization.  With strict=False the report is printed
+    as a warning and the run goes on, which is what the chance-coincidence and
+    decoy calibrations need: they measure what the algorithm does with an input
+    that has nothing in it, and must not stop on a finding.
+
+    Returns the number of doubled pairs.
+    """
+    doubled = {k: v for k, v in accepted_pairs_by_line(observed_lines).items()
+               if len(v) > 1}
+    if not doubled:
+        return 0
+
+    out = [f"{len(doubled)} transition(s) accepted on more than one observed "
+           f"line.  One pair of levels emits at one wavenumber, so at most one "
+           f"of the lines under each pair below can be that transition:"]
+    for (low, upp), trans in sorted(doubled.items()):
+        out.append(f"\n    {low}-{upp}  accepted on {len(trans)} lines:")
+        for t in sorted(trans, key=lambda x: x.assigned_to.wavenumber):
+            line = t.assigned_to
+            o_c = line.wavenumber - t.calculated_wavenumber
+            origin = ('ledger: ' + t.manual) if t.manual else (
+                'published' if t.new == 0 else 'new')
+            out.append(f"        {line.wavenumber:12.4f}  "
+                       f"u ={line.wn_uncertainty:8.4f}  "
+                       f"I ={line.intensity:10.3g}  "
+                       f"char {line.line_character or '-':<3}  "
+                       f"O-C ={o_c:+9.4f}  grade {t.grade or '-':<3}  "
+                       f"{origin}")
+            if t.notes2:
+                out.append(f"{'':22}{t.notes2}")
+
+    involved = {}
+    for trans in doubled.values():
+        t = trans[0]
+        involved[t.lower_level.level_id] = t.lower_level
+        involved[t.upper_level.level_id] = t.upper_level
+    out.append("\n    The levels these pairs name, and how far this run's fit "
+               "moved each of them from the energy it started at:")
+    order = sorted(involved, key=lambda lid: -abs(
+        involved[lid].energy - input_energies.get(lid, involved[lid].energy)))
+    for lid in order:
+        lev = involved[lid]
+        e0 = input_energies.get(lid, lev.energy)
+        shift = lev.energy - e0
+        out.append(f"\n        {lid}  {e0:.4f} -> {lev.energy:.4f} "
+                   f"({shift:+.4f} cm^-1)")
+        note = revision_note(lid, indent='          ')
+        if note:
+            out.append(note.lstrip('\n'))
+        if abs(shift) < 0.1:
+            continue
+        out.append("          the accepted lines that hold it there, "
+                   "heaviest first:")
+        for row in _pull_on_level(lev, weights):
+            out.append(f"            {row}")
+    out.append("\n    Nothing has been written: the classification, the LOPT "
+               "input and the IDEN2 marks stay as they were.  Withdraw or "
+               "correct whichever of the acceptances above is wrong - the "
+               "decision ledger is where a verdict of yours is recorded - and "
+               "run again.")
+
+    text = "\n".join(out)
+    if not strict:
+        print("Warning: " + text)
+        return len(doubled)
+    raise ValueError(text)
+
+
 def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
          decoy_shift: float = 0.0, decoy_ids=None) -> pd.DataFrame:
     """Run the full classification pipeline.
@@ -3803,6 +4118,10 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     if decisions:
         check_forced_decisions(decisions, levels_dict)
 
+    # The energies the fit starts from, kept so that check_double_acceptances()
+    # can say how far each level has been moved by the run itself.
+    input_energies = {lev.level_id: lev.energy for lev in levels_list}
+
     levels_history = []  # List of level snapshots per cycle
     i, na_prev, num_accepted, max_lev_change = 0, 0, 0, 0.0
     weights = {}
@@ -3829,6 +4148,14 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     if i >= max_cycles and (num_accepted != na_prev or max_lev_change >= 0.001):
         print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
+
+    # One transition cannot belong to two observed lines.  A run that ends
+    # with such a pair is wrong wherever that pair appears, so it stops here,
+    # before anything is written; a calibration run only reports it (see
+    # check_double_acceptances).
+    check_double_acceptances(observed_lines, input_energies, weights,
+                             strict=(wn_shift == 0.0 and decoy_shift == 0.0))
+
     df = build_output(observed_lines, weights)
     if decisions:
         report_unapplied_decisions(decisions)
@@ -3863,7 +4190,15 @@ def cli(argv=None) -> None:
                          '(default: missing_gA.policy in the configuration)')
     args = ap.parse_args(argv)
     apply_config(config.load(args.config), policy=args.missing_gA)
-    main(max_cycles=args.max_cycles)
+    try:
+        main(max_cycles=args.max_cycles)
+    except ValueError as exc:
+        # check_forced_decisions() and check_double_acceptances() stop the run
+        # on data the analysis must not be carried out on.  What they have to
+        # say is the whole of the message; a traceback through the call stack
+        # only buries it.
+        print(f"\nSTOPPED: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
 
 
 if __name__ == '__main__':

@@ -196,7 +196,7 @@ def _candidate(rwn, wn, i_obs, i_calc, u_calc=0.6):
 def test_a_line_much_stronger_than_predicted_is_left_free():
     """The 91856.116 case: 58 times the predicted intensity, 4.5 sigma."""
     strong = _candidate(91856.713, 91856.116, 3.74e5, 6413.0, 0.59)
-    INL.choose([strong], marked_wn=[], strong_sigma=3.0, propose_window=1.0)
+    INL.choose([strong], marked=[], strong_sigma=3.0, propose_window=1.0)
     assert strong.source == ''
     assert strong.verdict.startswith('left free')
     assert strong.z_intensity > 4.0
@@ -204,13 +204,13 @@ def test_a_line_much_stronger_than_predicted_is_left_free():
 
 def test_a_line_the_prediction_accounts_for_is_proposed():
     ok = _candidate(90917.873, 90917.831, 2912.0, 1882.0, 0.68)
-    INL.choose([ok], marked_wn=[], strong_sigma=3.0, propose_window=1.0)
+    INL.choose([ok], marked=[], strong_sigma=3.0, propose_window=1.0)
     assert ok.source == 'proposed'
 
 
 def test_a_line_too_far_from_the_prediction_is_not_proposed():
     far = _candidate(22556.197, 22554.249, 177.5, 192.6, 0.60)
-    INL.choose([far], marked_wn=[], strong_sigma=3.0, propose_window=1.0)
+    INL.choose([far], marked=[], strong_sigma=3.0, propose_window=1.0)
     assert far.source == ''
     assert 'too far' in far.verdict
 
@@ -218,7 +218,7 @@ def test_a_line_too_far_from_the_prediction_is_not_proposed():
 def test_a_hand_mark_is_taken_however_strong_the_line_is():
     """What the analyst marked in IDEN2 is a decision already taken."""
     strong = _candidate(94049.953, 94050.809, 7.882e4, 3734.0, 0.49)
-    INL.choose([strong], marked_wn=[94050.809], strong_sigma=3.0,
+    INL.choose([strong], marked=[94050.809], strong_sigma=3.0,
                propose_window=1.0)
     assert strong.source == 'IDEN2'
     assert strong.z_intensity > 3.0
@@ -227,7 +227,7 @@ def test_a_hand_mark_is_taken_however_strong_the_line_is():
 def test_one_transition_takes_at_most_one_line():
     a = _candidate(1000.0, 1000.1, 100.0, 100.0)
     b = _candidate(1000.0, 1000.4, 100.0, 100.0)
-    INL.choose([a, b], marked_wn=[], strong_sigma=3.0, propose_window=1.0)
+    INL.choose([a, b], marked=[], strong_sigma=3.0, propose_window=1.0)
     assert a.source == 'proposed'
     assert b.source == '' and 'already has a line' in b.verdict
 
@@ -375,7 +375,7 @@ def test_hand_marks_are_the_whole_answer_when_there_are_any():
     """
     marked = _candidate(90917.873, 90917.831, 2912.0, 1882.0, 0.68)
     also_good = _candidate(85072.903, 85073.215, 567.6, 2485.0, 0.60)
-    INL.choose([marked, also_good], marked_wn=[90917.831], strong_sigma=3.0,
+    INL.choose([marked, also_good], marked=[90917.831], strong_sigma=3.0,
                propose_window=1.0)
     assert marked.source == 'IDEN2'
     assert also_good.source == ''
@@ -386,7 +386,7 @@ def test_proposals_are_made_when_no_line_of_the_level_is_marked():
     a = _candidate(90917.873, 90917.831, 2912.0, 1882.0, 0.68)
     b = _candidate(85072.903, 85073.215, 567.6, 2485.0, 0.60)
     b.low_id = '059003.000135'          # a different transition of the level
-    INL.choose([a, b], marked_wn=[], strong_sigma=3.0, propose_window=1.0)
+    INL.choose([a, b], marked=[], strong_sigma=3.0, propose_window=1.0)
     assert a.source == 'proposed' and b.source == 'proposed'
 
 
@@ -394,7 +394,7 @@ def test_propose_true_proposes_beside_the_hand_marks():
     marked = _candidate(90917.873, 90917.831, 2912.0, 1882.0, 0.68)
     other = _candidate(85072.903, 85073.215, 567.6, 2485.0, 0.60)
     other.low_id = '059003.000135'
-    INL.choose([marked, other], marked_wn=[90917.831], strong_sigma=3.0,
+    INL.choose([marked, other], marked=[90917.831], strong_sigma=3.0,
                propose_window=1.0, propose=True)
     assert marked.source == 'IDEN2' and other.source == 'proposed'
 
@@ -406,7 +406,7 @@ def test_a_mark_is_recognised_though_trans_dat_rounds_the_wavenumber():
     and a mark that is not recognised as one would be quietly re-decided.
     """
     c = _candidate(92675.733, 92677.294, 7642.0, 3422.0, 0.60)
-    INL.choose([c], marked_wn=[92677.290], strong_sigma=3.0,
+    INL.choose([c], marked=[92677.290], strong_sigma=3.0,
                propose_window=1.0)
     assert c.source == 'IDEN2'
 
@@ -547,12 +547,13 @@ def test_the_dossier_is_silent_about_what_did_not_change(tmp_path):
 
 # --- --accept: adopting the assignments a previous run only named ----------
 def test_accept_without_a_reason_records_that_it_was_looked_at():
-    assert INL.parse_accept(['95033.381']) == [(95033.381, INL.REASON_ADOPT)]
+    assert INL.parse_accept(['95033.381']) == \
+        [(95033.381, '', INL.REASON_ADOPT)]
 
 
 def test_accept_keeps_the_reason_it_is_given():
     assert INL.parse_accept(['93276.982=better CoG']) == \
-        [(93276.982, 'better CoG')]
+        [(93276.982, '', 'better CoG')]
 
 
 def test_accept_wants_a_wavenumber():
@@ -564,4 +565,385 @@ def test_accept_may_be_repeated_and_keeps_its_lines_apart():
     args = INL.parse_args(['--iden2-row', '742', '--accept', '95033.381',
                            '--accept', '93276.982=better CoG'])
     assert INL.parse_accept(args.accept) == [
-        (95033.381, INL.REASON_ADOPT), (93276.982, 'better CoG')]
+        (95033.381, '', INL.REASON_ADOPT), (93276.982, '', 'better CoG')]
+
+
+# ---------------------------------------------------------------------------
+# Which transition a mark is on, and which one an option names
+# ---------------------------------------------------------------------------
+def test_a_mark_belongs_to_a_transition_not_to_a_wavenumber():
+    """Two transitions of the level on one blended feature, one of them marked.
+
+    39785.512 carries 059003.000433-059003.000625 in IDEN2.  The level's other
+    candidate on the same feature, 059003.000243-059003.000625, was never
+    marked, and calling it "marked in IDEN2" would both overstate what the
+    analyst decided and, since a mark is never second-guessed, assign it.
+    """
+    marked = _candidate(39785.500, 39785.512, 1000.0, 900.0)
+    marked.low_id = '059003.000433'
+    other = _candidate(39785.480, 39785.512, 1000.0, 5.0)
+    other.low_id = '059003.000243'
+    INL.choose([marked, other],
+               marked={('059003.000433', '059003.000900'): 39785.512},
+               strong_sigma=3.0, propose_window=1.0)
+    assert marked.source == 'IDEN2'
+    assert other.source == ''
+    assert other.verdict != 'marked in IDEN2'
+
+
+def test_the_same_transition_on_another_line_says_which_line_took_it():
+    marked = _candidate(1000.0, 1000.05, 100.0, 100.0)
+    elsewhere = _candidate(1000.0, 1000.40, 100.0, 100.0)
+    INL.choose([marked, elsewhere],
+               marked={('059003.000047', '059003.000900'): 1000.05},
+               strong_sigma=3.0, propose_window=1.0, propose=True)
+    assert marked.source == 'IDEN2'
+    assert elsewhere.source == '' and '1000.050' in elsewhere.verdict
+
+
+def test_reject_names_one_component_of_a_blend():
+    spec, = INL.parse_reject(['39785.512/000243=Too weak'])
+    assert spec.wn == 39785.512 and spec.reason == 'Too weak'
+    assert spec.matches(39785.512, '059003.000243', '059003.000625')
+    assert not spec.matches(39785.512, '059003.000433', '059003.000625')
+    # the partner may be written out in full
+    full, = INL.parse_reject(['39785.512/059003.000243=Too weak'])
+    assert full.matches(39785.512, '059003.000243', '059003.000625')
+
+
+def test_reject_without_a_partner_names_every_transition_on_the_line():
+    spec, = INL.parse_reject(['39785.512=Too weak'])
+    assert spec.matches(39785.512, '059003.000243', '059003.000625')
+    assert spec.matches(39785.512, '059003.000433', '059003.000625')
+    assert not spec.matches(39785.400, '059003.000433', '059003.000625')
+
+
+def test_reject_still_wants_a_reason():
+    with pytest.raises(SystemExit):
+        INL.parse_reject(['39785.512'])
+
+
+def test_accept_may_name_one_component_too():
+    spec, = INL.parse_accept(['39785.512/000433'])
+    assert spec.partner == '000433' and spec.reason == INL.REASON_ADOPT
+
+
+# ---------------------------------------------------------------------------
+# A component too faint to matter to the blend it would join
+# ---------------------------------------------------------------------------
+def _lopt_row(wn, low, upp, flag=''):
+    return {'wn': wn, 'unc': 0.005, 'intens': 1.0, 'low_id': low,
+            'upp_id': upp, 'flag': flag, 'weight': 1.0, 'raw': ''}
+
+
+def test_a_hundredth_of_the_blend_is_not_proposed():
+    # 5 against the 900 of the strong component: the intensity the line shows
+    # is its own, so nothing here makes the candidate look too strong - the
+    # share is the only test it fails.
+    weak = _candidate(39785.500, 39785.512, 5.0, 5.0)
+    weak.low_id = '059003.000243'
+    share = INL.blend_share_of(
+        [weak],
+        {('059003.000433', '059003.000900'): {'calc_intensity': 900.0},
+         ('059003.000243', '059003.000900'): {'calc_intensity': 5.0}},
+        [_lopt_row(39785.512, '059003.000433', '059003.000900')])
+    assert abs(share(weak) - 5.0 / 905.0) < 1e-9
+    INL.choose([weak], marked={}, strong_sigma=3.0, propose_window=1.0,
+               share=share, min_share=INL.DEF_MIN_SHARE)
+    assert weak.source == ''
+    assert 'too weak to contribute' in weak.verdict
+
+
+def test_a_transition_alone_on_its_line_has_no_share_to_fail():
+    lone = _candidate(90917.873, 90917.831, 2912.0, 1882.0, 0.68)
+    share = INL.blend_share_of([lone], {}, [])
+    assert share(lone) is None
+    INL.choose([lone], marked={}, strong_sigma=3.0, propose_window=1.0,
+               share=share, min_share=0.5)
+    assert lone.source == 'proposed'
+
+
+def test_a_rejected_candidate_of_the_line_is_not_part_of_the_blend():
+    """LOPT's ``P`` records are shown to the fit but not fitted, so they are
+    not components and do not dilute anyone's share."""
+    c = _candidate(39785.500, 39785.512, 1000.0, 5.0)
+    share = INL.blend_share_of(
+        [c], {('x', 'y'): {'calc_intensity': 900.0}},
+        [_lopt_row(39785.512, 'x', 'y', flag='P')])
+    assert share(c) is None
+
+
+# ---------------------------------------------------------------------------
+# The candidate table
+# ---------------------------------------------------------------------------
+def test_the_table_tells_an_old_mark_from_a_new_one():
+    old = _candidate(1000.0, 1000.05, 100.0, 100.0)
+    new = _candidate(2000.0, 2000.05, 100.0, 100.0)
+    new.low_id = '059003.000135'
+    INL.choose([old, new],
+               marked={('059003.000047', '059003.000900'): 1000.05},
+               strong_sigma=3.0, propose_window=1.0, propose=True)
+    out = []
+    INL.candidate_table([old, new], out.append)
+    body = '\n'.join(out[1:])
+    assert ' old ' in body and ' new ' in body
+
+
+def test_the_table_counts_what_it_passes_over_and_lists_it_on_request():
+    taken = _candidate(1000.0, 1000.05, 100.0, 100.0)
+    skipped = _candidate(1000.0, 1000.40, 100.0, 100.0)
+    INL.choose([taken, skipped], marked={}, strong_sigma=3.0,
+               propose_window=1.0)
+    out = []
+    INL.candidate_table([taken, skipped], out.append)
+    assert any('1 further candidate' in t for t in out)
+    assert not any('1000.400' in t for t in out)
+    out = []
+    INL.candidate_table([taken, skipped], out.append, show_skipped=True)
+    assert any('1000.400' in t for t in out)
+
+
+# ---------------------------------------------------------------------------
+# The precision LOPT_input_lines.txt keeps
+# ---------------------------------------------------------------------------
+def test_the_file_is_matched_at_its_own_three_decimals():
+    """81027.41941532 out of Pr3_lines.xlsx is 81027.419 in the file.
+
+    make_LOPT_input.format_line writes the wavenumber as '%.3f', so a
+    candidate and the record of it can never be equal at four decimals.  The
+    run that took 059003.000625 into the fit rounded to four, decided that the
+    five records the analyst had put in by hand were absent, and inserted them
+    a second time; LOPT fitted each line twice and gave each copy half the
+    weight.
+    """
+    assert INL.lopt_key(81027.41941532436) == 81027.419
+    assert INL.lopt_key('81027.419') == 81027.419
+    assert round(81027.41941532436, 4) != 81027.419
+
+
+def test_a_record_already_in_the_file_is_recognised_at_full_precision(tmp_path):
+    path = _lopt_file(tmp_path, [
+        (81027.41941532436, 0.263, 1296.888,
+         '059003.000118', '059003.000625', '', 1.0),
+    ])
+    rows = INL.read_lopt_input(str(path))
+    present = {(INL.lopt_key(r['wn']), r['low_id'], r['upp_id'])
+               for r in rows}
+    assert (INL.lopt_key(81027.41941532436),
+            '059003.000118', '059003.000625') in present
+
+
+def test_a_touched_line_is_reweighed_at_full_precision(tmp_path):
+    """The same rounding kept reweigh() from finding the line's records.
+
+    With the wavenumber given at the precision of the line list, none of the
+    file's records matched, the group came out empty and no weight was ever
+    recomputed - the run reported '0 weight(s) changed' however many
+    components the line had.
+    """
+    path = _lopt_file(tmp_path, [
+        (39785.512, 0.048, 15946.9, '059003.000433', '059003.000625', '', 1.0),
+        (39785.512, 0.048, 15946.9, '059003.000500', '059003.000700', '', 1.0),
+    ])
+    rows = INL.read_lopt_input(str(path))
+    calc = {('059003.000433', '059003.000625'): 3.0,
+            ('059003.000500', '059003.000700'): 1.0}
+    n = INL.reweigh(rows, [39785.51150016838], calc, lambda *_a: None)
+    assert n == 2
+    got = {r['low_id']: r['weight'] for r in rows}
+    assert got['059003.000433'] == pytest.approx(0.75)
+    assert got['059003.000500'] == pytest.approx(0.25)
+
+
+# ---------------------------------------------------------------------------
+# --accept across the rounds: the component whose line this run takes a share of
+#
+# 059003.000629 was inserted on 59485.815, a line 059003.000121-059003.000453
+# already held alone.  The new component's predicted intensity is 12 times the
+# old one's, so step D cut the old one's weight from 1.0000 to 0.0746 and its
+# share of the observed intensity with it.  Round 1 still accepted it and it
+# was marked in IDEN2, so the run left it alone as a published identification
+# nobody questioned; round 2, with the new level's accept row in the ledger,
+# rejected it, and nothing recorded that.  check_sync.py then found it
+# identified in trans.dat and weighted in the fit while the classification
+# denied it, and the whole run was rolled back.
+# ---------------------------------------------------------------------------
+_OLD = (59485.815, '059003.000121', '059003.000453')
+_KEY = (59485.815, '059003.000121', '059003.000453')
+_ID_ROWS = {'059003.000121': 929, '059003.000453': 1161}
+_ON_SCREEN = {(59485.82, frozenset((929, 1161)))}
+
+
+def _adopted():
+    spec = INL.Target(59485.815, '000453', 'IDEN2/LOPT; may exclude from LOPT')
+    got = {}
+    INL.register_adoptions([spec], {_KEY: True}, '059003.000629', got)
+    return got
+
+
+def test_accept_registers_the_component_the_classification_accepts():
+    assert _adopted() == {
+        _KEY: (59485.815, '059003.000121', '059003.000453',
+               'IDEN2/LOPT; may exclude from LOPT')}
+
+
+def test_accept_leaves_the_new_levels_own_assignments_to_the_other_loop():
+    """A pair the level being inserted is part of is never adopted here: the
+    candidate loop above writes those, with the reason REASON_ACCEPT."""
+    spec = INL.Target(59485.815, '', 'looked at')
+    got = {}
+    INL.register_adoptions(
+        [spec], {(59485.815, '059003.000134', '059003.000629'): True},
+        '059003.000629', got)
+    assert got == {}
+
+
+def test_a_spec_that_matches_nothing_is_reported_back():
+    spec = INL.Target(12345.678, '', 'looked at')
+    assert INL.register_adoptions([spec], {_KEY: True}, '059003.000629', {}) \
+        == [spec]
+
+
+def test_a_mark_on_a_line_this_run_leaves_alone_needs_no_ledger_row():
+    rows, left = INL.adoption_rows(_adopted(), {_KEY: True}, set(), set(),
+                                   _ON_SCREEN, set(), _ID_ROWS, '9/16/2026')
+    assert rows == []
+    assert left == [_OLD]
+
+
+def test_a_mark_on_a_line_this_run_takes_a_share_of_is_written():
+    """The fix.  touched_wn holds the wavenumbers step D put a record on, and
+    a component of one of them has had its share of the blend changed by this
+    run: it is no longer an assignment nobody questioned."""
+    rows, left = INL.adoption_rows(_adopted(), {_KEY: True}, set(), set(),
+                                   _ON_SCREEN, {59485.82}, _ID_ROWS,
+                                   '9/16/2026')
+    assert left == []
+    (key, row, still), = rows
+    assert key == _KEY and still is True
+    assert row == {'wn_obs': '59485.8150', 'low_id': '059003.000121',
+                   'upp_id': '059003.000453', 'decision': 'accept',
+                   'date': '9/16/2026',
+                   'reason': 'IDEN2/LOPT; may exclude from LOPT'}
+
+
+def test_a_component_a_later_round_rejects_is_written_however_it_is_marked():
+    """The backstop.  Registered in round 1 while it was accepted, rejected in
+    round 2 by this level's own rows; the screen must not exempt it, or the
+    fit and IDEN2 keep an assignment the classification denies."""
+    rows, left = INL.adoption_rows(_adopted(), {_KEY: False}, set(), set(),
+                                   _ON_SCREEN, set(), _ID_ROWS, '9/16/2026')
+    assert left == []
+    (_key, _row, still), = rows
+    assert still is False
+
+
+def test_a_row_the_ledger_already_holds_is_not_written_again():
+    rows, left = INL.adoption_rows(_adopted(), {_KEY: False}, {_KEY}, set(),
+                                   _ON_SCREEN, {59485.82}, _ID_ROWS,
+                                   '9/16/2026')
+    assert (rows, left) == ([], [])
+
+
+def test_a_row_written_earlier_in_this_run_is_not_written_again():
+    rows, left = INL.adoption_rows(_adopted(), {_KEY: False}, set(), {_KEY},
+                                   _ON_SCREEN, {59485.82}, _ID_ROWS,
+                                   '9/16/2026')
+    assert (rows, left) == ([], [])
+
+
+def test_an_adopted_component_not_on_the_screen_is_written():
+    rows, _left = INL.adoption_rows(_adopted(), {_KEY: True}, set(), set(),
+                                    set(), set(), _ID_ROWS, '9/16/2026')
+    assert len(rows) == 1
+
+
+# ---------------------------------------------------------------------------
+# --accept on a component the classification has ALREADY rejected
+#
+# The 11476.092 case.  That observed line carried 059003.000058-059003.000127
+# at full weight.  The new level 059003.000630 was put on it as well, with a
+# predicted intensity 55 times the sitting component's, so step D cut that
+# component's share of the blend to 0.0180 and the very first round of
+# classify_lines.py rejected it - "calc contribution too weak vs I_cum".  It
+# was therefore never accepted at any point of the run, so nothing adopted it,
+# and --accept 11476.092/000127 reported that it matched no assignment.  The
+# component stayed weighted in LOPT_input_lines.txt and marked in trans.dat
+# while the classification denied it, which is the two errors check_sync.py
+# stops the run for, and every file was rolled back.
+#
+# A rejected component is adopted when this run is what rejected it: its line
+# is one step D put a record on, and the fit or the screen still holds it.
+# ---------------------------------------------------------------------------
+_WEAK = (11476.092, '059003.000058', '059003.000127')
+_WEAK_ROWS = {'059003.000058': 411, '059003.000127': 505}
+_WEAK_SCREEN = {(11476.09, frozenset((411, 505)))}
+_WEAK_REASON = 'IDEN2/LOPT; may as well exclude from LOPT'
+
+
+def _weak_spec():
+    return INL.Target(11476.092, '000127', _WEAK_REASON)
+
+
+def test_a_component_this_run_rejected_and_the_fit_holds_is_adopted():
+    got = {}
+    missed = INL.register_adoptions(
+        [_weak_spec()], {_WEAK: False}, '059003.000630', got,
+        touched_wn={11476.09}, in_fit={_WEAK})
+    assert missed == []
+    assert got == {_WEAK: (11476.092, '059003.000058', '059003.000127',
+                           _WEAK_REASON)}
+
+
+def test_a_component_this_run_rejected_that_only_iden2_holds_is_adopted():
+    got = {}
+    INL.register_adoptions([_weak_spec()], {_WEAK: False}, '059003.000630',
+                           got, touched_wn={11476.09}, in_fit=set(),
+                           on_screen=_WEAK_SCREEN, id_rows=_WEAK_ROWS)
+    assert list(got) == [_WEAK]
+
+
+def test_a_component_rejected_on_a_line_this_run_leaves_alone_is_left():
+    got = {}
+    missed = INL.register_adoptions(
+        [_weak_spec()], {_WEAK: False}, '059003.000630', got,
+        touched_wn=set(), in_fit={_WEAK}, on_screen=_WEAK_SCREEN,
+        id_rows=_WEAK_ROWS)
+    assert got == {}
+    assert [s.wn for s in missed] == [11476.092]
+
+
+def test_a_component_neither_the_fit_nor_iden2_holds_is_left_rejected():
+    # 059003.000557-059003.000407 sits on the same line as a P record at
+    # weight zero: rejected long before this run, so nothing contradicts the
+    # classification and --accept does not revive it.
+    got = {}
+    INL.register_adoptions(
+        [INL.Target(11476.092, '', _WEAK_REASON)], {_WEAK: False},
+        '059003.000630', got, touched_wn={11476.09}, in_fit=set(),
+        on_screen=set(), id_rows=_WEAK_ROWS)
+    assert got == {}
+
+
+def test_an_adopted_rejected_component_gets_its_row_with_its_own_reason():
+    got = {}
+    INL.register_adoptions([_weak_spec()], {_WEAK: False}, '059003.000630',
+                           got, touched_wn={11476.09}, in_fit={_WEAK})
+    rows, left = INL.adoption_rows(got, {_WEAK: False}, set(), set(),
+                                   _WEAK_SCREEN, {11476.09}, _WEAK_ROWS,
+                                   '9/16/2026')
+    assert left == []
+    (key, row, still), = rows
+    assert key == _WEAK and still is False
+    assert row == {'wn_obs': '11476.0920', 'low_id': '059003.000058',
+                   'upp_id': '059003.000127', 'decision': 'accept',
+                   'date': '9/16/2026', 'reason': _WEAK_REASON}
+
+
+def test_standing_needs_both_a_touched_line_and_a_holder():
+    assert INL.standing(11476.092, _WEAK[1], _WEAK[2], {11476.09}, {_WEAK},
+                        set()) is True
+    assert INL.standing(11476.092, _WEAK[1], _WEAK[2], set(), {_WEAK},
+                        set()) is False
+    assert INL.standing(11476.092, _WEAK[1], _WEAK[2], {11476.09}, set(),
+                        set()) is False

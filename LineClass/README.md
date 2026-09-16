@@ -43,6 +43,8 @@ one changes the input the next one is computed from.
 2. **Finish the assignment of the new levels.** The `insert_new_level.py` work:
    the level at IDEN2 row 742 already accepted by hand, and the candidates that
    `level_positions.py --unknown` and `unfound_levels.py` point to.
+   `find_unknown_levels.py` has searched for all 106 levels with five or more
+   promising transitions; its table `found_levels.csv` is the worklist.
 
 3. **The hyperfine-structure (hfs) work.** Planned in full in
    [`Work_on_hfs_plan.md`](Work_on_hfs_plan.md); it is not started, and it must
@@ -121,23 +123,20 @@ pip install -r TableExtraction/requirements.txt
 
 ## Running
 
-The script imports two modules that live in **two different directories**:
-
-- `models` — in `LineClass/` (the script's own directory)
-- `statistics` — the bundled `statistics.py` in the **repository root**
-
-Both directories must therefore be on `sys.path`. The script's own directory is always added automatically, but the repository root is not, so add it via `PYTHONPATH`:
+With the current defaults nothing has to be set up:
 
 ```bash
 # From the repository root:
-PYTHONPATH=. python LineClass/classify_lines.py
+python LineClass/classify_lines.py
 
 # …or from inside LineClass:
 cd LineClass
-PYTHONPATH=.. python classify_lines.py
+python classify_lines.py
 ```
 
-> **Why `PYTHONPATH`?** Without the repository root on the path, `from statistics import mandel_paule` resolves to the standard-library `statistics` (which has no `mandel_paule`) and the run fails during weeding. Running the file directly with `python LineClass/classify_lines.py` — with no `PYTHONPATH` — will fail for this reason.
+Every input and output path is resolved relative to `lineclass_config.toml`'s own directory, not to the working directory, so a run from the repository root reads and writes exactly the same files as a run from inside `LineClass/`. The scripts' own directory is always on `sys.path`, which is where `models` and the other modules of the pipeline live.
+
+> **The one case that needs `PYTHONPATH`.** `classify_lines.py` also imports `mandel_paule` from the bundled `statistics.py` in the **repository root** — a module that shadows the standard-library `statistics`, which has no such function. That import is made inside `_wm_mandel_paule()` and is reached only when the per-level intensity-factor machinery is switched to `FACTOR_WEIGHTING = 'mandel_paule'`. With the defaults in force (`USE_INTENSITY_ADJUSTMENT = 0`, `FACTOR_WEIGHTING = 'unweighted'`) it never runs. If you do enable it, put the repository root on the path — `PYTHONPATH=. python LineClass/classify_lines.py`, or `PYTHONPATH=.. python classify_lines.py` from inside `LineClass/` — or the run fails during weeding with `ImportError: cannot import name 'mandel_paule' from 'statistics'`.
 
 ### Running from PyCharm
 
@@ -484,6 +483,43 @@ listing **every** fault it found rather than the first, if:
   contradiction: that is how an assignment is moved from one line to another,
   and both rows are obeyed. Two rows that accept and reject the same pair on the
   *same* line are caught earlier, when the file is read.)
+* **the stale row**: an accepted pair whose Ritz wavenumber, at the energies
+  *this* run starts from, misses the wavenumber of the line it names by more
+  than `decisions.max_forced_offset` (5.0 cm⁻¹ as shipped). See below.
+
+**The stale ledger row.** The forcing above is what makes a ledger row
+dangerous once a level moves. A row is written while its two levels stand where
+they stood that day; if one of them is later re-positioned in
+`revised_level_energies.csv`, the row goes on naming the same observed line at
+the new energy, where it no longer belongs — and it is still obeyed. That is not
+a small error. The line it names carries the weight *w* = (branching
+fraction)²/*u*(wavenumber)², so a single infrared line with
+*u* = 0.011 cm⁻¹ outweighs twenty ultraviolet ones at *u* = 0.3–0.8 cm⁻¹ by a
+factor of forty or more, and `optimize_levels()` puts the level where the heavy
+line wants it. The level's published identifications then sit 9 cm⁻¹ away from
+it, Step 3 keeps them anyway (*old, no solid evidence for rejection*), Step 1
+accepts the fresh partners that have appeared near the new position, and the
+run ends with the same transition accepted on two observed lines.
+
+So a row that far out stops the run, and the message names which of the two
+levels was moved, from which energy to which, and quotes the comment written
+beside the move in `revised_level_energies.csv` — enough to judge the row
+without tracing the run:
+
+```
+STOPPED: the decision ledger cannot be carried out:
+  22397.9690  059003.000389-059003.000617  accept: the Ritz wavenumber 22417.8150 cm^-1
+      (138871.0150 - 116453.2000) misses this line by +19.8460 cm^-1, more than the
+      5 cm^-1 allowed by decisions.max_forced_offset
+    059003.000617 was moved by revised_level_energies.csv: 138849.8600 -> 138871.0150 (+21.1550 cm^-1)
+      its comment there reads: re-positioned from 138849.86 (dE=+21.16); 4 new assignments; ...
+```
+
+The limit is generous on purpose: across the 246 accepted rows of the present
+ledger the widest offset is 2.13 cm⁻¹ and the median 0.18 cm⁻¹. A row that is
+*meant* to sit further out — a hand-made identification made precisely to pull a
+level to a new position — is exempted one row at a time by writing `offset-ok`
+anywhere in its `reason` column, rather than by raising the limit for every row.
 
 With this in force, only `reject` rows should ever be reported as unapplied at
 the end of a run — a rejected pair can still fall out of the matching window
@@ -551,8 +587,9 @@ update — read and write, no truncation — which asks the operating system for
 exactly the access the eventual write will need and touches not a single byte.
 It lives in `output_files.py` (`require_writable`), and is made by
 `classify_lines.py`, `make_LOPT_input.py`, `check_sync.py`, `chance_mc.py`,
-`decoy_mc.py`, `level_shifts.py`, `level_positions.py` and
-`level_interchange.py`. A run that writes no files (`main(write_files=False)`,
+`decoy_mc.py`, `level_shifts.py`, `level_positions.py`,
+`level_interchange.py`, `find_unknown_levels.py`, `insert_new_level.py` and
+`move_level.py`. A run that writes no files (`main(write_files=False)`,
 used by the Monte-Carlo drivers) skips it, as does any `--detail` mode, which
 only prints.
 
@@ -663,6 +700,50 @@ When one transition is matched to several observed lines, the candidates are sor
 
 ### Step 6 — Energy level optimization
 `optimize_levels` refines level energies — see *Energy Level Optimization* below.
+
+### The closing check — one transition, one line (`check_double_acceptances`)
+
+A pair of levels emits at one wavenumber. The same pair accepted on two
+different observed lines is therefore never a physical result: one of the two
+is a coincidence, and the classification, the LOPT input built from it and the
+marks in IDEN2 are all wrong wherever that pair appears. When the Step-5 cycles
+have converged, and **before anything is written**, `check_double_acceptances()`
+looks for such pairs and raises if it finds any. A chance-coincidence or decoy
+run (`chance_mc.py`, `decoy_mc.py`) only prints the report and goes on: those
+measure what the algorithm does with an input that has nothing in it, and must
+not stop on a finding.
+
+The fault appears whenever a level is fitted away from the position its
+published identifications were made at. Those identifications name the level in
+`Pr3_lines.xlsx`, which is never edited, and Step 3 keeps them unless something
+positively rejects them (*old, no solid evidence for rejection*), while the
+level's transitions also find fresh partners near the new position, which Step 1
+accepts on their merits. Both acceptances then stand. The commonest cause is a
+[stale ledger row](#the-decision-ledger-identifications-ruled-on-by-hand), but
+the check does not care what caused it.
+
+The report is the whole diagnosis. For every doubled pair it prints the lines it
+was accepted on — wavenumber, uncertainty, intensity, character, *O*−*C*, grade,
+whether the acceptance is published, new or ordered by the ledger, and the
+`notes2` reason each was granted. Then, for every level involved, how far this
+run's fit moved it from the energy it started at, what
+`revised_level_energies.csv` says was done to it, and — for a level that moved
+by more than 0.1 cm⁻¹ — the accepted lines holding it there, heaviest first,
+each with the energy it implies for the level:
+
+```
+    059003.000389  116453.2000 -> 116462.0437 (+8.8437 cm^-1)
+      the accepted lines that hold it there, heaviest first:
+        w =    8116.22    17944.6361  059003.000389-059003.000578  implies 116462.1529  (new)
+        w =    1164.84    22397.9686  059003.000389-059003.000617  implies 116462.0469  (ledger: accept)
+        w =      18.15    76583.1051  059003.000173-059003.000389  implies 116453.3216  (published identification)
+        ...
+        w =      60.32  ... the remaining 17 accepted line(s) of this level, together
+```
+
+Two infrared lines against twenty-three ultraviolet ones, and the two win by
+forty to one: that is what moved the level, and the top row of the list is the
+line to look at.
 
 ---
 
@@ -3607,7 +3688,9 @@ python level_positions.py --unknown 271 --drop-all-questionable   # ... and so a
                                                     #   every level the last report marks `?`
 ```
 
-A run takes about three seconds after the 1.6 s the likelihood takes to build.
+A run takes about three seconds after the 1.6 s the likelihood takes to build.  Doing it to
+every level `unfound_levels.py` calls promising, and reducing each search to one row of one
+table, is [`find_unknown_levels.py`](#searching-the-whole-list-at-once-find_unknown_levelspy).
 
 **What this does not do.** It says which energies the recorded lines want a level at; it does not
 say the level is there. A position here is conditional on the rest of the level list exactly as an
@@ -3994,6 +4077,155 @@ finds. Taking a level off this list and asking whether the lines actually put it
 scan of `ln R` over the window, at trial energies rather than at an adopted one — is the other half,
 and it is `level_positions.py --unknown`
 ([Searching for a level nobody has found](#searching-for-a-level-nobody-has-found-level_positionspy---unknown)).
+Doing that to every level on this list, in one run, is
+[`find_unknown_levels.py`](#searching-the-whole-list-at-once-find_unknown_levelspy) below.
+
+### Searching the whole list at once: `find_unknown_levels.py`
+
+`unfound_levels.py` says which levels are worth a search and `level_positions.py --unknown`
+does one search. Doing the second to the first, by hand, is a hundred runs of a program that
+takes five seconds and prints a screenful each, and then a hundred screenfuls to be read and
+reduced to one number apiece before any of them can be compared. `find_unknown_levels.py` is
+that loop: it walks `unfound_levels.csv` from the top, searches for each level, takes the best
+position of each search, and writes the hundred answers as one table, `found_levels.csv`. That
+table is the worklist — the rows it calls `firm` are the positions worth opening IDEN2 for.
+
+It writes nothing back into the pipeline. The searches are read-only and the only files it
+writes are its own output and its own log.
+
+**Where the list stops.** `unfound_levels.csv` is sorted by `n_prom`, the number of the level's
+calculated transitions that would have been recorded on the plates, most promising first. The
+run walks it from the top and stops at the first row whose `n_prom` falls below `--min-n-prom`
+(default 5) — a walk down a ranked list, not a filter over it, so the levels searched are always
+an unbroken run from the best one down. With the default that is 106 of the 659, and about nine
+minutes.
+
+**One search, one process.** Each level is searched by its own `python level_positions.py
+--unknown ROW --drop-all-questionable` subprocess, and each of those rebuilds the whole model
+from scratch — which is where nearly all of the nine minutes goes. It is done that way on
+purpose: `--unknown` installs the level being searched for into the run as a pseudo-level, so a
+hundred of them registered one after another inside one process would be a hundred chances for
+one search to colour the next. Independence is worth the five seconds. `--drop-all-questionable`
+is always passed: the lines of a level that is itself under question are released, so that a new
+level may take them rather than be told they are spoken for.
+
+**What is kept from each search.** Of the counts line —
+
+```
+  2 positions where ln R > 0: 1 firm, 1 weak, 0 no support
+```
+
+— the three numbers, whose sum is `n_found`, and two flags that follow from them: `unique_found`
+(exactly one `firm` position and no `weak` one — the search found one place for the level and
+offers no competitor to it) and `not_found` (no position anywhere in the window where the
+recorded lines are more likely with a level there than with none). Of the table that follows,
+the top row only: the searches sort their own table by verdict and then by `ln R` within a
+verdict, so the top row is the best the window has.
+
+`found_levels.csv`, one row per level searched, in the order they were searched:
+
+| column | meaning |
+|---|---|
+| `idx`, `label`, `J`, `parity`, `cfg`, `E_calc`, `W` | the level, copied from `unfound_levels.csv` |
+| `E_found` | where the best position is, cm⁻¹ — blank if the search found none |
+| `verdict` | `firm` / `weak` / `no support`, by the audit's own constants; blank when the search found no position at all; `not searched` or `error` when it never got that far, below |
+| `n_found` | positions in the window with ln R > 0, firm and weak and unsupported together |
+| `ln_R` | how much more likely the recorded lines are with a level at `E_found` than with none |
+| `n_match` | transitions of the level that a recorded line falls on |
+| `n_free` | how many of those lines no accepted transition already claims. This is the number a verdict turns on: a position fed entirely by lines other levels hold is not a position, it is a collision |
+| `dE_o_c` | `E_found` − `E_calc`, cm⁻¹ |
+| `cowan_lid` | the level's number in Cowan's calculation — see below |
+| `unique_found`, `not_found` | the two flags |
+| `Note` | what else is at this position — see below |
+
+`--all-columns` keeps the rest of what the search prints as well: `look` (ln R after the
+look-elsewhere correction for the width of the window scanned), `z` (`dE_o_c` in units of the
+configuration's own rms W), `n_obs`, `n_miss`, `free_gain` (what the free lines alone are worth
+in ln R) and `top_share` (the largest single line's share of the positive evidence — a position
+where one line is most of the case is not one to trust).
+
+**A search that found nothing and a search that did not happen are different things, and the
+table says which.** `n_found = 0` with `verdict` = `no support` means the window was scanned and
+holds nothing. A blank `n_found` with `verdict` = `not searched` or `error` means the search
+never reached the point of counting — the row is not in `enlev.dat`, or it has no calculated
+transition to any found level, or the subprocess failed — and a zero would have read as the
+first of those. Such rows can be redone by themselves with `--idx`.
+
+**`Note`: the position may be somebody else's.** Each level is searched for on its own, and a
+search has no way of knowing that the position it likes is one another level has already been
+given, or is being given in the same run. Two levels of the same parity but different J draw on
+overlapping sets of free lines, so the same lines can carry both, and their searches then land
+within a few hundredths of a wavenumber of each other. Only one of them can be the level that is
+really there: the lines cannot be spent twice.
+
+So every position is compared with every other one within `--dup-tol` cm⁻¹ (0.1 by default,
+against a scan that steps in 0.020) **of the same parity** — two levels of opposite parity at one
+energy are two different levels, not one collision — both among the rows of this run and among
+the positions `IDEN2/enlev.dat` already holds. Three kinds of note come out of it:
+
+```
+duplicate with row 446 (J 7.5), 0.000 cm^-1 away; duplicate with row 447 (J 6.5), 0.000 cm^-1 away
+duplicate with the position IDEN2 holds for row 525 (J 4.5), as 059003.000572, 0.015 cm^-1 away
+this is the position IDEN2 already holds for this row, which has no level_id yet: it is marked
+in IDEN2 but is not a level of the pipeline
+```
+
+The last is not a collision but a confirmation: the search has landed on the position the row
+already has. A level marked in IDEN2 by hand has no `level_id` until it is brought in through
+`new_levels.txt`, and the note says so rather than reporting a failed lookup — which is what a
+missing identifier means for a level that *is* in the pipeline (*[Finding a level in
+IDEN2](../CLAUDE.md)*).
+
+**`cowan_lid`** is the level's number in Cowan's calculation, `tp_E1_no_trials.xlsx`. It is the
+one thing `new_levels.txt` needs that is not on the screen anywhere, and it is resolved here the
+way `insert_new_level.py` resolves it: the calculated level list matched to `IDEN2/enlev.dat`
+through `cowan_gA.match_to_enlev`, which joins the two by `IDEN2/IDEN_level_ids.txt` wherever a
+level has an identifier. A row that matches nothing is left blank, never guessed at.
+
+Usage:
+
+```bash
+python find_unknown_levels.py                   # the whole promising list → found_levels.csv
+python find_unknown_levels.py --min-n-prom 8    # a shorter, safer list
+python find_unknown_levels.py --idx 742 913     # these rows only, whatever their n_prom
+python find_unknown_levels.py --all-columns     # + look, z, n_obs, n_miss, free_gain, top_share
+python find_unknown_levels.py --notes-only --dup-tol 0.3   # re-do the Note column, no searching
+```
+
+`--notes-only` reads the table already at `--out` and works its `Note` column out again, so
+another `--dup-tol` costs nothing; `--limit N` cuts a run short; `--pass-through` hands everything
+after it to `level_positions.py` unchanged; `--log` names the transcript (`-` keeps none). The
+transcript, `find_unknown_levels.log`, holds every search in full, each behind a banner naming
+the row and the exit status, which is where to look when a row's one-line summary is not enough.
+
+**What the first full run found.** 106 levels, 516 s: 37 `firm`, 48 `weak`, 1 `no support`, 17
+with nothing in the window at all, and 3 that failed on a locked `IDEN_level_ids.txt` and are to
+be redone. 14 of the 37 firm positions are the only supported position their window offers. But
+22 of the 86 positions found carry a `Note` — 13 naming another row of the same run, 5 a level
+IDEN2 has already accepted, 8 sitting on the position their own row already has, four of them
+carrying two of these at once. That is the number that shows why the column had to exist: a
+quarter of a list of candidate levels, read without it, would be one level proposed two and
+three times over.
+
+Seven rows come out `firm`, uniquely supported, and noted against nothing, and they are where to
+start:
+
+| IDEN2 row | E_found, cm⁻¹ | `cowan_lid` | ln R | n_free |
+|---:|---:|---:|---:|---:|
+| 998 | 71767.229 | 126 | 10.6 | 6 |
+| 955 | 82084.069 | 168 | 6.5 | 5 |
+| 666 | 119809.290 | 344 | 11.9 | 4 |
+| 661 | 119998.510 | 347 | 11.7 | 5 |
+| 441 | 134074.417 | 2239 | 8.2 | 5 |
+| 465 | 133624.669 | 403 | 12.7 | 4 |
+| 479 | 132903.469 | 392 | 9.4 | 4 |
+
+**What the table is not.** It is a worklist, not a verdict. `firm` is the audit's word for a
+position the free lines support strongly enough to be worth looking at; whether the level is
+there is settled in IDEN2, by eye, against the plates and the branch structure — the same way
+every other identification in this project is settled. What follows an acceptance is
+`insert_new_level.py`, and `cowan_lid` is carried in this table so that the row of
+`new_levels.txt` it needs can be written without leaving the project.
 
 ### Putting a newly found level in: `insert_new_level.py`
 
@@ -4012,6 +4244,7 @@ python insert_new_level.py --iden2-row 742 --yes \
     --reject 91856.116="May add to pub line list as masked"
 python insert_new_level.py --iden2-row 742 --yes --rebuild \
     --reject 91856.116="May add to pub line list as masked" \
+    --reject 39785.512/000243="Too weak to contribute to blend" \
     --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
 ```
 
@@ -4022,7 +4255,7 @@ does with `--yes`, in order:
 |---|---|
 | **A** | every file the run can write is tested — `output_files.require_writable()`, so that a workbook open in Excel stops the run at the start rather than at the end — and then copied byte for byte into `insert_new_level_backup/` |
 | **B** | the level is added to `new_levels.txt` if it is not there: the next free identifier, the adopted energy and J of `enlev.dat`, the parity of the calculated level, `iden2_row` and `cowan_lid`. `IDEN2/IDEN_level_ids.txt` gets the identifier against the row |
-| **C** | the lines: what is already marked in `IDEN2/trans.dat` for that block, taken as given — and when there is any such mark, that is **all** the level gets; the tool's own proposals, only for a level with no mark anywhere; and `--reject WN=reason`, which writes a verdict and assigns nothing |
+| **C** | the lines: what is already marked in `IDEN2/trans.dat` for that block, taken as given — and when there is any such mark, that is **all** the level gets; the tool's own proposals, only for a level with no mark anywhere; and `--reject WN[/PARTNER]=reason`, which writes a verdict and assigns nothing |
 | **D0** | `lopt.bat LOPT.par` on the untouched input, to have a fit to compare with |
 | **D** | one record per accepted assignment goes into `LOPT_input_lines.txt`, and every unflagged record of every observed line the run touches is re-weighted together |
 | **E** | `lopt.bat LOPT.par` again, then `RSS/degrees_of_freedom` before against after, then the four-sigma Ritz check |
@@ -4032,7 +4265,7 @@ does with `--yes`, in order:
 | **I** | `sync_IDEN2.py` finishes the job |
 | **J** | the report, on screen and in `insert_new_level.log` |
 
-Six things about it are worth knowing.
+Ten things about it are worth knowing.
 
 **A level already marked up in IDEN2 gets nothing added to it.** The lines of a
 level that has been gone through on the screen, line by line, against the
@@ -4088,9 +4321,53 @@ the classification *rejects* is left rejected — `--accept` adopts what was
 shown, never everything on the line — and one IDEN2 already shows is left
 alone rather than given a ledger row, since a published identification nobody
 questioned is not this run's decision to claim. A line that should not be taken
-goes in as `--reject WN=reason` instead. Because these assignments enter the
+goes in as `--reject WN=reason` instead.
+
+**The exemption stops where this run's own records begin.** An assignment is
+only a decision nobody questioned while nothing has happened to it. Step D puts
+a record on the observed line and re-divides the weights of every unflagged
+record it carries, so a component of a line this run adds to has just had its
+share of the blend — and with it its share of the observed intensity —
+changed by this run. It gets its ledger row like any other. This is not a
+nicety: on 59485.815 the new level's predicted intensity was twelve times the
+sitting component's, which cut that component from the whole line to 0.0746 of
+it; round 1 of step F still accepted it, so the exemption applied and no row
+was written, and round 2 — with the new level's own accept row in the ledger
+— rejected it. `check_sync.py` then found it identified in `trans.dat` and
+weighted in the fit while the classification denied it, and the entire run was
+rolled back. For the same reason every adopted component is re-checked in every
+round, not only the first: one that the classification accepted when it was
+adopted and rejects later gets its row then, whatever IDEN2 shows, and the
+printout marks it `- the classification rejects it`. Because these assignments enter the
 fit only through the classification, the run that adopts them wants `--rebuild`
 as well; the held run prints the exact command line to use.
+
+**A component this run has just rejected is adopted too.** The rejection does
+not have to wait for round 2. On 11476.092 the sitting component
+`059003.000058-059003.000127` was cut from the whole line to 0.0180 of it — the
+new level's predicted intensity was 55 times its own — and round 1 of
+`classify_lines.py` rejected it outright, *calc contribution too weak vs
+I_cum*. It was therefore never a component "the classification accepts", so
+`--accept 11476.092/000127` adopted nothing and reported `matches no
+assignment`; the pair stayed weighted in `LOPT_input_lines.txt` and marked in
+`trans.dat` with the classification denying it, and `check_sync.py` rolled the
+run back. `--accept` now takes in a rejected component as well, under two
+conditions that must both hold:
+
+* its observed line is one **this run put a record on**, so that this run's own
+  re-division of the weights is what the classification rejected it for; and
+* the **fit or the screen still holds it** — it was weighted in
+  `LOPT_input_lines.txt` before this run touched the file (`P` records and zero
+  weights do not count, since they are in the file but not in the fit), or it is
+  identified in `IDEN2/trans.dat`.
+
+The first condition makes it this run's doing; the second makes the rejection a
+contradiction rather than a verdict, because an assignment in the fit or on the
+screen that the classification denies is exactly the pair of errors
+`check_sync.py` stops for. A component that fails either — one rejected long
+before this run, or a `P` row parked on the same line — is left rejected.
+`--accept` settles what this run has disturbed; it does not revive what was
+already dead.
 
 **`RSS/degrees_of_freedom` is reported before and after.** This is LOPT's own
 measure of how well the whole fit holds together: the sum, over every observed
@@ -4116,6 +4393,42 @@ once the position has been accepted in IDEN2 and written there. Until then the
 row holds the calculated position, which is nowhere near good enough to search
 on, and `--energy E` says where to put the level. Given as well as a measured
 energy, it overrides it.
+
+**A mark is a mark on a transition, not on a wavenumber.** `trans.dat` records
+which transition each mark is on — the row of the partner level in
+`enlev.dat` — and the tool reads it that way, joining that row to its
+`level_id` through `IDEN_level_ids.txt`. This matters on a blended feature: one
+observed line can lie inside the Ritz window of two transitions of the same
+level, and a mark on one says nothing whatever about the other. Matching on the
+wavenumber alone would call both of them *marked in IDEN2*, which overstates
+what was decided on the screen and, because a hand mark is never
+second-guessed, would quietly assign a transition nobody had looked at.
+
+**The table says which marks are old and which are new.** The `mark` column is
+`old` for an assignment `trans.dat` already shows and `new` for one this run
+would add to it; only the `new` ones are the tool's own doing, and only they
+are open to `--reject`. The rows the run passed over say nothing about what it
+will do, so they are counted rather than listed — `--show-skipped` lists them,
+each with the reason it was passed over.
+
+**`--reject` and `--accept` name an observed line, or one component of it.**
+The wavenumber is the **observed** one, the `obs wn` column of the table, never
+the Ritz wavenumber of the transition — that differs from it by the residual
+and matches nothing. `--reject WN=reason` names every transition of this level
+on that line; `--reject WN/PARTNER=reason` names the one whose other end is
+`PARTNER`, written in full (`059003.000243`) or by as much of its tail as is
+unambiguous (`000243`), which is how one component of a blend is refused and
+the rest of it kept. `--accept` takes the same two forms.
+
+**A component too faint to matter to the blend is never proposed.** A blended
+feature is fitted through its centroid, and its components move that centroid
+in proportion to their calculated intensities; one carrying less than
+`--min-share` (a tenth) of the total moves it by less than the fit can resolve.
+The line then neither confirms the assignment nor contradicts it, so making it
+would state more than the data hold. A transition that is alone on its line has
+no share and is never refused by this test, and the `P` records — candidates
+LOPT is shown but does not fit — are not components and do not count towards
+the total.
 
 **A line much stronger than predicted is never proposed.** It is listed as left
 free, with the factor and how many standard deviations of `ln(I_obs/I_calc)` it
@@ -4148,6 +4461,103 @@ records carrying the `P` flag — candidates LOPT is shown but does not fit — 
 not components and stay at weight zero. This is
 `make_LOPT_input.blend_weights()`, the same rule that a full rebuild applies.
 
+### Moving an assigned level: `move_level.py`
+
+`insert_new_level.py` puts into the pipeline a level that was never there.
+`move_level.py` is for the other case: a level that **is** there — its lines in
+the fit, its marks in IDEN2, its verdicts in the ledger — whose position turns
+out to be wrong. That is the work `level_positions.py --scan` sets up, and it
+is harder than an insertion, because the old position has to be taken apart
+before the new one can be built, and a move that took an assignment out of one
+file and left it in another would be exactly the silent disagreement
+`check_sync.py` exists to find.
+
+```
+python move_level.py 059003.000565 --energy 118967.3776
+python move_level.py --iden2-row 828 --from-lopt
+python move_level.py 059003.000565 --energy 118967.3776 --yes
+```
+
+The first form writes nothing: it prints what the move releases and what it
+assigns, and stops. The level is named by its identifier or by its row of
+`enlev.dat`, and the two are joined through `IDEN2/IDEN_level_ids.txt` and never
+by energy — a level being moved is precisely the level whose energy has just
+changed, so an energy match would lose the one level it was asked about.
+
+**Which file records the move depends on which list the level came from.** A
+level of the published list gets a row in `revised_level_energies.csv`: the
+adopted-level workbook is an external, published input and is never edited. A
+level found since, one of `new_levels.txt`, carries its energy there and is
+moved by changing it. The tool works out which of the two it is and writes that
+one only.
+
+**What survives the move, and what is released.** The whole model is rebuilt
+with the level at its new position, and every assignment it currently holds —
+gathered from all three of `LOPT_input_lines.txt`, `IDEN2/trans.dat` and
+`line_decisions.csv` — is put to it again. One that is still a candidate there
+survives and is left exactly as it stands: the same record, the same mark, the
+same ledger row. One that is not is released, and the reason is the test it
+failed:
+
+| reason written into the ledger | the test |
+|---|---|
+| `Too far from Ritz` | the observed wavenumber is more than `--release-sigma` (3) times the line's own uncertainty from the Ritz wavenumber the new position gives |
+| `Too weak to explain Iobs` | the line is more than `--strong-sigma` (3) standard deviations of `ln(I_obs/I_calc)` stronger than this transition could make it |
+| `Too weak to contribute to blend; may retain in pub list as masked.` | the line has other components and this one's predicted share of the blend is below `--masked-share` (5 %) |
+| `No calculated transition at the new position` | the pair is not in the calculated transition list at all |
+
+They are applied in that order, because a line nowhere near the new Ritz
+wavenumber is not this transition's whatever its intensity, and a line whose
+intensity the transition cannot account for is not its however well the
+wavenumbers agree. A transition that is the whole of its own line can never
+fail the blend test: there is nothing for it to be a small share of.
+
+**The released ledger rows are removed, not overwritten.** A row of
+`line_decisions.csv` is a verdict somebody reached on the screen. Once the
+level has moved it rules on a transition that no longer exists, so it has to go
+— but it is still the record of what was decided and why, and it is what to put
+back if the move is undone. Each one is copied into
+`line_decisions_removed.csv` with the date, the level it was removed for, and
+the release reason above, before being taken out.
+
+**The lines the new position opens up are proposed**, on the same rules
+`insert_new_level.py` proposes on — inside the Ritz window, never a line much
+stronger than predicted, one line to a transition and one transition to a line.
+This is the one place the two tools differ in their defaults: an insertion
+proposes nothing for a level already marked up in IDEN2, because those marks
+are the whole of the answer, whereas a move proposes by default, because the
+lines the level could not have at the old position are the point of moving it.
+Marks that survive the move are still taken as given and never second-guessed,
+and `--no-propose` keeps what survives and adds nothing.
+
+**Two kinds of ledger row come out of the classification, not one.** As in an
+insertion, an assignment the move intends that `classify_lines.py` will not
+make gets an `accept` row. A move also needs the opposite: a level that has
+moved leaves behind transitions the classification is still perfectly willing
+to propose at the old wavenumbers, and without a verdict they would simply come
+back at the next run. Each of those gets a `reject` row carrying the reason
+from the table above, so the ledger says *why* and not merely *that*.
+
+**Only the moved level's own assignments are written.** Releasing a line hands
+it back to whatever else can have it, and the classification may well accept
+one of those components on the strength of it. Which of them gets the line is a
+judgement to make in IDEN2, against the plates and the branch structure, so
+each is printed with the full dossier of its observed line and the run is
+**held** there — everything it wrote stays in place, `sync_IDEN2.py` is not run,
+`--undo` puts it all back, and `--accept WN[/PARTNER]` /
+`--reject WN[/PARTNER]=reason` are how the verdict is given, exactly as for an
+insertion — the partner naming one component of a blend and leaving the rest.
+
+The rest is `insert_new_level.py`'s sequence unchanged, and the code is
+literally the same: `move_level.py` imports it and calls its preflight, its
+LOPT runs, its four-sigma Ritz check, its ledger helpers and its IDEN2 writer,
+so there is one implementation of each and not two. `lopt.bat LOPT.par` is run
+once before anything is touched and once after, and `RSS/degrees_of_freedom` is
+reported both ways — a level moved at the cost of the rest of the fit has to
+show itself. A residual above `--ritz-sigma` (4) times a line's own
+uncertainty, an error from `check_sync.py`, a bug or a Ctrl-C puts every file
+back byte for byte from `move_level_backup/`. `--dry-run` does it on purpose.
+
 ### Excel-friendly output files
 
 All validation tables are written by `save_table()` (in `chance_mc.py`): every CSV gets an `.xlsx` twin, and floating-point columns are rounded to physically meaningful decimals. The rounding matters for CSVs: Python prints a 64-bit float with up to 17 significant digits (the number needed to reproduce the binary value exactly — not extra precision), while Excel reads at most 15 and converts longer numbers to text; in the `.xlsx` twins, J values such as `3/2` stay text instead of being converted to dates. If a target file is locked (open in Excel), the writer falls back to a `_new`-suffixed name instead of aborting the run.
@@ -4164,7 +4574,9 @@ python level_positions.py --scan  # 6. alternate positions, question marks → l
 python check_sync.py         # 7. do all the files still describe the same identification?
 python unfound_levels.py     # 8. which levels nobody has found are worth searching for
 python level_positions.py --unknown 742   # 9. and where the lines want one of them
-python insert_new_level.py --iden2-row 742   # 10. and how one of them gets in
+python find_unknown_levels.py             # 10. ... for the whole list at once -> found_levels.csv
+python insert_new_level.py --iden2-row 742   # 11. and how one of them gets in
+python move_level.py 059003.000565 --energy 118967.3776  # 12. or how one already in moves
 ```
 
 Repairing an interchange that step 5 flags is a separate act, done once and by hand:
@@ -4223,6 +4635,7 @@ Relative paths are taken relative to the directory holding the configuration fil
 | `[icalc.completeness]`      | `gA_cutoff`: the printing threshold of Cowan's codes, 1000 s⁻¹ — the basis of the censoring correction above |
 | `[missing_gA]`              | `policy` (`"impute"` or `"none"`) and the settings of the imputation recipe          |
 | `[intensity_model]`         | `C` and `kT` of `Icalc = C·gA·exp(−Eup/kT)/rwn`, plus the tolerance of the re-fit check |
+| `[decisions]`               | `max_forced_offset`: how far, in cm⁻¹, the Ritz wavenumber of a pair the decision ledger accepts may sit from the line it is accepted on before the run stops — the stale-row guard (5.0; optional, one row at a time exempted with `offset-ok` in its reason) |
 
 The remaining tunables are decisions about the *method* rather than the data, and stay as
 module constants and function defaults in `classify_lines.py`:
@@ -4260,7 +4673,19 @@ LineClass/
 ├── level_interchange.py          # Validation: are two levels of one parity and J wearing each
 │                                 #   other's calculated intensities?  --detail mode
 ├── level_positions.py             # Validation: the likelihood of a level position, and the
-│                                 #   scan that puts a question mark on it; --detail, --scan
+│                                 #   scan that puts a question mark on it; --detail, --scan;
+│                                 #   --unknown searches for a level nobody has found
+├── unfound_levels.py             # Search: which of the levels nobody has found are worth
+│                                 #   looking for, ranked by n_prom -> unfound_levels.csv/.xlsx
+├── find_unknown_levels.py        # Search: level_positions.py --unknown over the whole ranked
+│                                 #   list, one row per level -> found_levels.csv
+├── cowan_gA.py                   # Reader for Cowan's calculated transitions
+│                                 #   (tp_E1_no_trials.xlsx); the join between the calculation's
+│                                 #   lid, IDEN2's row number and Wyart's level_id
+├── check_sync.py                 # Do all the files still describe the same identification?
+├── sync_IDEN2.py                 # Brings the IDEN2 files into step with the current fit
+├── output_files.py               # require_writable(): a file open in Excel stops a run at the
+│                                 #   start rather than at the end
 ├── swap_line_assignments.py      # Repair: run the three scripts below in order
 ├── swap_line_assignments_LOPT.py # Repair: exchange two levels' lines in the LOPT transitions
 │                                 #   file, keeping both level identifiers where they are
@@ -4310,6 +4735,7 @@ LineClass/
 ├── icalc_new.xlsx                # Retired: the calculated transitions of those levels,
 │                                 #   now derived from tp_E1_no_trials.xlsx instead
 ├── insert_new_level.py           # Puts a newly found level into the pipeline, end to end
+├── move_level.py                 # Moves an already assigned level to a new position, end to end
 ├── revised_level_energies.csv    # Input (optional): revised adopted energies
 ├── line_decisions.csv            # Input (optional): the decision ledger
 ├── IDEN2/                        # The IDEN2 working files as last saved (dlv.dat,
@@ -4322,6 +4748,10 @@ LineClass/
 ├── line_classifications.xlsx     # Output: classification table (LOPT-ready)
 ├── line_classifications.csv      # Output: same data as CSV
 ├── level_shift_report.csv/.xlsx  # Output: per-level validation table (dE, pattern scores, p_spur)
+├── unfound_levels.csv/.xlsx      # Output: the unfound levels, best worth searching for first
+├── found_levels.csv              # Output: the best position each of those searches found,
+│                                 #   with the Note column saying what else is already there
+├── find_unknown_levels.log       # Output: every one of those searches, in full
 ├── decoy_mc_*.csv/.xlsx          # Output: decoy-run tables (levels, real levels, lines, summary)
 └── chance_mc_*.csv/.xlsx         # Output: shifted-wavenumber cross-check tables (optional)
 

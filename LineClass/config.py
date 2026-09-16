@@ -52,7 +52,8 @@ _ENUMS = {
 # Keys the configuration file may leave out; they take the default written
 # into load() below.
 _OPTIONAL = {'files.level_overrides', 'files.line_decisions',
-             'files.new_levels', 'files.icalc_extra'}
+             'files.new_levels', 'files.icalc_extra',
+             'decisions', 'decisions.max_forced_offset'}
 
 _SCHEMA = {
     'files': {'levels': str, 'lines': str, 'icalc': str,
@@ -67,6 +68,7 @@ _SCHEMA = {
     'missing_gA': {'policy': str, 'u_ln_window': float, 'u_ln_estimator': str,
                    'self_consistent': bool, 'fit_range_decades': _FloatPair},
     'intensity_model': {'C': float, 'kT': float, 'verify_tolerance': float},
+    'decisions': {'max_forced_offset': float},
 }
 
 
@@ -148,6 +150,10 @@ class Config:
     allow_below_cutoff: bool  # read rows that fall marginally below it
     missing_gA: dict          # the [missing_gA] table, keys as in the file
     intensity_model: dict     # the [intensity_model] table
+    max_forced_offset: float = 5.0
+    # How far, in cm^-1, the Ritz wavenumber of a pair the decision ledger
+    # accepts may sit from the wavenumber of the line it is accepted on before
+    # the run stops.  See classify_lines.check_forced_decisions().
 
 
 def load(path: str = None) -> Config:
@@ -191,6 +197,8 @@ def load(path: str = None) -> Config:
         allow_below_cutoff=raw['icalc']['completeness']['allow_below_cutoff'],
         missing_gA=raw['missing_gA'],
         intensity_model=raw['intensity_model'],
+        max_forced_offset=float(
+            raw.get('decisions', {}).get('max_forced_offset', 5.0)),
     )
 
 

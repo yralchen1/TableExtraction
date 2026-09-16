@@ -44,10 +44,35 @@ C. **The lines.**  The assignments already marked in ``IDEN2/trans.dat`` for
    LINE MUCH STRONGER THAN PREDICTED IS NEVER PROPOSED: it is listed as left
    free, because a line whose strength the new level cannot explain belongs to
    some other transition, and taking it would both misplace this level and hide
-   the real owner.  ``--propose`` asks for proposals beside the hand marks,
-   ``--no-propose`` for none ever.  ``--reject WN=reason`` writes a verdict and
-   assigns nothing.  Without ``--yes`` the run stops here, having written
-   nothing, and prints the table.
+   the real owner.  NOR IS A COMPONENT TOO FAINT TO MATTER TO THE BLEND it
+   would join: a blended feature is fitted through its centroid, which its
+   components move in proportion to their calculated intensities, so one
+   carrying less than ``--min-share`` (a tenth) of the total moves it by
+   nothing the fit can resolve - the line then neither confirms the assignment
+   nor contradicts it, and making it claims more than the data hold.
+   ``--propose`` asks for proposals beside the hand marks, ``--no-propose``
+   for none ever.
+
+   A MARK IS A MARK ON A TRANSITION, not on a wavenumber.  ``trans.dat``
+   records which transition each mark is on and this tool reads it that way:
+   one observed feature can lie inside the Ritz window of two transitions of
+   the same level, and a mark on one of them says nothing whatever about the
+   other.  In the table the ``mark`` column is ``old`` for an assignment
+   already on the screen and ``new`` for one this run would add, so that what
+   was decided before is never confused with what is being decided now.  The
+   rows the run passed over are counted rather than listed, since they say
+   nothing about what it will do; ``--show-skipped`` lists them with the
+   reason.
+
+   ``--reject WN=reason`` writes a reject verdict and assigns nothing.  WN is
+   the OBSERVED wavenumber of the line - the ``obs wn`` column of the table,
+   never the Ritz wavenumber, which differs from it by the residual and would
+   match nothing.  WN alone names every transition of this level on that line;
+   ``--reject WN/PARTNER=reason``, where PARTNER is the level at the other end
+   written in full or by its tail (``000243``), names one component of a blend
+   and leaves the rest of it alone.  ``--accept`` takes the same two forms.
+   Without ``--yes`` the run stops here, having written nothing, and prints
+   the table.
 
 D. **The LOPT input.**  One record per accepted assignment is inserted into
    ``LOPT_input_lines.txt`` in its own fixed-column layout.  Then, for every
@@ -95,7 +120,19 @@ F. **classify_lines.py and the ledger.**  The classification is run and its
    asks for it when that is what is wanted.  ``--accept WN`` writes an accept
    row for every component of the observed line at ``WN`` that the
    classification accepts and this level is not part of - the ones a previous
-   run listed as nobody's decision yet, once they have been looked at.
+   run listed as nobody's decision yet, once they have been looked at.  One
+   that is already marked in IDEN2 needs no row and gets none, so long as this
+   run leaves its line alone; but on a line this run puts a record on, it is
+   written like the rest, because this run has just taken part of that line's
+   intensity away from it and a later round can reject it on exactly that
+   ground.  Those rounds re-check every adopted component, not only this
+   level's own, so a component that loses its line to this level's rows is
+   caught while the run can still record the verdict - and one the very first
+   round has already rejected on that ground gets its row then, provided the
+   fit or the screen still holds it, because that is the contradiction
+   ``check_sync.py`` stops the run for.  A component the classification
+   rejected long before this run is left rejected: ``--accept`` settles what
+   this run has disturbed, it does not revive what was already dead.
 
 G. **IDEN2.**  What the classification finally accepts FOR THIS LEVEL is what
    ``IDEN2/trans.dat`` is made to show: marks made by hand are kept, missing
@@ -125,8 +162,9 @@ USAGE
     python insert_new_level.py --iden2-row 742
     python insert_new_level.py --iden2-row 742 --yes \\
         --reject 91856.116="May add to pub line list as masked"
-    python insert_new_level.py --iden2-row 742 --yes --rebuild \
-        --reject 91856.116="May add to pub line list as masked" \
+    python insert_new_level.py --iden2-row 742 --yes --rebuild \\
+        --reject 91856.116="May add to pub line list as masked" \\
+        --reject 39785.512/000243="Too weak to contribute to blend" \\
         --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
 
 The first form writes nothing: it prints the proposal table and stops.
@@ -222,6 +260,16 @@ U_OBS_LN = math.log(2.0)
 # fit, means the position or one of the lines is wrong.
 DEF_RITZ_SIGMA = 4.0
 
+# The smallest share of a blended feature's predicted intensity a component
+# may carry and still be proposed.  A blend is fitted through its centroid,
+# which its components move in proportion to their calculated intensities, so
+# a component at a hundredth of the total moves it by nothing the fit can
+# resolve: the line neither confirms the assignment nor contradicts it, and
+# making it states more than the data hold.  A transition alone on its line
+# has no share and is never refused by this test, and a hand mark in IDEN2 is
+# never overruled by it either.
+DEF_MIN_SHARE = 0.10
+
 REASON_ACCEPT = 'IDEN2/LOPT'
 REASON_ADOPT = 'checked on the screen; adopted with the new level'
 
@@ -292,26 +340,31 @@ def next_free_id(level_ids) -> str:
 # ---------------------------------------------------------------------------
 # A. Preflight and the backups
 # ---------------------------------------------------------------------------
-def preflight(paths, log) -> dict:
+def preflight(paths, log, backup_dir=None) -> dict:
     """Test every file for writability, then copy it into the run directory.
 
     Returns ``{path: backup path}``.  ``require_writable`` raises SystemExit
     naming the files Excel is holding, which is the whole point of doing this
     first: the run stops before any of the work rather than after all of it.
+
+    `backup_dir` is where the copies go; the default is this tool's own.
+    move_level.py calls this with its own directory, so that the two tools can
+    never put back each other's backups.
     """
-    output_files.require_writable(paths, 'file of this run')
-    if os.path.isdir(BACKUP_DIR):
-        shutil.rmtree(BACKUP_DIR)
-    os.makedirs(BACKUP_DIR)
+    backup_dir = backup_dir or BACKUP_DIR
+    output_files.require_writable(paths, 'file')
+    if os.path.isdir(backup_dir):
+        shutil.rmtree(backup_dir)
+    os.makedirs(backup_dir)
     saved = {}
     for path in paths:
         if not os.path.exists(path):
             continue
-        dest = os.path.join(BACKUP_DIR, os.path.basename(path))
+        dest = os.path.join(backup_dir, os.path.basename(path))
         shutil.copy2(path, dest)
         saved[path] = dest
     log('A. %d file(s) writable and backed up in %s'
-        % (len(saved), os.path.basename(BACKUP_DIR)))
+        % (len(saved), os.path.basename(backup_dir)))
     return saved
 
 
@@ -515,8 +568,81 @@ def gather_candidates(level, levels_dict, calc_index, lines, window):
     return out
 
 
-def choose(candidates, marked_wn, strong_sigma, propose_window, propose=None):
-    """Decide what each candidate is: taken from IDEN2, proposed, or left.
+def pair_key(a_id, b_id, levels_dict):
+    """``(lower, upper)`` of two identifiers, ordered by energy - the order in
+    which every transition in the pipeline is keyed."""
+    a, b = levels_dict.get(a_id), levels_dict.get(b_id)
+    if a is not None and b is not None and b.energy < a.energy:
+        return (b_id, a_id)
+    return (a_id, b_id)
+
+
+def blend_share_of(candidates, calc_index, lopt_rows, marked_pairs=()):
+    """``candidate -> its share of its line's predicted intensity``, or ``None``.
+
+    A line that several transitions share is fitted as one blended feature and
+    the components divide it in proportion to their calculated intensities.
+    The share is over everything that would sit on the observed line: the
+    records already in the LOPT input for it, whatever level they belong to,
+    and the transitions of the new level offered for it here.  ``P`` records -
+    candidates LOPT is shown but does not fit - are not part of the feature and
+    do not count.  ``None`` when nothing else is on the line: a transition that
+    is the whole of its line is never too weak for it.
+    """
+    on_line = {}        # wn to 3 dp -> {(low, upp): calculated intensity}
+    for r in lopt_rows:
+        if 'P' in r['flag'].upper():
+            continue
+        d = calc_index.get((r['low_id'], r['upp_id'])) or {}
+        on_line.setdefault(round(r['wn'], 3), {})[(r['low_id'], r['upp_id'])] \
+            = d.get('calc_intensity') or 0.0
+    for c in candidates:
+        if c.key() in marked_pairs:
+            on_line.setdefault(round(c.wn, 3), {}).setdefault(
+                c.key(), c.calc_intens or 0.0)
+
+    def share(c):
+        group = dict(on_line.get(round(c.wn, 3)) or {})
+        group.setdefault(c.key(), c.calc_intens or 0.0)
+        if len(group) < 2:
+            return None
+        total = sum(group.values())
+        if total <= 0:
+            return None
+        return (group.get(c.key()) or 0.0) / total
+    return share
+
+
+def marked_test(marked):
+    """A predicate ``(wn, low_id, upp_id) -> bool`` from what IDEN2 shows.
+
+    `marked` is either a mapping ``{(low_id, upp_id): observed wavenumber}`` -
+    the marks identified by the transition they are on, which is what
+    ``trans.dat`` actually records - or a bare sequence of wavenumbers, for a
+    caller that has no partner identifiers to hand.
+
+    THE DIFFERENCE MATTERS ON A BLENDED LINE.  One observed feature can be
+    within the Ritz window of two transitions of the same level, and a mark on
+    one of them says nothing about the other.  Matching on the wavenumber
+    alone declares both "marked in IDEN2", which both overstates what the
+    analyst decided and, because a mark is never second-guessed, quietly
+    assigns a transition nobody looked at.
+    """
+    try:
+        pairs = {(low, upp): wn for (low, upp), wn in marked.items()}
+    except AttributeError:
+        wns = [float(w) for w in marked]
+        return lambda wn, low, upp: any(abs(wn - w) < 5e-3 for w in wns)
+
+    def test(wn, low, upp):
+        w = pairs.get((low, upp), pairs.get((upp, low)))
+        return w is not None and abs(wn - w) < 5e-3
+    return test
+
+
+def choose(candidates, marked, strong_sigma, propose_window, propose=None,
+           share=None, min_share=0.0):
+    """Decide what each candidate is: taken from IDEN2, proposed, or skipped.
 
     The hand marks in IDEN2 are decisions already taken and are never
     second-guessed.
@@ -535,35 +661,55 @@ def choose(candidates, marked_wn, strong_sigma, propose_window, propose=None):
 
     Among the lines it does propose, one transition may take at most one line
     and one line at most one transition of this level - a level cannot have
-    two of its transitions on the same feature - and a line much stronger than
-    predicted is refused outright, whatever else is on offer.
+    two of its transitions on the same feature - a line much stronger than
+    predicted is refused outright, whatever else is on offer, and so is a
+    component too faint to matter to the blend it would join: `share` is a
+    function ``candidate -> its fraction of the line's predicted intensity``
+    (``None`` when the line has no other component), and a candidate below
+    `min_share` of it is not proposed.  A branch carrying a hundredth of what
+    the feature emits cannot be shown to be on it and cannot be shown not to
+    be; assigning it adds a claim the data do not carry.
     """
+    is_marked = marked_test(marked)
     for c in candidates:
-        if any(abs(c.wn - w) < 5e-3 for w in marked_wn):
+        if is_marked(c.wn, c.low_id, c.upp_id):
             c.source = 'IDEN2'
             c.verdict = 'marked in IDEN2'
+
+    # What is marked is marked on a transition, so a candidate for the same
+    # transition on a different line is out whether or not anything is
+    # proposed, and it is worth saying which line took it.
+    marked_of = {c.key(): c.wn for c in candidates if c.source == 'IDEN2'}
+    for c in candidates:
+        if not c.source and c.key() in marked_of:
+            c.verdict = ('skipped: this transition is marked in IDEN2 at '
+                         '%.3f' % marked_of[c.key()])
 
     if propose is None:
         propose = not any(c.source == 'IDEN2' for c in candidates)
     if not propose:
         for c in candidates:
-            if not c.source:
-                c.verdict = ("left: this level's lines are the ones marked in "
-                             'IDEN2')
+            if not c.source and not c.verdict:
+                c.verdict = ("skipped: this level's lines are the ones marked "
+                             'in IDEN2')
         return candidates
 
-    free = [c for c in candidates if not c.source]
+    free = [c for c in candidates if not c.source and not c.verdict]
     # Refuse the too-strong ones first, so that they cannot win a transition
     # away from a line the prediction can account for.
     rest = []
     for c in free:
         z = c.z_intensity
+        s = share(c) if share is not None else None
         if z is not None and z > strong_sigma:
             c.verdict = ('left free: %.0f times stronger than predicted (%.1f '
                          'sigma)' % (math.exp(c.ln_ratio), z))
         elif abs(c.residual) > propose_window:
-            c.verdict = ('left: %.3f cm^-1 from the prediction, too far to '
+            c.verdict = ('skipped: %.3f cm^-1 from the prediction, too far to '
                          'take without looking' % abs(c.residual))
+        elif s is not None and s < min_share:
+            c.verdict = ('skipped: %.2g%% of the blend\'s predicted intensity, '
+                         'too weak to contribute' % (100.0 * s))
         else:
             rest.append(c)
 
@@ -575,10 +721,11 @@ def choose(candidates, marked_wn, strong_sigma, propose_window, propose=None):
     # Closest in wavenumber first: the best explanation of a line gets it.
     for c in sorted(rest, key=lambda c: abs(c.residual)):
         if c.key() in taken_trans:
-            c.verdict = 'left: the transition already has a line'
+            c.verdict = 'skipped: the transition already has a line'
             continue
         if round(c.wn, 4) in taken_wn:
-            c.verdict = 'left: the line already has a transition of this level'
+            c.verdict = ('skipped: the line already has a transition of this '
+                         'level')
             continue
         c.source = 'proposed'
         c.verdict = 'proposed'
@@ -587,21 +734,65 @@ def choose(candidates, marked_wn, strong_sigma, propose_window, propose=None):
     return candidates
 
 
-def candidate_table(candidates, log):
-    log('   %-13s %-13s %11s %11s %7s %10s %10s %6s  %s'
+def candidate_table(candidates, log, show_skipped=False):
+    """The candidates, one per row, with what is to become of each.
+
+    The ``mark`` column is what IDEN2 will hold when the run is done, against
+    what it holds now: ``old`` is an assignment that is on the screen already
+    and is being taken as given, ``new`` one this run would add to
+    ``trans.dat``.  The two are worth telling apart at a glance, because only
+    the ``new`` ones are this tool's own doing and only they are open to
+    ``--reject``.
+
+    Rows the run passed over are the bulk of the table and say nothing about
+    what it will do, so by default they are counted rather than listed; the
+    exception is a line left free for another transition, which is a finding.
+    `show_skipped` lists them all.
+    """
+    shown = [c for c in candidates
+             if show_skipped or c.source or not c.verdict.startswith('skipped')]
+    log('   %-13s %-13s %11s %11s %7s %10s %10s %6s %-4s %s'
         % ('lower', 'upper', 'Ritz wn', 'obs wn', 'O-C', 'I_obs', 'I_calc',
-           'sigma', 'verdict'))
-    for c in candidates:
+           'sigma', 'mark', 'verdict'))
+    for c in shown:
         z = c.z_intensity
-        log('   %-13s %-13s %11.3f %11.3f %+7.3f %10.4g %10.4g %6s  %s'
+        mark = {'IDEN2': 'old', 'proposed': 'new'}.get(c.source, '-')
+        log('   %-13s %-13s %11.3f %11.3f %+7.3f %10.4g %10.4g %6s %-4s %s'
             % (c.low_id, c.upp_id, c.rwn, c.wn, c.residual,
                c.line.intensity, c.calc_intens or 0.0,
-               '%+.1f' % z if z is not None else '-', c.verdict))
+               '%+.1f' % z if z is not None else '-', mark, c.verdict))
+    hidden = len(candidates) - len(shown)
+    if hidden:
+        log('   %d further candidate(s) passed over (--show-skipped lists '
+            'them with the reason)' % hidden)
 
 
 # ---------------------------------------------------------------------------
 # D. The LOPT input
 # ---------------------------------------------------------------------------
+# LOPT_input_lines.txt keeps the observed wavenumber at THREE decimals -
+# make_LOPT_input.format_line writes it as '%.3f' - while a candidate carries
+# the full precision of Pr3_lines.xlsx: 81027.41941532 against the file's
+# 81027.419.  Anything that matches a candidate against a record of that file
+# must therefore round both sides to the file's own precision.  Rounding to
+# four decimals instead made every record ALREADY in the file look absent, so
+# an assignment the analyst had put there by hand was inserted a second time;
+# LOPT then fitted the line twice and gave each copy half the weight, and
+# check_sync reported the transition as weighted 0.5 where the classification
+# wanted 1.0.  The same mistake kept reweigh() from finding the records of a
+# touched line at all, which is why no weight was ever recomputed.
+LOPT_WN_DP = 3
+
+
+def lopt_key(wn) -> float:
+    """One observed wavenumber at the precision ``LOPT_input_lines.txt`` keeps.
+
+    Use it on BOTH sides of every comparison between a candidate and a record
+    of that file - never ``round(wn, 4)``, which no record can ever match.
+    """
+    return round(float(wn), LOPT_WN_DP)
+
+
 def read_lopt_input(path: str) -> list:
     """The records of ``LOPT_input_lines.txt``, parsed by their fixed columns.
 
@@ -667,11 +858,11 @@ def reweigh(rows, wavenumbers, calc_of, log) -> int:
     which is why every record of every touched wavenumber is rewritten and not
     only the new ones.
     """
-    touched = set(round(w, 4) for w in wavenumbers)
+    touched = set(lopt_key(w) for w in wavenumbers)
     n = 0
     for wn in sorted(touched, reverse=True):
         group = [r for r in rows
-                 if round(r['wn'], 4) == wn and 'P' not in r['flag'].upper()]
+                 if lopt_key(r['wn']) == wn and 'P' not in r['flag'].upper()]
         if not group:
             continue
         proxy = [{'calc_intens': calc_of.get((r['low_id'], r['upp_id']), 0.0)}
@@ -929,6 +1120,117 @@ def classification_verdicts(path: str) -> dict:
     return out
 
 
+def register_adoptions(accepts, verdicts: dict, level_id: str,
+                       adopted: dict, touched_wn=(), in_fit=(),
+                       on_screen=(), id_rows=None) -> list:
+    """Remember the pairs the ``--accept`` specs name, into ``adopted``.
+
+    ``--accept`` names an observed line, not a pair: what it adopts is every
+    component of that line the classification accepts and the level being
+    inserted is not part of - which is exactly the list a previous run printed
+    as nobody's decision yet.
+
+    A component the classification REJECTS is adopted as well, but only where
+    leaving it rejected would contradict something that is already standing:
+    the line has to be one this run put a record on (``touched_wn``), and the
+    component has to be held either by the fit (``in_fit``, the records
+    ``LOPT_input_lines.txt`` carried before this run touched it, P rows and
+    zero weights excluded) or by the screen (``on_screen``, keyed by IDEN2 row
+    through ``id_rows``).  Both conditions matter.  The first says this run is
+    what rejected it: step D re-divided that line's weights, and a component
+    cut to a small share of the blend no longer accounts for the observed
+    intensity credited to it, which is precisely the ground the classification
+    rejects it on.  The second says the rejection is a contradiction rather
+    than a verdict: an assignment in the fit or on the screen that the
+    classification denies is the two errors check_sync.py reports and the run
+    is rolled back for.  A component that is in neither - one the
+    classification rejected long before this run, or a P row parked on the
+    line - is left rejected, because nothing disagrees with that.
+
+    ``adopted`` is ``{(wn, low, upp): (wn, low, upp, reason)}`` and is added
+    to, never rebuilt, so that a pair registered in one round is still known
+    in the next - which is what lets adoption_rows() notice that a later round
+    has rejected it.  The return value is the specs that matched nothing.
+    """
+    missed = []
+    for spec in accepts:
+        hit = 0
+        for (kwn, low, upp), ok in sorted(verdicts.items()):
+            if level_id in (low, upp) or not spec.matches(kwn, low, upp):
+                continue
+            if not ok and not standing(kwn, low, upp, touched_wn, in_fit,
+                                       on_screen, id_rows):
+                continue
+            hit += 1
+            adopted.setdefault((round(kwn, 3), low, upp),
+                               (kwn, low, upp, spec.reason))
+        if not hit:
+            missed.append(spec)
+    return missed
+
+
+def standing(kwn, low: str, upp: str, touched_wn, in_fit, on_screen,
+             id_rows=None) -> bool:
+    """Is this rejected component one this run has just contradicted?
+
+    True when its line is one this run put a record on and the assignment is
+    still held by the fit or by IDEN2.  register_adoptions() explains what
+    each of those means and why both are required.
+    """
+    if round(kwn, 2) not in set(touched_wn):
+        return False
+    if (round(kwn, 3), low, upp) in set(in_fit):
+        return True
+    rows = id_rows or {}
+    seen = frozenset((rows.get(low), rows.get(upp)))
+    return (round(kwn, 2), seen) in set(on_screen)
+
+
+def adoption_rows(adopted: dict, verdicts: dict, have: set, written: set,
+                  on_screen: set, touched_wn: set, id_rows: dict,
+                  today: str) -> tuple:
+    """The ledger rows the adopted assignments need now, and the ones left be.
+
+    Returns ``(rows, left)``.  ``rows`` is a list of
+    ``(key, row, still_accepted)``, ``left`` a list of ``(wn, low, upp)`` that
+    need no row.
+
+    An assignment already marked in ``IDEN2/trans.dat`` needs no ledger row:
+    writing one would turn a published identification nobody questioned into a
+    decision this run claims to have taken.  That holds only while this run
+    leaves its line alone.  ``touched_wn`` is every observed wavenumber step D
+    put a record on and re-divided the weights of; a component of one of those
+    has just had its share of the blend changed by this run, so this run is
+    what questions it and its verdict belongs in the ledger like any other.
+
+    ``still_accepted`` is False for a pair the classification does not accept
+    as things stand - either one it accepted when it was adopted and has since
+    rejected, or one it rejected from the first round.  Both come of the same
+    thing: step D gives the new level a share of the blend, and the component
+    left with the remainder no longer accounts for the observed intensity it
+    is credited with.  Such a pair gets its row whatever the screen shows: the
+    alternative is an assignment marked in IDEN2 and weighted in the fit that
+    the classification denies, which is what check_sync.py reports as an
+    error.
+    """
+    rows, left = [], []
+    for key in sorted(adopted):
+        kwn, low, upp, reason = adopted[key]
+        if key in have or key in written:
+            continue
+        still = verdicts.get(key) is True
+        seen = frozenset((id_rows.get(low), id_rows.get(upp)))
+        if (still and round(kwn, 2) not in touched_wn
+                and (round(kwn, 2), seen) in on_screen):
+            left.append((kwn, low, upp))
+            continue
+        rows.append((key, {'wn_obs': '%.4f' % kwn, 'low_id': low,
+                           'upp_id': upp, 'decision': 'accept',
+                           'date': today, 'reason': reason}, still))
+    return rows, left
+
+
+
 def classification_rows(path: str) -> dict:
     """``{wavenumber rounded to 0.01: [row, ...]}`` of ``line_classifications``.
 
@@ -1016,34 +1318,79 @@ def line_dossier(wn, rows, before, level_id, log) -> None:
 # ---------------------------------------------------------------------------
 # The command line
 # ---------------------------------------------------------------------------
+class Target(tuple):
+    """One ``--reject``/``--accept`` argument: which assignment it names.
+
+    ``wn`` IS THE OBSERVED WAVENUMBER OF THE LINE as ``Pr3_lines.xlsx`` gives
+    it and as the candidate table prints it in the ``obs wn`` column - never
+    the Ritz wavenumber of the transition, which differs from it by the
+    residual and will match nothing.
+
+    ``partner`` is the identifier of the level at the other end of the
+    transition, or ``''`` for "every transition of this level on that line".
+    A blended line carries more than one transition of the new level's
+    partners, and without the partner there is no way to say which of them is
+    meant; with it, the others are left alone.  It may be written in full
+    (``059003.000243``) or as as much of its tail as is unambiguous
+    (``000243``, ``243``).
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, wn, partner, reason):
+        return tuple.__new__(cls, (float(wn), partner, reason))
+
+    wn = property(lambda self: self[0])
+    partner = property(lambda self: self[1])
+    reason = property(lambda self: self[2])
+
+    def matches(self, wn, low_id=None, upp_id=None, tol=5e-3) -> bool:
+        """Is this the assignment named?  A caller with no transition in hand
+        passes the wavenumber alone, and then the partner cannot narrow
+        anything and is not applied."""
+        if abs(wn - self.wn) >= tol:
+            return False
+        if not self.partner or low_id is None or upp_id is None:
+            return True
+        return any(lid == self.partner or lid.endswith(self.partner)
+                   for lid in (low_id, upp_id))
+
+
+def split_target(text, flag):
+    """``WN`` or ``WN/PARTNER`` into ``(wavenumber, partner)``."""
+    wn, _sep, partner = text.partition('/')
+    try:
+        return float(wn), partner.strip()
+    except ValueError:
+        raise SystemExit('%s: %r is not a wavenumber' % (flag, wn))
+
+
 def parse_reject(values):
-    """``--reject WN=reason`` into ``[(wavenumber, reason), ...]``."""
+    """``--reject WN[/PARTNER]=reason`` into a list of `Target`."""
     out = []
     for text in values or []:
-        wn, sep, reason = text.partition('=')
+        spec, sep, reason = text.partition('=')
         if not sep:
-            raise SystemExit('--reject wants WN=reason, not %r' % text)
-        try:
-            out.append((float(wn), reason.strip()))
-        except ValueError:
-            raise SystemExit('--reject: %r is not a wavenumber' % wn)
+            raise SystemExit('--reject wants WN=reason or WN/PARTNER=reason, '
+                             'not %r' % text)
+        wn, partner = split_target(spec, '--reject')
+        out.append(Target(wn, partner, reason.strip()))
     return out
 
 
 def parse_accept(values):
-    """``--accept WN`` or ``--accept WN=reason`` into ``[(wn, reason), ...]``.
+    """``--accept WN[/PARTNER]`` or ``...=reason`` into a list of `Target`.
 
     The reason is what goes into ``line_decisions.csv``; left out, it is
     ``REASON_ADOPT``, which says only that the assignment was looked at.
     """
     out = []
     for text in values or []:
-        wn, sep, reason = text.partition('=')
-        try:
-            out.append((float(wn), reason.strip() if sep and reason.strip()
-                        else REASON_ADOPT))
-        except ValueError:
-            raise SystemExit('--accept: %r is not a wavenumber' % wn)
+        spec, sep, reason = text.partition('=')
+        wn, partner = split_target(spec, '--accept')
+        out.append(Target(wn, partner,
+                          reason.strip() if sep and reason.strip()
+                          else REASON_ADOPT))
     return out
 
 
@@ -1063,16 +1410,30 @@ def parse_args(argv=None):
                         'position is the analyst\'s decision and there is '
                         'nowhere else to read it from.  Given as well as one '
                         'in enlev.dat, it overrides it.')
-    p.add_argument('--reject', action='append', metavar='WN=REASON',
-                   help='record a reject verdict for the line at WN, with the '
-                        'reason given; may be repeated')
-    p.add_argument('--accept', action='append', metavar='WN[=REASON]',
+    p.add_argument('--reject', action='append', metavar='WN[/PARTNER]=REASON',
+                   help='record a reject verdict, with the reason given, and '
+                        'assign nothing.  WN is the OBSERVED wavenumber of '
+                        'the line, as the obs wn column of the candidate '
+                        'table prints it, not the Ritz wavenumber.  WN alone '
+                        "names every transition of this level on that line; "
+                        'WN/PARTNER, where PARTNER is the identifier of the '
+                        'level at the other end (in full or by its tail, '
+                        '000243), names the one - which is how one component '
+                        'of a blend is refused and the rest kept.  May be '
+                        'repeated')
+    p.add_argument('--accept', action='append',
+                   metavar='WN[/PARTNER][=REASON]',
                    help='adopt the other assignment(s) the classification has '
                         'newly accepted on the observed line at WN - the ones '
                         "a previous run listed as nobody's decision yet.  "
                         'They are written into IDEN2 and into '
                         "line_decisions.csv like this level's own, and no "
-                        'longer hold the run.  May be repeated')
+                        'longer hold the run.  One already marked in IDEN2 on '
+                        'a line this run does not touch is left as it is.  '
+                        'One the classification rejects is adopted too where '
+                        'this run is what rejected it: its line is one this '
+                        'run adds a record to and the fit or IDEN2 still '
+                        'holds it.  May be repeated')
     p.add_argument('--window', type=float, default=DEF_WINDOW, metavar='CM',
                    help='half-width of the Ritz window, cm^-1 (default %(default)s)')
     p.add_argument('--propose-window', type=float,
@@ -1083,6 +1444,14 @@ def parse_args(argv=None):
                    metavar='S',
                    help='refuse a line more than S sigma stronger than '
                         'predicted (default %(default)s)')
+    p.add_argument('--min-share', type=float, default=DEF_MIN_SHARE,
+                   metavar='F',
+                   help='refuse a component carrying less than this fraction '
+                        "of its blended line's predicted intensity "
+                        '(default %(default)s)')
+    p.add_argument('--show-skipped', action='store_true',
+                   help='list in the candidate table the rows the run passed '
+                        'over, not only the ones it acts on')
     p.add_argument('--ritz-sigma', type=float, default=DEF_RITZ_SIGMA,
                    metavar='S',
                    help='a LOPT residual above S times the line uncertainty '
@@ -1276,26 +1645,52 @@ def _run(args, rejects, accepts, saved, log, today):
 
     trans = IDEN.Trans(TRANS)
     marked = marked_assignments(trans, index)
-    marked_wn = [wn for wn, _row, _code in marked.values()]
+    # A mark is a mark on a TRANSITION, and trans.dat records which one: the
+    # key of `marked` is the partner's row of enlev.dat.  Identifying the mark
+    # by its partner rather than by its wavenumber is what keeps a blended
+    # line's other components out of "marked in IDEN2" - see marked_test.
+    marked_pairs, marked_loose = {}, []
+    for partner_row, (wn, _row, _code) in marked.items():
+        partner_id = by_row.get(partner_row)
+        if partner_id is None or partner_id not in levels_dict:
+            marked_loose.append(wn)
+            log('   row %d, the partner of the mark at %.3f, is in no '
+                'level list; that mark is matched by wavenumber alone'
+                % (partner_row, wn))
+            continue
+        marked_pairs[pair_key(partner_id, level_id, levels_dict)] = wn
     log('   %d assignment(s) already marked in %s for row %d'
         % (len(marked), os.path.basename(TRANS), index))
 
     level = levels_dict[level_id]
     candidates = gather_candidates(level, levels_dict, calc_index, lines,
                                    args.window)
-    choose(candidates, marked_wn, args.strong_sigma, args.propose_window,
-           args.propose)
+    if marked_loose:
+        for c in candidates:
+            if any(abs(c.wn - w) < 5e-3 for w in marked_loose):
+                marked_pairs.setdefault(c.key(), c.wn)
+    share = blend_share_of(candidates, calc_index,
+                           read_lopt_input(LOPT_INPUT), marked_pairs)
+    choose(candidates, marked_pairs, args.strong_sigma, args.propose_window,
+           args.propose, share=share, min_share=args.min_share)
     if marked and args.propose is None:
         log('   the lines of this level are taken from IDEN2 alone; nothing '
             'is proposed here (--propose to propose as well)')
 
-    # a --reject wavenumber is never assigned, whatever else was decided
-    reject_wn = [wn for wn, _r in rejects]
+    # --reject names an assignment and that assignment is never made, whatever
+    # else was decided.  WN alone names every transition of this level on that
+    # line; WN/PARTNER names the one.
     for c in candidates:
-        if any(abs(c.wn - wn) < 5e-3 for wn in reject_wn):
-            c.source = ''
-            c.verdict = 'rejected on the command line'
-    candidate_table(candidates, log)
+        for spec in rejects:
+            if spec.matches(c.wn, c.low_id, c.upp_id):
+                c.source = ''
+                c.verdict = 'rejected on the command line'
+                break
+    for spec in rejects:
+        if not any(spec.matches(c.wn, c.low_id, c.upp_id) for c in candidates):
+            log('   --reject %.3f%s matches no candidate of this level'
+                % (spec.wn, '/' + spec.partner if spec.partner else ''))
+    candidate_table(candidates, log, args.show_skipped)
 
     accepted = [c for c in candidates if c.source]
     left = [c for c in candidates
@@ -1346,17 +1741,33 @@ def _run(args, rejects, accepts, saved, log, today):
                for k, v in calc_index.items()}
     calc_of.update(classification_intensities(CLASSIFICATIONS))
     lopt_rows = read_lopt_input(LOPT_INPUT)
-    present = {(round(r['wn'], 4), r['low_id'], r['upp_id'])
-               for r in lopt_rows}
+    present = {}
+    for r in lopt_rows:
+        present.setdefault((lopt_key(r['wn']), r['low_id'], r['upp_id']),
+                           []).append(r)
+    for key, group in sorted(present.items()):
+        if len(group) > 1:
+            log('   WARNING %.3f  %s - %s is in the file %d times already; '
+                'this run leaves the duplicates alone, but LOPT will fit the '
+                'line once per copy and split its weight between them'
+                % (key[0], key[1], key[2], len(group)))
+    # Every component the fit already carries, before this run adds a thing:
+    # {(wn, low_id, upp_id)}, without the P rows and the zero weights, which
+    # are in the file but not in the fit.  Step F needs it; the comment there
+    # says why.
+    in_fit = {(lopt_key(r['wn']), r['low_id'], r['upp_id']) for r in lopt_rows
+              if 'P' not in (r.get('flag') or '')
+              and float(r.get('weight') or 0.0) > 0.0}
     n_new = 0
     for c in accepted:
-        key = (round(c.wn, 4), c.low_id, c.upp_id)
+        key = (lopt_key(c.wn), c.low_id, c.upp_id)
         if key in present:
             continue
-        lopt_rows.append({'wn': c.wn, 'unc': c.line.wn_uncertainty,
-                          'intens': c.line.intensity, 'low_id': c.low_id,
-                          'upp_id': c.upp_id, 'flag': '', 'weight': 1.0,
-                          'raw': None})
+        row = {'wn': c.wn, 'unc': c.line.wn_uncertainty,
+               'intens': c.line.intensity, 'low_id': c.low_id,
+               'upp_id': c.upp_id, 'flag': '', 'weight': 1.0, 'raw': None}
+        lopt_rows.append(row)
+        present.setdefault(key, []).append(row)
         n_new += 1
     n_w = reweigh(lopt_rows, [c.wn for c in accepted], calc_of, log)
     write_lopt_input(LOPT_INPUT, lopt_rows)
@@ -1433,8 +1844,21 @@ def _run(args, rejects, accepts, saved, log, today):
                 on_screen.add((round(IDEN.obs_wavenumber(_obs), 2),
                                frozenset((_owner, _partner))))
         del _tr
+    # ...but only for a line this run leaves alone.  Step D put a record on
+    # every wavenumber below and re-divided its weights, so a component of
+    # one of them has just had its share of the blend changed by this run and
+    # is no longer an assignment nobody questioned: this run is what
+    # questions it, and its verdict belongs in the ledger like any other.
+    touched_wn = {round(c.wn, 2) for c in accepted}
     ledger_rows = []
     written = set()
+    # Every pair a --accept spec named while the classification accepted it,
+    # as {key: (wn, low, upp, reason)}.  It is carried from round to round
+    # because the rows of one round change the blend shares of the next: a
+    # component this run has just taken a share of its line from can fall out
+    # of the classification after it was adopted.  See the loop below.
+    adopted = {}
+    noted = set()
     settled = False
     for attempt in range(1, 4):
         log('   round %d' % attempt)
@@ -1455,39 +1879,37 @@ def _run(args, rejects, accepts, saved, log, today):
             written.add(key)
             log('     accept %11.3f  %s - %s  (%s)'
                 % (c.wn, c.low_id, c.upp_id, why))
+        # --accept is re-checked every round, not only the first: the rows
+        # of round 1 change the blend shares of round 2, and a component this
+        # level has just taken a share of its line from can fall out of the
+        # classification after it was adopted.  register_adoptions() and
+        # adoption_rows() carry that between the rounds, and a component the
+        # very first round already rejects on that ground is taken in too.
+        for spec in register_adoptions(accepts, verdicts, level_id, adopted,
+                                       touched_wn, in_fit, on_screen,
+                                       id_rows):
+            if attempt == 1:
+                log('     --accept %.3f matches no assignment on that line '
+                    'that this run may adopt' % spec.wn)
+        rows, left = adoption_rows(adopted, verdicts, have, written,
+                                   on_screen, touched_wn, id_rows, today)
+        for kwn, low, upp in left:
+            if (round(kwn, 3), low, upp) in noted:
+                continue
+            noted.add((round(kwn, 3), low, upp))
+            log('     %11.3f  %s - %s is on the screen already and this run '
+                'does not touch its line; left as it is' % (kwn, low, upp))
+        for key, row, still in rows:
+            fresh.append(row)
+            written.add(key)
+            log('     adopt  %11.3f  %s - %s  (%s)%s'
+                % (key[0], key[1], key[2], row['reason'], '' if still else
+                   '  - the classification rejects it'))
         if attempt == 1:
-            # --accept names an observed line, not a pair: what is adopted is
-            # every component of that line the classification accepts and this
-            # level is not part of - which is exactly the list a previous run
-            # printed as nobody's decision yet.  A component the
-            # classification rejects is left rejected: --accept says "the ones
-            # you showed me are good", never "take everything on this line".
-            for wn, reason in accepts:
-                hit = 0
-                for (kwn, low, upp), ok in sorted(verdicts.items()):
-                    if not ok or abs(kwn - wn) > 5e-3                             or level_id in (low, upp):
-                        continue
-                    hit += 1
-                    key = (round(kwn, 3), low, upp)
-                    if key in have or key in written:
-                        continue
-                    rows = frozenset((id_rows.get(low), id_rows.get(upp)))
-                    if (round(kwn, 2), rows) in on_screen:
-                        log('     %11.3f  %s - %s is on the screen already; '
-                            'left as it is' % (kwn, low, upp))
-                        continue
-                    fresh.append({'wn_obs': '%.4f' % kwn, 'low_id': low,
-                                  'upp_id': upp, 'decision': 'accept',
-                                  'date': today, 'reason': reason})
-                    written.add(key)
-                    log('     adopt  %11.3f  %s - %s  (%s)'
-                        % (kwn, low, upp, reason))
-                if not hit:
-                    log('     --accept %.3f matches no assignment the '
-                        'classification accepts on that line' % wn)
-            for wn, reason in rejects:
+            for spec in rejects:
+                reason = spec.reason
                 for c in candidates:
-                    if abs(c.wn - wn) > 5e-3:
+                    if not spec.matches(c.wn, c.low_id, c.upp_id):
                         continue
                     key = (round(c.wn, 3), c.low_id, c.upp_id)
                     if key in have or key in written:
@@ -1554,7 +1976,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # the branch, the plate or the intensity.  They are listed below instead,
     # and the run stops before sync_IDEN2.py so that they can be looked at.
     verdicts_final = classification_verdicts(CLASSIFICATIONS)
-    adopt_wn = {round(wn, 2) for wn, _r in accepts}
+    adopt_wn = {round(s.wn, 2) for s in accepts}
     # An assignment named by --accept has been looked at, so it is written
     # like this level's own instead of being listed and held on.
     final = {k: v for k, v in verdicts_final.items()
@@ -1628,7 +2050,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # now accepts and IDEN2 does not show.  These are the ones nobody has
     # looked at; they are named, not written.
     touched = {round(c.wn, 2) for c in accepted}
-    touched.update(round(wn, 2) for wn, _r in rejects)
+    touched.update(round(s.wn, 2) for s in rejects)
     marked_all = set()
     for (owner, partner), k in trans.row_of.items():
         obs = IDEN.assignment(trans.records[k])

@@ -22,3 +22,4 @@ level_id,E_input,comment
 059003.000617,138871.015,re-positioned from 138849.86 (dE=+21.16); 4 new assignments; Energy taken from level_positions.py suggestion
 059003.000118,27089.706,re-positioned from 26979.66 (dE=+110.05); 4 new assignments; Energy taken from LOPT_output_levels.txt
 059003.000477,116878.08,re-positioned from 116777.55 (dE=+100.53); 9 new assignments; Energy taken from IDEN2
+059003.000228,66543.761,re-positioned from 66324.84 (dE=+218.92); 5 new assignments; Energy taken from IDEN2

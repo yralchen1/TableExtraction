@@ -1,0 +1,1953 @@
+==============================================================================
+IDEN2 row 742   exit 0
+==============================================================================
+IDEN2 row 742  f25f ~3F4G  J = 2.5  FOUND
+  enlev.dat calls this row found, as 059003.000624, but that level is not one of this run's: it has nothing of its own here, and the window is searched as for a level nobody has found
+  calculated at 116406.7 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  95 calculated transitions to levels that HAVE been found, 40 of which could have been recorded at the calculated position
+  scanned 116093.5 - 116719.9 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 1 firm, 1 weak, 0 no support
+
+         E  ln_R   look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+116617.169 8.352  7.659 210.469 2.016     39       20      19       9     27.874      0.185    firm
+116616.389 0.005 -0.688 209.689 2.008     39       18      21       7     16.373      0.207    weak
+
+  --unknown 742 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 913   exit 0
+==============================================================================
+IDEN2 row 913  f5d6s~3D4D  J = 3.5  FOUND
+  calculated at 92210.7 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  118 calculated transitions to levels that HAVE been found, 26 of which could have been recorded at the calculated position
+  scanned 91602.3 - 92819.1 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+92091.771 7.035 7.035 -118.929 -0.586     25       12      13       7     18.852      0.154    firm
+
+  --unknown 913 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 914   exit 0
+==============================================================================
+IDEN2 row 914  f5d6s~3D4D  J = 2.5  FOUND
+  calculated at 91642.6 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  90 calculated transitions to levels that HAVE been found, 25 of which could have been recorded at the calculated position
+  scanned 91034.2 - 92251.0 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+91197.851 16.917 16.917 -444.749 -2.193     25       15      10      11     24.399      0.190    firm
+
+  --unknown 914 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 906   exit 0
+==============================================================================
+IDEN2 row 906  f5d6s~1F2F  J = 2.5  not found
+  calculated at 94239.8 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  91 calculated transitions to levels that HAVE been found, 25 of which could have been recorded at the calculated position
+  scanned 93631.4 - 94848.2 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -4.26 at 94459.211 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 986   exit 0
+==============================================================================
+IDEN2 row 986  f5d2 ~3P4D  J = 1.5  not found
+  calculated at 75159.9 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  65 calculated transitions to levels that HAVE been found, 24 of which could have been recorded at the calculated position
+  scanned 74525.5 - 75794.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -3.25 at 75749.429 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 719   exit 0
+==============================================================================
+IDEN2 row 719  f27p ~3H2G  J = 4.5  FOUND
+  calculated at 117665.3 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  117 calculated transitions to levels that HAVE been found, 28 of which could have been recorded at the calculated position
+  scanned 117557.3 - 117773.3 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E   ln_R   look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+117712.650 12.213 12.213 47.350 1.315     28       11      17       5     22.606      0.217    firm
+
+  --unknown 719 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 918   exit 0
+==============================================================================
+IDEN2 row 918  f5d6s~1F2F  J = 3.5  FOUND
+  calculated at 90172.3 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  108 calculated transitions to levels that HAVE been found, 25 of which could have been recorded at the calculated position
+  scanned 89563.9 - 90780.7 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E  ln_R  look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+90481.351 7.492 7.492 309.051 1.524     26       14      12       7     18.786      0.193    firm
+
+  --unknown 918 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 747   exit 0
+==============================================================================
+IDEN2 row 747  f27p ~3H4H  J = 6.5  FOUND
+  calculated at 116010.0 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  83 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 115902.0 - 116118.0 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E   ln_R   look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+116074.990 28.864 28.864 64.990 1.805     18       12       6       7     32.818      0.215    firm
+
+  --unknown 747 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 951   exit 0
+==============================================================================
+IDEN2 row 951  f5d2 ~3P2F  J = 2.5  not found
+  calculated at 83140.8 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  94 calculated transitions to levels that HAVE been found, 21 of which could have been recorded at the calculated position
+  scanned 82506.4 - 83775.2 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+        E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+82633.509 0.972 0.972 -507.291 -2.399     20        5      15       4     12.800      0.426    weak
+
+  --unknown 951 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 691   exit 0
+==============================================================================
+IDEN2 row 691  f27p ~3F4G  J = 4.5  not found
+  calculated at 118596.3 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  116 calculated transitions to levels that HAVE been found, 30 of which could have been recorded at the calculated position
+  scanned 118488.3 - 118704.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -3.17 at 118634.190 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 924   exit 0
+==============================================================================
+IDEN2 row 924  f5d6s~1D2D  J = 2.5  not found
+  calculated at 88538.4 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  91 calculated transitions to levels that HAVE been found, 24 of which could have been recorded at the calculated position
+  scanned 87930.0 - 89146.8 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.08 at 88065.911 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 998   exit 0
+==============================================================================
+IDEN2 row 998  f5d2 ~3P2D  J = 1.5  not found
+  calculated at 72363.6 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  65 calculated transitions to levels that HAVE been found, 22 of which could have been recorded at the calculated position
+  scanned 71729.2 - 72998.0 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+71767.229 10.576 10.576 -596.371 -2.820     20        7      13       6     20.544      0.221    firm
+
+  --unknown 998 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 496   exit 0
+==============================================================================
+IDEN2 row 496  f27d _3H4H  J = 5.5  FOUND
+  calculated at 131987.2 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  128 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 131712.6 - 132261.8 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+131910.547 6.906 6.906 -76.653 -0.837     17        6      11       5     16.730      0.296    firm
+
+  --unknown 496 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 497   exit 0
+==============================================================================
+IDEN2 row 497  f27d _3H4H  J = 4.5  FOUND
+  calculated at 131895.4 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  154 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 131620.8 - 132170.0 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 1 firm, 1 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+131776.407 7.124 6.431 -118.993 -1.300     16        6      10       4     15.848      0.313    firm
+131830.847 2.671 1.978  -64.553 -0.705     16        6      10       4     11.626      0.444    weak
+
+  --unknown 497 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 919   exit 0
+==============================================================================
+IDEN2 row 919  f5d6s~3D4D  J = 2.5  not found
+  calculated at 90091.7 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  94 calculated transitions to levels that HAVE been found, 23 of which could have been recorded at the calculated position
+  scanned 89483.3 - 90700.1 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+        E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+90050.031 2.117 2.117 -41.669 -0.205     23        9      14       5     11.813      0.202    weak
+
+  --unknown 919 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 955   exit 0
+==============================================================================
+IDEN2 row 955  f5d2 ~3P2G  J = 4.5  not found
+  calculated at 82034.3 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  123 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 81399.9 - 82668.7 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E  ln_R  look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+82084.069 6.504 6.504 49.769 0.235     18       11       7       5     17.266      0.283    firm
+
+  --unknown 955 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 513   exit 0
+==============================================================================
+IDEN2 row 513  f27d _3H4G  J = 3.5  not found
+  calculated at 130272.1 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  156 calculated transitions to levels that HAVE been found, 17 of which could have been recorded at the calculated position
+  scanned 129997.5 - 130546.7 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 1 firm, 1 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+130096.087 5.351  4.658 -176.013 -1.923     17        7      10       6     15.560      0.259    firm
+130242.047 0.398 -0.296  -30.053 -0.328     17        7      10       3     11.469      0.394    weak
+
+  --unknown 513 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 499   exit 0
+==============================================================================
+IDEN2 row 499  f27d _3H4I  J = 5.5  not found
+  calculated at 131826.4 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  127 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 131551.8 - 132101.0 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 1 firm, 1 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+131665.067 4.296 3.603 -161.333 -1.762     18        5      13       5     15.178      0.359    firm
+131776.407 3.061 2.368  -49.993 -0.546     18        7      11       4     13.050      0.369    weak
+
+  --unknown 499 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 994   exit 0
+==============================================================================
+IDEN2 row 994  f5d2 ~3F2D  J = 1.5  not found
+  calculated at 73369.9 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  61 calculated transitions to levels that HAVE been found, 17 of which could have been recorded at the calculated position
+  scanned 72735.5 - 74004.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.84 at 73037.449 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 491   exit 0
+==============================================================================
+IDEN2 row 491  f27d _3H4G  J = 4.5  not found
+  calculated at 132226.2 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  152 calculated transitions to levels that HAVE been found, 19 of which could have been recorded at the calculated position
+  scanned 131951.6 - 132500.8 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.72 at 132090.327 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 522   exit 0
+==============================================================================
+IDEN2 row 522  f27d _3H4K  J = 5.5  not found
+  calculated at 129628.2 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  119 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 129353.6 - 129902.8 cm^-1 in steps of 0.020
+  4 positions where ln R > 0: 2 firm, 2 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+129498.087 8.093 6.706 -130.113 -1.421     11        4       7       4     15.014      0.306    firm
+129662.627 4.487 3.101   34.427  0.376     12        5       7       4     10.326      0.444    firm
+129454.487 3.884 2.498 -173.713 -1.898     11        3       8       3     12.872      0.410    weak
+129400.067 3.681 2.294 -228.133 -2.492     11        4       7       3     10.213      0.496    weak
+
+  --unknown 522 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 987   exit 0
+==============================================================================
+IDEN2 row 987  f5d2 ~3P4F  J = 2.5  not found
+  calculated at 74670.6 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  96 calculated transitions to levels that HAVE been found, 26 of which could have been recorded at the calculated position
+  scanned 74036.2 - 75305.0 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+        E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+74456.629 0.410 0.410 -213.971 -1.012     26       10      16       4     18.114      0.350    weak
+
+  --unknown 987 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 705   exit 0
+==============================================================================
+IDEN2 row 705  f27p ~3F2G  J = 3.5  not found
+  calculated at 118086.9 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  117 calculated transitions to levels that HAVE been found, 25 of which could have been recorded at the calculated position
+  scanned 117978.9 - 118194.9 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -4.34 at 117982.530 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 501   exit 0
+==============================================================================
+IDEN2 row 501  f28s _3H4H  J = 5.5  not found
+  calculated at 131319.4 cm^-1; levels of f28s turn out to be 74.5 cm^-1 from where the calculation puts them (rms)
+  124 calculated transitions to levels that HAVE been found, 24 of which could have been recorded at the calculated position
+  scanned 131095.8 - 131543.0 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.59 at 131226.177 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 675   exit 0
+==============================================================================
+IDEN2 row 675  f27p ~3F4G  J = 4.5  not found
+  calculated at 119248.3 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  119 calculated transitions to levels that HAVE been found, 22 of which could have been recorded at the calculated position
+  scanned 119140.3 - 119356.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.76 at 119234.690 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 828   exit 0
+==============================================================================
+IDEN2 row 828  f26d _3F2G  J = 3.5  FOUND
+  enlev.dat calls this row found, as 059003.000625, but that level is not one of this run's: it has nothing of its own here, and the window is searched as for a level nobody has found
+  calculated at 108099.1 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  154 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 107917.9 - 108280.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.35 at 108175.281 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 932   exit 0
+==============================================================================
+IDEN2 row 932  f5d6s~3H4H  J = 3.5  not found
+  calculated at 86015.9 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  110 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 85407.5 - 86624.3 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+        E  ln_R  look     dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+86011.991 0.965 0.965 -3.909 -0.019     18        7      11       4      9.043      0.268    weak
+
+  --unknown 932 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 439   exit 0
+==============================================================================
+IDEN2 row 439  f27d _3H2I  J = 6.5  not found
+  calculated at 134204.5 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  82 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 133929.9 - 134479.1 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 5 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134004.067 1.693  0.083 -200.433 -2.190     16        7       9       3     12.715      0.397    weak
+134061.187 1.412 -0.197 -143.313 -1.566     16        7       9       3     10.936      0.454    weak
+134165.067 1.039 -0.570  -39.433 -0.431     16        6      10       2     11.979      0.519    weak
+134460.447 0.075 -1.534  255.947  2.796     17        6      11       3     10.405      0.441    weak
+134345.207 0.039 -1.570  140.707  1.537     17        6      11       3      9.278      0.513    weak
+
+  --unknown 439 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 442   exit 0
+==============================================================================
+IDEN2 row 442  fd6p _1H2I  J = 5.5  not found
+  calculated at 134118.1 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  123 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 132905.4 - 135330.8 cm^-1 in steps of 0.020
+  7 positions where ln R > 0: 0 firm, 7 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134104.875 4.404  2.458  -13.225 -0.033     16        7       9       4     15.560      0.331    weak
+133854.855 3.692  1.746 -263.245 -0.651     15        7       8       3      6.111      0.392    weak
+133790.155 3.412  1.467 -327.945 -0.811     15        5      10       4     13.345      0.442    weak
+134081.415 2.134  0.188  -36.685 -0.091     16        7       9       5     13.459      0.253    weak
+133804.135 0.572 -1.374 -313.965 -0.777     15        5      10       3     10.104      0.521    weak
+134222.835 0.426 -1.519  104.735  0.259     16        5      11       3     11.710      0.489    weak
+133966.255 0.026 -1.920 -151.845 -0.376     16        5      11       4     11.777      0.468    weak
+
+  --unknown 442 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 666   exit 0
+==============================================================================
+IDEN2 row 666  f27p ~3F4G  J = 5.5  not found
+  calculated at 119778.7 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  103 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 119670.7 - 119886.7 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E   ln_R   look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+119809.290 11.884 11.884 30.590 0.850     14       10       4       4     15.148      0.320    firm
+
+  --unknown 666 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 375   exit 0
+==============================================================================
+IDEN2 row 375  5d3  _4F4F  J = 2.5  not found
+  calculated at 135976.6 cm^-1; levels of 5d3 turn out to be 133.4 cm^-1 from where the calculation puts them (rms)
+  127 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 135576.5 - 136376.7 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -1.43 at 135813.313 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 672   exit 0
+==============================================================================
+IDEN2 row 672  fd6p _1G2H  J = 5.5  not found
+  calculated at 119339.6 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  108 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 118126.9 - 120552.3 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 1 weak, 1 no support
+
+         E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+119552.395 10.976  9.878  212.795  0.526     15        8       7       6     16.691      0.241       firm
+118512.655  0.260 -0.839 -826.945 -2.046     11        2       9       2      7.148      0.354       weak
+120414.235  1.004 -0.094 1074.635  2.658     14        5       9       1      3.659      0.410 no support
+
+  --unknown 672 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 521   exit 0
+==============================================================================
+IDEN2 row 521  f27d _3H4H  J = 3.5  not found
+  calculated at 129738.7 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  151 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 129464.1 - 130013.3 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 2 weak, 0 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+129877.147 5.196  4.097 138.447  1.512     12        5       7       4     12.981      0.439    firm
+129646.407 2.986  1.888 -92.293 -1.008     12        5       7       2      8.891      0.543    weak
+129832.047 1.020 -0.078  93.347  1.020     12        4       8       3     10.376      0.525    weak
+
+  --unknown 521 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 488   exit 0
+==============================================================================
+IDEN2 row 488  f27d _3H2G  J = 3.5  not found
+  calculated at 132460.5 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  149 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 132185.9 - 132735.1 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 0 firm, 3 weak, 0 no support
+
+         E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+132390.687 2.251 1.153 -69.813 -0.763     13        6       7       3      7.613      0.296    weak
+132507.607 1.923 0.825  47.107  0.515     13        5       8       4     10.283      0.485    weak
+132494.087 1.653 0.554  33.587  0.367     13        4       9       2      7.540      0.476    weak
+
+  --unknown 488 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 661   exit 0
+==============================================================================
+IDEN2 row 661  f27p ~3F4F  J = 4.5  not found
+  calculated at 119970.6 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  118 calculated transitions to levels that HAVE been found, 19 of which could have been recorded at the calculated position
+  scanned 119862.6 - 120078.6 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E   ln_R   look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+119998.510 11.712 11.712 27.910 0.775     20       13       7       5     17.667      0.238    firm
+
+  --unknown 661 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 632   exit 0
+==============================================================================
+IDEN2 row 632  f25f ~1G2D  J = 2.5  not found
+  calculated at 121757.4 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  92 calculated transitions to levels that HAVE been found, 21 of which could have been recorded at the calculated position
+  scanned 121444.2 - 122070.6 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -2.78 at 121580.429 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 944   exit 0
+==============================================================================
+IDEN2 row 944  f5d2 ~1G2D  J = 2.5  not found
+  calculated at 84315.7 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  92 calculated transitions to levels that HAVE been found, 22 of which could have been recorded at the calculated position
+  scanned 83681.3 - 84950.1 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 2 weak, 0 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+84588.589 17.005 15.907  272.889  1.290     20       10      10       7     25.002      0.221    firm
+84000.169  2.368  1.270 -315.531 -1.492     20        6      14       3     12.504      0.375    weak
+83748.749  0.475 -0.623 -566.951 -2.681     19        6      13       2      8.558      0.472    weak
+
+  --unknown 944 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 315   exit 0
+==============================================================================
+IDEN2 row 315  5d3  _4F4F  J = 3.5  not found
+  calculated at 137284.3 cm^-1; levels of 5d3 turn out to be 133.4 cm^-1 from where the calculation puts them (rms)
+  152 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 136884.2 - 137684.4 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+137068.173 1.678 0.985 -216.127 -1.621     15        7       8       5     11.618      0.266    weak
+137274.353 0.699 0.006   -9.947 -0.075     15        9       6       4      8.942      0.263    weak
+
+  --unknown 315 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 825   exit 0
+==============================================================================
+IDEN2 row 825  f26d _3F2F  J = 3.5  not found
+  calculated at 108201.7 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  156 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 108020.5 - 108382.9 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -2.43 at 108258.481 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 1010   exit 0
+==============================================================================
+IDEN2 row 1010  f5d2 ~3P2D  J = 2.5  not found
+  calculated at 70304.2 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  97 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 69669.8 - 70938.6 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 0 firm, 3 weak, 0 no support
+
+        E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+70477.749 4.319  3.221  173.549  0.821     15        8       7       3     10.196      0.289    weak
+69874.009 1.306  0.208 -430.191 -2.034     15        6       9       3      6.879      0.361    weak
+70490.589 0.366 -0.733  186.389  0.881     15        4      11       3      8.508      0.478    weak
+
+  --unknown 1010 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 449   exit 0
+==============================================================================
+IDEN2 row 449  fd6p _1H2I  J = 5.5  not found
+  calculated at 133993.0 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  124 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 132780.3 - 135205.7 cm^-1 in steps of 0.020
+  11 positions where ln R > 0: 0 firm, 10 weak, 1 no support
+
+         E  ln_R   look        dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+133745.955 3.806  1.408  -247.045 -0.611     15        4      11       4     11.322      0.285       weak
+133790.155 2.367 -0.031  -202.845 -0.502     15        4      11       4     12.475      0.491       weak
+133804.135 2.081 -0.317  -188.865 -0.467     15        6       9       3     10.796      0.509       weak
+133854.855 2.018 -0.380  -138.145 -0.342     15        5      10       3      5.535      0.464       weak
+133265.795 1.540 -0.858  -727.205 -1.799     18        5      13       2      8.187      0.358       weak
+135157.775 1.009 -1.389  1164.775  2.881     14        6       8       3      9.585      0.410       weak
+134104.875 0.991 -1.407   111.875  0.277     16        6      10       4     12.451      0.416       weak
+134081.415 0.782 -1.616    88.415  0.219     16        6      10       4     11.715      0.323       weak
+133966.255 0.776 -1.622   -26.745 -0.066     16        5      11       4     11.253      0.456       weak
+133597.835 0.766 -1.632  -395.165 -0.978     16        6      10       4      8.726      0.465       weak
+132823.355 1.326 -1.072 -1169.645 -2.894     17        6      11       2      8.249      0.617 no support
+
+  --unknown 449 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 710   exit 0
+==============================================================================
+IDEN2 row 710  f27p ~3F4F  J = 2.5  not found
+  calculated at 117972.7 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  96 calculated transitions to levels that HAVE been found, 17 of which could have been recorded at the calculated position
+  scanned 117864.7 - 118080.7 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -1.43 at 118017.330 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 1007   exit 0
+==============================================================================
+IDEN2 row 1007  f5d2 ~1D2D  J = 1.5  FOUND
+  calculated at 70577.9 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  64 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 69943.5 - 71212.3 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+70477.789 25.264 25.264 -100.111 -0.473     16        9       7       7     28.538      0.197    firm
+
+  --unknown 1007 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 523   exit 0
+==============================================================================
+IDEN2 row 523  f27d _3H4I  J = 4.5  not found
+  calculated at 129564.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  153 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 129289.4 - 129838.6 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 2 weak, 0 no support
+
+         E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+129454.487 11.695 10.597 -109.513 -1.196     13        6       7       5     19.644      0.276    firm
+129662.627  2.185  1.087   98.627  1.077     13        6       7       4      8.171      0.510    weak
+129498.047  1.738  0.640  -65.953 -0.721     13        3      10       3     11.641      0.416    weak
+
+  --unknown 523 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 937   exit 0
+==============================================================================
+IDEN2 row 937  f5d6s~3F4F  J = 2.5  not found
+  calculated at 84871.5 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  91 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 84263.1 - 85479.9 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 2 weak, 0 no support
+
+        E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+84914.831 8.794  7.695   43.331  0.214     13        8       5       6     15.062      0.246    firm
+84753.751 0.798 -0.300 -117.749 -0.581     14        4      10       4      9.834      0.355    weak
+84915.711 0.439 -0.660   44.211  0.218     13        8       5       2      8.001      0.436    weak
+
+  --unknown 937 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 432   exit 0
+==============================================================================
+IDEN2 row 432  f27d _3H4G  J = 5.5  not found
+  calculated at 134353.1 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  123 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 134078.5 - 134627.7 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 5 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134503.407 1.912  0.303  150.307  1.642     12        5       7       3     11.452      0.457    weak
+134392.507 0.760 -0.849   39.407  0.430     12        4       8       3     10.350      0.431    weak
+134419.647 0.608 -1.001   66.547  0.727     12        6       6       3     10.149      0.439    weak
+134249.147 0.340 -1.270 -103.953 -1.136     12        6       6       3      7.599      0.545    weak
+134500.307 0.023 -1.586  147.207  1.608     12        4       8       3      6.575      0.313    weak
+
+  --unknown 432 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 372   exit 0
+==============================================================================
+IDEN2 row 372  f28s _3F2F  J = 3.5  not found
+  calculated at 136082.5 cm^-1; levels of f28s turn out to be 74.5 cm^-1 from where the calculation puts them (rms)
+  146 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 135858.9 - 136306.1 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+135946.217 1.710  1.017 -136.283 -1.829     13        7       6       3      7.922      0.337    weak
+136173.677 0.073 -0.620   91.177  1.224     13        6       7       3      6.139      0.289    weak
+
+  --unknown 372 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 940   exit 0
+==============================================================================
+IDEN2 row 940  f26p ~3P2P  J = 0.5  not found
+  calculated at 84630.8 cm^-1; levels of f26p turn out to be 110.0 cm^-1 from where the calculation puts them (rms)
+  29 calculated transitions to levels that HAVE been found, 10 of which could have been recorded at the calculated position
+  scanned 84300.8 - 84960.8 cm^-1 in steps of 0.020
+  12 positions where ln R > 0: 1 firm, 6 weak, 5 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+84592.032 24.122 21.637  -38.768 -0.352     10        8       2       7     26.013      0.182       firm
+84679.332  2.975  0.490   48.532  0.441     10        4       6       2      7.663      0.489       weak
+84792.752  1.378 -1.107  161.952  1.472     10        4       6       2      5.480      0.462       weak
+84905.152  1.278 -1.207  274.352  2.494      9        4       5       2      5.194      0.502       weak
+84641.512  1.061 -1.424   10.712  0.097     10        4       6       2      7.468      0.506       weak
+84687.272  0.782 -1.703   56.472  0.513     10        3       7       2      6.867      0.467       weak
+84593.032  0.238 -2.247  -37.768 -0.343     10        4       6       2      4.277      0.445       weak
+84803.812  1.337 -1.148  173.012  1.573     10        5       5       1      3.026      0.449 no support
+84681.492  1.149 -1.336   50.692  0.461     10        4       6       1      4.254      0.783 no support
+84389.832  0.529 -1.956 -240.968 -2.190     11        3       8       1      5.728      0.797 no support
+84374.132  0.260 -2.225 -256.668 -2.333     11        4       7       1      3.794      0.720 no support
+84820.432  0.121 -2.364  189.632  1.724     10        4       6       1      4.969      0.868 no support
+
+  --unknown 940 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 670   exit 0
+==============================================================================
+IDEN2 row 670  f27p ~3F4F  J = 3.5  not found
+  calculated at 119376.3 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  112 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 119268.3 - 119484.3 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.26 at 119468.150 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 500   exit 0
+==============================================================================
+IDEN2 row 500  fd6p _1H2H  J = 4.5  not found
+  calculated at 131498.1 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  155 calculated transitions to levels that HAVE been found, 18 of which could have been recorded at the calculated position
+  scanned 130285.4 - 132710.8 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 8 weak, 0 no support
+
+         E  ln_R   look        dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+130461.215 4.516  2.436 -1036.885 -2.565     16        6      10       3      8.144      0.343    weak
+130449.495 3.466  1.386 -1048.605 -2.594     16        8       8       5     12.429      0.482    weak
+131130.435 1.328 -0.752  -367.665 -0.910     17        3      14       2     10.099      0.408    weak
+130663.555 0.625 -1.454  -834.545 -2.065     17        4      13       4     10.290      0.286    weak
+130885.135 0.559 -1.521  -612.965 -1.516     16        5      11       3      9.099      0.543    weak
+132163.175 0.470 -1.609   665.075  1.645     19        6      13       2      8.236      0.498    weak
+130713.075 0.078 -2.001  -785.025 -1.942     17        6      11       2      3.013      0.324    weak
+132635.815 0.030 -2.049  1137.715  2.815     18        4      14       3     10.250      0.556    weak
+
+  --unknown 500 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 711   exit 0
+==============================================================================
+IDEN2 row 711  fd6p _3H4I  J = 5.5  not found
+  calculated at 117932.1 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  106 calculated transitions to levels that HAVE been found, 21 of which could have been recorded at the calculated position
+  scanned 116719.4 - 119144.8 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 1 firm, 4 weak, 0 no support
+
+         E   ln_R   look        dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+117889.035 16.860 15.250   -43.065 -0.107     21       10      11       7     23.227      0.185    firm
+118292.455  2.190  0.580   360.355  0.891     21        8      13       6     11.876      0.260    weak
+117710.595  1.708  0.099  -221.505 -0.548     21        6      15       4     12.339      0.326    weak
+117116.295  1.125 -0.485  -815.805 -2.018     20        6      14       4     11.760      0.375    weak
+116919.795  0.242 -1.368 -1012.305 -2.504     19        4      15       3      8.618      0.332    weak
+
+  --unknown 711 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 316   exit 0
+==============================================================================
+IDEN2 row 316  fd6p _1H2G  J = 3.5  not found
+  calculated at 137240.9 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  152 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 136028.2 - 138453.6 cm^-1 in steps of 0.020
+  9 positions where ln R > 0: 0 firm, 9 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+137068.175 3.587  1.390 -172.725 -0.427     15        6       9       5     11.949      0.247    weak
+136882.475 2.463  0.266 -358.425 -0.887     14        6       8       3      6.631      0.225    weak
+136271.295 1.818 -0.379 -969.605 -2.399     14        8       6       3      8.801      0.300    weak
+138381.175 1.287 -0.910 1140.275  2.821     13        4       9       4      9.566      0.328    weak
+136468.135 0.990 -1.207 -772.765 -1.912     14        7       7       3      7.215      0.299    weak
+136529.515 0.963 -1.235 -711.385 -1.760     14        8       6       4      9.439      0.276    weak
+137274.375 0.920 -1.277   33.475  0.083     15        8       7       3      5.807      0.216    weak
+136288.635 0.344 -1.853 -952.265 -2.356     14        6       8       4      8.591      0.316    weak
+136458.095 0.233 -1.964 -782.805 -1.937     14        6       8       3      5.939      0.406    weak
+
+  --unknown 316 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 421   exit 0
+==============================================================================
+IDEN2 row 421  f27d _3H4F  J = 4.5  not found
+  calculated at 134464.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  151 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 134189.4 - 134738.6 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134222.847 1.519  0.826 -241.153 -2.634     15        4      11       3     11.496      0.489    weak
+134696.627 0.574 -0.120  232.627  2.541     14        5       9       4     10.512      0.429    weak
+
+  --unknown 421 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 492   exit 0
+==============================================================================
+IDEN2 row 492  f27d _3H4G  J = 3.5  not found
+  calculated at 132136.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  153 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 131861.4 - 132410.6 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+131861.987 0.916  0.223 -274.013 -2.993     13        4       9       2      7.218      0.491    weak
+132244.467 0.183 -0.510  108.467  1.185     12        3       9       3      9.590      0.578    weak
+
+  --unknown 492 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 834   exit 0
+==============================================================================
+IDEN2 row 834  f26d _3F2F  J = 2.5  not found
+  calculated at 107743.5 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  130 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 107562.3 - 107924.7 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -0.38 at 107854.421 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 447   exit 0
+==============================================================================
+IDEN2 row 447  f27d _3H4H  J = 6.5  not found
+  calculated at 134001.6 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  80 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 133727.0 - 134276.2 cm^-1 in steps of 0.020
+  12 positions where ln R > 0: 0 firm, 12 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134004.067 3.838  1.354    2.467  0.027     15        7       8       3     11.583      0.453    weak
+133948.987 2.702  0.217  -52.613 -0.575     14        4      10       3     11.662      0.565    weak
+133936.107 2.333 -0.152  -65.493 -0.715     14        7       7       4     10.360      0.497    weak
+133960.267 1.426 -1.058  -41.333 -0.452     14        5       9       4      9.607      0.569    weak
+133945.387 1.314 -1.171  -56.213 -0.614     14        5       9       2      4.726      0.498    weak
+134061.187 1.025 -1.459   59.587  0.651     15        5      10       3      9.914      0.490    weak
+133865.807 0.902 -1.583 -135.793 -1.483     14        4      10       3      9.546      0.540    weak
+134139.707 0.666 -1.819  138.107  1.509     15        4      11       3      9.557      0.461    weak
+134148.467 0.251 -2.234  146.867  1.604     15        4      11       3      9.658      0.495    weak
+133854.847 0.124 -2.361 -146.753 -1.603     14        5       9       2      3.905      0.520    weak
+134222.847 0.029 -2.455  221.247  2.417     15        4      11       3     10.686      0.548    weak
+133947.207 0.025 -2.460  -54.393 -0.594     14        4      10       2      7.767      0.554    weak
+
+  --unknown 447 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 389   exit 0
+==============================================================================
+IDEN2 row 389  f27d _3H2F  J = 3.5  not found
+  calculated at 135213.6 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  152 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 134939.0 - 135488.2 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134998.387 0.136 0.136 -215.213 -2.351     14        7       7       4      9.373      0.425    weak
+
+  --unknown 389 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 441   exit 0
+==============================================================================
+IDEN2 row 441  f28s _3F4F  J = 2.5  not found
+  calculated at 134186.8 cm^-1; levels of f28s turn out to be 74.5 cm^-1 from where the calculation puts them (rms)
+  128 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 133963.2 - 134410.4 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134074.417 8.166 8.166 -112.383 -1.508     12        8       4       5     13.108      0.279    firm
+
+  --unknown 441 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 465   exit 0
+==============================================================================
+IDEN2 row 465  f25f ~1I2F  J = 3.5  not found
+  calculated at 133412.3 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  94 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 133099.1 - 133725.5 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 1 firm, 0 weak, 0 no support
+
+         E   ln_R   look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+133624.669 12.693 12.693 212.369 2.034     11        6       5       4     16.623      0.340    firm
+
+  --unknown 465 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 799   exit 0
+==============================================================================
+IDEN2 row 799  f26d _1G2F  J = 3.5  not found
+  calculated at 111465.9 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  131 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 111284.7 - 111647.1 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+111600.541 7.209 7.209 134.641 2.229     11        7       4       3     10.789      0.320    weak
+
+  --unknown 799 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 443   exit 0
+==============================================================================
+IDEN2 row 443  f26f ~3H2G  J = 3.5  not found
+  calculated at 134099.0 cm^-1; levels of f26f turn out to be 45.4 cm^-1 from where the calculation puts them (rms)
+  99 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 133962.7 - 134235.3 cm^-1 in steps of 0.020
+  4 positions where ln R > 0: 0 firm, 3 weak, 1 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+133964.280 1.843  0.457 -134.720 -2.965     12        6       6       3      8.575      0.375       weak
+134195.720 1.680  0.293   96.720  2.129     13        5       8       4      8.712      0.554       weak
+134163.040 1.038 -0.348   64.040  1.409     13        6       7       4      7.196      0.337       weak
+134190.760 0.306 -1.080   91.760  2.019     13        6       7       1      2.422      0.364 no support
+
+  --unknown 443 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 345   exit 0
+==============================================================================
+IDEN2 row 345  f25g _3H4H  J = 3.5  not found
+  calculated at 136591.4 cm^-1; levels of f25g turn out to be 23.8 cm^-1 from where the calculation puts them (rms)
+  155 calculated transitions to levels that HAVE been found, 9 of which could have been recorded at the calculated position
+  scanned 136519.9 - 136662.9 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 4 weak, 1 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+136638.504 2.605  0.996  47.104  1.975      9        4       5       2      6.912      0.427       weak
+136623.224 1.827  0.217  31.824  1.335      9        4       5       2      9.051      0.502       weak
+136620.184 1.793  0.184  28.784  1.207      9        4       5       2      6.909      0.463       weak
+136549.144 0.976 -0.633 -42.256 -1.772      9        4       5       3      8.452      0.474       weak
+136657.604 0.696 -0.914  66.204  2.776      9        4       5       2      6.809      0.773 no support
+
+  --unknown 345 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 518   exit 0
+==============================================================================
+IDEN2 row 518  f27d _3H4G  J = 2.5  not found
+  calculated at 130042.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  132 calculated transitions to levels that HAVE been found, 10 of which could have been recorded at the calculated position
+  scanned 129767.4 - 130316.6 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 1 firm, 3 weak, 4 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+129877.147 6.981  4.902 -164.853 -1.801     10        6       4       4     12.623      0.445       firm
+130242.047 4.249  2.170  200.047  2.185     11        6       5       4      9.989      0.349       weak
+130140.607 0.762 -1.317   98.607  1.077     11        3       8       2      5.392      0.548       weak
+129899.067 0.661 -1.419 -142.933 -1.561     10        4       6       2      7.996      0.595       weak
+129856.907 1.428 -0.651 -185.093 -2.022     10        4       6       2      8.190      0.665 no support
+129832.047 0.941 -1.138 -209.953 -2.294     10        5       5       4      8.836      0.670 no support
+130000.227 0.720 -1.359  -41.773 -0.456     10        3       7       2      7.779      0.637 no support
+129896.147 0.206 -1.873 -145.853 -1.593     10        4       6       2      8.836      0.648 no support
+
+  --unknown 518 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 319   exit 0
+==============================================================================
+IDEN2 row 319  f27d _3F2H  J = 5.5  not found
+  calculated at 136995.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  118 calculated transitions to levels that HAVE been found, 10 of which could have been recorded at the calculated position
+  scanned 136720.4 - 137269.6 cm^-1 in steps of 0.020
+  7 positions where ln R > 0: 0 firm, 4 weak, 3 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+136902.907 3.568  1.622  -92.093 -1.006     10        6       4       3      7.181      0.381       weak
+136865.347 1.251 -0.695 -129.653 -1.416     10        4       6       3      7.111      0.390       weak
+136989.027 0.453 -1.493   -5.973 -0.065     10        5       5       3      6.172      0.479       weak
+136838.047 0.399 -1.547 -156.953 -1.715     10        4       6       4      5.880      0.457       weak
+136791.827 1.546 -0.400 -203.173 -2.220     10        4       6       1      2.763      0.422 no support
+137083.687 0.242 -1.704   88.687  0.969     10        4       6       1      1.867      0.395 no support
+136782.627 0.092 -1.854 -212.373 -2.320     10        3       7       2      8.030      0.698 no support
+
+  --unknown 319 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 329   exit 1
+==============================================================================
+levels in the run: 593
+  hyperfine widths: 274 levels carry one, 0.004 - 0.102 cm^-1; 5 of them above 0.08 cm^-1 are marked as having a large hyperfine structure; 213 of them are the typical width of the level's configuration, the fit having too few lines to measure its own
+observed lines: 6668, 9328.8 - 121663.1 cm^-1
+  local line density 0.004 - 0.336 per cm^-1 (median 0.094)
+  local ln I_obs: mean 8.82, sd 1.40
+  intensity scale 0-900 A: median I_obs/I_pred = 0.445 (sd of ln = 1.05) over 85 accepted lines
+  intensity scale 900-1000 A: median I_obs/I_pred = 0.567 (sd of ln = 0.85) over 80 accepted lines  - no correction
+  intensity scale elsewhere: no correction (sd of ln = 1.21 over 4827 accepted lines)
+predicted transitions: 29165
+ingredients measured on this run:
+  blend inflation of the position uncertainty, k(n):
+    n= 1  N= 4103  rms(t)=0.978  k=1.000
+    n= 2  N=  818  rms(t)=1.655  k=1.640
+    n= 3  N=   87  rms(t)=1.301  k=1.240
+    n= 4  N=    8  rms(t)=1.154  k=1.039
+  the width model: rms of residual/sigma over the 5016 accepted lines = 0.989; a class that comes out far from 1 is a class whose width is mis-stated
+    69/-:2098@0.97  69/bl:29@1.14  69/cl:115@0.82  69/h:88@0.99  69/w:14@1.19  74/-:1727@0.92  74/c:89@1.06  74/ch:27@1.16  74/d:49@0.99  74/hfs:282@1.10  74/w:493@1.19
+  anomalous-position rate eta = 0.0002 (2 dNLL against eta=0: 108.3)
+  intensity residual: mean -0.024, sd 1.203 over 5016 accepted lines
+  within-level s = 1.174, between-level s_L = 0.235 (209 levels with 5 lines or more)
+  partner energy uncertainty D1: median 0.0147, max 0.4087 cm^-1 over 596 levels
+  unfound levels: 649 of 1253 calculated; 61441 of their transitions have a found partner and 2889 of those would have been recorded
+  unrelated-line background: 2125 of 6668 recorded lines carry no accepted transition
+    empirical density 0.0267, modelled 0.0257, used 0.0378 per cm^-1 (median; all lines 0.0937)
+    ln I of a free line: mean 8.17 (all lines 8.82), of a predicted unfound-level line 5.27
+  released 263 accepted assignments of 69 questionable levels; 2314 of 6668 recorded lines now carry no accepted transition
+    the unrelated-line background is re-measured over them: density 0.0394 per cm^-1 (median), ln I of a free line 8.30
+calculated levels: 1253, of which 604 found and 649 not
+  matched to Cowan's transition list: 1253 (596 checked against their level_id, largest energy disagreement 5.1 cm^-1)
+calculated E1 transitions: 120274
+Traceback (most recent call last):
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3549, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3367, in main
+    en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+                                                        ~~~~~~~~~~~~~~^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 2886, in unfound_theory
+    e_meas = uf.measured_energies(en, e_final=ctx.e_final, log=log)
+  File "F:\UMD\AI\as-ai\LineClass\unfound_levels.py", line 328, in measured_energies
+    id_of = cowan_gA.read_id_map(ids)
+  File "F:\UMD\AI\as-ai\LineClass\cowan_gA.py", line 241, in read_id_map
+    t = pd.read_csv(path, sep='\t', dtype={'level_id': str})
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1922, in _make_engine
+    return mapping[engine](f, **self.options)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\c_parser_wrapper.py", line 95, in __init__
+    self._reader = parsers.TextReader(src, **kwds)
+                   ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "pandas/_libs/parsers.pyx", line 568, in pandas._libs.parsers.TextReader.__cinit__
+  File "pandas/_libs/parsers.pyx", line 657, in pandas._libs.parsers.TextReader._get_header
+  File "pandas/_libs/parsers.pyx", line 868, in pandas._libs.parsers.TextReader._tokenize_rows
+  File "pandas/_libs/parsers.pyx", line 885, in pandas._libs.parsers.TextReader._check_tokenize_status
+  File "pandas/_libs/parsers.pyx", line 2076, in pandas._libs.parsers.raise_parser_error
+PermissionError: [Errno 13] Permission denied
+
+==============================================================================
+IDEN2 row 269   exit 1
+==============================================================================
+levels in the run: 593
+  hyperfine widths: 274 levels carry one, 0.004 - 0.102 cm^-1; 5 of them above 0.08 cm^-1 are marked as having a large hyperfine structure; 213 of them are the typical width of the level's configuration, the fit having too few lines to measure its own
+observed lines: 6668, 9328.8 - 121663.1 cm^-1
+  local line density 0.004 - 0.336 per cm^-1 (median 0.094)
+  local ln I_obs: mean 8.82, sd 1.40
+  intensity scale 0-900 A: median I_obs/I_pred = 0.445 (sd of ln = 1.05) over 85 accepted lines
+  intensity scale 900-1000 A: median I_obs/I_pred = 0.567 (sd of ln = 0.85) over 80 accepted lines  - no correction
+  intensity scale elsewhere: no correction (sd of ln = 1.21 over 4827 accepted lines)
+predicted transitions: 29165
+ingredients measured on this run:
+  blend inflation of the position uncertainty, k(n):
+    n= 1  N= 4103  rms(t)=0.978  k=1.000
+    n= 2  N=  818  rms(t)=1.655  k=1.640
+    n= 3  N=   87  rms(t)=1.301  k=1.240
+    n= 4  N=    8  rms(t)=1.154  k=1.039
+  the width model: rms of residual/sigma over the 5016 accepted lines = 0.989; a class that comes out far from 1 is a class whose width is mis-stated
+    69/-:2098@0.97  69/bl:29@1.14  69/cl:115@0.82  69/h:88@0.99  69/w:14@1.19  74/-:1727@0.92  74/c:89@1.06  74/ch:27@1.16  74/d:49@0.99  74/hfs:282@1.10  74/w:493@1.19
+  anomalous-position rate eta = 0.0002 (2 dNLL against eta=0: 108.3)
+  intensity residual: mean -0.024, sd 1.203 over 5016 accepted lines
+  within-level s = 1.174, between-level s_L = 0.235 (209 levels with 5 lines or more)
+  partner energy uncertainty D1: median 0.0147, max 0.4087 cm^-1 over 596 levels
+  unfound-level background unavailable: [Errno 13] Permission denied
+  unrelated-line background: 2125 of 6668 recorded lines carry no accepted transition
+    empirical density 0.0267, modelled 0.0000, used 0.0267 per cm^-1 (median; all lines 0.0937)
+    ln I of a free line: mean 8.17 (all lines 8.82), of a predicted unfound-level line 8.17
+  released 263 accepted assignments of 69 questionable levels; 2314 of 6668 recorded lines now carry no accepted transition
+    the unrelated-line background is re-measured over them: density 0.0288 per cm^-1 (median), ln I of a free line 8.30
+Traceback (most recent call last):
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3549, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3367, in main
+    en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+                                                        ~~~~~~~~~~~~~~^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 2885, in unfound_theory
+    en, trans, mapping = uf.read_theory(log=log)
+                         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\unfound_levels.py", line 173, in read_theory
+    calc, cowan_gA.read_enlev_levels(enlev), cowan_gA.read_id_map(ids))
+                                             ~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\cowan_gA.py", line 241, in read_id_map
+    t = pd.read_csv(path, sep='\t', dtype={'level_id': str})
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1922, in _make_engine
+    return mapping[engine](f, **self.options)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\c_parser_wrapper.py", line 95, in __init__
+    self._reader = parsers.TextReader(src, **kwds)
+                   ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "pandas/_libs/parsers.pyx", line 568, in pandas._libs.parsers.TextReader.__cinit__
+  File "pandas/_libs/parsers.pyx", line 657, in pandas._libs.parsers.TextReader._get_header
+  File "pandas/_libs/parsers.pyx", line 868, in pandas._libs.parsers.TextReader._tokenize_rows
+  File "pandas/_libs/parsers.pyx", line 885, in pandas._libs.parsers.TextReader._check_tokenize_status
+  File "pandas/_libs/parsers.pyx", line 2076, in pandas._libs.parsers.raise_parser_error
+PermissionError: [Errno 13] Permission denied
+
+==============================================================================
+IDEN2 row 611   exit 1
+==============================================================================
+levels in the run: 593
+  hyperfine widths: 274 levels carry one, 0.004 - 0.102 cm^-1; 5 of them above 0.08 cm^-1 are marked as having a large hyperfine structure; 213 of them are the typical width of the level's configuration, the fit having too few lines to measure its own
+observed lines: 6668, 9328.8 - 121663.1 cm^-1
+  local line density 0.004 - 0.336 per cm^-1 (median 0.094)
+  local ln I_obs: mean 8.82, sd 1.40
+  intensity scale 0-900 A: median I_obs/I_pred = 0.445 (sd of ln = 1.05) over 85 accepted lines
+  intensity scale 900-1000 A: median I_obs/I_pred = 0.567 (sd of ln = 0.85) over 80 accepted lines  - no correction
+  intensity scale elsewhere: no correction (sd of ln = 1.21 over 4827 accepted lines)
+predicted transitions: 29165
+ingredients measured on this run:
+  blend inflation of the position uncertainty, k(n):
+    n= 1  N= 4103  rms(t)=0.978  k=1.000
+    n= 2  N=  818  rms(t)=1.655  k=1.640
+    n= 3  N=   87  rms(t)=1.301  k=1.240
+    n= 4  N=    8  rms(t)=1.154  k=1.039
+  the width model: rms of residual/sigma over the 5016 accepted lines = 0.989; a class that comes out far from 1 is a class whose width is mis-stated
+    69/-:2098@0.97  69/bl:29@1.14  69/cl:115@0.82  69/h:88@0.99  69/w:14@1.19  74/-:1727@0.92  74/c:89@1.06  74/ch:27@1.16  74/d:49@0.99  74/hfs:282@1.10  74/w:493@1.19
+  anomalous-position rate eta = 0.0002 (2 dNLL against eta=0: 108.3)
+  intensity residual: mean -0.024, sd 1.203 over 5016 accepted lines
+  within-level s = 1.174, between-level s_L = 0.235 (209 levels with 5 lines or more)
+  partner energy uncertainty D1: median 0.0147, max 0.4087 cm^-1 over 596 levels
+  unfound-level background unavailable: [Errno 13] Permission denied
+  unrelated-line background: 2125 of 6668 recorded lines carry no accepted transition
+    empirical density 0.0267, modelled 0.0000, used 0.0267 per cm^-1 (median; all lines 0.0937)
+    ln I of a free line: mean 8.17 (all lines 8.82), of a predicted unfound-level line 8.17
+  released 263 accepted assignments of 69 questionable levels; 2314 of 6668 recorded lines now carry no accepted transition
+    the unrelated-line background is re-measured over them: density 0.0288 per cm^-1 (median), ln I of a free line 8.30
+Traceback (most recent call last):
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3549, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 3367, in main
+    en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+                                                        ~~~~~~~~~~~~~~^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\level_positions.py", line 2885, in unfound_theory
+    en, trans, mapping = uf.read_theory(log=log)
+                         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\unfound_levels.py", line 173, in read_theory
+    calc, cowan_gA.read_enlev_levels(enlev), cowan_gA.read_id_map(ids))
+                                             ~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "F:\UMD\AI\as-ai\LineClass\cowan_gA.py", line 241, in read_id_map
+    t = pd.read_csv(path, sep='\t', dtype={'level_id': str})
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\readers.py", line 1922, in _make_engine
+    return mapping[engine](f, **self.options)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krami\AppData\Roaming\Python\Python314\site-packages\pandas\io\parsers\c_parser_wrapper.py", line 95, in __init__
+    self._reader = parsers.TextReader(src, **kwds)
+                   ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "pandas/_libs/parsers.pyx", line 568, in pandas._libs.parsers.TextReader.__cinit__
+  File "pandas/_libs/parsers.pyx", line 657, in pandas._libs.parsers.TextReader._get_header
+  File "pandas/_libs/parsers.pyx", line 868, in pandas._libs.parsers.TextReader._tokenize_rows
+  File "pandas/_libs/parsers.pyx", line 885, in pandas._libs.parsers.TextReader._check_tokenize_status
+  File "pandas/_libs/parsers.pyx", line 2076, in pandas._libs.parsers.raise_parser_error
+PermissionError: [Errno 13] Permission denied
+
+==============================================================================
+IDEN2 row 996   exit 0
+==============================================================================
+IDEN2 row 996  f5d2 ~3P4D  J = 0.5  not found
+  calculated at 72944.7 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  32 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 72310.3 - 73579.1 cm^-1 in steps of 0.020
+  11 positions where ln R > 0: 1 firm, 4 weak, 6 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+72705.869 13.078 10.680 -238.831 -1.129     10        7       3       6     14.229      0.297       firm
+73364.029  6.232  3.834  419.329  1.983      8        4       4       3      9.710      0.430       weak
+72450.329  1.996 -0.402 -494.371 -2.338     11        3       8       2      6.027      0.489       weak
+73518.989  1.618 -0.780  574.289  2.716      8        5       3       2      7.514      0.486       weak
+73220.309  1.584 -0.814  275.609  1.303      9        3       6       3      9.390      0.523       weak
+73449.629  4.148  1.750  504.929  2.388      8        2       6       1      5.429      0.477 no support
+72442.449  1.411 -0.987 -502.251 -2.375     11        4       7       2      7.312      0.634 no support
+72408.849  1.324 -1.074 -535.851 -2.534     11        4       7       1      4.452      0.471 no support
+72487.989  1.254 -1.144 -456.711 -2.160     10        2       8       1      5.927      0.710 no support
+73348.729  0.953 -1.445  404.029  1.911      8        3       5       2      7.075      0.728 no support
+72426.149  0.338 -2.060 -518.551 -2.452     11        5       6       1      4.677      0.760 no support
+
+  --unknown 996 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 735   exit 0
+==============================================================================
+IDEN2 row 735  f25f ~3F4P  J = 0.5  not found
+  calculated at 116804.7 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  31 calculated transitions to levels that HAVE been found, 10 of which could have been recorded at the calculated position
+  scanned 116491.5 - 117117.9 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 4 weak, 1 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+116927.749 5.690  4.081 123.049  1.179     10        6       4       2      7.187      0.430       weak
+117115.129 5.219  3.610 310.429  2.973     10        6       4       3      8.690      0.310       weak
+116726.969 3.979  2.369 -77.731 -0.745     10        5       5       2      7.939      0.428       weak
+116877.949 2.116  0.506  73.249  0.702     10        4       6       2      5.645      0.405       weak
+117094.829 0.589 -1.021 290.129  2.779     10        4       6       1      4.818      0.798 no support
+
+  --unknown 735 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 446   exit 0
+==============================================================================
+IDEN2 row 446  f27d _3H4I  J = 7.5  not found
+  calculated at 134002.0 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  42 calculated transitions to levels that HAVE been found, 9 of which could have been recorded at the calculated position
+  scanned 133727.4 - 134276.6 cm^-1 in steps of 0.020
+  14 positions where ln R > 0: 0 firm, 8 weak, 6 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+134004.067 9.084  6.445    2.067  0.023      9        5       4       3     11.169      0.344       weak
+133945.387 6.660  4.021  -56.613 -0.618      8        5       3       3     10.304      0.566       weak
+134165.067 3.598  0.959  163.067  1.781      9        3       6       3     12.137      0.400       weak
+134129.287 2.174 -0.466  127.287  1.391      9        4       5       3      9.919      0.513       weak
+134139.547 2.162 -0.477  137.547  1.503      9        3       6       2      8.180      0.503       weak
+134239.307 1.722 -0.917  237.307  2.592      8        3       5       3      8.707      0.558       weak
+133924.147 0.962 -1.677  -77.853 -0.851      8        3       5       3      8.230      0.499       weak
+134172.287 0.572 -2.067  170.287  1.860      9        3       6       2      9.848      0.537       weak
+134143.267 5.451  2.812  141.267  1.543      9        3       6       2     11.083      0.621 no support
+133982.287 2.226 -0.413  -19.713 -0.215      8        4       4       2      7.699      0.765 no support
+134075.187 1.861 -0.778   73.187  0.800      9        3       6       3      6.610      0.745 no support
+133936.647 1.159 -1.480  -65.353 -0.714      8        4       4       3      6.150      0.705 no support
+134243.107 1.036 -1.603  241.107  2.634      8        4       4       1      6.852      0.877 no support
+133821.547 0.105 -2.534 -180.453 -1.971      8        3       5       1      5.998      0.879 no support
+
+  --unknown 446 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 445   exit 0
+==============================================================================
+IDEN2 row 445  f28s _3F4F  J = 1.5  not found
+  calculated at 134076.9 cm^-1; levels of f28s turn out to be 74.5 cm^-1 from where the calculation puts them (rms)
+  78 calculated transitions to levels that HAVE been found, 9 of which could have been recorded at the calculated position
+  scanned 133853.3 - 134300.5 cm^-1 in steps of 0.020
+  7 positions where ln R > 0: 0 firm, 7 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134074.257 4.390  2.444   -2.643 -0.035      9        5       4       3      8.038      0.380    weak
+133959.577 1.113 -0.833 -117.323 -1.574      9        5       4       3      4.814      0.519    weak
+133912.477 0.848 -1.098 -164.423 -2.206      9        3       6       3      6.876      0.474    weak
+133982.597 0.664 -1.282  -94.303 -1.265      9        7       2       3      6.449      0.402    weak
+134027.477 0.395 -1.551  -49.423 -0.663      9        4       5       3      5.356      0.488    weak
+133937.417 0.308 -1.638 -139.483 -1.872      9        4       5       2      7.354      0.522    weak
+133924.377 0.304 -1.641 -152.523 -2.047      9        4       5       2      4.410      0.414    weak
+
+  --unknown 445 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 949   exit 0
+==============================================================================
+IDEN2 row 949  f26p ~3P4P  J = 0.5  not found
+  calculated at 83488.4 cm^-1; levels of f26p turn out to be 110.0 cm^-1 from where the calculation puts them (rms)
+  29 calculated transitions to levels that HAVE been found, 9 of which could have been recorded at the calculated position
+  scanned 83158.4 - 83818.4 cm^-1 in steps of 0.020
+  26 positions where ln R > 0: 1 firm, 2 weak, 23 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+83426.172 14.089 10.831  -62.228 -0.566      9        6       3       4     15.677      0.301       firm
+83774.612  0.540 -2.718  286.212  2.602      9        3       6       2      4.729      0.529       weak
+83459.932  0.070 -3.189  -28.468 -0.259      9        2       7       2      5.700      0.505       weak
+83505.872  3.647  0.388   17.472  0.159      9        3       6       2      7.917      0.619 no support
+83399.632  2.970 -0.289  -88.768 -0.807      8        3       5       1      5.781      0.811 no support
+83601.432  2.495 -0.763  113.032  1.027      9        3       6       1      5.584      0.799 no support
+83770.452  2.014 -1.244  282.052  2.564      9        2       7       1      6.863      0.903 no support
+83212.172  1.539 -1.719 -276.228 -2.511      8        3       5       1      5.356      0.901 no support
+83691.672  1.537 -1.721  203.272  1.848      9        2       7       1      6.287      0.891 no support
+83258.992  1.455 -1.803 -229.408 -2.085      8        2       6       1      5.276      0.888 no support
+83249.072  1.348 -1.910 -239.328 -2.175      8        2       6       1      5.709      0.964 no support
+83176.492  1.273 -1.985 -311.908 -2.835      8        2       6       1      5.329      0.881 no support
+83674.812  1.251 -2.008  186.412  1.694      9        2       7       2      6.396      0.621 no support
+83267.192  0.952 -2.306 -221.208 -2.011      8        2       6       1      5.640      0.987 no support
+83539.852  0.826 -2.432   51.452  0.468      9        3       6       1      5.341      0.971 no support
+83547.392  0.546 -2.712   58.992  0.536      9        2       7       1      5.886      0.932 no support
+83743.292  0.523 -2.735  254.892  2.317      9        3       6       1      5.124      0.919 no support
+83174.892  0.457 -2.801 -313.508 -2.850      8        2       6       1      4.446      0.873 no support
+83698.892  0.381 -2.878  210.492  1.913      9        1       8       1      6.556      1.000 no support
+83274.912  0.332 -2.926 -213.488 -1.941      8        2       6       1      4.663      0.892 no support
+83503.072  0.252 -3.006   14.672  0.133      9        2       7       1      2.408      0.479 no support
+83747.952  0.092 -3.166  259.552  2.359      9        3       6       1      4.055      0.771 no support
+83583.212  0.072 -3.186   94.812  0.862      9        2       7       1      3.129      0.516 no support
+83270.872  0.067 -3.191 -217.528 -1.977      8        1       7       1      5.676      0.992 no support
+83276.432  0.046 -3.212 -211.968 -1.927      8        2       6       1      3.615      0.738 no support
+83304.652  0.028 -3.230 -183.748 -1.670      8        2       6       1      4.561      0.893 no support
+
+  --unknown 949 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 692   exit 0
+==============================================================================
+IDEN2 row 692  f27p ~3F4D  J = 3.5  not found
+  calculated at 118504.2 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  115 calculated transitions to levels that HAVE been found, 20 of which could have been recorded at the calculated position
+  scanned 118396.2 - 118612.2 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+118570.370 0.722 0.722 66.170 1.838     20        9      11       2      6.639      0.548    weak
+
+  --unknown 692 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 936   exit 0
+==============================================================================
+IDEN2 row 936  f5d2 ~3P2F  J = 3.5  not found
+  calculated at 84887.0 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  115 calculated transitions to levels that HAVE been found, 17 of which could have been recorded at the calculated position
+  scanned 84252.6 - 85521.4 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 1 firm, 4 weak, 0 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+85186.689 16.156 14.547  299.689  1.417     16        8       8       4     15.349      0.247    firm
+84588.549  4.411  2.801 -298.451 -1.411     17        4      13       3      9.491      0.230    weak
+84429.969  4.131  2.522 -457.031 -2.161     16        7       9       2      4.298      0.311    weak
+84293.049  0.270 -1.340 -593.951 -2.809     16        5      11       2      7.803      0.366    weak
+84872.149  0.145 -1.464  -14.851 -0.070     17        6      11       2      8.578      0.551    weak
+
+  --unknown 936 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 713   exit 0
+==============================================================================
+IDEN2 row 713  f27p ~3F4D  J = 2.5  not found
+  calculated at 117888.6 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  93 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 117780.6 - 117996.6 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+117815.350 0.606 0.606 -73.250 -2.035     16        8       8       2      6.796      0.489    weak
+
+  --unknown 713 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 741   exit 0
+==============================================================================
+IDEN2 row 741  f27p ~3F4G  J = 2.5  not found
+  calculated at 116437.2 cm^-1; levels of f27p turn out to be 36.0 cm^-1 from where the calculation puts them (rms)
+  95 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 116329.2 - 116545.2 cm^-1 in steps of 0.020
+  no position in the window where ln R > 0.  The best the window offers is -1.32 at 116394.430 cm^-1, which is not a candidate: the recorded lines are no more likely with a level there than with none.
+
+==============================================================================
+IDEN2 row 558   exit 0
+==============================================================================
+IDEN2 row 558  fd6p _3G2H  J = 4.5  not found
+  calculated at 126138.2 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  165 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 124925.5 - 127350.9 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 4 weak, 1 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+125181.595 1.512 -0.097 -956.605 -2.366     14        5       9       4      9.415      0.316       weak
+125628.295 0.188 -1.422 -509.905 -1.261     12        5       7       2      5.537      0.512       weak
+125273.555 0.109 -1.500 -864.645 -2.139     14        5       9       3      8.085      0.484       weak
+126802.235 0.064 -1.546  664.035  1.643     13        8       5       3      7.275      0.321       weak
+126864.375 0.214 -1.396  726.175  1.796     13        3      10       0      0.000      0.625 no support
+
+  --unknown 558 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 915   exit 0
+==============================================================================
+IDEN2 row 915  f5d6s~1D2D  J = 1.5  not found
+  calculated at 91039.2 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  61 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 90430.8 - 91647.6 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 1 firm, 4 weak, 0 no support
+
+        E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+91197.771 6.564  4.954 158.571  0.782     16        9       7       6     10.603      0.235    firm
+91417.111 2.301  0.692 377.911  1.863     16        5      11       3      9.249      0.347    weak
+91212.671 0.582 -1.028 173.471  0.855     16        4      12       3      9.101      0.541    weak
+91339.151 0.531 -1.078 299.951  1.479     16        6      10       2      6.276      0.406    weak
+90980.491 0.307 -1.302 -58.709 -0.289     16        3      13       3      7.586      0.328    weak
+
+  --unknown 915 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 900   exit 0
+==============================================================================
+IDEN2 row 900  f5d6s~3D2D  J = 2.5  not found
+  calculated at 98148.6 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  84 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 97540.2 - 98757.0 cm^-1 in steps of 0.020
+  3 positions where ln R > 0: 1 firm, 1 weak, 1 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+97740.311 22.936 21.837 -408.289 -2.013     14       10       4       9     24.424      0.161       firm
+97553.331  1.793  0.695 -595.269 -2.935     14        5       9       4      9.924      0.331       weak
+98345.811  1.528  0.429  197.211  0.972     13        8       5       2      8.032      0.606 no support
+
+  --unknown 900 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 299   exit 0
+==============================================================================
+IDEN2 row 299  5d3  _4F4F  J = 4.5  not found
+  calculated at 138572.7 cm^-1; levels of 5d3 turn out to be 133.4 cm^-1 from where the calculation puts them (rms)
+  136 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 138172.6 - 138972.8 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+138832.073 0.522 -0.171 259.373 1.945     12        6       6       2      7.288      0.495    weak
+138708.233 0.460 -0.233 135.533 1.016     12        5       7       2      6.410      0.511    weak
+
+  --unknown 299 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 1014   exit 0
+==============================================================================
+IDEN2 row 1014  f5d2 ~3F4P  J = 1.5  not found
+  calculated at 69366.4 cm^-1; levels of f5d2 turn out to be 211.5 cm^-1 from where the calculation puts them (rms)
+  64 calculated transitions to levels that HAVE been found, 16 of which could have been recorded at the calculated position
+  scanned 68732.0 - 70000.8 cm^-1 in steps of 0.020
+  14 positions where ln R > 0: 1 firm, 11 weak, 2 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+68890.189 16.438 13.799 -476.211 -2.252     13        7       6       5     22.270      0.228       firm
+68892.269  4.142  1.503 -474.131 -2.242     13        3      10       3     11.374      0.475       weak
+69117.289  3.972  1.333 -249.111 -1.178     15        6       9       3      7.848      0.434       weak
+68751.629  3.134  0.495 -614.771 -2.907     13        4       9       3      9.839      0.396       weak
+69026.869  2.920  0.281 -339.531 -1.606     14        3      11       3     10.808      0.431       weak
+68888.609  2.494 -0.145 -477.791 -2.259     13        3      10       2      8.700      0.516       weak
+68936.429  1.501 -1.138 -429.971 -2.033     13        3      10       2      9.795      0.511       weak
+68899.629  1.309 -1.330 -466.771 -2.207     13        4       9       2      5.969      0.445       weak
+69560.349  1.304 -1.335  193.949  0.917     16        4      12       3     12.164      0.435       weak
+68799.109  0.733 -1.906 -567.291 -2.683     13        2      11       2     10.384      0.503       weak
+69907.309  0.517 -2.122  540.909  2.558     15        5      10       3      9.758      0.392       weak
+69626.889  0.363 -2.276  260.489  1.232     15        6       9       2      7.795      0.559       weak
+68833.789  1.949 -0.690 -532.611 -2.519     13        3      10       1      5.626      0.689 no support
+68757.669  0.928 -1.711 -608.731 -2.879     13        5       8       1      3.482      0.482 no support
+
+  --unknown 1014 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 381   exit 0
+==============================================================================
+IDEN2 row 381  f28s _3F2F  J = 2.5  not found
+  calculated at 135576.6 cm^-1; levels of f28s turn out to be 74.5 cm^-1 from where the calculation puts them (rms)
+  127 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 135353.0 - 135800.2 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+135482.057 1.501 0.808 -94.543 -1.269     14        7       7       5      8.051      0.329    weak
+135793.897 0.694 0.001 217.297  2.916     14        5       9       2      7.081      0.358    weak
+
+  --unknown 381 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 803   exit 0
+==============================================================================
+IDEN2 row 803  f26d _1G2H  J = 4.5  not found
+  calculated at 111244.7 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  141 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 111063.5 - 111425.9 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 0 weak, 1 no support
+
+         E  ln_R  look    dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+111250.501 0.272 0.272 5.801 0.096     14        3      11       1      3.977      0.458 no support
+
+  --unknown 803 --at E lists the transitions at any one of these energies.
+  Every one of them rests on one line or on none that is free, which is what a scan of 362 cm^-1 finds when there is nothing there.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 824   exit 0
+==============================================================================
+IDEN2 row 824  f26d _3F2D  J = 2.5  not found
+  calculated at 108488.4 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  131 calculated transitions to levels that HAVE been found, 15 of which could have been recorded at the calculated position
+  scanned 108307.2 - 108669.6 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+108592.021 2.027 2.027 103.621 1.715     14        5       9       3      9.133      0.427    weak
+
+  --unknown 824 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 406   exit 0
+==============================================================================
+IDEN2 row 406  f27d _3H2G  J = 4.5  not found
+  calculated at 134714.8 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  150 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 134440.2 - 134989.4 cm^-1 in steps of 0.020
+  4 positions where ln R > 0: 1 firm, 3 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+134696.627 6.655  5.269  -18.173 -0.199     12        4       8       4     13.084      0.442    firm
+134503.407 2.964  1.578 -211.393 -2.309     12        4       8       3     11.048      0.480    weak
+134813.807 1.164 -0.222   99.007  1.082     12        4       8       3      9.064      0.543    weak
+134641.487 0.577 -0.809  -73.313 -0.801     12        5       7       3      9.238      0.552    weak
+
+  --unknown 406 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 658   exit 0
+==============================================================================
+IDEN2 row 658  fd6p _3H4I  J = 5.5  not found
+  calculated at 120416.4 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  116 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 119203.7 - 121629.1 cm^-1 in steps of 0.020
+  11 positions where ln R > 0: 0 firm, 11 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+120805.375 5.169  2.771  388.975  0.962     14        7       7       4      9.276      0.286    weak
+120505.095 2.356 -0.042   88.695  0.219     14        5       9       2      7.366      0.407    weak
+120273.655 2.183 -0.215 -142.745 -0.353     15        4      11       3      9.524      0.393    weak
+119629.995 1.644 -0.754 -786.405 -1.945     16        5      11       3      9.763      0.381    weak
+121143.355 1.118 -1.280  726.955  1.798     14        4      10       3      6.383      0.372    weak
+119635.675 1.110 -1.288 -780.725 -1.931     16        4      12       3      7.747      0.402    weak
+120538.295 1.084 -1.314  121.895  0.302     14        3      11       3      9.934      0.336    weak
+121062.755 0.906 -1.492  646.355  1.599     14        3      11       2      7.202      0.357    weak
+120886.175 0.561 -1.837  469.775  1.162     14        2      12       2      6.652      0.425    weak
+121084.995 0.263 -2.135  668.595  1.654     14        5       9       2      5.831      0.445    weak
+120637.795 0.186 -2.212  221.395  0.548     14        5       9       4      8.239      0.420    weak
+
+  --unknown 658 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 856   exit 0
+==============================================================================
+IDEN2 row 856  f26d _3F4G  J = 2.5  not found
+  calculated at 105790.1 cm^-1; levels of f26d turn out to be 60.4 cm^-1 from where the calculation puts them (rms)
+  131 calculated transitions to levels that HAVE been found, 13 of which could have been recorded at the calculated position
+  scanned 105608.9 - 105971.3 cm^-1 in steps of 0.020
+  4 positions where ln R > 0: 0 firm, 4 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+105721.301 3.106  1.720  -68.799 -1.139     13        5       8       3     11.162      0.381    weak
+105676.701 1.369 -0.017 -113.399 -1.877     11        2       9       2      9.513      0.573    weak
+105668.901 1.220 -0.167 -121.199 -2.006     11        2       9       2      9.311      0.587    weak
+105769.661 0.028 -1.358  -20.439 -0.338     13        2      11       2      9.086      0.504    weak
+
+  --unknown 856 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 392   exit 0
+==============================================================================
+IDEN2 row 392  f27d _3F4G  J = 3.5  not found
+  calculated at 135131.5 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  156 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 134856.9 - 135406.1 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+135325.387 0.393 -0.300  193.887  2.118     11        3       8       2      5.475      0.348    weak
+134998.347 0.088 -0.605 -133.153 -1.455     11        4       7       3      8.984      0.452    weak
+
+  --unknown 392 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 318   exit 0
+==============================================================================
+IDEN2 row 318  f27d _3F2F  J = 3.5  not found
+  calculated at 137023.4 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  152 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 136748.8 - 137298.0 cm^-1 in steps of 0.020
+  7 positions where ln R > 0: 1 firm, 6 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+136758.847 6.606  4.660 -264.553 -2.890     12        7       5       6     11.456      0.240    firm
+137068.127 2.459  0.513   44.727  0.489     10        4       6       4      8.356      0.355    weak
+137274.267 2.351  0.405  250.867  2.741     10        7       3       3      4.160      0.275    weak
+137273.667 1.875 -0.071  250.267  2.734     10        8       2       4      6.203      0.325    weak
+136814.247 1.366 -0.579 -209.153 -2.285     12        7       5       4      7.286      0.269    weak
+137285.687 0.640 -1.306  262.287  2.865     10        5       5       3      6.789      0.353    weak
+136795.127 0.088 -1.858 -228.273 -2.494     12        4       8       3      7.408      0.344    weak
+
+  --unknown 318 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 1093   exit 0
+==============================================================================
+IDEN2 row 1093  f26s _3P4P  J = 0.5  not found
+  calculated at 49610.2 cm^-1; levels of f26s turn out to be 98.6 cm^-1 from where the calculation puts them (rms)
+  45 calculated transitions to levels that HAVE been found, 14 of which could have been recorded at the calculated position
+  scanned 49314.5 - 49905.9 cm^-1 in steps of 0.020
+  6 positions where ln R > 0: 2 firm, 1 weak, 3 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+49653.820 30.270 28.478   43.620  0.443     14        7       7       7     35.094      0.174       firm
+49652.300 27.909 26.118   42.100  0.427     14        7       7       7     31.889      0.174       firm
+49750.300  5.610  3.818  140.100  1.422     14        4      10       3     11.464      0.359       weak
+49538.600  1.221 -0.571  -71.600 -0.727     14        2      12       2      9.047      0.617 no support
+49476.740  0.879 -0.912 -133.460 -1.354     13        4       9       1      5.319      0.750 no support
+49668.100  0.371 -1.421   57.900  0.587     14        2      12       2      9.041      0.711 no support
+
+  --unknown 1093 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 321   exit 0
+==============================================================================
+IDEN2 row 321  f27d _3F4D  J = 3.5  not found
+  calculated at 136881.7 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  146 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 136607.1 - 137156.3 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 0 firm, 3 weak, 2 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+136902.927 5.881  4.272   21.227  0.232     11        7       4       4      7.858      0.334       weak
+136933.127 2.344  0.735   51.427  0.562     11        5       6       2      5.606      0.374       weak
+136882.487 1.578 -0.031    0.787  0.009     11        6       5       2      6.293      0.406       weak
+136653.347 0.209 -1.401 -228.353 -2.495     11        4       7       1      1.026      0.679 no support
+136677.607 0.004 -1.605 -204.093 -2.230     11        3       8       2      2.374      0.622 no support
+
+  --unknown 321 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 479   exit 0
+==============================================================================
+IDEN2 row 479  f25f ~3P4G  J = 4.5  not found
+  calculated at 132959.2 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  97 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 132646.0 - 133272.4 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 1 firm, 0 weak, 1 no support
+
+         E  ln_R  look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+132903.469 9.441 8.748  -55.731 -0.534     11        7       4       4     12.886      0.336       firm
+132646.909 0.850 0.156 -312.291 -2.991     11        5       6       1      5.263      0.740 no support
+
+  --unknown 479 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 903   exit 0
+==============================================================================
+IDEN2 row 903  f5d6s~3D2D  J = 1.5  not found
+  calculated at 95551.5 cm^-1; levels of f5d6s turn out to be 202.8 cm^-1 from where the calculation puts them (rms)
+  61 calculated transitions to levels that HAVE been found, 12 of which could have been recorded at the calculated position
+  scanned 94943.1 - 96159.9 cm^-1 in steps of 0.020
+  5 positions where ln R > 0: 2 firm, 1 weak, 2 no support
+
+        E   ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+95003.911 25.433 23.824 -547.589 -2.700     13       10       3       8     28.194      0.194       firm
+95003.411  8.197  6.587 -548.089 -2.702     13       10       3       6     10.944      0.388       firm
+95198.871  1.739  0.129 -352.629 -1.739     13        6       7       2      5.964      0.358       weak
+95945.151  0.611 -0.998  393.651  1.941     11        4       7       1      3.827      0.585 no support
+96132.951  0.451 -1.158  581.451  2.867     11        4       7       1      1.600      0.378 no support
+
+  --unknown 903 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 621   exit 0
+==============================================================================
+IDEN2 row 621  f25f ~1G2D  J = 1.5  not found
+  calculated at 122593.3 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  64 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 122280.1 - 122906.5 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look     dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+122646.949 3.360 3.360 53.649 0.514     11        4       7       2      9.361      0.502    weak
+
+  --unknown 621 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 252   exit 0
+==============================================================================
+IDEN2 row 252  f27d _1G2H  J = 4.5  not found
+  calculated at 139805.3 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  151 calculated transitions to levels that HAVE been found, 11 of which could have been recorded at the calculated position
+  scanned 139530.7 - 140079.9 cm^-1 in steps of 0.020
+  4 positions where ln R > 0: 0 firm, 3 weak, 1 no support
+
+         E  ln_R   look      dE     z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+139996.707 1.599  0.213 191.407 2.091     11        2       9       2      5.659      0.346       weak
+140019.687 1.085 -0.301 214.387 2.342     11        3       8       2      6.942      0.523       weak
+139953.927 0.553 -0.833 148.627 1.624     11        6       5       3      5.703      0.435       weak
+140028.007 0.447 -0.939 222.707 2.433     11        7       4       3      5.412      0.681 no support
+
+  --unknown 252 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 339   exit 0
+==============================================================================
+IDEN2 row 339  f27d _3F2F  J = 2.5  not found
+  calculated at 136605.7 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  132 calculated transitions to levels that HAVE been found, 10 of which could have been recorded at the calculated position
+  scanned 136331.1 - 136880.3 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 8 weak, 0 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+136728.767 1.329 -0.750  123.067  1.344     10        5       5       4      6.612      0.302    weak
+136619.407 1.021 -1.059   13.707  0.150     10        4       6       3      4.102      0.446    weak
+136613.527 0.701 -1.379    7.827  0.086     10        3       7       3      6.776      0.497    weak
+136548.787 0.620 -1.459  -56.913 -0.622     10        5       5       4      5.331      0.482    weak
+136602.507 0.348 -1.732   -3.193 -0.035     10        5       5       4      5.818      0.577    weak
+136763.027 0.139 -1.941  157.327  1.719     10        3       7       3      6.287      0.464    weak
+136468.387 0.010 -2.070 -137.313 -1.500     10        4       6       3      5.666      0.469    weak
+136874.367 0.000 -2.079  268.667  2.935      9        3       6       2      5.555      0.483    weak
+
+  --unknown 339 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 376   exit 0
+==============================================================================
+IDEN2 row 376  fd6p _1H2I  J = 6.5  not found
+  calculated at 135975.5 cm^-1; levels of fd6p turn out to be 404.2 cm^-1 from where the calculation puts them (rms)
+  84 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 134762.8 - 137188.2 cm^-1 in steps of 0.020
+  19 positions where ln R > 0: 0 firm, 16 weak, 3 no support
+
+         E  ln_R   look        dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+134872.295 6.510  3.566 -1103.205 -2.729     10        3       7       3      7.015      0.401       weak
+135537.055 4.619  1.674  -438.445 -1.085      9        5       4       2      6.112      0.426       weak
+136763.695 3.133  0.189   788.195  1.950      9        6       3       3      7.342      0.313       weak
+136216.415 3.051  0.107   240.915  0.596      9        3       6       3      8.754      0.343       weak
+136045.315 1.650 -1.294    69.815  0.173      8        3       5       2      5.903      0.380       weak
+135819.375 1.450 -1.495  -156.125 -0.386      7        2       5       2      7.315      0.576       weak
+135893.655 1.415 -1.529   -81.845 -0.202      8        2       6       2      5.077      0.478       weak
+135811.915 1.226 -1.718  -163.585 -0.405      7        3       4       2      7.742      0.544       weak
+135242.295 1.181 -1.763  -733.205 -1.814     10        4       6       2      7.245      0.535       weak
+135300.975 1.158 -1.786  -674.525 -1.669     10        4       6       2      7.520      0.576       weak
+134949.415 1.115 -1.829 -1026.085 -2.538     10        5       5       2      4.568      0.473       weak
+135798.315 1.068 -1.877  -177.185 -0.438      7        4       3       3      6.826      0.435       weak
+136218.715 0.718 -2.227   243.215  0.602      9        2       7       2      6.755      0.415       weak
+136251.075 0.585 -2.359   275.575  0.682      9        5       4       2      6.095      0.507       weak
+135870.655 0.540 -2.404  -104.845 -0.259      8        2       6       2      5.237      0.369       weak
+135677.495 0.228 -2.716  -298.005 -0.737      9        3       6       2      6.752      0.483       weak
+135190.395 1.214 -1.731  -785.105 -1.942     10        4       6       1      4.434      0.502 no support
+134785.695 0.517 -2.428 -1189.805 -2.943     10        4       6       1      4.392      0.722 no support
+135915.375 0.200 -2.744   -60.125 -0.149      8        5       3       1      3.371      0.547 no support
+
+  --unknown 376 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 506   exit 0
+==============================================================================
+IDEN2 row 506  f27d _3H4F  J = 2.5  not found
+  calculated at 130935.4 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  130 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 130660.8 - 131210.0 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 3 weak, 5 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+130744.947 1.094 -0.986 -190.453 -2.081      8        3       5       2      3.689      0.334       weak
+131121.167 1.039 -1.040  185.767  2.029      8        3       5       3      7.034      0.398       weak
+131038.507 0.081 -1.998  103.107  1.126      8        2       6       2      3.500      0.339       weak
+131009.367 1.038 -1.042   73.967  0.808      8        3       5       1      5.424      0.726 no support
+130939.867 1.012 -1.068    4.467  0.049      8        3       5       1      5.076      0.750 no support
+130766.287 0.745 -1.335 -169.113 -1.847      8        1       7       1      5.479      0.601 no support
+131063.187 0.487 -1.593  127.787  1.396      8        2       6       1      5.799      0.664 no support
+131018.347 0.269 -1.811   82.947  0.906      8        2       6       1      3.621      0.503 no support
+
+  --unknown 506 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 418   exit 0
+==============================================================================
+IDEN2 row 418  f27d _3H2K  J = 7.5  not found
+  calculated at 134489.3 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  42 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 134214.7 - 134763.9 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 5 weak, 3 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+134475.167 7.661  5.581  -14.133 -0.154      8        4       4       2      9.622      0.523       weak
+134491.127 5.853  3.773    1.827  0.020      8        5       3       3     12.869      0.401       weak
+134484.047 2.570  0.490   -5.253 -0.057      8        3       5       3     10.250      0.498       weak
+134419.407 1.867 -0.212  -69.893 -0.764      8        3       5       2      8.074      0.588       weak
+134488.247 1.351 -0.729   -1.053 -0.012      8        3       5       2      9.067      0.573       weak
+134384.467 2.565  0.485 -104.833 -1.145      8        4       4       1      5.920      0.668 no support
+134264.907 0.646 -1.434 -224.393 -2.451      8        2       6       2     10.234      0.671 no support
+134435.587 0.105 -1.975  -53.713 -0.587      8        3       5       1      2.943      0.387 no support
+
+  --unknown 418 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 484   exit 0
+==============================================================================
+IDEN2 row 484  f27d _3H2F  J = 2.5  not found
+  calculated at 132788.5 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  131 calculated transitions to levels that HAVE been found, 6 of which could have been recorded at the calculated position
+  scanned 132513.9 - 133063.1 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 3 weak, 5 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+132566.247 1.615 -0.464 -222.253 -2.428      6        3       3       2      5.258      0.503       weak
+132905.427 1.208 -0.872  116.927  1.277      6        2       4       2      7.721      0.591       weak
+132747.467 1.083 -0.997  -41.033 -0.448      6        3       3       2      3.877      0.306       weak
+132538.267 3.187  1.107 -250.233 -2.734      6        3       3       3      8.112      0.609 no support
+132576.127 1.343 -0.736 -212.373 -2.320      6        2       4       2      8.751      0.629 no support
+132689.567 0.419 -1.661  -98.933 -1.081      6        3       3       2      5.974      0.762 no support
+132667.107 0.209 -1.870 -121.393 -1.326      6        3       3       1      5.039      0.783 no support
+132821.207 0.124 -1.956   32.707  0.357      6        3       3       1      3.910      0.615 no support
+
+  --unknown 484 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 489   exit 0
+==============================================================================
+IDEN2 row 489  f25f ~3P4G  J = 2.5  not found
+  calculated at 132356.8 cm^-1; levels of f25f turn out to be 104.4 cm^-1 from where the calculation puts them (rms)
+  83 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 132043.6 - 132670.0 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 1 weak, 1 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+132260.509 4.309  3.615 -96.291 -0.922      8        6       2       2      3.136      0.446       weak
+132373.909 0.285 -0.408  17.109  0.164      8        3       5       0      0.000      0.706 no support
+
+  --unknown 489 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 212   exit 0
+==============================================================================
+IDEN2 row 212  f25g _3F4I  J = 6.5  not found
+  calculated at 140972.0 cm^-1; levels of f25g turn out to be 23.8 cm^-1 from where the calculation puts them (rms)
+  84 calculated transitions to levels that HAVE been found, 9 of which could have been recorded at the calculated position
+  scanned 140900.5 - 141043.5 cm^-1 in steps of 0.020
+  6 positions where ln R > 0: 0 firm, 4 weak, 2 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+140942.824 3.784  1.992 -29.176 -1.224      9        3       6       3      8.884      0.494       weak
+140917.024 2.051  0.259 -54.976 -2.306      9        3       6       3      6.010      0.522       weak
+140998.584 1.971  0.180  26.584  1.115      9        3       6       3      7.303      0.382       weak
+140929.684 1.724 -0.068 -42.316 -1.775      9        3       6       2      6.399      0.460       weak
+140905.144 0.973 -0.819 -66.856 -2.804      9        2       7       2      7.875      0.611 no support
+140960.044 0.233 -1.559 -11.956 -0.501      9        3       6       1      3.944      0.902 no support
+
+  --unknown 212 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 402   exit 0
+==============================================================================
+IDEN2 row 402  5d3  _4F4F  J = 1.5  not found
+  calculated at 134848.3 cm^-1; levels of 5d3 turn out to be 133.4 cm^-1 from where the calculation puts them (rms)
+  87 calculated transitions to levels that HAVE been found, 6 of which could have been recorded at the calculated position
+  scanned 134448.2 - 135248.4 cm^-1 in steps of 0.020
+  8 positions where ln R > 0: 0 firm, 6 weak, 2 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+134645.813 2.647  0.567 -202.487 -1.518      8        3       5       2      4.477      0.346       weak
+134543.733 2.148  0.069 -304.567 -2.284      8        5       3       3      7.795      0.443       weak
+134707.053 1.635 -0.444 -141.247 -1.059      8        4       4       3      5.688      0.536       weak
+134546.113 1.526 -0.554 -302.187 -2.266      8        5       3       2      5.877      0.487       weak
+135081.993 0.845 -1.235  233.693  1.752      6        3       3       2      4.872      0.483       weak
+135042.533 0.297 -1.783  194.233  1.457      6        4       2       3      4.844      0.452       weak
+135237.313 0.200 -1.880  389.013  2.917      6        3       3       1      2.640      0.552 no support
+134665.693 0.012 -2.067 -182.607 -1.369      8        4       4       1      3.134      0.610 no support
+
+  --unknown 402 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 209   exit 0
+==============================================================================
+IDEN2 row 209  f25g _3F4G  J = 5.5  not found
+  calculated at 140979.5 cm^-1; levels of f25g turn out to be 23.8 cm^-1 from where the calculation puts them (rms)
+  124 calculated transitions to levels that HAVE been found, 7 of which could have been recorded at the calculated position
+  scanned 140908.0 - 141051.0 cm^-1 in steps of 0.020
+  2 positions where ln R > 0: 0 firm, 2 weak, 0 no support
+
+         E  ln_R   look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+140917.044 3.327  2.634 -62.456 -2.619      7        4       3       3      6.745      0.430    weak
+140911.004 0.553 -0.140 -68.496 -2.873      7        3       4       3      5.571      0.448    weak
+
+  --unknown 209 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 254   exit 0
+==============================================================================
+IDEN2 row 254  f25g _3F2I  J = 5.5  not found
+  calculated at 139570.6 cm^-1; levels of f25g turn out to be 23.8 cm^-1 from where the calculation puts them (rms)
+  105 calculated transitions to levels that HAVE been found, 8 of which could have been recorded at the calculated position
+  scanned 139499.1 - 139642.1 cm^-1 in steps of 0.020
+  1 positions where ln R > 0: 0 firm, 1 weak, 0 no support
+
+         E  ln_R  look      dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share verdict
+139554.264 0.562 0.562 -16.336 -0.685      8        2       6       2      6.037      0.579    weak
+
+  --unknown 254 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+
+==============================================================================
+IDEN2 row 495   exit 0
+==============================================================================
+IDEN2 row 495  f27d _3H4K  J = 7.5  not found
+  calculated at 132069.6 cm^-1; levels of f27d turn out to be 91.5 cm^-1 from where the calculation puts them (rms)
+  44 calculated transitions to levels that HAVE been found, 6 of which could have been recorded at the calculated position
+  scanned 131795.0 - 132344.2 cm^-1 in steps of 0.020
+  15 positions where ln R > 0: 0 firm, 3 weak, 12 no support
+
+         E  ln_R   look       dE      z  n_obs  n_match  n_miss  n_free  free_gain  top_share    verdict
+132205.407 5.566  2.858  135.807  1.484      6        2       4       2      9.762      0.579       weak
+131993.227 5.162  2.454  -76.373 -0.834      6        2       4       2      9.470      0.501       weak
+132249.987 3.423  0.715  180.387  1.971      6        2       4       2     10.154      0.504       weak
+132053.507 3.404  0.696  -16.093 -0.176      6        2       4       1      2.914      0.574 no support
+131825.027 2.992  0.283 -244.573 -2.672      5        2       3       2      6.451      0.780 no support
+131953.047 2.380 -0.328 -116.553 -1.273      6        2       4       2      6.708      0.738 no support
+131894.347 1.851 -0.857 -175.253 -1.915      6        2       4       1      4.855      0.647 no support
+131986.007 1.841 -0.867  -83.593 -0.913      6        2       4       1      7.706      0.995 no support
+131859.607 1.417 -1.291 -209.993 -2.294      6        2       4       2      6.216      0.708 no support
+132041.147 0.903 -1.805  -28.453 -0.311      6        2       4       2      8.824      0.627 no support
+131907.407 0.825 -1.883 -162.193 -1.772      6        2       4       2      8.540      0.616 no support
+132200.387 0.723 -1.985  130.787  1.429      6        2       4       1      5.323      0.872 no support
+131917.947 0.661 -2.047 -151.653 -1.657      6        2       4       1      3.694      0.751 no support
+132231.167 0.568 -2.140  161.567  1.765      6        2       4       1      5.296      0.898 no support
+132271.667 0.360 -2.348  202.067  2.207      6        1       5       0      0.000      0.799 no support
+
+  --unknown 495 --at E lists the transitions at any one of these energies.
+  A position here is conditional on the rest of the level list, exactly as an alternate position is: the lines it takes are lines its neighbours could take instead.
+

@@ -130,6 +130,17 @@ python LineClass/decoy_mc.py       # decoy runs → in-situ false-confirmation r
 python LineClass/chance_mc.py      # optional shifted-wavenumber cross-check
 python LineClass/level_shifts.py   # validation report + per-level spurious probabilities
 python LineClass/level_shifts.py --detail 059003.000483   # inspect one level
+
+# --- Revising levels and finding new ones (run from LineClass/) ---
+python level_interchange.py        # levels whose theoretical identities may be interchanged
+python level_positions.py --scan   # alternate positions for the questionable levels
+python check_sync.py               # do all the files still describe the same identification?
+python sync_IDEN2.py               # bring the IDEN2 working files back into step
+python unfound_levels.py           # which never-found levels are worth searching for
+python level_positions.py --unknown 742      # search for one of them
+python find_unknown_levels.py                # ... or for the whole promising list at once
+python insert_new_level.py --iden2-row 742   # put an accepted position into the pipeline
+python move_level.py 059003.000565 --energy 118967.3776   # ... or move one already in
 ```
 
 ---
@@ -154,6 +165,15 @@ Results are saved to `output/`:
 | `LineClass/level_shift_report.csv/.xlsx` | Validation: one row per level — energy shift, support counts, intensity-pattern scores, the spurious probabilities `p_spur_decoys`, `p_spur_pattern`, `p_spur`, and the adjudication columns `question_status`/`reason` (questionable marks cleared when the missing predicted lines are masked by nearby stronger lines) |
 | `LineClass/decoy_mc_*.csv/.xlsx` | Validation: decoy-run tables (per-decoy support and energy wander, perturbation check, accepted decoy lines, per-run summary) |
 | `LineClass/chance_mc_*.csv/.xlsx` | Validation (optional): shifted-wavenumber cross-check tables |
+| `LineClass/level_interchange.csv/.xlsx` | Pairs of levels whose theoretical identities may be interchanged |
+| `LineClass/level_positions.csv` | Alternate positions offered to each questionable level by `level_positions.py --scan` |
+| `LineClass/unfound_levels.csv/.xlsx` | The calculated levels nobody has found, ranked by how many recordable transitions they would have |
+| `LineClass/found_levels.csv` | One row per searched level: where `find_unknown_levels.py` found a position, and how well supported it is |
+| `LineClass/line_decisions.csv` | The decision ledger — hand-ruled `accept`/`reject` verdicts on individual assignments, with dates and reasons |
+| `LineClass/line_decisions_removed.csv` | The ledger rows a level move took out, kept with the date, the level and the reason they no longer apply |
+| `LineClass/revised_level_energies.csv` | The levels the identification work has moved, as `level_id, E_input` — how a level of the published list is re-positioned without editing the published workbook |
+| `LineClass/LOPT_input_lines.txt` | The accepted transitions in LOPT's fixed-column input format, with their branching-fraction weights |
+| `LineClass/sync_report.txt` | `check_sync.py`'s findings: whether the pipeline, LOPT and IDEN2 files still describe the same identification |
 
 All validation tables are Excel-friendly: floats are rounded to meaningful decimals and each CSV has an `.xlsx` twin in which text cells such as J = `3/2` are not converted to dates.
 
@@ -170,13 +190,15 @@ All validation tables are Excel-friendly: floats are rounded to meaningful decim
 | `calc_intens` | Adjusted calculated intensity (after per-level factors) |
 | `orig_calc_intens` | Original theoretical intensity from `Icalc.xlsx` |
 | `u_calc` | Adjusted log-uncertainty of `calc_intens` |
+| `imputed` | `1` = the pair is absent from `Icalc.xlsx` and its intensity was imputed |
 | `intens_from_f` | Upper-level intensity correction factor (ln scale) |
 | `intens_to_f` | Lower-level intensity correction factor (ln scale) |
 | `dif_wn_O-C` | Observed − Ritz wavenumber difference (cm⁻¹) |
-| `grade` | 2D grade: tier (2–5) + subgrade (A–G); see grading scheme below |
+| `grade` | 2D grade: tier (2–5) + subgrade (`A`–`E`, `G`); see grading scheme below |
 | `notes1` | Conflict flags: `F` (conflicting), `R` (revised from original) |
 | `notes2` | Per-transition decision trace from weeding (Step1/Step2/Step3 label) |
-| `new` | `1` = new classification, `0` = original Sugar 1969/1974 classification |
+| `manual` | `accept`/`reject` if the decision ledger (`line_decisions.csv`) rules on this assignment |
+| `new` | `1` = new classification, `0` = original Sugar 1969/1974 classification, blank = unclassified |
 | `accepted` | `1` = accepted by weeding, `0` = rejected, blank = unclassified line |
 | `n_accepted` | Number of accepted classifications of this observed line |
 | `low_E` | Lower level energy (cm⁻¹) |
@@ -279,16 +301,41 @@ TableExtraction/
     ├── README.md                          # LineClass component documentation (incl. validation)
     ├── classify_lines.py                  # Full automated pipeline: match → weed → optimize → LOPT output
     ├── models.py                          # Data models (EnergyLevel, SpectralLine, Transition)
+    ├── config.py                          # Reads lineclass_config.toml; resolves every path relative to it
+    ├── output_files.py                    # Writable-file preflight (catches workbooks held open by Excel)
+    ├── cowan_gA.py                        # Cowan calculation: gA values, level matching to IDEN2
+    ├── gA_imputation.py                   # Imputed intensity for pairs absent from Icalc.xlsx
+    ├── make_LOPT_input.py                 # LOPT input rows and their branching-fraction weights
     ├── decoy_mc.py                        # Validation: decoy (shadow-level) runs
     ├── level_shifts.py                    # Validation: calibrations, pattern scores, p_spur; --detail mode
     ├── chance_mc.py                       # Shared utilities + optional shifted-wavenumber cross-check
+    ├── level_interchange.py               # Levels whose theoretical identities may be interchanged
+    ├── swap_line_assignments*.py          # Repair an accepted interchange across all three file sets
+    ├── level_positions.py                 # --scan: alternate positions; --unknown: search for a lost level
+    ├── unfound_levels.py                  # Never-found levels, ranked by recordable transitions
+    ├── find_unknown_levels.py             # The --unknown search run down that whole list → found_levels.csv
+    ├── insert_new_level.py                # Put an accepted position into the pipeline, LOPT and IDEN2
+    ├── move_level.py                      # Move an assigned level, releasing the lines it leaves behind
+    ├── check_sync.py                      # Do the pipeline, LOPT and IDEN2 files still agree?
+    ├── sync_IDEN2.py                      # Bring the IDEN2 working files back into step
+    ├── lineclass_config.toml              # Paths, thresholds and model constants
     ├── Pr3_lines.xlsx                     # Observed spectral lines (Sugar 1969/1974)
     ├── Icalc.xlsx                         # Calculated transition intensities and uncertainties
+    ├── line_decisions.csv                 # Decision ledger: hand-ruled accept/reject verdicts
+    ├── new_levels.txt                     # Levels added by hand, tab-delimited
+    ├── IDEN2/                             # The IDEN2 working files (enlev.dat, trans.dat, IDEN_level_ids.txt)
+    ├── tools/                             # Calibration and diagnostic scripts (intensities, coverage, SNR)
     ├── line_classifications.xlsx          # Classification output (LOPT-ready)
     ├── line_classifications.csv           # Classification output (CSV)
+    ├── LOPT_input_lines.txt               # LOPT input; LOPT_output_levels.txt / _lines.txt come back
     ├── level_shift_report.csv/.xlsx       # Validation output: per-level table with p_spur
     ├── decoy_mc_*.csv/.xlsx               # Validation output: decoy-run tables
-    └── chance_mc_*.csv/.xlsx              # Validation output: cross-check tables (optional)
+    ├── chance_mc_*.csv/.xlsx              # Validation output: cross-check tables (optional)
+    ├── level_interchange.csv/.xlsx        # Interchange candidates
+    ├── level_positions.csv                # Alternate positions for the questionable levels
+    ├── unfound_levels.csv/.xlsx           # The ranked search list
+    ├── found_levels.csv                   # What the searches found
+    └── sync_report.txt                    # check_sync.py findings
 ```
 
 ---
@@ -410,6 +457,15 @@ Many of the accepted classifications re-establish energy levels that were never 
 - **`decoy_mc.py`** repeats the real classification with one **decoy** added per tested level: an exact copy (same J, parity, possible transitions, and predicted intensities) whose energy is displaced far enough that none of its transitions can coincide with a true line. The decoys compete with the real levels in every step, so every line accepted for a decoy is a false match obtained under fully realistic conditions; with one decoy per tested level, the number of decoys passing any acceptance rule equals the number of false confirmations to expect if all tested levels were fake.
 - **`chance_mc.py`** provides shared utilities for the suite and, run directly, an independent cross-check in which all observed wavenumbers are shifted so that every accepted match is false; its rates are upper bounds and agree with the decoy rates within ~25%.
 - **`level_shifts.py`** turns the calibrations into per-level verdicts. Each tested level is judged by two independent pieces of evidence: the stability of its optimized energy (a genuine level returns almost exactly to its input value, because its lines tie it to well-anchored known levels; a level built from chance coincidences drifts away) and its intensity pattern (a real level's strongest theoretically predicted transitions must be present among its accepted lines — the classical "square-array" argument). Both are calibrated on the known-genuine old levels and on the known-fake decoys, and folded into a per-level **probability of being spurious** (`p_spur`), written to `level_shift_report.csv/.xlsx` together with the separate energy-only and pattern-only probabilities. A `--detail` mode prints any single level's predicted transitions with the fate of each in the run, for case-by-case inspection.
+
+A level the suite puts in doubt then has to be dealt with, and a level nobody has ever found has to be looked for. Four further scripts do that work, all of them documented in [`LineClass/README.md`](LineClass/README.md):
+
+- **`level_interchange.py`** looks for pairs of levels of the same J and parity whose theoretical identities may simply have been swapped — the energies are right and the labels are on the wrong rows. `swap_line_assignments.py` repairs an accepted swap in all three files at once.
+- **`level_positions.py --scan`** offers each questionable level the alternate positions its lines would also allow, so that a level can be moved rather than merely doubted; `--unknown ROW` turns the same machinery outwards and searches the window a calculated level could occupy for a position the recorded lines support.
+- **`unfound_levels.py`** ranks the calculated levels that have never been placed by the number of their transitions that would have been recorded on the plates, and **`find_unknown_levels.py`** runs the `--unknown` search down that ranked list in one pass, reducing each search to one row of `found_levels.csv`.
+- **`insert_new_level.py`** takes an accepted position through everything that must follow it — the calculated transitions, the LOPT input rows and their weights, the LOPT run, the classification run, the ledger rows and the IDEN2 files — and restores every file if the fit rejects the level. **`move_level.py`** does the same for a level that is already in and has to move: it takes the old position apart first, releasing every line the new position cannot account for, with the reason it failed on written into the ledger, and keeping the ledger rows it removes in `line_decisions_removed.csv`.
+
+Every one of these proposes; none of them decides. Each changed assignment is reviewed by hand in IDEN2 against the plates and the branch structure before it is accepted.
 
 ### Grading Scheme
 
