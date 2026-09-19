@@ -1,61 +1,53 @@
 check_sync.py - are the files describing the same identification?
 file                             last written
-line_classifications.csv         2026-09-16 18:00
-line_classifications.xlsx        2026-09-16 18:00
-LOPT_input_lines.txt             2026-09-16 17:59
-LOPT_output_lines.txt            2026-09-16 18:00
-LOPT_output_levels.txt           2026-09-16 18:00
-line_decisions.csv               2026-09-16 17:55
-revised_level_energies.csv       2026-09-15 20:51
-unstable_candidates.csv          2026-09-16 18:00
-level_positions.csv              2026-09-11 12:06
+line_classifications.csv         2026-09-19 11:11
+line_classifications.xlsx        2026-09-19 11:11
+LOPT_input_lines.txt             2026-09-19 11:10
+LOPT_output_lines.txt            2026-09-19 11:11
+LOPT_output_levels.txt           2026-09-19 11:11
+line_decisions.csv               2026-09-18 21:39
+revised_level_energies.csv       2026-09-18 14:22
+unstable_candidates.csv          2026-09-19 11:11
+level_positions.csv              2026-09-18 18:03
 Pr3_lines.xlsx                   2026-09-11 12:47
-IDEN2/enlev.dat                  2026-09-16 17:57
-IDEN2/trans.dat                  2026-09-16 17:57
+IDEN2/enlev.dat                  2026-09-18 22:03
+IDEN2/trans.dat                  2026-09-19 11:09
 
 Freshness
 ---------
   warn  LOPT_input_lines.txt is older than what it is built from:
-         line_classifications.csv (line_classifications.csv newer by 33 s)
+         line_classifications.csv (line_classifications.csv newer by 37 s)
   warn  level_positions.csv is older than what it is built from:
-         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 5.2 days)
-         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 5.2 days)
-         line_classifications.xlsx (line_classifications.xlsx newer by 5.2 days)
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 17.1 h)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 17.1 h)
+         line_classifications.xlsx (line_classifications.xlsx newer by 17.1 h)
 
 Classification
 --------------
-    ok  the csv and the workbook hold the same 8022 classified transitions, on the same lines and with the same verdicts
+    ok  the csv and the workbook hold the same 8280 classified transitions, on the same lines and with the same verdicts
 
 LOPT
 ----
-  warn  214 rejected candidates are in the classification and nowhere else: absent from LOPT_input_lines.txt and unassigned in IDEN2. They are counted, not listed - carrying no weight and no line, they say the same thing in all three files, and the rebuild that puts them on paper belongs at the end of the analysis.
-  warn  73 transitions in LOPT_input_lines.txt are flagged P or of zero weight, are not accepted in the classification, and are not identified in IDEN2: leftovers of an earlier classification that pull on nothing.  They are counted, not listed; the next rebuild of the file drops them.
-    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (7808 of them), weighted as accepted
-    ok  the fit was made on the transitions file that is on disk now (7881 lines)
+  warn  383 rejected candidates are in the classification and nowhere else: absent from LOPT_input_lines.txt and unassigned in IDEN2. They are counted, not listed - carrying no weight and no line, they say the same thing in all three files, and the rebuild that puts them on paper belongs at the end of the analysis.
+  warn  82 transitions in LOPT_input_lines.txt are flagged P or of zero weight, are not accepted in the classification, and are not identified in IDEN2: leftovers of an earlier classification that pull on nothing.  They are counted, not listed; the next rebuild of the file drops them.
+    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (7897 of them), weighted as accepted
+    ok  the fit was made on the transitions file that is on disk now (7979 lines)
     ok  the line output and the level output agree about every level energy
 
 Revisions
 ---------
-    ok  all 24 recorded revisions are in the fit
+    ok  all 26 recorded revisions are in the fit
 
 IDEN2
 -----
-    ok  trans.dat follows from enlev.dat: 1227 level headers and 104645 transitions all consistent
-    ok  all 609 levels agree with the fit to within 0.5 cm^-1
-  warn  1 levels are marked found in enlev.dat and have no entry in IDEN_level_ids.txt
-         enlev.dat row 497 at 131776.400
-  warn  5 identified transitions of trans.dat join levels that are not in IDEN_level_ids.txt
-         rows 497 - 775 at 17881.679
-         rows 497 - 776 at 17996.054
-         rows 497 - 1079 at 70419.011
-         rows 497 - 1080 at 71356.968
-         rows 497 - 1082 at 71610.470
-    ok  IDEN2 and the classification agree about all 5142 identified transitions
+    ok  trans.dat follows from enlev.dat: 1242 level headers and 104645 transitions all consistent
+    ok  all 626 levels agree with the fit to within 0.5 cm^-1
+    ok  IDEN2 and the classification agree about all 5266 identified transitions
 
 Stability
 ---------
     ok  no assignment oscillated in the last run
-    ok  all 352 ledger verdicts are obeyed
+    ok  all 373 ledger verdicts are obeyed
 
 What to do
 ----------
@@ -64,4 +56,4 @@ What to do
   They are in the order the pipeline runs.  Doing a later
   one first only means doing it again after the earlier one.
 
-0 error(s), 6 warning(s), 10 check(s) clean.
+0 error(s), 4 warning(s), 10 check(s) clean.

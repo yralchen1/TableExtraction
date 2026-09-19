@@ -968,3 +968,464 @@ def test_a_report_without_the_column_is_refused_not_guessed_at():
 def test_the_option_is_refused_without_unknown():
     with pytest.raises(SystemExit):
         lp.main(['--drop-all-questionable'])
+
+
+# ---------------------------------------------------------------------------
+# What a match is: the hidden reading needs the light, n_match needs the
+# brightness, and the window can be widened for a mixed level
+# ---------------------------------------------------------------------------
+def faint_background(ctx):
+    """The unrelated lines of a real list are faint: 100, not the 10000 of
+    fake_ctx.  Against a background as bright as the prediction a faint line
+    is as unlikely under either hypothesis, and brightness decides nothing."""
+    ctx.bg_mu_o = np.full(len(ctx.wn_o), math.log(1.0e2))
+    lp.plain_background(ctx)
+    return ctx
+
+
+def test_a_transition_cannot_hide_in_a_feature_fainter_than_itself():
+    """A free feature of 100 where 10000 is predicted.
+
+    It could be the transition, under-recorded, and that reading pays for
+    the deficit.  It cannot be a transition hidden in a feature that is
+    there anyway, because the feature does not have the light.  Before the
+    condition the row took the hidden reading's positional credit and was
+    tagged `bright`.
+    """
+    ctx = faint_background(fake_ctx([50000.0], i_obs=[1.0e2]))
+    ln_r = _one_prediction(ctx, 1.0e4)
+    _, tab = lp.ln_ratio(ctx, 'X', np.array([50000.0]), detail=True)
+    assert not bool(tab['over'][0])
+    assert ln_r < 0.0
+
+
+def test_a_feature_brighter_than_predicted_may_still_hide_it():
+    ctx = fake_ctx([50000.0], i_obs=[1.0e4])
+    _one_prediction(ctx, 1.0)
+    _, tab = lp.ln_ratio(ctx, 'X', np.array([50000.0]), detail=True)
+    assert bool(tab['over'][0])
+
+
+def test_a_match_is_a_line_of_the_right_brightness_not_any_line_nearby():
+    """One line as bright as predicted, one a hundred times fainter, one a
+    wavenumber off: all three are in the matching window, one is a match."""
+    ctx = faint_background(fake_ctx([50000.0, 60000.0, 70000.25],
+                                    i_obs=[1.0e4, 1.0e2, 1.0e4]))
+    ctx.by_level['X'] = dict(
+        partner=np.array(['A', 'B', 'C']), sign=np.array([1.0, 1.0, 1.0]),
+        i_pred=np.array([1.0e4, 1.0e4, 1.0e4]),
+        e_m=np.array([50000.0, 40000.0, 30000.0]),
+        u_m=np.array([0.0, 0.0, 0.0]),
+        degenerate=np.array([False, False, False]))
+    sup = lp.support(ctx, 'X', 100000.0)
+    assert sup['n_seen_alt'] == 3
+    assert sup['n_real'] == 1
+    assert sup['n_free'] == 1
+
+
+def test_the_unknown_table_splits_the_observable_predictions_three_ways():
+    ctx = faint_background(fake_ctx([50000.0, 60000.0],
+                                    i_obs=[1.0e4, 1.0e2]))
+    ctx.by_level[lp.UNKNOWN_ID] = dict(
+        partner=np.array(['A', 'B', 'C']), sign=np.array([1.0, 1.0, 1.0]),
+        i_pred=np.array([1.0e4, 1.0e4, 1.0e4]),
+        e_m=np.array([50000.0, 40000.0, 25000.0]),
+        u_m=np.array([0.0, 0.0, 0.0]),
+        degenerate=np.array([False, False, False]))
+    r = dict(E_calc=100000.0, W=20.0, positions=[(100000.0, 1.0)])
+    row = lp.unknown_table(ctx, r).iloc[0]
+    assert (row['n_obs'], row['n_match'], row['n_poor'], row['n_miss']) == \
+        (3, 1, 1, 1)
+
+
+def test_the_window_can_be_widened_for_a_mixed_level():
+    ctx = fake_ctx([70000.0, 80000.0, 90000.0])
+    en, trans, mapping, e_meas, id_of = theory(LEVELS, TRANS)
+    for i in (1, 2, 3):
+        ctx.e_final[f'L{i:03d}'] = float(en['E_obs'][i])
+        ctx.n_acc_level[f'L{i:03d}'] = 5
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    r = lp.scan_unknown(ctx, 4, en, {'f25f': 20.0}, 132.0, step=0.5, k=4.5)
+    assert r['lo'] == pytest.approx(90000.0 - 90.0)
+    assert r['hi'] == pytest.approx(90000.0 + 90.0)
+    assert r['W'] == 20.0
+
+
+# ---------------------------------------------------------------------------
+# The delta J fingerprint
+# ---------------------------------------------------------------------------
+def j_tab(rows):
+    """A detail table of (partner, P_obs, found) triples.
+
+    Only the columns match_kinds() and ln_j_pattern() read are filled: a found
+    row is a well-centred match on a free feature with a positive ln R_t, a
+    missing row has no line at all.
+    """
+    return pd.DataFrame([
+        dict(partner=p, P_obs=float(pv), matched=bool(f),
+             d=0.0 if f else np.nan, C=0.0 if f else np.nan,
+             over=False, W=0.4, ln_R=1.0 if f else -0.5)
+        for p, pv, f in rows])
+
+
+def test_a_class_found_as_often_as_predicted_costs_nothing():
+    """The detection rate is fitted, and where it comes out at 1 it is free.
+
+    Three predictions at P_obs = 0.9, 0.8 and 0.7, two of them recorded: 2.4
+    were expected and 2 turned up, which is what a level of this J looks like.
+    """
+    lam, gain = lp.fit_detection_rate([0.9, 0.8, 0.7], [True, True, False])
+    assert 0.8 < lam <= 1.0
+    assert gain < 0.35
+
+
+def test_a_class_that_is_never_recorded_is_charged_its_whole_absence():
+    """None of them found: the rate goes to zero and the gain is the product
+    of the absences, which is the plain probability of missing them all."""
+    p = [0.7, 0.6, 0.5]
+    lam, gain = lp.fit_detection_rate(p, [False, False, False])
+    assert lam == 0.0
+    assert gain == pytest.approx(-sum(math.log(1.0 - x) for x in p), abs=1e-9)
+
+
+def test_a_surplus_of_matches_is_not_evidence_about_j():
+    """Found oftener than predicted: the rate is capped at 1 and gains
+    nothing.  A class cannot support a position by being over-observed."""
+    lam, gain = lp.fit_detection_rate([0.3, 0.3], [True, True])
+    assert lam == 1.0
+    assert gain == 0.0
+
+
+def test_a_missing_bright_class_accuses_the_position():
+    """Every dJ = -1 partner recorded, every dJ = 0 partner missing.
+
+    That is the fingerprint of a level of a different J sitting at this
+    energy, and ln_j_pattern charges for it.
+    """
+    j_of = {'a': 4.5, 'b': 4.5, 'c': 4.5, 'd': 5.5, 'e': 5.5, 'f': 5.5}
+    tab = j_tab([('a', 0.9, True), ('b', 0.8, True), ('c', 0.7, True),
+                 ('d', 0.7, False), ('e', 0.7, False), ('f', 0.6, False)])
+    r = lp.ln_j_pattern(tab, 5.5, j_of)
+    assert r['ln_J'] > 1.5
+    got = {c['dJ']: c for c in r['classes']}
+    assert got[-1]['n_match'] == 3 and got[-1]['lam'] == 1.0
+    assert got[0]['n_match'] == 0 and got[0]['lam'] == 0.0
+
+
+def test_a_class_too_faint_to_record_cannot_accuse_anything():
+    """THE POINT OF WEIGHING THE TEST BY P_obs.
+
+    The same missing dJ = 0 class, but its transitions are predicted far too
+    weak to have been recorded.  Nothing is expected of them, so their absence
+    says nothing about J and ln_J stays at zero - where a test made of
+    selection rules alone would have accused the position exactly as hard as
+    it does above.
+    """
+    j_of = {'a': 4.5, 'b': 4.5, 'c': 4.5, 'd': 5.5, 'e': 5.5, 'f': 5.5}
+    tab = j_tab([('a', 0.9, True), ('b', 0.8, True), ('c', 0.7, True),
+                 ('d', 0.02, False), ('e', 0.05, False), ('f', 0.01, False)])
+    r = lp.ln_j_pattern(tab, 5.5, j_of)
+    assert r['ln_J'] == 0.0
+    assert [c['dJ'] for c in r['classes']] == [-1]
+
+
+def test_one_absence_is_not_a_fingerprint():
+    """A single missing prediction, however bright, is one line and not a
+    pattern: J_CLASS_COST takes the whole of what it gains."""
+    j_of = {'a': 4.5, 'd': 5.5}
+    tab = j_tab([('a', 0.9, True), ('d', 0.9, False)])
+    assert lp.ln_j_pattern(tab, 5.5, j_of)['ln_J'] == 0.0
+
+
+def test_a_partner_with_no_j_is_left_out_of_the_test():
+    j_of = {'a': 4.5, 'b': 4.5}
+    tab = j_tab([('a', 0.9, True), ('b', 0.8, True), ('z', 0.7, False)])
+    r = lp.ln_j_pattern(tab, 5.5, j_of)
+    assert r['n_no_j'] == 1
+    assert [c['n_obs'] for c in r['classes']] == [2]
+
+
+def test_the_level_whose_j_is_unknown_has_no_fingerprint():
+    tab = j_tab([('a', 0.9, True), ('d', 0.9, False)])
+    r = lp.ln_j_pattern(tab, float('nan'), {'a': 4.5, 'd': 5.5})
+    assert r['ln_J'] == 0.0
+
+
+def test_support_reports_the_fingerprint():
+    """support() carries ln_J, so the audit and the unknown table get it."""
+    ctx = fake_ctx([50000.0])
+    ctx.j_of = {'X': 5.5, 'A': 4.5}
+    _one_prediction(ctx, 1.0e4)
+    s = lp.support(ctx, 'X', 50000.0)
+    assert 'ln_J' in s and s['ln_J'] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Stage 2: the fingerprint enters ln R, and only between rival positions
+# ---------------------------------------------------------------------------
+def test_the_cleanest_rival_keeps_its_ln_r_untouched():
+    """Nothing is taken from the position whose delta J pattern is best.
+
+    The fingerprint of a single position is dominated by how well the
+    calculated gA divides the level's strength among its branches, which is a
+    property of the wavefunction and the same at every energy, so it must not
+    be charged to anybody's whereabouts.
+    """
+    assert lp.fold_j([10.0, 8.0], [3.0, 5.0])[0] == pytest.approx(10.0)
+
+
+def test_a_rival_pays_what_its_fingerprint_is_worse_by():
+    assert lp.fold_j([10.0, 8.0], [3.0, 5.0])[1] == pytest.approx(8.0 - 2.0)
+
+
+def test_equally_dirty_rivals_are_left_exactly_as_they_were():
+    """Both positions score 5: the branch strengths are wrong, but they are
+    wrong in the same way at both, so there is nothing to choose between."""
+    assert lp.fold_j([10.0, 8.0], [5.0, 5.0]) == pytest.approx([10.0, 8.0])
+
+
+def test_a_position_with_no_rival_pays_nothing():
+    assert lp.fold_j([146.0], [6.0]) == pytest.approx([146.0])
+    assert lp.fold_j([146.0], []) == pytest.approx([146.0])
+
+
+def j_ctx():
+    """A level of J = 4 with two partners of J = 3 and two of its own J.
+
+    Its four predicted transitions are recorded at 100000 cm^-1; ten
+    wavenumbers higher only the two dJ = -1 partners are, so the whole dJ = 0
+    class is missing there and nowhere else.
+    """
+    ctx = faint_background(fake_ctx([50000.0, 50010.0, 60000.0, 60010.0,
+                                     70000.0, 80000.0]))
+    ctx.by_level[lp.UNKNOWN_ID] = dict(
+        partner=np.array(['A', 'B', 'C', 'D']),
+        sign=np.ones(4), i_pred=np.full(4, 1.0e4),
+        e_m=np.array([50000.0, 40000.0, 30000.0, 20000.0]),
+        u_m=np.zeros(4), degenerate=np.zeros(4, dtype=bool))
+    ctx.j_of = {str(lp.UNKNOWN_ID): 4.0, 'A': 3.0, 'B': 3.0,
+                'C': 4.0, 'D': 4.0}
+    return ctx
+
+
+def test_the_position_that_loses_a_whole_dj_class_scores_it():
+    ctx = j_ctx()
+    assert lp.support(ctx, lp.UNKNOWN_ID, 100000.0)['ln_J'] == \
+        pytest.approx(0.0)
+    assert lp.support(ctx, lp.UNKNOWN_ID, 100010.0)['ln_J'] > 1.0
+
+
+def test_the_unknown_table_judges_the_candidates_on_ln_r_j():
+    """Two candidates worth the same in lines; the dJ pattern separates
+    them, and it is ln_R_J - not ln_R - that the look-elsewhere correction
+    and the order are taken on."""
+    ctx = j_ctx()
+    r = dict(E_calc=100000.0, W=20.0,
+             positions=[(100000.0, 6.0), (100010.0, 6.0)])
+    tab = lp.unknown_table(ctx, r)
+    clean = tab[tab['E'] == 100000.0].iloc[0]
+    dirty = tab[tab['E'] == 100010.0].iloc[0]
+    assert clean['ln_R_J'] == pytest.approx(6.0)
+    assert dirty['ln_R_J'] == pytest.approx(6.0 - dirty['ln_J'])
+    assert dirty['look'] == pytest.approx(dirty['ln_R_J'] - math.log(2))
+    assert tab.iloc[0]['E'] == 100000.0
+
+
+def test_the_fingerprint_can_overturn_the_order_of_the_candidates():
+    """The position the lines prefer by two nats is not the one to take if
+    it is missing a class of transitions that should have been recorded."""
+    ctx = j_ctx()
+    r = dict(E_calc=100000.0, W=20.0,
+             positions=[(100010.0, 8.0), (100000.0, 6.0)])
+    tab = lp.unknown_table(ctx, r)
+    assert sorted(tab['ln_R']) == pytest.approx([6.0, 8.0])
+    assert tab.iloc[0]['E'] == 100000.0
+
+
+def test_a_relocation_must_convince_after_the_fingerprint():
+    """ln_R_alt is what the lines say; ln_R_alt_J is what is left once the
+    alternate has paid for a dJ pattern worse than the adopted position's."""
+    row = dict(near_dE=np.nan, dE_alt=40.0, top_share=0.3, n_free=6,
+               ln_R_alt=4.0, ln_R_alt_J=4.0, free_gain=12.0, look=5.0,
+               n_own=7, n_kept=0)
+    assert lp.disposition(row) == 'relocate'
+    row['ln_R_alt_J'] = -0.5
+    assert lp.disposition(row) == 'weak'
+
+
+# ---------------------------------------------------------------------------
+# The per-line intensity width: sigma^2 = s0^2 + (k u_calc)^2 with
+# s0 = a0 + a1 log10 P and k = c log10 S
+# ---------------------------------------------------------------------------
+def _width_sample(a0, a1, c, n=5000, seed=7, cut=True):
+    """Residuals drawn with exactly the width the model assumes, and - when
+    `cut` - only those above each line's detection cut-off kept, as the
+    recorded lines are."""
+    rng = np.random.default_rng(seed)
+    m = 3 * n
+    u = rng.uniform(0.2, 1.5, m)
+    p10 = rng.uniform(-0.5, 4.0, m)
+    ls10 = rng.uniform(-6.5, -0.5, m)
+    s0 = a0 + a1 * p10
+    k = np.maximum(c * ls10, lp.K_FLOOR)
+    r = rng.normal(0.0, np.sqrt(s0 ** 2 + (k * u) ** 2))
+    rthr = -p10 * math.log(10.0)      # the residual of a line at threshold
+    keep = r > rthr if cut else np.ones(m, dtype=bool)
+    idx = np.flatnonzero(keep)[:n]
+    return r[idx], u[idx], p10[idx], ls10[idx], rthr[idx]
+
+
+def _fit(r, u, p10, ls10, rthr, s=1.0, fit=None):
+    return lp.fit_intensity_width(r, u, p10, ls10, rthr, fit, s,
+                                  lambda *_: None)
+
+
+def test_the_width_model_is_recovered_from_the_run():
+    """a0, a1 and c are fitted, not assumed: planted, they come back."""
+    w = _fit(*_width_sample(0.90, -0.06, -0.22))
+    assert w.a0 == pytest.approx(0.90, abs=0.06)
+    assert w.a1 == pytest.approx(-0.06, abs=0.03)
+    assert w.c == pytest.approx(-0.22, abs=0.03)
+
+
+def test_the_detection_cut_off_is_what_keeps_the_fit_honest():
+    """The same sample fitted as though nothing below the threshold had been
+    lost reads the selection as a narrower, shifted distribution; with the
+    cut-off in the likelihood the planted values come back."""
+    r, u, p10, ls10, rthr = _width_sample(0.90, -0.06, -0.22, seed=11)
+    honest = _fit(r, u, p10, ls10, rthr)
+    naive = _fit(r, u, p10, ls10, np.full(len(r), -50.0))
+    assert abs(honest.c + 0.22) < abs(naive.c + 0.22)
+
+
+def test_k_and_s0_never_fall_below_their_floors():
+    """k stops at K_FLOOR for the strongest transitions: even their
+    calculation is not taken as exact."""
+    w = lp.IntensityWidth(0.9, -0.5, -0.22, 1.0, -3.5)
+    s0, k = lp.width_terms(w, np.array([0.0, 10.0]), np.array([-5.0, 0.5]))
+    assert k[0] == pytest.approx(1.1)
+    assert k[1] == pytest.approx(lp.K_FLOOR)
+    assert s0[0] == pytest.approx(0.9)
+    assert s0[1] == pytest.approx(lp.S0_FLOOR)
+
+
+def test_a_width_that_carries_nothing_leaves_the_single_width():
+    """Residuals of one width whatever u, P and S say: a1 falls to 0, k to
+    its floor, and every line gets close to the one width.  (c itself is not
+    defined then: any c with c log10 S below K_FLOOR everywhere is the same
+    model.)"""
+    rng = np.random.default_rng(3)
+    n = 4000
+    u = rng.uniform(0.2, 1.5, n)
+    p10 = rng.uniform(0, 4, n)
+    ls10 = rng.uniform(-6.5, -0.5, n)
+    r = rng.normal(0.0, 0.9, n)
+    w = _fit(r, u, p10, ls10, np.full(n, -50.0), s=0.9)
+    assert abs(w.a1) < 0.03
+    s0, k = lp.width_terms(w, p10, ls10)
+    assert np.all(k < lp.K_FLOOR + 0.05)
+    sig = np.sqrt(s0 ** 2 + (k * u) ** 2)
+    assert np.all(np.abs(sig - 0.9) < 0.1)
+
+
+def test_the_fit_is_declined_when_there_is_too_little_to_fit_it_on():
+    r, u, p10, ls10, rthr = _width_sample(0.8, 0.0, -0.2, n=50)
+    assert _fit(r, u, p10, ls10, rthr, s=1.15) == lp.flat_width(1.15)
+    assert (lp.fit_intensity_width(r, None, p10, ls10, rthr, None, 1.15,
+                                   lambda *_: None) == lp.flat_width(1.15))
+
+
+def test_only_the_rows_marked_for_the_fit_are_used():
+    """Blended and multiply classified lines are kept out: their residual is
+    not theirs alone."""
+    r, u, p10, ls10, rthr = _width_sample(0.90, -0.06, -0.22)
+    bad = np.zeros(len(r), dtype=bool)
+    bad[:1500] = True
+    r = np.where(bad, r + 3.0 * u, r)
+    w = _fit(r, u, p10, ls10, rthr, fit=~bad)
+    assert w.c == pytest.approx(-0.22, abs=0.04)
+
+
+def test_a_run_with_no_fitted_width_uses_the_pooled_one():
+    ctx = lp.Context()
+    ctx.s = 0.9
+    assert lp.sigma_intensity(ctx, [0.5, 1.5]) == pytest.approx([0.9, 0.9])
+    ctx.width = lp.flat_width(0.9)
+    assert lp.sigma_intensity(ctx, [0.5, 1.5]) == pytest.approx([0.9, 0.9])
+
+
+def test_a_transition_with_no_u_calc_is_judged_by_the_pooled_width():
+    ctx = lp.Context()
+    ctx.s = 1.163
+    ctx.width = lp.IntensityWidth(0.902, -0.062, -0.218, 1.0, -3.5)
+    got = lp.sigma_intensity(ctx, [np.nan, 0.0, 0.58], [2.0, 2.0, 2.0],
+                             [-4.0, -4.0, -4.0])
+    assert got[0] == pytest.approx(1.163)
+    assert got[1] == pytest.approx(1.163)
+    s0 = 0.902 - 0.062 * 2.0
+    k = 0.218 * 4.0
+    assert got[2] == pytest.approx(math.sqrt(s0 ** 2 + (k * 0.58) ** 2))
+
+
+def test_a_missing_p_or_s_is_replaced_by_the_median_of_the_fit():
+    ctx = lp.Context()
+    ctx.s = 1.163
+    ctx.width = lp.IntensityWidth(0.902, -0.062, -0.218, 1.0, -3.5)
+    a = lp.sigma_intensity(ctx, [0.58], [np.nan], [np.nan])
+    b = lp.sigma_intensity(ctx, [0.58], [1.0], [-3.5])
+    assert a == pytest.approx(b)
+
+
+def test_a_weak_transition_believes_its_u_calc_more_than_a_strong_one():
+    ctx = lp.Context()
+    ctx.s = 1.163
+    ctx.width = lp.IntensityWidth(0.902, -0.062, -0.218, 1.0, -3.5)
+    weak, strong = lp.sigma_intensity(ctx, [0.6, 0.6], [2.0, 2.0],
+                                      [-5.5, -1.0])
+    assert weak > strong
+
+
+def test_a_well_calculated_line_is_held_to_a_tighter_intensity():
+    """The same intensity mismatch costs more when the calculation of that
+    one transition is a good one, and less when it is a poor one."""
+    ctx = fake_ctx([50000.0], i_obs=[1.0e4])
+    ctx.s = 1.163
+    ctx.width = lp.IntensityWidth(0.902, -0.062, -0.218, 1.0, -3.5)
+
+    def score(u):
+        ctx.by_level['X'] = dict(
+            partner=np.array(['A']), sign=np.array([1.0]),
+            i_pred=np.array([1.0e5]), e_m=np.array([0.0]),
+            u_m=np.array([0.0]), u_calc=np.array([float(u)]),
+            ls10=np.array([-4.0]), degenerate=np.array([False]))
+        return float(lp.ln_ratio(ctx, 'X', np.array([50000.0]))[0][0])
+
+    assert score(0.25) < score(2.0)
+
+
+def test_line_strength_in_atomic_units():
+    """S = 3.0376e-6 lambda gf, gf = 1.499e-16 lambda^2 gA, lambda in A."""
+    lam = 2000.0
+    gA = 1.0e8
+    got = lp.ls.line_strength(np.array([gA, np.nan, 0.0]),
+                               np.array([1e8 / lam, 5e4, 5e4]))
+    assert got[0] == pytest.approx(3.0376e-6 * lam * 1.499e-16 * lam ** 2 * gA)
+    assert np.isnan(got[1]) and np.isnan(got[2])
+
+
+def test_with_k_at_zero_the_level_offset_is_the_old_correction():
+    """The marginalised offset is written in A = sum w/sigma^2 and
+    B = sum w r/sigma^2; at one width for every row it must reduce to the
+    -0.5 ln(1 + n s_L^2/s^2) + ... of section 3."""
+    w = np.array([1.0, 0.6, 0.9])
+    r = np.array([0.4, -0.3, 0.8])
+    s, s_l = 1.163, 0.217
+    A, B = (w / s ** 2).sum(), (w * r / s ** 2).sum()
+    new = (-0.5 * math.log(1.0 + s_l ** 2 * A)
+           + s_l ** 2 * B ** 2 / (2.0 * (1.0 + s_l ** 2 * A)))
+    n, sum_r = w.sum(), (w * r).sum()
+    old = (-0.5 * math.log(1.0 + n * s_l ** 2 / s ** 2)
+           + s_l ** 2 * sum_r ** 2
+           / (2.0 * s ** 2 * (s ** 2 + n * s_l ** 2)))
+    assert new == pytest.approx(old)

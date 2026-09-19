@@ -145,6 +145,15 @@ reading is still much the better one for it, and it goes on being read that
 way.  A row the second reading wins counts as neither free support nor
 evidence in the level offset.
 
+The second reading is only open to a feature at least as bright as the
+transition it would be hiding: ln I_obs >= ln(I_t f) - s, one scatter width
+of allowance.  A feature cannot carry light it does not have, and without the
+condition a line nine times FAINTER than predicted - 7801 recorded where
+70072 was predicted, for 059003.000391 at 116617.18 - was credited +1.5 as a
+transition hidden in it and tagged `bright`, which is the opposite of what it
+is.  Such a row is read as the transition or not at all, and pays for the
+deficit.
+
 This is the blend penalty (factor 3), and it is not an added term but the same
 formula with two densities changed.  Under H0 a claimed feature is present with
 certainty, so its presence is no evidence for L: in the positional part rho_t
@@ -305,6 +314,36 @@ rho(nu) and g(ln I | lambda) are the rate and the brightness distribution of
 the unrelated lines, and section 4a is about nothing else; s and s_L are the
 within- and between-level spreads of the intensity residual over levels with at
 least five accepted lines.
+
+s_i, the width of the intensity term, is not one number for every line.  Each
+predicted transition carries its own uncertainty on the calculated intensity -
+u_calc, the rms over Cowan Monte Carlo trials, on the natural-log scale - and
+
+    s_i = sqrt(s0^2 + (k u_calc_i)^2),   s0 = a0 + a1 log10 P,   k = c log10 S
+
+is used in its place (fit_intensity_width).  P = I_pred f / I_thr is the
+intensity the calculation expects on the plate, in units of the detection
+threshold at that wavelength, and S the calculated line strength in atomic
+units.  s0 is the floor no per-line uncertainty explains, and it falls slowly
+as the expected plate intensity grows; k is how much of u_calc to believe, and
+it falls as the transition grows stronger: Cowan's u_calc is about right for
+the weakest lines (log10 S near -5, k near 1) and overstated for the strong
+ones.  k is never allowed below K_FLOOR = 0.2 - even the strongest
+transition's calculation is not taken as exact - and s0 never below
+S0_FLOOR.  The two linear
+forms were chosen on the run of September 2026 from free fits of s0 and k in
+bins: a quadratic term in k was not defined (87 per cent error once the bin
+errors were scaled to a reduced chi^2 of 1), and a constant term beside c
+log10 S was consistent with zero.  That run gave a0 = 0.902(27), a1 =
+-0.062(16) per dex and c = -0.218(11), on 4245 lines.
+
+a0, a1, c and a free mean are fitted together by maximum likelihood on the
+single, non-bl accepted lines, with each residual's normal density cut off at
+the detection threshold, so the faint predictions - accepted only where a line
+happens to be bright enough to have been recorded - enter without their
+selection being read as scatter.  Everything is refitted on each run, so a new
+calculation behind u_calc needs no maintenance here.  Where a transition has
+no u_calc the pooled s is used.
 
 
 4a.  rho and g: the lines that belong to nothing yet known
@@ -477,6 +516,37 @@ the blend branch of the formula gives it credit for doing so.  Alongside it,
 top_share - the largest single row's share of all the positive evidence -
 throws out the positions whose case is one lucky line.
 
+THE DELTA J FINGERPRINT (ln_J at the adopted position, ln_J_alt at the
+alternate).  For an E1 transition J changes by 0 or 1, so which partners a
+level is actually recorded with is a fingerprint of its own J - and ln R cannot
+read it, because the two energies being compared are the same level and predict
+the same transitions to the same partners with the same gA.  The J information
+survives only as a correlation among the absences, which ln R treats as
+independent.  ln_j_pattern scores it against the rival hypothesis that the
+lines belong to a level of another J, by fitting a detection multiplier to each
+delta J class; see the block above ln_j_pattern for what it does and does not
+claim.  It is weighed throughout by P_obs, so a class too faint to have been
+recorded cannot accuse a position.
+
+It enters ln R as a DIFFERENCE BETWEEN TWO POSITIONS OF THE SAME LEVEL and
+never on its own.  A single position's ln_J is dominated by how well the
+calculated gA divides that level's strength among its branches - a property of
+the wavefunction, the same at every energy - so charging it to one position
+would charge the intensity model's error to the level's whereabouts.  Between
+two candidate energies of one level the partners and the gA are identical and
+that fault cancels, leaving only what the test is for.  So every set of rival
+positions is offset by the cleanest of them: with b = min ln_J over the set,
+the position at energy E is judged on
+
+    ln_R_J = ln_R - (ln_J(E) - b)
+
+which leaves the best-fitting position's ln R untouched, charges each rival
+what its fingerprint is worse by, and gives a level with no rival nothing to
+pay.  With --audit the set is the adopted position and its alternate, so
+gain = (ln_R_alt - ln_R) + d_ln_J; with --unknown it is the candidate positions
+of the scan, which are then ranked, corrected for look-elsewhere and given
+their verdicts on ln_R_J.
+
 THE VACANCY TEST, which is the only test in this module that comes from the
 theory rather than from the line list, and the only one that can rule a
 position out outright.  A preferred alternate can be read two ways: the level
@@ -633,11 +703,23 @@ with --audit, for that same alternate:
                  counted, for the reason n_match is not quoted
     free_gain    what those free lines are worth in ln R
     top_share    the largest single line's share of the positive evidence
-    gain         ln_R_alt - ln_R
+    gain_R       ln_R_alt - ln_R, the line evidence alone
+    gain         gain_R + d_ln_J, what the alternate wins once the delta J
+                 fingerprint is counted with it.  THE one that decides
     look         gain - ln(n_alt), the look-elsewhere correction of section 6
     n_obs_alt    observable predictions at the alternate
     n_seen_alt   how many of them would find a line there
     n_miss_alt   how many would be absences there
+    ln_J         the delta J fingerprint at the adopted position, ln_J_alt at
+                 the alternate: how much better the pattern of matches and
+                 absences fits a level of a DIFFERENT J.  Zero is clean
+    d_ln_J       ln_J - ln_J_alt, which is what gain counts.  A single
+                 position's ln_J is dominated by how well the calculated gA
+                 divides the level's strength among its branches, which is the
+                 same at every energy and cancels in the difference.  Positive
+                 means the alternate fits this level's J better
+    ln_R_J       ln_R and ln_R_alt each offset by the cleaner fingerprint of
+    ln_R_alt_J   the two, so that their difference is gain
     n_vacant     unfound calculated levels of the same J and parity within one
                  configuration window of the alternate.  Zero kills the
                  reading "an unknown level sits there"; it does not kill "this
@@ -662,6 +744,7 @@ import hashlib
 import math
 import os
 import sys
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -705,6 +788,9 @@ K_WORST = 1.6        # the largest k(n) the run produces, used to widen the
                      # matching window (see ln_ratio)
 ETA_MAX = 0.25       # upper bound of the anomalous-position rate
 MIN_LEVEL_LINES = 5  # accepted lines a level needs to enter the s_L estimate
+S0_FLOOR = 0.05      # the smallest s0 the intensity-width model may take
+K_FLOOR = 0.2        # the smallest k: even the strongest transition's
+                     # u_calc is believed to this extent
 
 # --- the wavenumber-uncertainty model of section 4 -------------------------
 UNC_FLOOR = 0.0055   # cm^-1, the precision floor every measurement carries
@@ -751,6 +837,7 @@ GRID_STEP = 0.02     # cm^-1, the scan step
 GRID_MAX = 300000    # cap on the number of scan points per level
 BLOCK = 4000         # scan points evaluated in one array operation
 ALT_SEP = 0.5        # cm^-1: two maxima closer than this are one maximum
+WINDOW_K = 3.0       # configuration widths either side of E_calc a scan covers
 ALT_DROP = 5.0       # ln R below the adopted peak that still counts as an
                      # alternate position
 LOPT_LEVELS_FILE = os.path.join(HERE, 'LOPT_output_levels.txt')
@@ -879,6 +966,11 @@ def ln_norm(x, mu, sd):
 # ---------------------------------------------------------------------------
 class Context:
     """The run under test with every ingredient of the likelihood attached."""
+
+    def __init__(self):
+        # J of every level, for the delta J fingerprint; a context built
+        # without it simply has no fingerprint to report
+        self.j_of = {}
 
 
 def running(values, k, fn):
@@ -1345,12 +1437,18 @@ def fit_eta(d, sigma, rho, log):
     return eta
 
 
-def fit_intensity_scatter(r, level_of, log):
-    """(s, s_L): the within-level and between-level spread of the intensity
-    residual r = ln(I_obs BF / (I_pred f))."""
+def fit_intensity_scatter(r, level_of, log, u=None, lp=None, ls10=None,
+                          rthr=None, fit=None):
+    """(s, s_L, width): the spread of the intensity residual
+    r = ln(I_obs BF / (I_pred f)).
+
+    s is the pooled within-level spread and s_L the between-level one, both
+    measured on every accepted line.  `width` is the per-line model of
+    section 3, fitted by fit_intensity_width on the rows `fit` marks, with
+    lp, ls10 and rthr the quantities it needs for each line (see there).
+    """
     ok = np.isfinite(r)
-    r, level_of = r[ok], np.asarray(level_of)[ok]
-    df = pd.DataFrame({'r': r, 'lid': level_of})
+    df = pd.DataFrame({'r': r[ok], 'lid': np.asarray(level_of)[ok]})
     g = df.groupby('lid')['r']
     big = g.count()[g.count() >= MIN_LEVEL_LINES].index
     sub = df[df['lid'].isin(big)]
@@ -1362,12 +1460,173 @@ def fit_intensity_scatter(r, level_of, log):
         n_bar = float(sub.groupby('lid')['r'].count().mean())
         s_l = math.sqrt(max(sd_means ** 2 - s ** 2 / n_bar, 1e-4))
     else:
-        s, s_l = float(np.std(r, ddof=1)), 0.1
-    log(f"  intensity residual: mean {float(np.mean(r)):+.3f}, sd "
-        f"{float(np.std(r, ddof=1)):.3f} over {len(r)} accepted lines")
+        s, s_l = float(np.std(df['r'], ddof=1)), 0.1
+    log(f"  intensity residual: mean {float(df['r'].mean()):+.3f}, sd "
+        f"{float(df['r'].std(ddof=1)):.3f} over {len(df)} accepted lines")
     log(f"  within-level s = {s:.3f}, between-level s_L = {s_l:.3f} "
         f"({len(big)} levels with {MIN_LEVEL_LINES} lines or more)")
-    return s, s_l
+    width = fit_intensity_width(r, u, lp, ls10, rthr, fit, s, log)
+    return s, s_l, width
+
+
+class IntensityWidth(NamedTuple):
+    """sigma^2 = s0(P)^2 + (k(S) u_calc)^2, with
+
+        s0 = a0 + a1 log10 P        (never below S0_FLOOR)
+        k  = c log10 S              (never below k_min)
+
+    p_ref and s_ref are the medians of log10 P and log10 S over the lines the
+    fit was made on, used for a transition that lacks one of them; mu is the
+    fitted mean residual, kept for the report only; k_min is K_FLOOR for a
+    fitted model and 0 for the flat one."""
+    a0: float
+    a1: float
+    c: float
+    p_ref: float
+    s_ref: float
+    mu: float = 0.0
+    k_min: float = K_FLOOR
+
+
+def flat_width(s):
+    """The model with no per-line information: sigma = s for every line."""
+    return IntensityWidth(float(s), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+
+def width_terms(w, lp, ls10):
+    """(s0, k) of the model w at log10 P = lp and log10 S = ls10, arrays."""
+    lp = np.asarray(lp, dtype=float)
+    ls10 = np.asarray(ls10, dtype=float)
+    lp = np.where(np.isfinite(lp), lp, w.p_ref)
+    ls10 = np.where(np.isfinite(ls10), ls10, w.s_ref)
+    s0 = np.maximum(w.a0 + w.a1 * lp, S0_FLOOR)
+    k = np.maximum(w.c * ls10, w.k_min)
+    return s0, k
+
+
+def fit_intensity_width(r, u, lp, ls10, rthr, fit, s, log):
+    """The per-line intensity width of section 3, by maximum likelihood.
+
+    For each line, P = I_pred f / I_thr is the intensity the calculation
+    expects on the plate in units of the detection threshold I_thr at that
+    wavelength, and S the calculated line strength in atomic units; lp and
+    ls10 are their log10.  rthr = ln(I_thr BF / (I_pred f)) is the residual a
+    line exactly at the threshold would have.  A line fainter than the
+    threshold is never recorded, so the residuals of the recorded lines are
+    drawn from the normal density N(r; mu, sigma) cut off below rthr, and
+    each line's likelihood is
+
+        N(r; mu, sigma) / Phi((mu - rthr) / sigma)
+
+    with Phi the standard normal cumulative distribution.  The cut-off is
+    what makes the faint predictions usable: without it their selection - a
+    faint prediction is accepted only where a line happens to be bright
+    enough - would be read as scatter.
+
+    a0, a1, c and mu are fitted together on the rows `fit` marks (single
+    classified, not bl).  The 1-sigma errors of a0, a1 and c from the
+    curvature of the likelihood are reported, with 2 dlnL against the flat
+    model (a1 = 0, k = 0).  Falls back to flat_width(s) - one width for
+    every line - when the ingredients are missing or too few rows remain.
+    """
+    if u is None or lp is None or ls10 is None or rthr is None:
+        return flat_width(s)
+    u, lp, ls10, rthr = (np.asarray(x, dtype=float)
+                         for x in (u, lp, ls10, rthr))
+    m = (np.isfinite(r) & np.isfinite(u) & (u > 0) & np.isfinite(lp)
+         & np.isfinite(ls10) & np.isfinite(rthr))
+    if fit is not None:
+        m &= np.asarray(fit, dtype=bool)
+    n = int(m.sum())
+    if n < 200:
+        log(f"  intensity width not fitted: only {n} usable lines; the single "
+            f"width s = {s:.3f} is used")
+        return flat_width(s)
+    from scipy.optimize import minimize
+    from scipy.special import log_ndtr
+
+    rr, uu, pp, ss, tt = r[m], u[m], lp[m], ls10[m], rthr[m]
+
+    def nll(q, k_min=K_FLOOR):
+        s0 = q[0] + q[1] * pp
+        if np.any(s0 < S0_FLOOR):
+            return 1e12
+        k = np.maximum(q[2] * ss, k_min)
+        v = s0 ** 2 + (k * uu) ** 2
+        return float(np.sum(0.5 * np.log(2.0 * np.pi * v)
+                            + (rr - q[3]) ** 2 / (2.0 * v)
+                            + log_ndtr((q[3] - tt) / np.sqrt(v))))
+
+    opts = {'maxiter': 20000, 'maxfev': 20000, 'xatol': 1e-7, 'fatol': 1e-7}
+    best = None
+    for c0 in (-0.1, -0.2, -0.3):
+        f = minimize(nll, [s, 0.0, c0, 0.0], method='Nelder-Mead',
+                     options=opts)
+        if best is None or f.fun < best.fun:
+            best = f
+    flat = minimize(lambda q: nll([q[0], 0.0, 0.0, q[1]], 0.0), [s, 0.0],
+                    method='Nelder-Mead', options=opts)
+    a0, a1, c, mu = (float(x) for x in best.x)
+    gain = 2.0 * (float(flat.fun) - float(best.fun))
+    if not all(np.isfinite([a0, a1, c, mu])) or gain <= 0.0:
+        log(f"  the per-line width buys nothing (2 dlnL = {gain:.1f}); the "
+            f"single width s = {s:.3f} is used")
+        return flat_width(s)
+    err = curvature_errors(nll, best.x)
+    w = IntensityWidth(a0, a1, c, float(np.median(pp)), float(np.median(ss)),
+                       mu)
+    s0, k = width_terms(w, pp, ss)
+    log(f"  per-line intensity width sigma^2 = s0^2 + (k u_calc)^2, fitted on "
+        f"{n} single, non-bl lines cut off at the detection threshold:")
+    log(f"    s0 = {a0:.4f}({err[0]:.4f}) {a1:+.4f}({err[1]:.4f}) log10 P, "
+        f"{s0.min():.2f} to {s0.max():.2f} over those lines")
+    log(f"    k  = max({c:+.4f}({err[2]:.4f}) log10 S, {K_FLOOR}), "
+        f"{k.min():.2f} to "
+        f"{k.max():.2f}; mean residual {mu:+.3f}")
+    log(f"    2 dlnL against one width for every line: {gain:.1f}")
+    return w
+
+
+def curvature_errors(nll, x, h=1e-3):
+    """1-sigma errors from the inverse of the numerical Hessian of nll at x;
+    nan where it is not positive definite."""
+    x = np.asarray(x, dtype=float)
+    n = len(x)
+    e = np.eye(n) * h
+    f0 = nll(x)
+    H = np.zeros((n, n))
+    for i in range(n):
+        H[i, i] = (nll(x + e[i]) - 2.0 * f0 + nll(x - e[i])) / h ** 2
+        for j in range(i + 1, n):
+            H[i, j] = H[j, i] = (nll(x + e[i] + e[j]) - nll(x + e[i] - e[j])
+                                 - nll(x - e[i] + e[j])
+                                 + nll(x - e[i] - e[j])) / (4.0 * h ** 2)
+    try:
+        d = np.diag(np.linalg.inv(H))
+    except np.linalg.LinAlgError:
+        return np.full(n, np.nan)
+    return np.where(d > 0, np.sqrt(np.abs(d)), np.nan)
+
+
+def sigma_intensity(ctx, u, lp=None, ls10=None):
+    """The per-line intensity width sqrt(s0(P)^2 + (k(S) u)^2).
+
+    lp and ls10 are log10 P and log10 S of each transition (see
+    fit_intensity_width); either may be omitted or NaN, and the median of the
+    fitted lines then stands in.  Falls back to the pooled s wherever u is
+    missing, so a transition whose calculation carries no uncertainty is
+    judged exactly as before, and everywhere when the run has no fitted
+    width.
+    """
+    u = np.atleast_1d(np.asarray(u, dtype=float))
+    w = getattr(ctx, 'width', None)
+    if w is None:
+        return np.full(u.shape, ctx.s)
+    lp = np.full(u.shape, np.nan) if lp is None else lp
+    ls10 = np.full(u.shape, np.nan) if ls10 is None else ls10
+    s0, k = width_terms(w, lp, ls10)
+    v = np.sqrt(s0 ** 2 + (k * np.where(np.isfinite(u), u, 0.0)) ** 2)
+    return np.where(np.isfinite(u) & (u > 0), v, ctx.s)
 
 
 def complete_accepted(acc, ctx, log=print):
@@ -1391,8 +1650,8 @@ def complete_accepted(acc, ctx, log=print):
         log(f"  rwn reconstructed from the optimized energies for "
             f"{int(miss.sum())} of {n} accepted rows")
     if acc['calc_intens'].isna().any():
-        ip = {(str(a), str(b)): float(c)
-              for a, b, c in ctx.preds_all.itertuples(index=False)}
+        ip = {(str(r[0]), str(r[1])): float(r[2])
+              for r in ctx.preds_all.itertuples(index=False)}
         miss = acc['calc_intens'].isna()
         acc.loc[miss, 'calc_intens'] = [
             ip.get((a, b), np.nan)
@@ -1626,6 +1885,9 @@ def build(args, log=print):
     per = mc.per_level_table(real, levels)
     ctx.per = per
     ctx.e_final = dict(zip(per['level_id'], per['E_final']))
+    # J of every level of the run, for the delta J fingerprint
+    ctx.j_of.update({str(k): j_value(v)
+                     for k, v in zip(per['level_id'], per['J'])})
     ctx.real = real
     log(f"levels in the run: {len(per)}")
 
@@ -1668,7 +1930,8 @@ def build(args, log=print):
     ctx.calib = ls.read_intensity_calibration()
     if ctx.calib is None:
         raise SystemExit("intensity_correction_functions.txt not found")
-    ctx.preds_all = ls.load_predictions(set(per['level_id']), ctx.e_final)
+    ctx.preds_all = ls.load_predictions(set(per['level_id']), ctx.e_final,
+                                        with_u=True)
     ctx.bias = ls.intensity_scale_bias(real, ctx.preds_all, ctx.e_final)
     log(f"predicted transitions: {len(ctx.preds_all)}")
 
@@ -1761,7 +2024,38 @@ def build(args, log=print):
                    / (a['calc_intens'].to_numpy(dtype=float) * f))
     lids = np.where(a['low_id'].astype(str) != '', a['low_id'].astype(str),
                     a['upp_id'].astype(str))
-    ctx.s, ctx.s_L = fit_intensity_scatter(r, lids, log)
+    pairs = [tuple(sorted((str(lo), str(up))))
+             for lo, up in zip(a['low_id'], a['upp_id'])]
+    pa = ctx.preds_all
+    by_pair = {tuple(sorted((str(x.lo_id), str(x.up_id)))): x
+               for x in pa.itertuples(index=False)}
+    u_line = (a['u_calc'].to_numpy(dtype=float)
+              if 'u_calc' in a.columns else None)
+    if u_line is None:
+        u_line = np.array([getattr(by_pair.get(k), 'u_calc', np.nan)
+                           for k in pairs], dtype=float)
+    # the two coordinates of the width model and the detection cut-off
+    # (fit_intensity_width): log10 P, the predicted plate intensity over the
+    # threshold; log10 S, the calculated line strength; and rthr, the residual
+    # a line exactly at the threshold would have
+    s_line = np.array([getattr(by_pair.get(k), 'S', np.nan) for k in pairs],
+                      dtype=float)
+    thr = (noise_threshold_vec(a['wn_obs'].to_numpy(dtype=float), ctx.calib)
+           if ctx.calib is not None else np.full(len(a), np.nan))
+    i_c = a['calc_intens'].to_numpy(dtype=float)
+    bf = a['BF'].fillna(1.0).to_numpy(dtype=float)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        lp_line = np.log10(i_c * f / thr)
+        ls_line = np.log10(s_line)
+        rthr = np.log(thr * bf / (i_c * f))
+    # the fit is made on the lines whose intensity is theirs alone: one
+    # accepted transition, not flagged bl
+    single = ((a['n_accepted'].fillna(1).to_numpy(dtype=float) <= 1)
+              & ~a['char'].fillna('').astype(str).str.contains('bl')
+              .to_numpy())
+    ctx.s, ctx.s_L, ctx.width = fit_intensity_scatter(
+        r, lids, log, u=u_line, lp=lp_line, ls10=ls_line, rthr=rthr,
+        fit=single)
 
     ctx.u_M = read_partner_uncertainties()
     if ctx.u_M:
@@ -1792,21 +2086,29 @@ def group_predictions(ctx):
     lo = p['lo_id'].astype(str).to_numpy()
     up = p['up_id'].astype(str).to_numpy()
     ip = p['I_pred'].to_numpy(dtype=float)
+    uc = (p['u_calc'].to_numpy(dtype=float) if 'u_calc' in p.columns
+          else np.full(len(p), np.nan))
+    with np.errstate(divide='ignore', invalid='ignore'):
+        sl = (np.log10(p['S'].to_numpy(dtype=float)) if 'S' in p.columns
+              else np.full(len(p), np.nan))
     rows = {}
     for i in range(len(p)):
-        rows.setdefault(up[i], []).append((lo[i], +1.0, ip[i]))
-        rows.setdefault(lo[i], []).append((up[i], -1.0, ip[i]))
+        rows.setdefault(up[i], []).append((lo[i], +1.0, ip[i], uc[i], sl[i]))
+        rows.setdefault(lo[i], []).append((up[i], -1.0, ip[i], uc[i], sl[i]))
     for lid, rr in rows.items():
         partner = np.array([x[0] for x in rr])
         sign = np.array([x[1] for x in rr])
         i_pred = np.array([x[2] for x in rr])
+        u_calc = np.array([x[3] for x in rr])
+        ls10 = np.array([x[4] for x in rr])
         e_m = np.array([ctx.e_final.get(x, np.nan) for x in partner])
         u_m = np.array([ctx.u_M.get(x, 0.0) for x in partner])
         n_p = np.array([ctx.n_acc_level.get(x, 0) for x in partner])
         sh = np.array([ctx.shared.get((x, lid), 0) + ctx.shared.get((lid, x), 0)
                        for x in partner])
         out[lid] = dict(partner=partner, sign=sign, i_pred=i_pred, e_m=e_m,
-                        u_m=u_m, degenerate=(n_p - sh) <= 0)
+                        u_m=u_m, u_calc=u_calc, ls10=ls10,
+                        degenerate=(n_p - sh) <= 0)
     return out
 
 
@@ -1828,6 +2130,12 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
         return np.zeros(len(e_grid)), None
     sign, e_m = g['sign'][keep], g['e_m'][keep]
     i_pred, u_m = g['i_pred'][keep], g['u_m'][keep]
+    # what the intensity width of each predicted transition is made of: its
+    # own calculated-intensity uncertainty and line strength; the plate
+    # intensity P depends on where the candidate energy puts the line, and
+    # enters below
+    uc_pred = g.get('u_calc', np.full(len(keep), np.nan))[keep]
+    ls_pred = g.get('ls10', np.full(len(keep), np.nan))[keep]
     partner = g['partner'][keep]
     own = ctx.own_claim.get(level_id, {})
     # the hyperfine width of the pair of levels the transition joins: the
@@ -1897,6 +2205,16 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
             # the intensity ratio
             i_here = np.repeat(i_pred, nu_s.shape[1]).reshape(nu_s.shape)[matched]
             f = scale_factor_vec(nu_s[matched], ctx.bias)
+            thr = (noise_threshold_vec(nu_s[matched], ctx.calib)
+                   if ctx.calib is not None
+                   else np.full(int(matched.sum()), np.nan))
+            with np.errstate(divide='ignore', invalid='ignore'):
+                lp_here = np.log10(i_here * f / thr)
+            s_here = sigma_intensity(
+                ctx,
+                np.repeat(uc_pred, nu_s.shape[1]).reshape(nu_s.shape)[matched],
+                lp_here,
+                np.repeat(ls_pred, nu_s.shape[1]).reshape(nu_s.shape)[matched])
             x = ctx.ln_int_o[mi]
             ln_bg = ln_norm(x, ctx.bg_mu_o[mi], ctx.bg_sd_o[mi])
             free = claimed <= 0
@@ -1915,9 +2233,9 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
                 ln_bg - LN_BG_DROP)
             ln_bg_f = np.where(np.isfinite(ln_bg_f), ln_bg_f, ln_bg)
             with np.errstate(divide='ignore', invalid='ignore'):
-                ln_p1 = ln_intensity(x, (claimed + i_here) * f, ctx.s, ln_bg)
+                ln_p1 = ln_intensity(x, (claimed + i_here) * f, s_here, ln_bg)
                 ln_p0 = np.where(free, ln_bg_f,
-                                 ln_intensity(x, claimed * f, ctx.s, ln_bg))
+                                 ln_intensity(x, claimed * f, s_here, ln_bg))
             ln_g = np.where(np.isfinite(ln_p1 - ln_p0), ln_p1 - ln_p0, 0.0)
 
             dens = (np.exp(-0.5 * (d[matched] / sig) ** 2)
@@ -1959,9 +2277,15 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
             with np.errstate(divide='ignore', invalid='ignore'):
                 ln_here = (np.log(dens / rho_here)
                            + ln_norm(x, np.log(np.maximum(i_here * f, 1e-300)),
-                                     ctx.s) - np.where(free, ln_bg_f, ln_bg))
+                                     s_here) - np.where(free, ln_bg_f, ln_bg))
                 ln_hidden = np.log(dens * 2.0 * w[matched])
                 ln_blend = np.log(dens * 2.0 * w[matched]) + ln_g
+                # a transition can only hide in a feature that has its light:
+                # a feature fainter than predicted by more than the scatter
+                # is read as the transition or as nothing
+                ln_hidden = np.where(
+                    x >= np.log(np.maximum(i_here * f, 1e-300)) - s_here,
+                    ln_hidden, -np.inf)
             over = free & (ln_hidden >= ln_here)
             ln_t = np.where(free, np.maximum(ln_here, ln_hidden), ln_blend)
             ln_t = np.where(np.isfinite(ln_t), ln_t, -50.0)
@@ -1993,11 +2317,18 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
                 res[matched] = x - np.log(np.maximum((claimed + i_here) * f,
                                                      1e-300))
             res = np.where(np.isfinite(res), res, 0.0)
-            n_w = weight.sum(axis=0)
-            sum_r = (weight * res).sum(axis=0)
-            s2, sl2 = ctx.s ** 2, ctx.s_L ** 2
-            block_total += (-0.5 * np.log(1.0 + n_w * sl2 / s2)
-                            + sl2 * sum_r ** 2 / (2.0 * s2 * (s2 + n_w * sl2)))
+            # with a width of its own per row the correction is written in
+            # the two sufficient statistics A = sum w/sigma^2 and
+            # B = sum w r/sigma^2, which reduce to n/s^2 and (sum r)/s^2 when
+            # every sigma is the same s - the form of section 3
+            sv = np.zeros(matched.shape)
+            sv[matched] = s_here ** 2
+            sv = np.where(sv > 0, sv, ctx.s ** 2)
+            sl2 = ctx.s_L ** 2
+            A = (weight / sv).sum(axis=0)
+            B = (weight * res / sv).sum(axis=0)
+            block_total += (-0.5 * np.log(1.0 + sl2 * A)
+                            + sl2 * B ** 2 / (2.0 * (1.0 + sl2 * A)))
 
         total[a:a + BLOCK] = block_total
 
@@ -2045,15 +2376,15 @@ def local_maxima(y):
     return np.flatnonzero(m)
 
 
-def scan_interval(e_adopted, e_calc, window):
-    """The energies the scan covers: three configuration windows either side
-    of where the calculation puts the level, always including the adopted
+def scan_interval(e_adopted, e_calc, window, k=WINDOW_K):
+    """The energies the scan covers: k (three) configuration windows either
+    side of where the calculation puts the level, always including the adopted
     position with five wavenumbers to spare.  Fifty wavenumbers either side of
     the adopted position when the calculation says nothing."""
     if not np.isfinite(e_calc) or not np.isfinite(window) or window <= 0:
         lo, hi = e_adopted - 50.0, e_adopted + 50.0
     else:
-        lo, hi = e_calc - 3.0 * window, e_calc + 3.0 * window
+        lo, hi = e_calc - k * window, e_calc + k * window
     return min(lo, e_adopted - 5.0), max(hi, e_adopted + 5.0)
 
 
@@ -2110,7 +2441,10 @@ def run_digest(ctx):
     for a in (ctx.wn_o, ctx.int_o, ctx.unc_o):
         h.update(np.ascontiguousarray(a, dtype=float).tobytes())
     h.update('\x00'.join(ctx.char_o).encode('utf-8'))
-    h.update(('%.3f|%.3f|%.3f' % (ctx.eta, ctx.s, ctx.s_L)).encode())
+    w = getattr(ctx, 'width', None) or flat_width(ctx.s)
+    h.update(('%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.2f|%.2f|%.3f'
+              % (ctx.eta, ctx.s, ctx.s_L, w.a0, w.a1, w.c, w.p_ref,
+                 w.s_ref, w.k_min)).encode())
     # the width model: a changed constant changes every level's sigma
     h.update(repr((UNC_FLOOR, ERA_SPLIT, sorted(DLAM_ERA.items()),
                    sorted(CHAR_DLAM.items()),
@@ -2169,10 +2503,12 @@ def scan_fingerprint(ctx, level_id, e_adopted, e_calc, window, step, alt_drop,
         return h.hexdigest()[:16]
     keep = ~g['degenerate'] & np.isfinite(g['e_m']) & (g['i_pred'] > 0)
     e_m, sign = g['e_m'][keep], g['sign'][keep]
+    uc = g.get('u_calc', np.full(len(keep), np.nan))[keep]
     h.update(repr(sorted(
-        '%s|%.3f|%.3f|%.4g' % (p, e, u, i) for p, e, u, i in
+        '%s|%.3f|%.3f|%.4g|%.3f' % (p, e, u, i, c if np.isfinite(c) else -1.0)
+        for p, e, u, i, c in
         zip(g['partner'][keep], e_m, g['u_m'][keep],
-            g['i_pred'][keep]))).encode())
+            g['i_pred'][keep], uc))).encode())
     # the wavenumbers this level's predictions sweep as it moves over lo..hi
     a = sign * (lo - e_m)
     b = sign * (hi - e_m)
@@ -2220,10 +2556,10 @@ def report_table(ctx, level_ids):
             rows.append(dict(level_id=lid, E=e, n_drop=0, n_pred=0,
                              n_obs=0, n_seen=0, n_miss=0, n_match=0,
                              n_claimed=0, ln_R=0.0, ln_R_match=0.0,
-                             ln_R_miss=0.0, sum_lnG=0.0))
+                             ln_R_miss=0.0, sum_lnG=0.0, ln_J=0.0))
             continue
         m = tab['matched'].to_numpy(dtype=bool)
-        seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
+        seen, real, _ = match_kinds(tab)
         rows.append(dict(level_id=lid, E=e,
                          n_drop=int(ctx.by_level[lid]['degenerate'].sum()),
                          n_pred=len(tab),
@@ -2235,7 +2571,10 @@ def report_table(ctx, level_ids):
                          ln_R=float(v[0]),
                          ln_R_match=float(tab['ln_R'][m].sum()),
                          ln_R_miss=float(tab['ln_R'][~m].sum()),
-                         sum_lnG=float(tab['ln_G'][m].sum())))
+                         sum_lnG=float(tab['ln_G'][m].sum()),
+                         ln_J=ln_j_pattern(
+                             tab, ctx.j_of.get(str(lid), float('nan')),
+                             ctx.j_of, seen, real)['ln_J']))
     return pd.DataFrame(rows)
 
 
@@ -2302,14 +2641,15 @@ def print_detail(ctx, level_id, at=None, show_all=False,
     ``--detail-all`` prints them anyway.
 
     The `what` column is the one to read against the audit row: `free` marks
-    the observable, well-centred matches on features no accepted transition
-    claims, which are exactly the n_free of the audit; `blend` a match on a
+    the real matches (support()) on features no accepted transition claims,
+    which are exactly the n_free of the audit; `blend` a real match on a
     feature that is already explained; `bright` a match on a feature so much
     stronger than the prediction that an unidentified line explains it better
     - it would have been recorded there in any case, so it counts for
-    nothing; `off` a match too far out to count as free; `faint` a match to a
-    prediction that could not have been recorded, which is a coincidence; `-`
-    an absence.
+    nothing; `poor` a line in the matching window that is not a match, too
+    far out or of the wrong brightness (its ln R_t is not positive); `faint`
+    a match to a prediction that could not have been recorded, which is a
+    coincidence; `-` an absence.  free + blend is the n_match of --unknown.
     """
     e, how = detail_energy(ctx, level_id, at, alt_drop)
     v, tab = ln_ratio(ctx, level_id, np.array([e]), detail=True)
@@ -2326,42 +2666,75 @@ def print_detail(ctx, level_id, at=None, show_all=False,
     print(f"  {int(g['degenerate'].sum())} predictions dropped: the partner "
           f"has no accepted line of its own")
     m = tab['matched'].to_numpy(dtype=bool)
-    seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
-    d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
-    c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
-    w = tab['W'].to_numpy(dtype=float)
     o = tab['over'].to_numpy(dtype=bool)
-    free = (seen & m & (c == 0.0) & ~o
-            & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
+    r = tab['ln_R'].to_numpy(dtype=float)
+    seen, real, free = match_kinds(tab)
     what = np.where(~m, '-',
-                    np.where(c > 0, 'blend',
-                             np.where(o, 'bright',
-                                      np.where(~seen, 'faint',
+                    np.where(o, 'bright',
+                             np.where(~seen, 'faint',
+                                      np.where(~real, 'poor',
                                                np.where(free, 'free',
-                                                        'off')))))
+                                                        'blend')))))
     print(f"  {int(m.sum())} matched, contributing {tab['ln_R'][m].sum():+.2f}; "
           f"{int((~m).sum())} absent, costing {tab['ln_R'][~m].sum():+.2f}")
     print(f"  {int(seen.sum())} of the predictions could have been recorded "
-          f"(P_obs >= {P_SEEN:g}); {int(free.sum())} free supporting lines "
-          f"worth {tab['ln_R'].to_numpy()[free].sum():+.2f}")
+          f"(P_obs >= {P_SEEN:g}); {int(real.sum())} of them match a "
+          f"recorded line, {int(free.sum())} of those free and worth "
+          f"{r[free].sum():+.2f}")
+    j_level = ctx.j_of.get(str(level_id), float('nan'))
+    jf = ln_j_pattern(tab, j_level, ctx.j_of, seen, real)
+    if jf['classes']:
+        print(f"  the delta J fingerprint, over those observable "
+              f"predictions (J of this level = {j_level:g}):")
+        for cl_ in jf['classes']:
+            tag_j = '%+d' % cl_['dJ'] if cl_['dJ'] else ' 0'
+            print(f"    dJ = {tag_j}:  {cl_['n_match']} of "
+                  f"{cl_['n_obs']} found, {cl_['sum_P']:.2f} expected"
+                  f"   detection rate {cl_['lam']:.2f}"
+                  f"   worth {cl_['gain']:.2f}"
+                  + ('' if cl_['counted'] else
+                     '  (one prediction: not a pattern, not counted)'))
+        if jf['n_no_j']:
+            print(f"    {jf['n_no_j']} observable prediction(s) left out: "
+                  f"the partner has no J")
+        print(f"  ln_J = {jf['ln_J']:.2f}"
+              + ("  - the matches are spread over the dJ classes as the "
+                 "predicted intensities say they should be"
+                 if jf['ln_J'] <= 0.0 else
+                 "  - nothing much: no dJ class is missing by more than the "
+                 "line list alone would explain"
+                 if jf['ln_J'] < J_MARK else
+                 "  - a dJ class that should have been recorded is not "
+                 "there.  Read against the same number at the other "
+                 "candidate energies before concluding anything about the "
+                 "position: a level whose calculated gA divides its strength "
+                 "wrongly among the branches scores this at EVERY energy, "
+                 "and only the DIFFERENCE between two candidate energies "
+                 "enters ln R"))
     show = np.ones(len(tab), dtype=bool) if show_all else (seen | m)
     hidden = int((~show).sum())
     if hidden:
         print(f"  {hidden} faint predictions that found no line are not "
               f"listed (--detail-all lists them)")
     print()
+    j_p = np.array([ctx.j_of.get(str(x), float('nan'))
+                    for x in tab['partner']])
+    dj = (np.round(j_p - j_level) if np.isfinite(j_level)
+          else np.full(len(tab), np.nan))
     hdr = (f"{'partner':<14}{'IDEN2':>6} {'label':<12}{'E_partner':>12}"
-           f"{'nu':>12}{'I_pred':>10}{'P_obs':>7}{'wn_obs':>12}{'d':>8}"
+           f"{'dJ':>4}{'nu':>12}{'I_pred':>10}{'P_obs':>7}"
+           f"{'wn_obs':>12}{'d':>8}"
            f"{'I_obs':>10}{'C':>10}{'lnG':>7}{'lnR':>8}  what")
     print(hdr)
     print('-' * len(hdr))
-    for (_, r), tag, keep in zip(tab.iterrows(), what, show):
+    for (_, r), tag, keep, dd in zip(tab.iterrows(), what, show, dj):
         if not keep:
             continue
         pid = str(r['partner'])
         idx, label = ident.get(pid, ('', ''))
         e_m = ctx.e_final.get(pid, float('nan'))
         head = (f"{pid:<14}{idx:>6} {label:<12}{e_m:>12.3f}"
+                f"{('%+d' % dd) if np.isfinite(dd) else '-':>4}"
                 f"{r['nu']:>12.3f}{r['I_pred']:>10.1f}{r['P_obs']:>7.3f}")
         if r['matched']:
             print(f"{head}{r['wn_obs']:>12.3f}{r['d']:>8.3f}"
@@ -2404,6 +2777,194 @@ def j_value(j):
         return float(s)
     except (ValueError, TypeError):
         return float('nan')
+
+
+
+def match_kinds(tab):
+    """seen, real and free of a detail table - the one definition of each.
+
+    ``seen``  the prediction could have been recorded at all (P_obs >= P_SEEN)
+    ``real``  and it matches a recorded line that counts as evidence for the
+              level: within FREE_SIGMA of where it is predicted, not a row the
+              `bright` reading won, and with its own ln R_t positive
+    ``free``  and the feature is claimed by no other accepted transition
+
+    support(), print_detail() and the J fingerprint all ask the same question
+    of the same table and must get the same answer, so they all ask it here.
+    """
+    m = tab['matched'].to_numpy(dtype=bool)
+    seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
+    d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
+    c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
+    o = tab['over'].to_numpy(dtype=bool)
+    w = tab['W'].to_numpy(dtype=float)
+    r = tab['ln_R'].to_numpy(dtype=float)
+    real = (seen & m & ~o & (r > 0.0)
+            & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
+    return seen, real, real & (c == 0.0)
+
+
+# ---------------------------------------------------------------------------
+# The J fingerprint
+# ---------------------------------------------------------------------------
+# For an electric dipole transition J changes by 0 or 1, so WHICH partners a
+# level is seen with is a fingerprint of its own J.  ln R cannot read it.  The
+# two energies being compared are the same level, so they predict the same
+# transitions to the same partners with the same gA and the same intensities;
+# only the wavenumbers shift.  The J information therefore never appears as a
+# difference in predicted intensity - it appears as a CORRELATION AMONG THE
+# ABSENCES, and ln R multiplies the absences as if they were independent, which
+# is exactly the assumption that makes a correlation cost nothing.
+#
+# To charge for it there has to be a rival hypothesis under which the
+# correlation is expected, and the physical one is: the lines at this position
+# are not this level's, but those of a level of some OTHER J - in which case a
+# whole delta J class of the predictions was never going to be there.  Give
+# each class its own detection multiplier lambda_g, so that a prediction of
+# that class is recorded with probability lambda_g * P_obs instead of P_obs,
+# and fit the lambda to the found/missing pattern.  ln_J is how much better the
+# pattern is explained that way.
+#
+# NOTHING HERE IS A SELECTION RULE.  A prediction enters only if it could have
+# been recorded at all (P_obs >= P_SEEN) and it enters weighted by its own
+# P_obs: a missing partner at P_obs = 0.29 contributes ln(1 - 0.29) = -0.34 and
+# one at 0.72 contributes -1.27.  A class of transitions that is simply too
+# weak to see reaches lambda = 0 at almost no gain in likelihood and cannot
+# accuse a position; only a class that SHOULD have been recorded and was not,
+# again and again, can.  That is the whole point of doing this with P_obs
+# rather than with delta J alone.
+J_CLASS_COST = 1.0   # nats charged for each detection rate the test fits,
+                     # so that a class cannot buy credit by being small
+J_MARK = 1.0         # ln_J above which the pattern is worth remarking on
+J_MIN_CLASS = 2      # observable predictions a class needs before its
+                     # absences can be read as a pattern rather than as the
+                     # one absence ln R has already charged for
+
+
+def fit_detection_rate(p, found):
+    """The detection multiplier of one delta J class, and what it gains.
+
+    ``p`` is P_obs of each observable prediction of the class and ``found``
+    says which of them match a recorded line.  Under the plain model each is
+    recorded with probability p; under the rival it is lambda * p, with
+    lambda in [0, 1] - a class can be missed more often than predicted, never
+    more often found, since a surplus of matches is not evidence about J.
+
+        ln L(lambda) = n ln lambda + sum_missing ln(1 - lambda p) + const
+
+    Returns ``(lambda_hat, ln L(lambda_hat) - ln L(1))``, the second never
+    negative.
+    """
+    p = np.clip(np.asarray(p, dtype=float), 0.0, 0.999)
+    found = np.asarray(found, dtype=bool)
+    if p.size == 0:
+        return 1.0, 0.0
+    q = p[~found]                      # the ones that were not recorded
+    n = int(found.sum())
+    base = float(np.sum(np.log1p(-q))) if q.size else 0.0   # ln L(1)
+
+    def ln_l(lam):
+        if lam <= 0.0:
+            return -np.inf if n else float(np.sum(np.log1p(-0.0 * q)))
+        return n * math.log(lam) + float(np.sum(np.log1p(-lam * q)))
+
+    if q.size == 0:                    # every one of them was found
+        return 1.0, 0.0
+    if n == 0:                         # none was: the class is extinguished
+        return 0.0, -base
+    # d/dlambda of ln L, decreasing in lambda; lambda_hat = 1 when it is still
+    # positive there, which is a class found as often as predicted or oftener
+    def slope(lam):
+        return n / lam - float(np.sum(q / (1.0 - lam * q)))
+    if slope(1.0) >= 0.0:
+        return 1.0, 0.0
+    lo, hi = 1e-9, 1.0
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if slope(mid) > 0.0:
+            lo = mid
+        else:
+            hi = mid
+    lam = 0.5 * (lo + hi)
+    return lam, max(ln_l(lam) - base, 0.0)
+
+
+def ln_j_pattern(tab, j_level, j_of, seen=None, real=None):
+    """How much better the pattern of absences fits a level of another J.
+
+    Groups the observable predictions by delta J = J(partner) - J(level) and
+    fits fit_detection_rate to each.  ``ln_J`` is what the rival hypothesis
+    wins, after J_CLASS_COST is charged for every rate fitted, floored at
+    zero: a position with ln_J = 0 says the recorded lines are spread over the
+    delta J classes as the intensities predict, and a large ln_J says one
+    class is systematically absent, which is what a level of a different J
+    sitting there would look like.
+
+    Partners whose J cannot be read are left out of the test (they are still
+    in ln R), and so is every prediction too faint to have been recorded.
+    Returns a dict with ln_J and one row per class.
+    """
+    out = dict(ln_J=0.0, classes=[], n_no_j=0)
+    if tab is None or not np.isfinite(j_level):
+        return out
+    if seen is None or real is None:
+        seen, real, _ = match_kinds(tab)
+    jp = np.array([j_of.get(str(x), float('nan')) for x in tab['partner']])
+    p = tab['P_obs'].to_numpy(dtype=float)
+    ok = seen & np.isfinite(jp)
+    out['n_no_j'] = int((seen & ~np.isfinite(jp)).sum())
+    dj = np.round(jp - j_level)
+    total = 0.0
+    for d in (-1.0, 0.0, 1.0):
+        m = ok & (dj == d)
+        if not m.any():
+            continue
+        lam, gain = fit_detection_rate(p[m], real[m])
+        # A CLASS OF ONE IS NOT A PATTERN.  Its whole content is that one
+        # prediction was missed, and ln R has charged ln(1 - P_obs) for that
+        # already; reading it as a fingerprint of J would be charging the
+        # same absence twice under another name.  The fingerprint is a
+        # CORRELATION among absences, and a correlation needs two.
+        counted = int(m.sum()) >= J_MIN_CLASS
+        if counted:
+            total += max(gain - J_CLASS_COST, 0.0)
+        out['classes'].append(dict(dJ=int(d), n_obs=int(m.sum()),
+                                   sum_P=float(p[m].sum()),
+                                   n_match=int(real[m].sum()),
+                                   lam=float(lam), gain=float(gain),
+                                   counted=counted))
+    out['ln_J'] = float(total)
+    return out
+
+
+def fold_j(ln_r, ln_j):
+    """ln R of rival positions of ONE level, with the fingerprint folded in.
+
+    THE ONLY PLACE ln_J IS ALLOWED TO CHANGE ln R, and it changes it only
+    between rivals.  The positions handed in are candidate energies of a
+    single level, so they predict the same transitions to the same partners
+    with the same gA: whatever the calculated branch strengths get wrong about
+    how that level divides its strength among its delta J classes is common to
+    all of them, and only the difference between their fingerprints says
+    anything about where the level is.  Subtracting each ln_J outright would
+    charge the intensity model's error to the level's whereabouts - over this
+    run the largest ln_J belongs to 059003.000069, whose position is worth
+    ln R = +146 on 82 observable predictions and is not in any doubt.
+
+    So the cleanest of the rivals sets the zero: with b = min ln_J,
+
+        ln_R_J = ln_R - (ln_J - b)
+
+    The best-fitting fingerprint keeps its ln R exactly, each other position
+    pays what its own fingerprint is worse by, and a level whose rivals are
+    equally clean - or which has no rival at all - pays nothing.
+
+    Returns a list of the offset values, in the order given.
+    """
+    if not len(ln_j):
+        return [float(x) for x in ln_r]
+    b = min(float(x) for x in ln_j)
+    return [float(r) - (float(j) - b) for r, j in zip(ln_r, ln_j)]
 
 
 def level_kinds(per):
@@ -2491,15 +3052,24 @@ def own_light(ctx, own):
 def support(ctx, level_id, e):
     """What the position E rests on: its free lines, their weight, its spread.
 
-    A matched prediction is FREE support when it could have been recorded
-    at all (P_obs >= P_SEEN), the observed feature is claimed by no other
-    accepted transition (C = 0), and the line sits within FREE_SIGMA of where
-    it is predicted.  Without the first condition a prediction with a 1.5 per
-    cent chance of being recorded counts as support the moment any line
-    happens to lie within the matching window - a coincidence, and the same
-    one that makes n_match the number not to quote.  Those are the lines the
-    level can take without robbing another level of its evidence; support that is
-    entirely blended is not support, because a prediction can be dumped on an
+    A matched prediction is a REAL match (n_real) when it could have been
+    recorded at all (P_obs >= P_SEEN), the line sits within FREE_SIGMA of
+    where it is predicted, the row is not one the `bright` reading won (a
+    feature far brighter than the prediction, which classify_lines leaves free
+    for a better transition), and the row's own ln R_t is positive - the
+    recorded line, position and brightness together, is more likely with the
+    level there than as a coincidence.  On a free feature that last condition
+    is the intensity test: a line nine times fainter than predicted fails it.
+    On a feature other transitions already claim it is the blend test: the
+    component's light must improve, or at least not spoil, the account of the
+    feature's brightness.  It is FREE support when, in addition, the observed
+    feature is claimed by no other accepted transition (C = 0).  Without
+    the first condition a prediction with a 1.5 per cent chance of being
+    recorded counts as support the moment any line happens to lie within the
+    matching window - a coincidence, and the same one that makes n_match the
+    number not to quote.  Those are the lines the level can take without
+    robbing another level of its evidence; support that is entirely blended
+    is not support, because a prediction can be dumped on an
     already-explained feature almost anywhere.
 
     top_share is the largest single row's share of all the positive evidence.
@@ -2529,18 +3099,14 @@ def support(ctx, level_id, e):
     own = set(light)
     if tab is None:
         return dict(ln_R=0.0, n_free=0, free_gain=0.0,
-                    top_share=np.nan, n_obs_alt=0, n_seen_alt=0,
+                    top_share=np.nan, n_obs_alt=0, n_seen_alt=0, n_real=0,
                     n_miss_alt=0, n_own=len(own), n_kept=0,
-                    kept_light=0.0 if own else np.nan)
+                    kept_light=0.0 if own else np.nan, ln_J=0.0, j_classes=[])
     m = tab['matched'].to_numpy(dtype=bool)
-    d = np.nan_to_num(tab['d'].to_numpy(dtype=float), nan=np.inf)
-    c = np.nan_to_num(tab['C'].to_numpy(dtype=float), nan=-1.0)
-    o = tab['over'].to_numpy(dtype=bool)
-    w = tab['W'].to_numpy(dtype=float)
     r = tab['ln_R'].to_numpy(dtype=float)
-    seen = tab['P_obs'].to_numpy(dtype=float) >= P_SEEN
-    free = (seen & m & (c == 0.0) & ~o
-            & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
+    seen, real, free = match_kinds(tab)
+    j = ln_j_pattern(tab, ctx.j_of.get(str(level_id), float('nan')),
+                     ctx.j_of, seen, real)
     pos = r[m & (r > 0.0)]
     here = set(int(x) for x in
                observed_index(ctx, tab.loc[m, 'wn_obs'].to_numpy()))
@@ -2552,7 +3118,9 @@ def support(ctx, level_id, e):
                 free_gain=float(r[free].sum()),
                 n_obs_alt=int(seen.sum()),
                 n_seen_alt=int((seen & m).sum()),
+                n_real=int(real.sum()),
                 n_miss_alt=int((seen & ~m).sum()),
+                ln_J=j['ln_J'], j_classes=j['classes'],
                 top_share=(float(pos.max() / pos.sum()) if pos.size
                            else np.nan))
 
@@ -2620,7 +3188,9 @@ def disposition(row):
       relocate     a free position, broadly supported by lines nobody is
                    using, surviving the look-elsewhere correction, and
                    convincing in its own right - ln R must be positive there,
-                   not merely better than where the level is now.  How far
+                   after the delta J fingerprint has been charged against it
+                   (ln_R_alt_J), and not merely better than where the level is
+                   now.  How far
                    away it is does not enter: a position 1 cm^-1 away that
                    takes a different set of lines is as much a relocation as
                    one 300 cm^-1 away, and needs the same ledger record.
@@ -2643,7 +3213,7 @@ def disposition(row):
                                          and share > AUDIT_ANY_SHARE):
         return 'no support'
     if (row['n_free'] >= AUDIT_MIN_FREE
-            and row['ln_R_alt'] > 0.0
+            and row.get('ln_R_alt_J', row['ln_R_alt']) > 0.0
             and row['free_gain'] >= AUDIT_MIN_GAIN
             and np.isfinite(share) and share <= AUDIT_MAX_SHARE
             and row['look'] >= AUDIT_MIN_LOOK):
@@ -2654,7 +3224,11 @@ def disposition(row):
 def audit_table(ctx, tab, e_calc, w_of, vac):
     """Add the audit columns to a scanned report table.
 
-    gain     ln R the alternate wins by (positive: the lines prefer it)
+    gain_R   ln R the alternate wins by on the line evidence alone
+             (positive: the lines prefer it)
+    gain     gain_R + d_ln_J: the same, once the delta J fingerprint is
+             counted with it.  This is the column the dispositions are taken
+             on, and the one to read
     look     that gain after the look-elsewhere correction.  A level allowed
              a 7000 cm^-1 window gets hundreds of chances at a good maximum
              and a level allowed 130 gets a handful, so the two cannot be
@@ -2671,6 +3245,31 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
              by dropping the level's brightest line
     free_gain  what those lines are worth
     top_share  the largest row's share of the positive evidence
+    ln_J_alt   the delta J fingerprint of the alternate (ln_j_pattern): how
+             much better the pattern of absences THERE fits a level of another
+             J than this one.  The column beside it, ln_J, is the same test at
+             the adopted position.  A move that raises it is a move onto lines
+             that do not belong to this level's J
+    d_ln_J   ln_J - ln_J_alt, and THE COLUMN TO READ.  ln_J at a single
+             position mixes two things: a position that belongs to a level of
+             another J, and a calculated gA that misjudges how this level's
+             strength is divided among its dJ branches.  The second is a
+             property of the level's wavefunction, not of its energy, and it
+             is the larger of the two over this run - 059003.000069 scores
+             ln_J = 6.0 at a position worth ln R = +146 on 82 observable
+             predictions, which is a branch-strength fault and not a doubt
+             about where the level is.  The difference between two candidate
+             energies FOR THE SAME LEVEL cancels it: the same partners, the
+             same gA, only the wavenumbers differ.  Positive d_ln_J means the
+             alternate fits this level's J better than the adopted position
+             does, and gain counts it
+    ln_R_J   ln_R and ln_R_alt with the fingerprint folded in: each is offset
+    ln_R_alt_J  by the cleaner of the two, b = min(ln_J, ln_J_alt), so that
+             the better-fitting position keeps its ln R untouched, the other
+             pays what its fingerprint is worse by, and the difference between
+             them is gain.  A level whose two positions have the same
+             fingerprint pays nothing, which is right: there is then nothing
+             in the pattern of absences to choose between them
     n_vacant   unfound calculated levels of the same J and parity within one
              configuration window of the alternate - can an UNKNOWN level be
              there instead?
@@ -2679,9 +3278,10 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
              scatter
     action   see disposition()
     """
-    cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], look=[],
-                n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
-                n_kept=[], kept_light=[], n_vacant=[], z_alt=[], action=[])
+    cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], gain_R=[],
+                look=[], n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
+                n_kept=[], kept_light=[], n_vacant=[], z_alt=[], ln_J_alt=[],
+                d_ln_J=[], ln_R_J=[], ln_R_alt_J=[], action=[])
     lev = ctx.per.set_index('level_id')
     for _, r in tab.iterrows():
         lid = r['level_id']
@@ -2691,14 +3291,29 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
             continue
         e_a = float(r['E']) + float(r['dE_alt'])
         s = support(ctx, lid, e_a)
-        gain = float(r['ln_R_alt']) - float(r['ln_R'])
+        # THE FINGERPRINT ENTERS HERE, AND ONLY AS A DIFFERENCE.  The same
+        # level at two energies predicts the same transitions to the same
+        # partners with the same gA, so whatever its calculated branch
+        # strengths get wrong is the same at both and cancels; what is left
+        # is the pattern of absences that belongs to one J rather than the
+        # other.  Offsetting both positions by the cleaner of the two leaves
+        # the better fingerprint's ln R alone and charges the worse one the
+        # difference, so nothing is taken from a level whose two positions
+        # are equally clean.
+        d_j = float(r['ln_J']) - s['ln_J']
+        r_j, a_j = fold_j([r['ln_R'], r['ln_R_alt']],
+                          [r['ln_J'], s['ln_J']])
+        gain_R = float(r['ln_R_alt']) - float(r['ln_R'])
+        gain = a_j - r_j
         look = gain - math.log(max(int(r['n_alt']), 1))
         w = float(w_of.get(lid, np.nan))
         ec = float(e_calc.get(lid, np.nan))
         row = dict(r)
         row.update(s)
         row['gain'] = gain
+        row['gain_R'] = gain_R
         row['look'] = look
+        row['ln_R_alt_J'] = a_j
         cols['n_free'].append(s['n_free'])
         cols['free_gain'].append(s['free_gain'])
         cols['top_share'].append(s['top_share'])
@@ -2708,7 +3323,12 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         cols['n_own'].append(s['n_own'])
         cols['n_kept'].append(s['n_kept'])
         cols['kept_light'].append(s['kept_light'])
+        cols['ln_J_alt'].append(s['ln_J'])
+        cols['d_ln_J'].append(d_j)
+        cols['ln_R_J'].append(r_j)
+        cols['ln_R_alt_J'].append(a_j)
         cols['gain'].append(gain)
+        cols['gain_R'].append(gain_R)
         cols['look'].append(look)
         cols['n_vacant'].append(count_vacancies(
             vac, lev.at[lid, 'J'] if lid in lev.index else None,
@@ -2770,9 +3390,10 @@ def print_audit(tab, alt_drop):
     firm = pref[pref['action'] == 'relocate'].sort_values(
         'look', ascending=False)
     cols = ['level_id', 'E', 'n_obs', 'n_seen', 'ln_R', 'dE_alt',
-            'ln_R_alt', 'n_seen_alt', 'n_miss_alt', 'gain', 'n_alt', 'look',
+            'ln_R_alt', 'n_seen_alt', 'n_miss_alt', 'gain_R', 'd_ln_J',
+            'gain', 'n_alt', 'look',
             'n_free', 'free_gain', 'top_share', 'n_own', 'n_kept',
-            'kept_light', 'n_vacant', 'z_alt']
+            'kept_light', 'n_vacant', 'z_alt', 'ln_J', 'ln_J_alt']
     with pd.option_context('display.width', 220, 'display.max_columns', 24):
         print(f"\n  firm grounds for relocation ({len(firm)}):")
         print(firm[cols].to_string(index=False, na_rep='-')
@@ -2921,20 +3542,22 @@ def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
     a = np.array([mapping.get(int(v), -1) for v in trans['lid1']])
     b = np.array([mapping.get(int(v), -1) for v in trans['lid2']])
     gA = trans['gA'].to_numpy(dtype=float)
+    up = (trans['u_gA_pct'].to_numpy(dtype=float)
+          if 'u_gA_pct' in trans.columns else np.full(len(trans), np.nan))
     hit = ((a == idx) | (b == idx)) & (a > 0) & (b > 0) & (gA > 0)
     other = np.where(a[hit] == idx, b[hit], a[hit])
-    gA = gA[hit]
+    gA, up = gA[hit], up[hit]
     known = en['known'].to_dict()
     keep = np.array([bool(known.get(int(i), False)) for i in other],
                     dtype=bool)
-    other, gA = other[keep], gA[keep]
+    other, gA, up = other[keep], gA[keep], up[keep]
 
     pid = np.array([str(id_of.get(int(i), '')) for i in other])
     in_run = np.array([p in ctx.e_final for p in pid], dtype=bool)
     if not in_run.all():
         log(f"  {int((~in_run).sum())} partners are found in enlev.dat but "
             f"are not levels of this run; their transitions are dropped")
-    other, gA, pid = other[in_run], gA[in_run], pid[in_run]
+    other, gA, pid, up = other[in_run], gA[in_run], pid[in_run], up[in_run]
 
     E_c = float(en['E_calc'][idx])
     E_p = np.array([float(e_meas[int(i)]) for i in other])
@@ -2949,8 +3572,10 @@ def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
         i_pred=i_pred,
         e_m=E_p,
         u_m=np.array([ctx.u_M.get(p, 0.0) for p in pid]),
+        u_calc=np.array([ls._u_ln(v) for v in up]),
         degenerate=np.array([ctx.n_acc_level.get(p, 0) <= 0 for p in pid]))
     ctx.e_final[UNKNOWN_ID] = E_c
+    ctx.j_of[UNKNOWN_ID] = j_value(en['J'][idx])
 
     lid = str(id_of.get(int(idx), ''))
     ctx.unknown_level = None
@@ -3051,18 +3676,22 @@ def release_levels(ctx, ids, args, log=print):
     return int(sel.sum())
 
 
-def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0):
+def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0,
+                 k=WINDOW_K):
     """Every position in the calculation's window where the lines want a level.
 
-    The window is E_calc +/- three times the rms of E_obs - E_calc over the
-    FOUND levels of the same configuration - the same interval a known level
-    of that configuration is scanned over, and for the same reason: how far
-    the calculation can be wrong is a property of the configuration, not of
-    the level.  Maxima closer together than ALT_SEP are one maximum.
+    The window is E_calc +/- k (three) times the rms of E_obs - E_calc over
+    the FOUND levels of the same configuration - the same interval a known
+    level of that configuration is scanned over, and for the same reason: how
+    far the calculation can be wrong is a property of the configuration, not
+    of the level.  That reason fails for a level strongly mixed with a level
+    of another configuration, whose label says little about which
+    configuration's scatter it shares; --window-sigmas widens the window for
+    it.  Maxima closer together than ALT_SEP are one maximum.
     """
     E_c = float(en['E_calc'][idx])
     W = float(per_cfg.get(en['cfg'][idx], whole))
-    lo, hi = scan_interval(E_c, E_c, W)
+    lo, hi = scan_interval(E_c, E_c, W, k=k)
     n = int((hi - lo) / step) + 1
     if n > GRID_MAX:
         step = (hi - lo) / (GRID_MAX - 1)
@@ -3077,7 +3706,7 @@ def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0):
         if all(abs(e - k[0]) >= ALT_SEP for k in kept):
             kept.append((e, v))
     return dict(idx=idx, E_calc=E_c, W=W, lo=lo, hi=hi, step=step,
-                grid=grid, y=y, positions=kept,
+                min_ln_r=min_ln_r, grid=grid, y=y, positions=kept,
                 ln_R_best=float(y.max()) if len(y) else float('nan'),
                 E_best=float(grid[int(np.argmax(y))]) if len(y) else
                 float('nan'))
@@ -3086,21 +3715,48 @@ def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0):
 def unknown_table(ctx, r):
     """One row per candidate position, best first.
 
-    ln_R    the verdict at that energy
-    look    ln R after the look-elsewhere correction for the whole scan
+    ln_R    what the recorded lines alone say about that energy
+    ln_R_J  the same with the delta J fingerprint folded in, and THE COLUMN
+            THE TABLE IS RANKED AND JUDGED ON.  The candidates are positions
+            of ONE level, so they predict the same transitions to the same
+            partners with the same gA and whatever the calculated branch
+            strengths get wrong is common to them all; only the difference
+            between their fingerprints says anything about where the level
+            is.  Every candidate is therefore offset by the cleanest of them,
+            ln_R_J = ln_R - (ln_J - min ln_J): the best-fitting candidate
+            keeps its ln R exactly, each other pays what its fingerprint is
+            worse by, and a scan whose candidates are all equally clean is
+            left as it was
+    look    ln_R_J after the look-elsewhere correction for the whole scan
     dE, z   how far it is from the calculated energy, in cm^-1 and in units
             of that configuration's own scatter.  A position at z = 2.8 is
             asking the calculation to be wrong by nearly three times as much
             as it usually is for that configuration.
     n_obs   predictions that could have been recorded there (P_obs >= P_SEEN)
-    n_match how many of those found a recorded line - the count to read
-            against n_obs, since a position that predicts twenty observable
-            lines and matches three is contradicted, not supported
+    n_match how many of those REALLY match a recorded line (n_real of
+            support(): within FREE_SIGMA, and a line the row's own ln R_t
+            counts as evidence for the level - brightness agreeing with the
+            prediction on a free feature, admissible as a component on a
+            claimed one) - the count to read against n_obs, since a position
+            that predicts twenty observable lines and matches three is
+            contradicted, not supported
+    n_poor  observable predictions with a recorded line in the matching
+            window that is NOT a match: off-centre, or of the wrong
+            brightness.  Each counts against the position about as much as
+            an absence does
+    n_miss  observable predictions with no recorded line in the window at
+            all; n_obs = n_match + n_poor + n_miss
     n_free  of the matches, the well-centred ones on features no accepted
             transition already claims: the lines the level could take without
             taking them from a level already found
     free_gain  what those free lines are worth in ln R
     top_share  the largest single line's share of the positive evidence
+    ln_J    the delta J fingerprint: how much better the pattern of matches
+            and absences fits a level of a DIFFERENT J than this one.  Zero
+            where the lines are spread over the delta J classes as their
+            predicted intensities say they should be; a few nats where a whole
+            class that should have been recorded is missing.  ln_R - ln_R_J
+            is what it cost this candidate against the cleanest one
     verdict how the audit above would read that support, by exactly the same
             constants: `firm` where a relocation would be called firm, `no
             support` where one line is the whole case or there are fewer than
@@ -3111,28 +3767,35 @@ def unknown_table(ctx, r):
     """
     rows = []
     n = max(len(r['positions']), 1)
-    for e, v in r['positions']:
-        sup = support(ctx, UNKNOWN_ID, e)
-        rows.append(dict(E=e, ln_R=v, look=v - math.log(n),
+    sups = [support(ctx, UNKNOWN_ID, e) for e, _ in r['positions']]
+    # the cleanest fingerprint among the candidates carries no charge; fold_j
+    # says why only the difference between them means anything
+    folded = fold_j([v for _, v in r['positions']],
+                    [sp['ln_J'] for sp in sups])
+    for (e, v), sup, v_j in zip(r['positions'], sups, folded):
+        rows.append(dict(E=e, ln_R=v, ln_R_J=v_j, look=v_j - math.log(n),
                          dE=e - r['E_calc'],
                          z=(e - r['E_calc']) / r['W'] if r['W'] > 0
                          else np.nan,
-                         n_obs=sup['n_obs_alt'], n_match=sup['n_seen_alt'],
+                         n_obs=sup['n_obs_alt'], n_match=sup['n_real'],
+                         n_poor=sup['n_seen_alt'] - sup['n_real'],
                          n_miss=sup['n_miss_alt'], n_free=sup['n_free'],
                          free_gain=sup['free_gain'],
-                         top_share=sup['top_share'],
+                         top_share=sup['top_share'], ln_J=sup['ln_J'],
                          verdict=position_verdict(
                              sup['n_free'], sup['free_gain'],
-                             sup['top_share'], v - math.log(n))))
-    tab = pd.DataFrame(rows, columns=['E', 'ln_R', 'look', 'dE', 'z',
-                                      'n_obs', 'n_match', 'n_miss',
+                             sup['top_share'], v_j - math.log(n))))
+    tab = pd.DataFrame(rows, columns=['E', 'ln_R', 'ln_R_J', 'look', 'dE',
+                                      'z',
+                                      'n_obs', 'n_match', 'n_poor',
+                                      'n_miss',
                                       'n_free', 'free_gain', 'top_share',
-                                      'verdict'])
+                                      'ln_J', 'verdict'])
     if tab.empty:
         return tab
     rank = {'firm': 0, 'weak': 1, 'no support': 2}
     tab['_r'] = [rank[x] for x in tab['verdict']]
-    return tab.sort_values(['_r', 'ln_R'], ascending=[True, False]).drop(
+    return tab.sort_values(['_r', 'ln_R_J'], ascending=[True, False]).drop(
         columns='_r').reset_index(drop=True)
 
 
@@ -3144,7 +3807,10 @@ def position_verdict(n_free, free_gain, top_share, look):
     case, and the four a firm relocation has to pass.  There is no ln R of an
     adopted position to beat here - the level has no adopted position - so ln
     R itself, after the look-elsewhere correction, plays the part the gain
-    plays there.
+    plays there.  What is handed in as `look` is the look-elsewhere correction
+    of ln_R_J, not of ln_R, so a candidate whose delta J pattern is worse than
+    another candidate's has to make that up in line evidence before it can be
+    called firm.
     """
     share = top_share
     if n_free < AUDIT_MIN_FEW or (np.isfinite(share)
@@ -3201,17 +3867,22 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0):
               f"wavenumbers will always find one.  unfound_levels.py ranks "
               f"the levels by how many such transitions they have, and this "
               f"one is not worth a search.")
+    cut = r.get('min_ln_r', 0.0)
     if not r['positions']:
-        print(f"  no position in the window where ln R > 0.  The best the "
-              f"window offers is {r['ln_R_best']:+.2f} at "
-              f"{r['E_best']:.3f} cm^-1, which is not a candidate: the "
-              f"recorded lines are no more likely with a level there than "
-              f"with none.")
+        print(f"  no position in the window where ln R > {cut:g}.  The best "
+              f"the window offers is {r['ln_R_best']:+.2f} at "
+              f"{r['E_best']:.3f} cm^-1"
+              + (", which is not a candidate: the recorded lines are no more "
+                 "likely with a level there than with none."
+                 if r['ln_R_best'] <= 0.0 else "."))
+        print(f"  A position just outside the window is not seen: "
+              f"--unknown {idx} --at E scores any energy, and "
+              f"--window-sigmas widens the search.")
         return
     tab = unknown_table(ctx, r)
     counts = tab['verdict'].value_counts()
     shown = tab if not top else tab.head(top)
-    print(f"  {len(tab)} positions where ln R > 0: "
+    print(f"  {len(tab)} positions where ln R > {cut:g}: "
           + ', '.join(f"{int(counts.get(k, 0))} {k}"
                       for k in ('firm', 'weak', 'no support'))
           + (f"; the best {len(shown)} shown" if len(shown) < len(tab)
@@ -3269,6 +3940,16 @@ def parse_args(argv):
                         '(default %(default)s: the energies at which the '
                         'recorded lines are more likely with a level there '
                         'than without one)')
+    p.add_argument('--window-sigmas', type=float, default=WINDOW_K,
+                   metavar='K',
+                   help='--unknown scans E_calc +/- K times the rms of '
+                        'E_obs - E_calc of the configuration the level is '
+                        'labelled with (default %(default)s).  Widen it for a '
+                        'level strongly mixed with a level of another '
+                        'configuration: its label, and so the scatter its '
+                        'window is taken from, can be the wrong one.  z in '
+                        'the table stays in units of the labelled '
+                        'configuration scatter')
     p.add_argument('--top', type=int, default=0, metavar='N',
                    help='--unknown lists only the best N positions '
                         '(default: all of them)')
@@ -3381,7 +4062,7 @@ def main(argv=None):
                              args.alt_drop)
                 continue
             r = scan_unknown(ctx, idx, en, per_cfg, whole, step=args.step,
-                             min_ln_r=args.min_ln_r)
+                             min_ln_r=args.min_ln_r, k=args.window_sigmas)
             print_unknown(ctx, idx, en, r, n_pred, top=args.top)
         return 0
 
@@ -3497,7 +4178,9 @@ def main(argv=None):
         'E': 4, 'ln_R': 3, 'ln_R_match': 3, 'ln_R_miss': 3,
         'sum_lnG': 3, 'ln_R_alt': 3, 'd_ln_R': 3, 'dE_alt': 4,
         'near_dE': 4, 'scan_width': 1, 'gain': 3, 'look': 3,
-        'free_gain': 3, 'top_share': 3, 'kept_light': 3, 'z_alt': 2})
+        'free_gain': 3, 'top_share': 3, 'kept_light': 3, 'z_alt': 2,
+        'ln_J': 3, 'ln_J_alt': 3, 'd_ln_J': 3, 'gain_R': 3,
+        'ln_R_J': 3, 'ln_R_alt_J': 3})
     print(f"ln R at the adopted position: median {tab['ln_R'].median():.1f}, "
           f"{int((tab['ln_R'] <= 0).sum())} at or below zero, "
           f"{int((tab['ln_R'] < 10).sum())} below 10")

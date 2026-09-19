@@ -1006,11 +1006,34 @@ def test_an_added_level_gets_predictions_from_the_cowan_list(monkeypatch):
     e = {'059003.000900': 100000.0, '059003.000047': 20000.0}
     out = LS._cowan_predictions(set(e), e, [])
     assert len(out) == 1
-    lo, up, i_pred = out[0]
+    lo, up, i_pred, u_calc, gA = out[0]
     assert (lo, up) == ('059003.000047', '059003.000900')
+    # gA is carried along, for the line strength of the intensity width
+    assert gA == pytest.approx(5.0e4)
+    # u_calc is the gA uncertainty on the natural-log scale, ln(1 + u%gA/100)
+    assert u_calc == pytest.approx(math.log1p(0.50), rel=1e-12)
     C = float(CL.CFG.intensity_model['C'])
     kT = float(CL.CFG.intensity_model['kT'])
     want = C * 5.0e4 * (80000.0 / 1e8) * math.exp(-100000.0 / kT)
     assert i_pred == pytest.approx(want, rel=1e-12)
     # a pair Icalc.xlsx already predicts is not predicted twice
     assert LS._cowan_predictions(set(e), e, [(lo, up, 1.0)]) == []
+
+
+def test_a_failed_run_keeps_its_sync_report_and_classification(tmp_path,
+                                                                monkeypatch):
+    report = tmp_path / 'sync_report.txt'
+    xlsx = tmp_path / 'line_classifications.xlsx'
+    report.write_text('ERROR something\n')
+    xlsx.write_bytes(b'PK\x03\x04 workbook')
+    backup = tmp_path / 'backup'
+    backup.mkdir()
+    monkeypatch.setattr(INL, 'SYNC_REPORT', str(report))
+    monkeypatch.setattr(INL, 'CLASSIFICATIONS_XLSX', str(xlsx))
+    said = []
+    INL.keep_failed(str(backup), said.append)
+    assert (backup / 'sync_report.failed.txt').read_text() == 'ERROR something\n'
+    assert (backup / 'line_classifications.failed.xlsx').read_bytes() \
+        == b'PK\x03\x04 workbook'
+    assert any('sync_report.failed.txt' in s for s in said)
+    assert any('line_classifications.failed.xlsx' in s for s in said)

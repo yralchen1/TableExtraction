@@ -1,0 +1,141 @@
+move_level.py - IDEN2 row 522
+
+A. 17 file(s) writable and backed up in move_level_backup
+B. the level and the two positions
+   059003.000649 is row 522 of enlev.dat
+   its position is held in new_levels.txt
+   129662.6360 -> 129498.1000 cm^-1   (dE = -164.5360)
+
+C. what the level holds at the position it is leaving
+   9 assignment(s): 5 in the LOPT input, 4 marked in IDEN2, 1 ruled on in the ledger
+
+D. the level at its new position
+   4 of the 9 assignment(s) survive the move
+   lower         upper              obs wn recorded in      what happens to it
+   059003.000195 059003.000649   71488.617 LOPT             not marked in IDEN2
+   059003.000195 059003.000649   71324.288 IDEN2            kept: still a candidate at the new position
+   059003.000196 059003.000649   69496.321 LOPT             not marked in IDEN2
+   059003.000199 059003.000649   68305.404 LOPT             not marked in IDEN2
+   059003.000202 059003.000649   67599.533 LOPT+ledger x1   not marked in IDEN2
+   059003.000203 059003.000649   67257.317 IDEN2            kept: still a candidate at the new position
+   059003.000458 059003.000649   18144.254 LOPT             not marked in IDEN2
+   059003.000458 059003.000649   17979.680 IDEN2            kept: still a candidate at the new position
+   059003.000465 059003.000649   16286.454 IDEN2            kept: still a candidate at the new position
+
+   the lines the new position offers:
+   lower         upper             Ritz wn      obs wn     O-C      I_obs     I_calc  sigma mark verdict
+   059003.000195 059003.000649   71323.940   71324.288  +0.348  1.355e+04       9221   +0.4 old  marked in IDEN2
+   059003.000203 059003.000649   67257.286   67257.317  +0.031      60.87      414.3   -1.8 old  marked in IDEN2
+   059003.000458 059003.000649   17979.715   17979.680  -0.035      912.2       2213   -0.8 old  marked in IDEN2
+   059003.000465 059003.000649   16286.438   16286.454  +0.016      246.8      170.4   +0.3 old  marked in IDEN2
+   21 further candidate(s) passed over (--show-skipped lists them with the reason)
+
+   4 assignment(s) at the new position: 4 kept from IDEN2, 0 proposed here
+
+G0. the fit as it stands
+   $ cmd /c lopt.bat LOPT.par
+     | Finding Ritz uncertainties for lines...
+     | Done. (spent 0 sec)
+     | Adding preliminary values...Done.
+     | Rounding levels...Done.
+     | Adjusting single-line levels...Done.
+     | Tuning single-line levels...Done.
+     | Rounding lines...Done.
+     | Sorting levels...Done.
+     | Writing levels...Done.
+     | Writing lines...Done.
+     | Ok.
+     | Total time spent: 23 sec
+   RSS/degrees_of_freedom = 1.04 (4103 degrees of freedom)
+
+E. taking the old position apart
+   1 ledger row(s) taken out of line_decisions.csv and kept in line_decisions_removed.csv
+   0 mark(s) cleared in trans.dat
+
+F. building the new position
+   059003.000649: E 129662.636 -> 129498.1000 cm^-1 in new_levels.txt
+   weight   69496.321  059003.000105 - 059003.000311  0.7159 -> 1.0000
+   5 record(s) taken out, 4 put in, 1 weight(s) changed, 7953 record(s) in all
+
+G. LOPT
+   $ cmd /c lopt.bat LOPT.par
+     | Finding Ritz uncertainties for lines...
+     | Done. (spent 0 sec)
+     | Adding preliminary values...Done.
+     | Rounding levels...Done.
+     | Adjusting single-line levels...Done.
+     | Tuning single-line levels...Done.
+     | Rounding lines...Done.
+     | Sorting levels...Done.
+     | Writing levels...Done.
+     | Writing lines...Done.
+     | Ok.
+     | Total time spent: 24 sec
+   RSS/degrees_of_freedom = 1.03 (4103 degrees of freedom)
+   RSS/degrees_of_freedom 1.04 -> 1.03 (-0.01)
+   4 assignment(s) went into the fit; 4 of them have a residual of their own, worst first:
+       17979.680  059003.000458 - 059003.000649  O-C = -0.028 cm^-1 (1.5 sigma)
+       16286.454  059003.000465 - 059003.000649  O-C = +0.019 cm^-1 (1.2 sigma)
+       71324.288  059003.000195 - 059003.000649  O-C = +0.352 cm^-1 (1.2 sigma)
+       67257.317  059003.000203 - 059003.000649  O-C = +0.035 cm^-1 (0.2 sigma)
+   the largest Ritz residual of the moved level: 1.49 sigma
+   059003.000649: E 129498.1000 -> 129498.0960 cm^-1 in new_levels.txt
+
+H. classify_lines.py and the ledger
+   round 1
+   $ F:\UMD\AI\as-ai\.venv\Scripts\python.exe classify_lines.py
+     |       22700.6980  059003.000461-059003.000587  reject  (IDEN2)
+     |       92977.2250  059003.000075-059003.000365  reject  (Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.)
+     |       92977.2250  059003.000098-059003.000391  reject  (Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.)
+     |       93276.9820  059003.000035-059003.000329  reject  (IDEN2/LOPT: too large obs-Ritz, 1.4 cm-1)
+     |       93973.7260  059003.000101-059003.000402  reject  (Too small predicted intensity. Free the line for other assignments.)
+     |   Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.xlsx...
+     |   Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.csv...
+     |   Output written: 9508 rows.
+     |   Writing 0 unstable candidate(s) to unstable_candidates.csv...
+     | ============================================================
+     | Done.
+     | ============================================================
+     reject   65681.916  059003.000212 - 059003.000649  (not part of the move: this level was moved to 129498.1000 cm^-1 and this assignment was not carried over)
+     1 row(s) added to line_decisions.csv
+   round 2
+   $ F:\UMD\AI\as-ai\.venv\Scripts\python.exe classify_lines.py
+     |       22700.6980  059003.000461-059003.000587  reject  (IDEN2)
+     |       92977.2250  059003.000075-059003.000365  reject  (Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.)
+     |       92977.2250  059003.000098-059003.000391  reject  (Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.)
+     |       93276.9820  059003.000035-059003.000329  reject  (IDEN2/LOPT: too large obs-Ritz, 1.4 cm-1)
+     |       93973.7260  059003.000101-059003.000402  reject  (Too small predicted intensity. Free the line for other assignments.)
+     |   Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.xlsx...
+     |   Writing output to F:\UMD\AI\as-ai\LineClass\line_classifications.csv...
+     |   Output written: 9508 rows.
+     |   Writing 0 unstable candidate(s) to unstable_candidates.csv...
+     | ============================================================
+     | Done.
+     | ============================================================
+     the ledger already says everything this run needs it to say
+
+I. IDEN2
+   0 assignment(s) written into trans.dat, 4 were already there, 0 could not be placed
+
+J. check_sync.py
+   $ F:\UMD\AI\as-ai\.venv\Scripts\python.exe check_sync.py
+     | ---------
+     |     ok  no assignment oscillated in the last run
+     |     ok  all 367 ledger verdicts are obeyed
+     | What to do
+     | ----------
+     |   1. Look at each of those 2 transitions in IDEN2 and settle it, recording the verdict in line_decisions.csv; where it is the share of a blend that differs, correct the weight in LOPT_input_lines.txt by hand.  Do not simply re-run make_LOPT_input.py: that rebuilds LOPT_input_lines.txt from the current classification, so the list above disappears while every question in it stays open and is now untracked.
+     |   2. Withdraw those 2 assignments in IDEN2, or accept them in the classification: at present the screen and the fit disagree.
+     |   3. Re-run level_positions.py (and level_shifts.py) last: their reports are built on everything above, and a report made before the fixes will recommend things that have already been done.
+     |   They are in the order the pipeline runs.  Doing a later
+     |   one first only means doing it again after the earlier one.
+     | 2 error(s), 4 warning(s), 8 check(s) clean.
+     | the complete report, with every item of every list, is in sync_report.txt
+   the ERROR findings of sync_report.txt:
+       ERROR LOPT_input_lines.txt does not match the classification: 2 are weighted in it and not accepted in the classification
+       ERROR 2 transitions are identified in trans.dat and are no longer accepted - IDEN2 will show them as good; 2 of them are the transitions already listed under LOPT above and are not repeated here
+   sync_report.txt of the failed run is kept as move_level_backup\sync_report.failed.txt
+   line_classifications.xlsx of the failed run is kept as move_level_backup\line_classifications.failed.xlsx
+
+STOPPED: check_sync.py reported errors
+   every file was put back as it was (17 file(s))

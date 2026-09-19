@@ -551,8 +551,8 @@ def intensity_scale_bias(real: pd.DataFrame, preds: pd.DataFrame,
     factor is not below SCALE_BIAS_MAX_FACTOR gets factor 1.0: the intensity
     scale there is right and nothing is corrected.
     """
-    ip = {tuple(sorted((lo, up))): v
-          for lo, up, v in preds.itertuples(index=False)}
+    ip = {tuple(sorted((r[0], r[1]))): r[2]
+          for r in preds.itertuples(index=False)}
     acc = real[real['accepted'] == 1]
     # A measured line that several transitions share carries one intensity for
     # all of them.  What is compared with ONE transition's predicted intensity
@@ -738,12 +738,12 @@ def filter_observable(preds: pd.DataFrame, e_final: dict, calib,
     Returns (kept, dropped_below_noise, n_in_gaps).
     """
     gap = np.array([in_coverage_gap(e_final[up] - e_final[lo])
-                    for lo, up, _ in preds.itertuples(index=False)], dtype=bool)
+                    for lo, up, *_ in preds.itertuples(index=False)], dtype=bool)
     kept = preds[~gap].reset_index(drop=True)
     if calib is None:
         return kept, preds.iloc[0:0], int(gap.sum())
     keep = []
-    for lo, up, ip in kept.itertuples(index=False):
+    for lo, up, ip, *_ in kept.itertuples(index=False):
         wn = e_final[up] - e_final[lo]
         thr = noise_threshold_linear(wn, calib)
         keep.append(thr is None or ip * scale_bias_factor(wn, bias) >= thr)
@@ -752,13 +752,21 @@ def filter_observable(preds: pd.DataFrame, e_final: dict, calib,
             kept[~keep].reset_index(drop=True), int(gap.sum()))
 
 
-def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
+def load_predictions(level_ids: set, e_final: dict,
+                     with_u: bool = False) -> pd.DataFrame:
     """Theoretically predicted observable transitions, from Icalc.xlsx.
 
     Keeps entries where both partner levels are in the level list, the
     predicted intensity is present, and the Ritz wavenumber (from the final
     optimized energies) lies inside the observed range [WN_MIN, WN_MAX].
-    Returns a DataFrame with columns lo_id, up_id, I_pred.
+    Returns a DataFrame with columns lo_id, up_id, I_pred, and - when
+    ``with_u`` is asked for - u_calc, the uncertainty of the predicted
+    intensity on the natural-log scale, ln(1 + u%gA/100), which is the u_ln
+    column of Icalc.xlsx and the u_calc column of line_classifications.csv,
+    and S, the calculated line strength in atomic units (line_strength).
+    Each is NaN where the file does not give what it needs.  The columns are
+    optional because every other caller unpacks the three-column form row by
+    row.
 
     A level added by files.new_levels has predicted transitions here too: from
     the Cowan transition list through its cowan_lid (_cowan_predictions), and
@@ -778,7 +786,26 @@ def load_predictions(level_ids: set, e_final: dict) -> pd.DataFrame:
     for path, recompute in files:
         rows.extend(_read_predictions(path, level_ids, e_final, recompute))
     rows.extend(_cowan_predictions(level_ids, e_final, rows))
-    return pd.DataFrame(rows, columns=['lo_id', 'up_id', 'I_pred'])
+    cols = ['lo_id', 'up_id', 'I_pred', 'u_calc', 'gA']
+    out = pd.DataFrame(rows, columns=cols)
+    wn = np.array([e_final[b] - e_final[a] for a, b in zip(out['lo_id'],
+                                                          out['up_id'])],
+                  dtype=float)
+    out['S'] = line_strength(out['gA'].to_numpy(dtype=float), wn)
+    out = out.drop(columns=['gA'])
+    return out if with_u else out.drop(columns=['u_calc', 'S'])
+
+
+def line_strength(gA, wn):
+    """The line strength S in atomic units, from gA (s^-1) and the
+    wavenumber (cm^-1): gf = 1.499e-16 lambda^2 gA and S = 3.0376e-6 lambda gf
+    with lambda = 1e8/wn in angstroms.  NaN where either is missing or not
+    positive."""
+    gA = np.asarray(gA, dtype=float)
+    wn = np.asarray(wn, dtype=float)
+    ok = np.isfinite(gA) & (gA > 0) & np.isfinite(wn) & (wn > 0)
+    lam = 1.0e8 / np.where(ok, wn, 1.0)
+    return np.where(ok, 3.0376e-6 * 1.499e-16 * lam ** 3 * gA, np.nan)
 
 
 def _cowan_predictions(level_ids, e_final, have):
@@ -801,10 +828,10 @@ def _cowan_predictions(level_ids, e_final, have):
         return []
     C = float(cl.CFG.intensity_model['C'])
     kT = float(cl.CFG.intensity_model['kT'])
-    seen = {tuple(sorted((a, b))) for a, b, _ in have}
+    seen = {tuple(sorted((r[0], r[1]))) for r in have}
     found, _n_cut, _n_unknown = cl.cowan_transitions_of(lids, set(level_ids))
     out = []
-    for new_id, partner_id, gA, _u in found:
+    for new_id, partner_id, gA, u_pct in found:
         lo, up = sorted((new_id, partner_id), key=lambda x: e_final[x])
         if (tuple(sorted((lo, up))) in seen or lo not in e_final
                 or up not in e_final):
@@ -816,8 +843,17 @@ def _cowan_predictions(level_ids, e_final, have):
         if i_pred <= 0:
             continue
         seen.add(tuple(sorted((lo, up))))
-        out.append((lo, up, i_pred))
+        out.append((lo, up, i_pred, _u_ln(u_pct), float(gA)))
     return out
+
+
+def _u_ln(u_pct):
+    """ln(1 + u%gA/100): the gA uncertainty on the natural-log scale."""
+    try:
+        v = float(u_pct)
+    except (TypeError, ValueError):
+        return float('nan')
+    return math.log1p(v / 100.0) if v > -100.0 else float('nan')
 
 
 def _read_predictions(path, level_ids, e_final, recompute):
@@ -850,7 +886,18 @@ def _read_predictions(path, level_ids, e_final, recompute):
         wn = e_final[id2] - e_final[id1]
         if wn < cl.WN_MIN or wn > cl.WN_MAX:
             continue
-        rows.append((id1, id2, i_pred))
+        u = row[col['u_ln']].value if 'u_ln' in col else None
+        if u is None and 'u_pct_gA' in col:
+            u = _u_ln(row[col['u_pct_gA']].value)
+        try:
+            u = float(u)
+        except (TypeError, ValueError):
+            u = float('nan')
+        try:
+            gA = float(row[col['gA']].value) if 'gA' in col else float('nan')
+        except (TypeError, ValueError):
+            gA = float('nan')
+        rows.append((id1, id2, i_pred, u, gA))
     wb.close()
     return rows
 
@@ -874,7 +921,7 @@ def pattern_scores(level_ids, accepted_pairs: set, preds: pd.DataFrame) -> dict:
                     the accepted lines is among the predictions).
     """
     by_level = {}
-    for lo, up, ip in preds.itertuples(index=False):
+    for lo, up, ip, *_ in preds.itertuples(index=False):
         pair = tuple(sorted((lo, up)))
         by_level.setdefault(lo, []).append((ip, pair))
         by_level.setdefault(up, []).append((ip, pair))
@@ -1185,7 +1232,7 @@ def main():
     # accepted lines whose predicted intensity is below Sugar's noise level
     # (kept in the support count n; this column only makes them visible)
     below_cnt = {}
-    for lo, up, ip in preds_below.itertuples(index=False):
+    for lo, up, ip, *_ in preds_below.itertuples(index=False):
         if tuple(sorted((lo, up))) in real_pairs:
             below_cnt[lo] = below_cnt.get(lo, 0) + 1
             below_cnt[up] = below_cnt.get(up, 0) + 1
@@ -1575,7 +1622,7 @@ def predictions_by_level(preds: pd.DataFrame, e_final_map: dict) -> dict:
     its Ritz position, E(upper) - E(lower), from the optimized energies.
     """
     by_level = {}
-    for lo, up, ip in preds.itertuples(index=False):
+    for lo, up, ip, *_ in preds.itertuples(index=False):
         pair = tuple(sorted((lo, up)))
         ritz = e_final_map[up] - e_final_map[lo]
         by_level.setdefault(lo, []).append((ip, pair, ritz))

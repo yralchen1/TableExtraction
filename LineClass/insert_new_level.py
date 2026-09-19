@@ -368,6 +368,30 @@ def preflight(paths, log, backup_dir=None) -> dict:
     return saved
 
 
+def keep_failed(backup_dir: str, log) -> None:
+    """Keep the failed run's check_sync report and classification workbook.
+
+    Both are put back from the backup when the run stops, so without a copy
+    the evidence of what went wrong would be lost with them.  The copies go
+    into `backup_dir` as ``sync_report.failed.txt`` and
+    ``line_classifications.failed.xlsx``, and the screen says where.
+    """
+    for src, name in ((SYNC_REPORT, 'sync_report.failed.txt'),
+                      (CLASSIFICATIONS_XLSX,
+                       'line_classifications.failed.xlsx')):
+        if not os.path.exists(src):
+            continue
+        try:
+            shutil.copy2(src, os.path.join(backup_dir, name))
+        except OSError as exc:
+            log('   could not keep %s as %s: %s'
+                % (os.path.basename(src), name, exc))
+            continue
+        log('   %s of the failed run is kept as %s'
+            % (os.path.basename(src),
+               os.path.join(os.path.basename(backup_dir), name)))
+
+
 def restore(saved: dict, log) -> None:
     """Put every backed-up file back, byte for byte."""
     for path, dest in saved.items():
@@ -546,9 +570,15 @@ class Candidate(object):
         return (self.low_id, self.upp_id)
 
 
-def gather_candidates(level, levels_dict, calc_index, lines, window):
+def gather_candidates(level, levels_dict, calc_index, lines, window,
+                     fit=None):
     """Every observed line within `window` of a predicted transition's Ritz
-    wavenumber, as a list of Candidate."""
+    wavenumber, as a list of Candidate.
+
+    `fit` is `read_fit_energies()`.  When it is given, the PARTNER of every
+    Ritz wavenumber is taken from the fit rather than from the published level
+    list, and only the level being placed keeps the energy it was put at.
+    """
     ordered = sorted(lines, key=lambda l: l.wavenumber)
     wns = [l.wavenumber for l in ordered]
     out = []
@@ -556,7 +586,8 @@ def gather_candidates(level, levels_dict, calc_index, lines, window):
         if level.level_id not in (low_id, upp_id):
             continue
         low, upp = levels_dict[low_id], levels_dict[upp_id]
-        rwn = upp.energy - low.energy
+        rwn = (fit_energy(upp_id, upp, fit, level.level_id)
+               - fit_energy(low_id, low, fit, level.level_id))
         if rwn <= 0:
             continue
         a = bisect.bisect_left(wns, rwn - window)
@@ -1013,6 +1044,59 @@ def ritz_culprits(path, pairs, sigma):
         if z > sigma:
             bad.append((key[0], key[1], wn, d, z))
     return bad, worst, sorted(every, key=lambda t: -t[4]), without
+
+
+_FIT_CACHE = {}
+
+
+def read_fit_energies(path: str = None) -> dict:
+    """``{level_id: (energy, D1)}`` from ``LOPT_output_levels.txt``.
+
+    The levels workbook is the PUBLISHED list: its energies were fixed when it
+    was published and are quoted to 0.01 cm^-1, while the fit has moved many of
+    them since - at the time of writing 259 of the 621 levels by more than
+    0.03 cm^-1 and one by 1.07 cm^-1.  A Ritz wavenumber is no better than the
+    two levels it is made of, so every Ritz test is made against the fit's own
+    energies and the workbook is fallen back on only for a level the fit has
+    no row for.  ``D1`` is the level's uncertainty against its neighbours,
+    which is the part of it a Ritz residual can see.
+    """
+    path = path or LOPT_LEVELS
+    key = (path, os.path.getmtime(path) if os.path.exists(path) else None)
+    if key in _FIT_CACHE:
+        return _FIT_CACHE[key]
+    out = {}
+    with io.open(path, encoding='latin-1', newline='') as fh:
+        for rec in fh:
+            f = rec.rstrip('\r\n').split('\t')
+            if len(f) < 3 or not f[0].strip():
+                continue
+            try:
+                out[f[0].strip()] = (float(f[1]), float(f[2]))
+            except ValueError:
+                continue            # the header row
+    _FIT_CACHE[key] = out
+    return out
+
+
+def fit_energy(level_id, level, fit, keep_id=None):
+    """The energy to build a Ritz wavenumber from.
+
+    ``keep_id`` is the level the run is placing: it keeps the energy it has
+    been put at, which is the whole point of the run.  Every other level is
+    taken from the fit when the fit has it.
+    """
+    if fit and level_id != keep_id:
+        e = fit.get(level_id)
+        if e is not None:
+            return e[0]
+    return level.energy
+
+
+def fit_uncertainty(level_id, fit):
+    """``D1`` of a level in the fit, or 0.0 when the fit has no row for it."""
+    e = (fit or {}).get(level_id)
+    return (e[1] if e else 0.0) or 0.0
 
 
 def lopt_level_energy(path: str, level_id: str):
@@ -2114,15 +2198,11 @@ def _run(args, rejects, accepts, saved, log, today):
         status, _out = run([sys.executable, 'check_sync.py'], log)
         if status > 1:
             log('   the ERROR findings of %s:' % os.path.basename(SYNC_REPORT))
-            shutil.copy2(SYNC_REPORT,
-                         os.path.join(BACKUP_DIR, 'sync_report.failed.txt'))
             for rec in io.open(SYNC_REPORT, encoding='utf-8',
                                errors='replace'):
                 if rec.strip().startswith('ERROR'):
                     log('     ' + rec.rstrip())
-            log('   the report of the failed run is kept as %s'
-                % os.path.join(os.path.basename(BACKUP_DIR),
-                               'sync_report.failed.txt'))
+            keep_failed(BACKUP_DIR, log)
             if unchecked:
                 # The findings are the assignments named just above: they are
                 # errors only in the sense that the fit and the screen do not

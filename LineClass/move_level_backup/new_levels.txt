@@ -25,10 +25,7 @@ level_id	E	J	parity	iden2_row	cowan_lid	comment
 059003.000646	94876.492	5/2	o	906	217	Found with level_positions --unknown 906.
 059003.000647	71767.208	3/2	o	998	126	Found with level_positions --unknown 998.
 059003.000648	131665.064	11/2	e	499	2216	Found with level_positions --unknown 499.
-059003.000649	129498.0960	11/2	e	522	2197	re-positioned from 129662.6360 (dE = -164.5360) by move_level.py on 9/18/2026
+059003.000649	129662.636	11/2	e	522	2197	Found with level_positions --unknown 522.
 059003.000650	119552.404	11/2	e	672	2085	Found with level_positions --unknown 672.
 059003.000651	129454.486	9/2	e	523	2196	Found with level_positions --unknown 523.
 059003.000652	129877.147	5/2	e	518	2201	Found with level_positions --unknown 518.
-059003.000653	68890.199	3/2	o	1014	110	Found with level_positions --unknown 1014.
-059003.000654	84588.649	5/2	o	944	179	Found with level_positions --unknown 944.
-059003.000655	117889.011	11/2	e	711	2068	Found with level_positions --unknown 711.

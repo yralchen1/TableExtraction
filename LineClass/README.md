@@ -3239,6 +3239,47 @@ ln(1 − p) and carries no such term. Unweighted, a displaced position with a fe
 intensities collects the gain without ever having paid for it — in testing, +192 where the honest
 answer was −8.
 
+**The width of the intensity term is per line, not one number.** Each predicted transition carries
+its own uncertainty on the calculated intensity — `u_calc`, the rms over Cowan Monte Carlo trials,
+on the natural-log scale: the `u_ln` column of `Icalc.xlsx` and the `u_calc` column of
+`line_classifications.csv`. In place of the single s the model uses
+
+    s_i = sqrt(s0² + (k·u_calc_i)²),   s0 = a0 + a1·log10 P,   k = c·log10 S
+
+P = I_pred·f / I_thr is the intensity the calculation expects on the plate, in units of the
+detection threshold I_thr at that wavelength, and S is the calculated line strength in atomic
+units (S = 3.0376×10⁻⁶ λ·gf, gf = 1.499×10⁻¹⁶ λ²·gA, λ in Å). s0 is the floor no per-line
+uncertainty explains, and it falls slowly as the expected plate intensity grows. k says how much of
+`u_calc` to believe, and it falls as the transition grows stronger: Cowan's `u_calc` is about right
+for the weakest lines (log10 S near −5, k near 1) and overstated for the strong ones. k is never
+allowed below `K_FLOOR` (0.2), so that even the strongest transition's calculation is not taken as
+exact; with c = −0.218 the floor takes over above S ≈ 0.12 a.u., which 20 of the 4245 fitted lines
+reach. s0 is never below `S0_FLOOR` (0.05).
+
+**a0, a1 and c are fitted on the run itself** (`fit_intensity_width`), together with a free mean, by
+maximum likelihood on the single, non-bl accepted lines. A line fainter than the detection threshold
+is never recorded, so each residual's normal density is cut off at the residual a line exactly at
+the threshold would have, rthr = ln(I_thr·BF / (I_pred·f)):
+
+    L_i = N(r_i; mu, s_i) / Phi((mu − rthr_i) / s_i)
+
+with Phi the standard normal cumulative distribution. The cut-off is what lets the faint predictions
+in: without it, their selection — a faint prediction is accepted only where a line happens to be
+bright enough — would be read as scatter. It replaces the earlier restriction of the fit to
+predictions brighter than 10³.
+
+The linear forms were chosen on the run of 2026-09-19 from free fits of s0 in bins of log10 P and of
+k in bins of log10 S. A quadratic term in k was not defined: its error was 87 per cent once the bin
+errors were scaled to a reduced chi² of 1. A constant term beside c·log10 S was consistent with
+zero. That run gave a0 = 0.902(27), a1 = −0.062(16) per dex and c = −0.218(11), on 4245 lines,
+2ΔlnL = 749 against one width for every line. Everything is refitted on each run, so when the
+calculation behind `u_calc` is redone the model follows it. A transition with no `u_calc` is
+judged by the pooled s, as before.
+
+With a width of its own per row the level offset is written in A = Σw/sigma² and B = Σw·r/sigma²,
+adding −½ln(1 + s_L²A) + s_L²B²/(2(1 + s_L²A)), which is the same correction as above wherever every
+sigma is the same.
+
 **Every ingredient is measured on the run**, and printed at the head of every report so that no
 number in it is a guess (values of the run of 2026-09-07, 594 levels, 29260 predicted transitions,
 6668 recorded lines):
@@ -3252,6 +3293,7 @@ number in it is a guess (values of the run of 2026-09-07, 594 levels, 29260 pred
 | eta | rate at which a genuine recorded line sits at an anomalous position | 0.0002 (2ΔNLL = 51 against eta = 0) |
 | rho | UNRELATED lines per cm^-1: the free lines and what the calculation predicts for the unfound levels | median 0.039 (all recorded lines: 0.004 – 0.336, median 0.094) |
 | s, s_L | within-level and between-level spread of ln(I_obs·BF/I_pred·f) | 1.215, 0.280 |
+| a0, a1, c | the per-line intensity width sqrt(s0² + (k·u_calc)²), s0 = a0 + a1·log10 P, k = c·log10 S, fitted on the single, non-bl lines with the detection cut-off (run of 2026-09-19) | 0.902, −0.062, −0.218 (2ΔlnL = 749 against one width, 4245 lines) |
 | u_M | partner energy uncertainty, D1 of `LOPT_output_levels.txt` | median 0.014, max 0.410 cm^-1 |
 
 sigma_t² = (k(n)·sigma_meas)² + w_hfs(low)² + w_hfs(upp)² + u_M², and the matching window is four
@@ -3426,6 +3468,115 @@ the audit separates them before anything is called a revision. Three corrections
   feature almost anywhere, and the blend branch of the formula gives it credit for doing so.
   `top_share`, the largest single row's share of the positive evidence, throws out the positions
   whose whole case is one lucky line.
+- **The ΔJ fingerprint** (`ln_J`, `ln_J_alt`). For an electric dipole transition J changes by 0
+  or ±1, so *which* partners a level is actually recorded with is a fingerprint of its own J.
+  `ln R` cannot read it: the two energies being compared are the same level, so they predict the
+  same transitions to the same partners with the same gA — only the wavenumbers shift. The J
+  information never appears as a difference in predicted intensity. It appears as a **correlation
+  among the absences**, and `ln R` multiplies the absences as though they were independent, which
+  is exactly the assumption that makes a correlation cost nothing.
+
+  So the test needs a rival hypothesis under which the correlation is expected, and the physical
+  one is: *the lines here are not this level's but those of a level of some other J*, in which
+  case a whole ΔJ class of the predictions was never going to be there. Each class
+  ΔJ = J(partner) − J(level) ∈ {−1, 0, +1} is given its own detection multiplier
+  λ, so that one of its predictions is recorded with probability λ·`P_obs` instead of
+  `P_obs`, and λ is fitted by maximum likelihood to the found/missing pattern:
+
+  ```
+  ln L(lambda) = n_found * ln(lambda) + sum over the missing of ln(1 - lambda * P_obs)
+  ```
+
+  `ln_J` is what the rival wins, summed over the classes, after `J_CLASS_COST` = 1 nat is charged
+  for every rate fitted and floored at zero. **Nothing in it is a selection rule.** A prediction
+  enters only if it could have been recorded at all (`P_obs` ≥ `P_SEEN`) and it enters weighted
+  by its own `P_obs`, so a class that is simply too faint to see reaches λ = 0 at almost no
+  gain in likelihood and cannot accuse a position; only a class that *should* have been recorded
+  and was not, repeatedly, can. A class of one observable prediction is never counted
+  (`J_MIN_CLASS` = 2): its whole content is a single absence, which `ln R` has charged
+  `ln(1 - P_obs)` for already, and a correlation needs two.
+
+  `ln_J` = 0 says the matches are spread over the ΔJ classes as the predicted intensities say
+  they should be. A few nats says a class that should have been recorded is missing — what a
+  level of another J sitting at that energy looks like. Worked example, IDEN2 row 522
+  (J = 11/2, `4f²7d`), at the position it holds and at the alternate the scan prefers:
+
+  | | ΔJ = −1 | ΔJ = 0 | ΔJ = +1 | `ln_J` |
+  |---|---|---|---|---|
+  | 129662.636 (held) | 4 of 7 found, 4.53 expected, λ = 0.98 | **0 of 4, 2.22 expected, λ = 0** | 0 of 1 (not counted) | **2.32** |
+  | 129498.081 (alternate) | 2 of 7, 4.59 expected, λ = 0.49 | 2 of 3, 1.82 expected, λ = 1.00 | 0 of 1 (not counted) | **0.41** |
+
+  At the held position the level is recorded by its J = 9/2 partners exactly as often as predicted
+  and by its J ≥ 11/2 partners never; at the alternate both classes sit where they should. The
+  λ = 0.49 of the alternate's ΔJ = −1 class is the ordinary shortfall of a level a
+  little fainter than calculated, not a selection rule being violated — which is why it is
+  worth 1.41 before the cost and 0.41 after it.
+
+  **Read `d_ln_J` = `ln_J` − `ln_J_alt`, not `ln_J` alone.** Over the whole run — 623
+  levels, `--audit` — 422 score exactly zero and the median of the rest is 0.85, but the largest
+  values do *not* mark doubtful levels: `059003.000069` scores `ln_J` = 6.0 at a position worth
+  `ln R` = +146 on 82 observable predictions, and `059003.000439` scores 8.7. What those levels have
+  is a calculated `gA` that divides the level's strength wrongly among its ΔJ branches
+  — `059003.000069` finds 13 of 34 in ΔJ = −1 where 22.6 were expected while its other two
+  classes sit exactly on prediction; the under-detected class is ΔJ = −1 for some levels and
+  ΔJ = +1 for others, so it is not one global bias but the eigenvector composition of the
+  individual level. That is a property of the wavefunction and not of the energy, so it appears at
+  *every* candidate position and cancels in the difference between two of them, where the partners
+  and the `gA` are the same and only the wavenumbers move.
+
+  The statistic does track position error where it can be seen. Of the 64 levels with an alternate,
+  the alternate is the dirtier position 31 times and the cleaner one 11, and the two are equally
+  clean in the remaining 22 — which is what should happen if most alternates are spurious and the
+  fingerprint can tell. The one `relocate` in the run, IDEN2 row 522, goes 2.32 → 0.41 in favour
+  of the move; the one `top line` goes 0.00 → 2.07 against it.
+
+  **How it enters `ln R`.** Only as a difference between rival positions of one level, which is
+  what `fold_j` does and the only place `ln_J` is allowed to touch `ln R`. The rivals — the adopted
+  position and its alternate under `--audit`, the candidate positions of the scan under
+  `--unknown` — are offset by the cleanest of them: with *b* = min `ln_J` over the set,
+
+  ```
+  ln_R_J = ln_R − (ln_J − b)
+  ```
+
+  The best-fitting fingerprint keeps its `ln R` exactly; each other position pays what its own
+  fingerprint is worse by; a level whose rivals are equally clean, or which has no rival at all,
+  pays nothing. That is the whole content of the finding above: the branch-strength fault is
+  common to every energy of a level and must not be charged to its whereabouts, and what is left
+  after it cancels is what the test was built for.
+
+  In the audit this makes
+
+  ```
+  gain = gain_R + d_ln_J
+  ```
+
+  where `gain_R` = `ln_R_alt` − `ln_R` is the line evidence alone, and `gain` — the one the
+  dispositions and `look` are taken on — is the line evidence with the fingerprint counted in. The
+  `relocate` test that the alternate be convincing in its own right is applied to `ln_R_alt_J`, so
+  an alternate that fits this level's J worse has to make that up in lines before it can be called
+  firm. Under `--unknown` the candidates are ranked on `ln_R_J`, and `look` and the verdict follow
+  from it.
+
+  The audit constants were left where they were, and the whole run says they should be. Over the
+  623 levels, 64 of which have an alternate, `d_ln_J` is exactly zero for 22 and at least a nat in
+  size for 24; the median is 0. **Not one disposition changes**: the same 1 `relocate`, 1 `refit`,
+  1 `top line`, 41 `weak` and 20 `no support`, and the same 21 alternates that the lines prefer.
+  What changes is the size of the margins and the order within a disposition, which is what the
+  test was added to change:
+
+  | level | what it is | `gain_R` | `d_ln_J` | `gain` |
+  |---|---|---|---|---|
+  | `059003.000649` (row 522) | `relocate` | +3.86 | **+1.91** | **+5.77** |
+  | `059003.000457` | `top line` | −2.73 | −2.07 | −4.80 |
+  | `059003.000446` | `weak` | −2.93 | +4.76 | +1.83 |
+  | `059003.000553` | `weak` | +2.91 | +2.26 | +5.17 |
+
+  The `top line` case is the clearest demonstration that this is not a mechanical ΔJ rule: the
+  alternate of `059003.000457` was already suspect for buying itself with the level's strongest
+  line, and its `ln_R_alt` of +1.49 falls to `ln_R_alt_J` = −0.58 once the ΔJ class it is missing
+  is charged to it, so it can no longer be convincing in its own right whatever else it passes.
+
 - **Vacancy.** A preferred alternate can be read two ways — the level moves there, or an *unknown*
   level sits there and the lines are its. The second reading needs the calculation still to have a
   level of the right J and parity spare at that energy, and `n_vacant` counts them: unfound rows of
@@ -3570,9 +3721,13 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `scanned` | `this run` when the window was scanned, `registry` when the level was taken unchanged from the registry of settled positions |
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
 | `n_own` / `n_kept` | recorded lines the level is assigned now, and how many of them the alternate still matches — the test that separates a refit from a relocation |
-| `gain` / `look` | the gain and its look-elsewhere correction |
+| `gain_R` | `ln_R_alt` − `ln_R`: what the alternate wins on the line evidence alone |
+| `gain` / `look` | `gain_R` + `d_ln_J` — the line evidence with the ΔJ fingerprint counted in, which is what the dispositions are taken on — and its look-elsewhere correction |
 | `n_obs_alt` / `n_seen_alt` / `n_miss_alt` | the observable-prediction counts the level would have at the alternate |
 | `n_vacant` | unfound calculated levels of the same J and parity within one configuration window of the alternate |
+| `ln_J` / `ln_J_alt` | the ΔJ fingerprint at the adopted position and at the alternate — how much better the pattern of matches and absences there fits a level of a *different* J. Zero is clean; a few nats accuses the position |
+| `d_ln_J` | `ln_J` − `ln_J_alt`, which is what `gain` counts. Positive means the alternate fits this level's J better |
+| `ln_R_J` / `ln_R_alt_J` | `ln_R` and `ln_R_alt` each offset by the cleaner of the two fingerprints, so that their difference is `gain` |
 | `z_alt` | (E(alternate) − E_calc)/W: how far the alternate is from where the calculation puts the level, in units of that configuration's own scatter |
 | `action` | the disposition |
 
@@ -3613,6 +3768,7 @@ The window is `E_calc` ± 3W, W being the rms of E_obs − E_calc over the **fou
 configuration — the same interval a known level of that configuration is scanned over, and for the
 same reason: how far the calculation can be wrong is a property of the configuration, not of the
 level. The six configurations with no found level take the list-wide 132 cm⁻¹.
+`--window-sigmas K` replaces the 3 (see *Mixed levels* below).
 
 The predicted intensities are computed once at `E_calc` and held fixed as the scan moves.
 `I = C·gA·(ν/1e8)·exp(−E_up/kT)` does depend on the trial energy through both ν and the Boltzmann
@@ -3626,6 +3782,15 @@ there is one answer to each of those questions and not two.
 kind of evidence and the scan that found it had the same freedom to look: `no support` when fewer
 than two free lines support it or one line carries more than 60 % of the case, `firm` when it would
 pass every test a firm relocation passes, `weak` in between.
+
+Every candidate also carries `ln_J`, the ΔJ fingerprint described under the audit above: how
+much better the pattern of matches and absences at that energy fits a level of a *different* J than
+this one. Here it is worth more than anywhere else, because an unfound level of a neighbouring J is
+precisely the rival the statistic is built against. The candidates of one scan are positions of one
+level, so their fingerprints differ only in what the pattern of absences says about where the level
+is; they are offset by the cleanest of them into `ln_R_J`, and it is `ln_R_J` — not `ln_R` — that
+the table is ordered on and that `look` and the verdict are computed from. A scan whose candidates
+are all equally clean is left exactly as it was.
 
 **What it finds.** IDEN2 row 742 — `f25f ~3F4G`, J = 5/2, calculated at 116406.7 and the top of
 `unfound_levels.py`'s list — has 95 calculated transitions to found levels, 40 of which could have
@@ -3698,6 +3863,42 @@ Two things the release deliberately does *not* do:
 The option only has a meaning with `--unknown` and is refused without it: a report written with
 those lines free would not be a report of this run.
 
+**What counts as a match (2026-09-17).** The tables above were written before this change and show
+the old columns. `n_match` used to count every observable prediction with *any* recorded line in the
+matching window. That window is ±4σ, widened for the partner level's uncertainty and hyperfine
+width, which near 1000 Å can mean ±1.5 to 3.5 cm⁻¹. There was no test of brightness. For
+`059003.000391` (IDEN2 row 738) searched at 116617.18 it reported 17, where 9 lines could be
+assigned by hand. A **match** is now an observable prediction whose line
+- lies within `FREE_SIGMA` (2σ) of Ritz,
+- is not tagged `bright` (a feature far brighter than the prediction, which `classify_lines.py`
+  leaves free for a better transition), and
+- has a positive row `ln R_t`: position and brightness together are more likely with the level
+  there than as a coincidence. On a free feature this is the brightness test. On a feature other
+  transitions already claim it is the blend test: the component's light must not spoil the account
+  of the feature's brightness.
+
+`n_free` is the part of `n_match` on unclaimed features. `n_poor` counts the lines in the window
+that are not matches, and `n_obs = n_match + n_poor + n_miss`. The `--at` table tags those rows
+`poor` (the tag was `off`). The same row now reads `n_match` = 11 (8 free, 3 blends), `n_poor` = 6,
+`n_miss` = 14. The remaining difference from the hand count is the intensity scatter: with s = 1.16
+a line nine times fainter than predicted is 1.9 s low, and the likelihood still reads it as the
+transition. The audit's `n_seen`/`n_seen_alt` columns keep the positional definition; its `n_free`
+takes the new one.
+
+**A transition cannot hide in a feature fainter than itself.** Of the two readings of a free match,
+"the transition is hidden in a feature that is there in any case" is now open only when
+ln I_obs ≥ ln(I_t f) − s. Without that condition the same row's strongest prediction (70072, on a
+recorded line of 7801) collected +1.5 as hidden and was tagged `bright`. `ln R` of row 738 at
+116617.18 went from 7.98 to 7.52; the other positions of rows 738 and 742 did not change.
+
+**Mixed levels (`--window-sigmas K`).** The window takes W from the configuration in the level's
+label. For a level strongly mixed with a level of another configuration that label can be the wrong
+one. Row 741 (`f27p ~3F4G`, E_calc 116437.2) lies 30 cm⁻¹ from row 742 (`f25f ~3F4G`, 116406.7).
+f27p's W = 35.4 gives a window of 116331.1–116543.3, and the position its lines want, 116327.6,
+lies 3.7 cm⁻¹ below it, so the default search reported nothing. `--window-sigmas 4` finds it at
+`ln R` = +8.0, `firm`. `z` stays in units of the labelled configuration's W, so it reads −3.1 and
+says how far outside the usual scatter the position is.
+
 Usage:
 
 ```bash
@@ -3706,6 +3907,7 @@ python level_positions.py --unknown 742 913 986     # several at once
 python level_positions.py --unknown 742 --at 116327.610   # the transitions at one of them
 python level_positions.py --unknown 742 --top 10    # only the best ten positions
 python level_positions.py --unknown 742 --min-ln-r 3      # a higher bar than "better than nothing"
+python level_positions.py --unknown 741 --window-sigmas 4 # a wider window for a mixed level
 python level_positions.py --unknown 271             # a row the run has already found: its own
                                                     #   lines are released for the scan
 python level_positions.py --unknown 271 --drop-all-questionable   # ... and so are the lines of

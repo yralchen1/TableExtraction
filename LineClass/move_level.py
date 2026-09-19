@@ -2,13 +2,17 @@
 
 WHAT THIS IS FOR
 ================
-``insert_new_level.py`` puts into the pipeline a level that was never there.
-This tool is for the other case: a level that IS there, whose lines are in the
-fit and marked in IDEN2 and ruled on in the ledger, and whose position turns
-out to be wrong.  ``level_positions.py --scan`` offers the alternate positions;
-accepting one is a decision made in IDEN2, by eye; everything that has to
-follow it is mechanical and touches the same six files in both directions at
-once - the old position has to be taken apart before the new one can be built.
+A level that is already in the pipeline - its lines in the fit, marked in
+IDEN2 and ruled on in the ledger - sometimes turns out to be at the wrong
+energy.  ``level_positions.py --scan`` offers the alternate positions, and
+accepting one is a decision made in IDEN2, by eye.  This tool carries out
+everything that has to follow that decision.  It is mechanical but touches the
+same six files in both directions at once: the lines that pin the level at its
+old position have to be released before the ones at the new position can be
+assigned.
+
+(A level that was never in the pipeline at all is not moved but inserted, with
+``insert_new_level.py``.)
 
 A level can be moved whichever list it came from:
 
@@ -51,6 +55,8 @@ D. **What survives the move.**  The whole model is rebuilt with the level at
                                          --release-sigma times the line's own
                                          uncertainty from the Ritz wavenumber
                                          the new position gives
+       not marked in IDEN2               --iden2-only was given and the
+                                         assignment carries no mark
        Too weak to explain Iobs          the line is more than --strong-sigma
                                          stronger than this transition could
                                          make it
@@ -59,6 +65,25 @@ D. **What survives the move.**  The whole model is rebuilt with the level at
                                          --masked-share
        No calculated transition at the   the pair is not in the calculated
        new position                      transition list at all
+
+   THE RITZ WAVENUMBER IS THE FIT'S, NOT THE PUBLISHED LIST'S.  The levels
+   workbook the pipeline reads is Wyart's published list: its energies were
+   fixed when it was published and are quoted to 0.01 cm^-1, while LOPT has
+   moved most of them since - at the time of writing 259 of the 621 levels by
+   more than 0.03 cm^-1.  A residual measured against a published partner
+   therefore carries that partner's published-minus-fitted offset, which for a
+   line measured to 0.01 cm^-1 is several sigma of nothing.  So the partner of
+   every Ritz wavenumber here is taken from ``LOPT_output_levels.txt``, only
+   the moved level keeps the position it is being moved to, and the tolerance
+   is the line's own uncertainty and the partner's ``D1`` in quadrature.
+
+   ``--iden2-only`` sets all of this aside for the assignments that carry a
+   mark in ``IDEN2/trans.dat``: they are kept whatever the tests say and
+   everything else the level holds is released.  A mark was made on the screen
+   where the plates and the branch structure can be seen, and the arithmetic
+   here cannot see either.  What still guards such a move is step F's
+   ``--ritz-sigma`` test, which is made against the fit LOPT builds afterwards
+   and is the test that matters.
 
    Then the lines the new position opens up are proposed, on the rules
    ``insert_new_level.py`` proposes on: inside the Ritz window, never a line
@@ -146,7 +171,6 @@ import datetime
 import io
 import math
 import os
-import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -203,6 +227,7 @@ DEF_RELEASE_SIGMA = 3.0
 DEF_MASKED_SHARE = 0.05
 
 REASON_FAR = 'Too far from Ritz'
+REASON_UNMARKED = 'not marked in IDEN2'
 REASON_WEAK = 'Too weak to explain Iobs'
 REASON_MASKED = ('Too weak to contribute to blend; may retain in pub list as '
                  'masked.')
@@ -510,13 +535,19 @@ def blend_share(wn, low_id, upp_id, lopt_rows, calc_of):
 
 
 def release_reason(wn, low_id, upp_id, levels_dict, calc_index, wns, ordered,
-                   lopt_rows, calc_of, args):
+                   lopt_rows, calc_of, args, fit=None, moved_id=None):
     """Why this assignment cannot be kept at the new position, or ``''``.
 
     The tests are in the order of how badly they fail: a line that is nowhere
     near the new Ritz wavenumber is not this transition's whatever its
     intensity, and a line whose intensity the transition cannot account for is
     not its however well the wavenumbers agree.
+
+    The Ritz wavenumber is built from the fit's energies (`fit`), not from the
+    published level list, and the moved level keeps the position it is being
+    moved to.  Its uncertainty is the line's own and the partner's D1 together:
+    a residual is a disagreement between a measurement and a Ritz value, and
+    the Ritz value has an uncertainty of its own.
     """
     d = calc_index.get((low_id, upp_id))
     if d is None:
@@ -524,11 +555,16 @@ def release_reason(wn, low_id, upp_id, levels_dict, calc_index, wns, ordered,
     low, upp = levels_dict.get(low_id), levels_dict.get(upp_id)
     if low is None or upp is None:
         return REASON_NONE
-    rwn = upp.energy - low.energy
+    rwn = (INL.fit_energy(upp_id, upp, fit, moved_id)
+           - INL.fit_energy(low_id, low, fit, moved_id))
     line = line_at(wns, ordered, wn)
     if line is None:
         return REASON_NONE
     unc = getattr(line, 'wn_uncertainty', None) or 0.0
+    partner = low_id if upp_id == moved_id else upp_id
+    u_partner = INL.fit_uncertainty(partner, fit)
+    if unc > 0 and u_partner > 0:
+        unc = math.sqrt(unc ** 2 + u_partner ** 2)
     resid = line.wavenumber - rwn
     if unc > 0 and abs(resid) > args.release_sigma * unc:
         return '%s (%+.3f cm^-1, %.1f sigma)' % (REASON_FAR, resid,
@@ -626,6 +662,16 @@ def parse_args(argv=None):
     p.add_argument('--no-propose', dest='propose', action='store_false',
                    default=True,
                    help='keep what survives the move and propose nothing new')
+    p.add_argument('--iden2-only', action='store_true',
+                   help='the assignments marked in IDEN2 for this level are '
+                        'the whole answer: keep every one of them whatever '
+                        'the release tests say, release everything else the '
+                        'level holds, and propose nothing.  The marks were '
+                        'made on the screen where the plates and the branch '
+                        'structure can be seen, so they are not second-'
+                        'guessed here; what guards the move is still the '
+                        '%.1f sigma Ritz test against the fit LOPT makes of '
+                        'it afterwards' % INL.DEF_RITZ_SIGMA)
     p.add_argument('--max-rss', type=float, default=None, metavar='R',
                    help='stop if RSS/degrees_of_freedom comes out above this')
     p.add_argument('--rebuild', action='store_true',
@@ -641,6 +687,8 @@ def parse_args(argv=None):
     p.add_argument('--no-sync', action='store_true',
                    help='skip check_sync.py and sync_IDEN2.py')
     args = p.parse_args(argv)
+    if args.iden2_only:
+        args.propose = False
     if not args.undo and not args.level_id and args.iden2_row is None:
         p.error('name the level, either as an identifier or with --iden2-row')
     if not args.undo and args.energy is None and not args.from_enlev \
@@ -765,10 +813,14 @@ def _run(args, rejects, accepts, saved, log, today):
                for k, v in calc_index.items()}
     calc_of.update(INL.classification_intensities(CLASSIFICATIONS))
 
+    fit = INL.read_fit_energies(LOPT_LEVELS)
     for h in holdings:
+        if args.iden2_only:
+            h.reason = '' if h.partner_row is not None else REASON_UNMARKED
+            continue
         h.reason = release_reason(h.wn, h.low_id, h.upp_id, levels_dict,
                                   calc_index, wns, ordered, lopt_rows,
-                                  calc_of, args)
+                                  calc_of, args, fit, level_id)
     for h in holdings:
         if not h.reason and any(s.matches(h.wn, h.low_id, h.upp_id)
                                 for s in rejects):
@@ -786,7 +838,7 @@ def _run(args, rejects, accepts, saved, log, today):
 
     level = levels_dict[level_id]
     candidates = INL.gather_candidates(level, levels_dict, calc_index, lines,
-                                       args.window)
+                                       args.window, fit)
     released_keys = {h.key() for h in holdings if h.reason}
     free, held_back = [], []
     for c in candidates:
@@ -1114,6 +1166,7 @@ def _run(args, rejects, accepts, saved, log, today):
                     % (len(orphan), index,
                        ', '.join('%.3f' % w for w in sorted(orphan))))
 
+    fit_now = INL.read_fit_energies(LOPT_LEVELS)   # LOPT has run since D
     dlv = INL.read_dlv(DLV)
     by_wn = sorted(dlv.items(), key=lambda kv: kv[1][1])
     dlv_wns = [v[1] for _k, v in by_wn]
@@ -1147,7 +1200,10 @@ def _run(args, rejects, accepts, saved, log, today):
             n_missed += 1
             continue
         dlv_row, (code, dlv_wn) = hit
-        rwn = levels_dict[upp_id].energy - levels_dict[low_id].energy
+        # The O-C written into trans.dat is against the fit as it now stands -
+        # LOPT has run since - and not against the published level list.
+        rwn = (INL.fit_energy(upp_id, levels_dict[upp_id], fit_now)
+               - INL.fit_energy(low_id, levels_dict[low_id], fit_now))
         trans.records[k] = trans.records[k][:IDEN.TR_OBS] + \
             INL.make_assignment(code, dlv_wn, dlv_wn - rwn, dlv_row)
         log('   %11.3f  %s - %s  marked (IDEN2 rows %d - %d)'
@@ -1223,12 +1279,11 @@ def _run(args, rejects, accepts, saved, log, today):
         status, _out = INL.run([sys.executable, 'check_sync.py'], log)
         if status > 1:
             log('   the ERROR findings of %s:' % os.path.basename(SYNC_REPORT))
-            shutil.copy2(SYNC_REPORT,
-                         os.path.join(BACKUP_DIR, 'sync_report.failed.txt'))
             for rec in io.open(SYNC_REPORT, encoding='utf-8',
                                errors='replace'):
                 if rec.strip().startswith('ERROR'):
                     log('     ' + rec.rstrip())
+            INL.keep_failed(BACKUP_DIR, log)
             if unchecked:
                 raise Held('check_sync.py reports the %d assignment(s) above '
                            'as findings.  Decide them, then run this tool '

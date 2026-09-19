@@ -1,0 +1,7 @@
+removed_on,removed_for,removed_because,wn_obs,low_id,upp_id,decision,date,reason
+9/16/2026,059003.000494,"Too far from Ritz (-93.494 cm^-1, 238.2 sigma)",99052.086,059003.000087,059003.000494,reject,9/16/2026,IDEN2/LOPT; was accepted on 9/13/2026 but the level was mooved since then
+9/16/2026,059003.000494,"Too far from Ritz (-93.614 cm^-1, 274.6 sigma)",92311.806,059003.000130,059003.000494,reject,9/16/2026,IDEN2/LOPT; was accepted on 9/13/2026 but the level was mooved since then
+9/16/2026,059003.000494,"Too far from Ritz (-93.494 cm^-1, 238.2 sigma)",99052.086,059003.000087,059003.000494,reject,9/16/2026,IDEN2/LOPT; was accepted on 9/13/2026 but the level was mooved since then
+9/16/2026,059003.000494,"Too far from Ritz (-93.614 cm^-1, 274.6 sigma)",92311.806,059003.000130,059003.000494,reject,9/16/2026,IDEN2/LOPT; was accepted on 9/13/2026 but the level was mooved since then
+9/18/2026,059003.000572,not marked in IDEN2,69035.793,059003.000197,059003.000572,reject,9/13/2026,IDEN2/LOPT: too small Icalc to explain Iobs.
+9/18/2026,059003.000572,not marked in IDEN2,17725.5608,059003.000459,059003.000572,reject,9/18/2026,"Was accepted on 9/52026 (manual with IDEN2; acceptabe Ritz mismatch after LOPT), but the level has been moved since then."
