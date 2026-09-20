@@ -42,6 +42,11 @@ from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 # different configuration file is given with --config.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# IDEN2's own files, read here only to join the Cowan calculation's level
+# numbers to the pipeline's level_ids; see cowan_lid_ids().
+IDEN_ENLEV = os.path.join(SCRIPT_DIR, 'IDEN2', 'enlev.dat')
+IDEN_LEVEL_IDS = os.path.join(SCRIPT_DIR, 'IDEN2', 'IDEN_level_ids.txt')
+
 CFG = None          # the config.Config in force
 LEVELS_FILE = ''    # workbook of the adopted energy levels
 LINES_FILE = ''     # workbook of the observed lines
@@ -1155,6 +1160,61 @@ def read_transitions(levels_dict: dict) -> dict:
     return calc_trans_index
 
 
+_COWAN_LID_IDS = {}
+
+
+def cowan_lid_ids(trans=None) -> dict:
+    """``{Cowan level number: level_id}`` for every level that has an identifier.
+
+    Three numberings name the same levels: the Cowan calculation's own level
+    number ``lid``, which is what tp_E1_no_trials.xlsx uses; the row of
+    IDEN2/enlev.dat, which is what IDEN2 uses; and the level_id, which is what
+    the rest of the pipeline uses.  cowan_gA.match_to_enlev() gives the first
+    to the second and IDEN2/IDEN_level_ids.txt the second to the third, so this
+    is the join the repository's rule asks for - through the table, never by
+    energy.
+
+    The spreadsheet's own identifier column is used where it is filled, and is
+    preferred, so nothing changes for a level that was already identified when
+    the calculation was written down.  The answer is cached: building it reads
+    two small files and aligns two level lists, and every caller wants the
+    whole of it.
+
+    An empty dict when the IDEN2 files are not there to be read - the
+    identifier column then remains the only source, which is what it was
+    before.
+    """
+    import cowan_gA
+    if trans is None:
+        trans = cowan_gA.read_transitions(log=lambda msg: print(f"  {msg}"))
+    key = id(trans)
+    if key in _COWAN_LID_IDS:
+        return _COWAN_LID_IDS[key]
+
+    out = {}
+    try:
+        calc = cowan_gA.levels(trans)
+        for lid, level_id in zip(calc['lid'], calc['level_id']):
+            text = to_str_id(level_id)
+            if text:
+                out[int(lid)] = text
+        id_of_row = cowan_gA.read_id_map(IDEN_LEVEL_IDS)
+        enlev = cowan_gA.read_enlev_levels(IDEN_ENLEV)
+        mapping, _report = cowan_gA.match_to_enlev(calc, enlev, id_of_row)
+        for lid, row in mapping.items():
+            level_id = to_str_id(id_of_row.get(row))
+            if level_id:
+                out.setdefault(int(lid), level_id)
+    except Exception as exc:                      # no IDEN2 files, say
+        print(f"  the Cowan level numbers could not be joined to "
+              f"{os.path.basename(IDEN_LEVEL_IDS)} ({exc}); a transition "
+              f"between two levels both found since the calculation was "
+              f"written down will be missing from the table")
+
+    _COWAN_LID_IDS[key] = out
+    return out
+
+
 def cowan_transitions_of(cowan_lids: dict, known: set, trans=None):
     """The calculated transitions of the levels named in ``cowan_lids``.
 
@@ -1171,16 +1231,33 @@ def cowan_transitions_of(cowan_lids: dict, known: set, trans=None):
     level_positions.py and level_interchange.py their predictions and gA from
     it, so that a level added through files.new_levels is predicted the same
     way by every program that judges it.
+
+    A PARTNER IS NOT ONLY WHAT THE SPREADSHEET'S IDENTIFIER COLUMN SAYS.
+    ``tp_E1_no_trials.xlsx`` carries the identifiers of the calculation as they
+    stood when it was written, so a level found since - one added through
+    files.new_levels itself - has a blank there, and matching on that column
+    alone silently drops every transition between two levels found since.  Such
+    a partner is resolved through its Cowan level number instead, by
+    cowan_lid_ids(): the number to the row of IDEN2/enlev.dat, and the row to
+    the level_id through IDEN2/IDEN_level_ids.txt, which is how the two level
+    lists are joined everywhere in the pipeline.
     """
     import cowan_gA
     if trans is None:
         trans = cowan_gA.read_transitions(log=lambda msg: print(f"  {msg}"))
+    by_lid = cowan_lid_ids(trans)
     rows, n_cut, n_unknown = [], 0, 0
     for level_id, lid in sorted(cowan_lids.items(), key=lambda t: t[1]):
         sel = trans[(trans['lid1'] == lid) | (trans['lid2'] == lid)]
         for _, r in sel.iterrows():
-            partner_id = r['id2'] if int(r['lid1']) == lid else r['id1']
+            mine_is_1 = int(r['lid1']) == lid
+            partner_id = r['id2'] if mine_is_1 else r['id1']
             partner_id = to_str_id(partner_id)
+            if not partner_id or partner_id not in known:
+                # blank, or an identifier the level list does not hold: try the
+                # partner's Cowan level number before giving the row up
+                partner_lid = int(r['lid2'] if mine_is_1 else r['lid1'])
+                partner_id = by_lid.get(partner_lid, '')
             if not partner_id or partner_id not in known:
                 n_unknown += 1
                 continue

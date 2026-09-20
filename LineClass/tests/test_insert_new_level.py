@@ -1020,6 +1020,33 @@ def test_an_added_level_gets_predictions_from_the_cowan_list(monkeypatch):
     assert LS._cowan_predictions(set(e), e, [(lo, up, 1.0)]) == []
 
 
+def test_a_partner_found_since_the_calculation_is_still_a_partner(monkeypatch):
+    """A blank identifier column is not an unknown partner.
+
+    tp_E1_no_trials.xlsx carries the identifiers as they stood when it was
+    written, so a level found since - one added through files.new_levels - has
+    a blank there.  Selecting on that column alone dropped every transition
+    between two levels found since, which is how 319 - 661 and 319 - 666 went
+    missing.  The partner's Cowan level number is the way back to it.
+    """
+    rows = [
+        {'lid1': 294, 'lid2': 7, 'id1': '', 'id2': '',
+         'gA': 5.0e4, 'u_gA_pct': 50.0},
+    ]
+    trans = _FakeTrans(rows)
+    monkeypatch.setattr(CL, 'cowan_lid_ids', lambda t=None: {})
+    out, _cut, unknown = CL.cowan_transitions_of(
+        {'059003.000900': 294}, {'059003.000900', '059003.000047'}, trans)
+    assert out == [] and unknown == 1        # as it was, with nothing to join on
+    monkeypatch.setattr(CL, 'cowan_lid_ids',
+                        lambda t=None: {7: '059003.000047'})
+    out, _cut, unknown = CL.cowan_transitions_of(
+        {'059003.000900': 294}, {'059003.000900', '059003.000047'}, trans)
+    assert unknown == 0
+    assert [(a, b) for a, b, _gA, _u in out] \
+        == [('059003.000900', '059003.000047')]
+
+
 def test_a_failed_run_keeps_its_sync_report_and_classification(tmp_path,
                                                                 monkeypatch):
     report = tmp_path / 'sync_report.txt'

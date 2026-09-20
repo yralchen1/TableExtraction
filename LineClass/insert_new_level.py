@@ -102,7 +102,7 @@ E. **LOPT.**  ``lopt.bat LOPT.par`` (the Perl v5 build; never the Java jar,
    was, and the run stops.  A line shared with another transition has no
    residual of its own - the fit tests the blended feature, not the component -
    and those are listed separately rather than passed over in silence.
-   Otherwise the level's energy in ``new_levels.txt`` is replaced by the
+   Otherwise, the level's energy in ``new_levels.txt`` is replaced by the
    optimized one.
 
 F. **classify_lines.py and the ledger.**  The classification is run and its
@@ -138,7 +138,7 @@ G. **IDEN2.**  What the classification finally accepts FOR THIS LEVEL is what
    ``IDEN2/trans.dat`` is made to show: marks made by hand are kept, missing
    ones are added.  A hand mark the classification will not accept even with
    the ledger rows this run wrote stops the run instead of being overwritten -
-   that is a judgement to make by hand, not one to make silently.  Any other
+   that is a judgment to make by hand, not one to make silently.  Any other
    component of a touched line that the classification has newly accepted is
    named and left alone, for the same reason - unless ``--accept WN`` names
    its line, which says it has been looked at and is good, and then it is
@@ -1747,8 +1747,14 @@ def _run(args, rejects, accepts, saved, log, today):
         % (len(marked), os.path.basename(TRANS), index))
 
     level = levels_dict[level_id]
+    # The Ritz wavenumber a candidate is measured against is the FIT's, not the
+    # published list's: the levels workbook quotes Wyart's published energies,
+    # which LOPT has since moved, and a residual taken against a published
+    # partner carries that partner's published-minus-fitted offset.  Only the
+    # level being placed keeps the energy it is being put at.
+    fit = read_fit_energies(LOPT_LEVELS)
     candidates = gather_candidates(level, levels_dict, calc_index, lines,
-                                   args.window)
+                                   args.window, fit)
     if marked_loose:
         for c in candidates:
             if any(abs(c.wn - w) < 5e-3 for w in marked_loose):
@@ -1795,13 +1801,36 @@ def _run(args, rejects, accepts, saved, log, today):
         restore(saved, log)
         return 0
 
-    unmarked = [wn for wn, _r, _c in marked.values()
-                if not any(abs(c.wn - wn) < 5e-3 for c in candidates)]
+    # A mark that reached no candidate stops the run - but the two reasons it
+    # can fail are different faults and have to be told apart: the pair may be
+    # absent from the calculated transition list altogether, which is a fault
+    # of the prediction and not of the position, or it may be in the list and
+    # the observed line too far from the Ritz wavenumber, which is a fault of
+    # the position.  Saying only the second sent a real case the wrong way.
+    unmarked = []
+    for partner_row, (wn, _r, _c) in sorted(marked.items()):
+        if any(abs(c.wn - wn) < 5e-3 for c in candidates):
+            continue
+        partner_id = by_row.get(partner_row)
+        key = (pair_key(partner_id, level_id, levels_dict)
+               if partner_id in levels_dict else None)
+        if key is None:
+            why = ('IDEN2 row %d has no identifier in %s'
+                   % (partner_row, os.path.basename(ID_MAP)))
+        elif key not in calc_index:
+            why = ('no calculated transition to IDEN2 row %d (%s)'
+                   % (partner_row, partner_id))
+        else:
+            low, upp = key
+            rwn = (fit_energy(upp, levels_dict[upp], fit, level_id)
+                   - fit_energy(low, levels_dict[low], fit, level_id))
+            why = ('%.3f cm^-1 from the Ritz wavenumber %.3f of the '
+                   'transition to IDEN2 row %d' % (wn - rwn, rwn, partner_row))
+        unmarked.append('%11.3f  %s' % (wn, why))
     if unmarked:
-        raise Abort('%d line(s) marked in IDEN2 for row %d are outside the '
-                    'Ritz window or have no calculated transition: %s'
-                    % (len(unmarked), index,
-                       ', '.join('%.3f' % w for w in sorted(unmarked))))
+        raise Abort('%d line(s) marked in IDEN2 for row %d reach no '
+                    'candidate:\n     %s'
+                    % (len(unmarked), index, '\n     '.join(unmarked)))
 
     # --- the fit as it stands, before anything is added ---------------------
     # LOPT is run once on the untouched input so that there is something to
