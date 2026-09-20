@@ -3815,6 +3815,107 @@ and 0.92, which is to say one line is the whole of the case for each of them. Th
 is what a 793 cm⁻¹ scan finds when there is nothing there, and the report says so in as many words.
 `look` is negative at every one of them.
 
+**The refit correction: `E_fit`, `dR_own`, `dR_rest`, `ln_R_fit`.** `ln R` weighs a candidate
+against Ritz wavenumbers built from the partner energies *the run adopted*, and each of those was
+fitted to the lines that partner already has. A level already in the run is therefore scored
+against Ritz values its own lines helped to place, while a position nobody has found is scored
+against Ritz values placed without it. The asymmetry is not academic: a candidate whose lines
+would pull their partners into agreement is charged for a disagreement the level optimization
+would remove, and the softer the partner the heavier the unearned charge. A position resting on
+three high-precision lines can be called a poor match because two of them sit 2 σ from Ritz values
+that would not survive the level's own acceptance.
+
+For each candidate the scan reports, the lines that position would really claim — the real matches,
+the assignments a classification run would make there — are added to the accepted set as ordinary
+observation equations *E*(upper) − *E*(lower) = `wn_obs` weighted `BF²/u²`, every level energy is
+re-solved, and `ln R` is read again with the partners where the fit put them. The solver is
+`lopt_lines.refit_energies()`, the pipeline's own least squares and the same model
+`classify_lines.optimize_levels()` applies between classification passes; fed the run's own accepted
+set it returns the run's own energies to better than 10⁻⁶ cm⁻¹, so the correction is measured with
+the same instrument as the thing it corrects. LOPT is not run and could not be: this happens once
+per candidate, in about a second.
+
+**What is scored is the whole list, not the candidate.** A partner that moves to meet the new level
+moves away from the lines it already has, and its own neighbours move after it. `dR_own` is what
+the candidate gains once its partners have moved; `dR_rest` is what every level the fit moves gains
+or loses on *its own* lines; only `dR_own + dR_rest` compares one hypothesis with another. Scoring
+the candidate alone would credit it with a gain borrowed from its partners' lines, and so reward a
+position in proportion to how much it distorts the fit. The difference is the whole of the effect.
+Rows 446 and 447 of `enlev.dat` (`f27d`, J = 15/2 and 13/2) compete for the same two positions:
+
+```
+row  E            ln_R_J  E_fit        dR_own  dR_rest  ln_R_fit
+446  133945.384   13.404  133945.392    0.023   -0.068    13.359
+446  134004.084    8.674  134004.087    2.362   -2.025     9.011
+447  133945.384    8.196  133945.395    0.022   -0.075     8.143
+447  134004.084    4.227  134004.087    2.361   -1.952     4.636
+```
+
+134004.084 gains a hundred times what its rival gains, exactly as the softness of its partners
+predicts — 059003.000479 moves +0.0089 cm⁻¹ against a `D1` of 0.0047 — and almost all of it is paid
+back by 059003.000339 (−1.14), 000479 (−0.44) and 000630 (−0.42). The gap between the two positions
+narrows from 4.73 nats to 4.35 for row 446 and from 3.97 to 3.51 for row 447: the correction is
+real, it is in the direction the softness of the partners says it should be, and it is a tenth of
+what it would look like with the partners' own lines left out of the account. The report prints the
+levels that pay under the table.
+
+`ln_R_fit` = `ln_R_J` + `dR_own` + `dR_rest` is written beside `ln_R_J` and **the table is still
+ranked on `ln_R_J`**, with a line under it whenever the correction would reorder the candidates.
+The correction is a second-order repair of one known asymmetry, not a better likelihood: it takes
+the claimed lines as certain where `ln R` does not, and it charges nothing for the freedom the moved
+energies are. It says which way, and by how much, a position would move the argument — not where
+the argument ends. `--no-refit` turns it off.
+
+**Combinations: several rows searched at once.** Each row of `--unknown 446 447` is scanned
+against a list in which the *other* row has not been placed either, because neither has been. Both
+can therefore be sent to the same position and both be credited with the same lines — and when two
+rows compete for the same two positions, which is the usual reason for searching them together,
+that is exactly the question the separate tables cannot answer.
+
+A **combination** is one candidate position for each row, or none for a row left unplaced, with no
+two rows at the same position (closer than `COMBO_SAME` = `ALT_SEP` = 0.5 cm⁻¹: one position holds
+one level, and its lines are the same lines). It is scored by entering the rows one at a time,
+strongest first. A row is scored where the combination puts it; the lines it really claims — the
+same real matches the refit adds as observation equations — are then entered as claimed light on
+the features they fall on; and the next row is scored against a list that already holds them. A
+line the first row has taken is read the way any blended component is read, it has to improve the
+account of the feature's brightness to be worth anything, and a line neither row wants is
+untouched.
+
+The order the rows are entered in barely matters, and that is a property of the model rather than
+an assumption. On a shared feature the intensity term of the first row is
+ln p(x | C + I₁) − ln p(x | C) and of the second ln p(x | C + I₁ + I₂) − ln p(x | C + I₁); the two
+sum to ln p(x | C + I₁ + I₂) − ln p(x | C) whichever went first. Only whether a feature is read as
+free or as blended depends on the order, and strongest first gives a contested line to the position
+with the better case for it.
+
+The columns are the position each row takes (`E_<row>`), what it is worth *there, in this
+combination* (`R_<row>`), their sum `total`, the same positions' `ln_R_J` added up as the separate
+tables report them (`alone`), `shared` = `total` − `alone`, and `total_fit` = `total` plus each
+position's refit correction. For rows 446 and 447:
+
+```
+     E_446  R_446      E_447  R_447  total  alone  shared  total_fit
+133945.384 13.404 134004.084  4.227 17.631 17.631   0.000     17.995
+134004.084  8.674 133945.384  8.196 16.870 16.870   0.000     17.154
+133945.384 13.404          -      - 13.404 13.404   0.000     13.359
+134004.084  8.674 133948.984  1.537 10.210 10.210   0.000     10.580
+133945.384 13.404 133948.984 -4.175  9.229 14.941  -5.712      9.217
+134004.084  8.674          -      -  8.674  8.674   0.000      9.011
+```
+
+`shared` is the whole of the interaction. It is zero for the first four rows: at those positions
+the two levels want no recorded line in common, so the combination is no more than the two separate
+answers put side by side, and the best combination is simply each row at the position its own table
+prefers — 446 at 133945.384 and 447 at 134004.084, +17.63, or +18.00 with the refit correction
+added. The swap is 0.76 nats worse, so the assignment is settled by 446's much stronger case for
+133945.384 rather than by anything the two positions share. The fifth row is what the section is
+for: 133945.384 and 133948.984 are 3.6 cm⁻¹ apart but want the same lines, and putting the two
+levels there costs 5.71 nats — 447 is left at −4.18 where alone it scored +1.54.
+
+`--combine N` sets how many of each row's candidate positions are drawn on (4 by default); 0 turns
+the section off. It costs a fraction of a second per combination.
+
 **Searching on a row that has already been found.** `--unknown` accepts a row of `enlev.dat` that
 the run has already identified, and that is a useful thing to ask: it scans the whole window the
 configuration allows and reports where the lines want the level, without reference to the position
@@ -3906,6 +4007,9 @@ python level_positions.py --unknown 742             # the candidate positions fo
 python level_positions.py --unknown 742 913 986     # several at once
 python level_positions.py --unknown 742 --at 116327.610   # the transitions at one of them
 python level_positions.py --unknown 742 --top 10    # only the best ten positions
+python level_positions.py --unknown 742 --no-refit  # without the refit correction
+python level_positions.py --unknown 446 447 --combine 6   # combinations from six positions each
+python level_positions.py --unknown 446 447 --combine 0   # no combination section
 python level_positions.py --unknown 742 --min-ln-r 3      # a higher bar than "better than nothing"
 python level_positions.py --unknown 741 --window-sigmas 4 # a wider window for a mixed level
 python level_positions.py --unknown 271             # a row the run has already found: its own
@@ -4472,6 +4576,7 @@ python insert_new_level.py --iden2-row 742 --yes --rebuild \
     --reject 91856.116="May add to pub line list as masked" \
     --reject 39785.512/000243="Too weak to contribute to blend" \
     --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
+python insert_new_level.py --iden2-row 742 --yes --force   # do it again although it has been done
 ```
 
 The first form writes nothing: it prints the proposal table and stops. What it
@@ -4482,7 +4587,7 @@ does with `--yes`, in order:
 | **A** | every file the run can write is tested — `output_files.require_writable()`, so that a workbook open in Excel stops the run at the start rather than at the end — and then copied byte for byte into `insert_new_level_backup/` |
 | **B** | the level is added to `new_levels.txt` if it is not there: the next free identifier, the adopted energy and J of `enlev.dat`, the parity of the calculated level, `iden2_row` and `cowan_lid`. `IDEN2/IDEN_level_ids.txt` gets the identifier against the row |
 | **C** | the lines: what is already marked in `IDEN2/trans.dat` for that block, taken as given — and when there is any such mark, that is **all** the level gets; the tool's own proposals, only for a level with no mark anywhere; and `--reject WN[/PARTNER]=reason`, which writes a verdict and assigns nothing |
-| **D0** | `lopt.bat LOPT.par` on the untouched input, to have a fit to compare with |
+| **D0** | `lopt.bat LOPT.par` on the untouched input, to have a fit to compare with — skipped when LOPT's own files are exactly as LOPT left them |
 | **D** | one record per accepted assignment goes into `LOPT_input_lines.txt`, and every unflagged record of every observed line the run touches is re-weighted together |
 | **E** | `lopt.bat LOPT.par` again, then `RSS/degrees_of_freedom` before against after, then the four-sigma Ritz check |
 | **F** | `classify_lines.py` and the ledger rows, repeated until nothing new has to be written. **`make_LOPT_input.py` is not run** unless `--rebuild` asks for it |
@@ -4491,7 +4596,35 @@ does with `--yes`, in order:
 | **I** | `sync_IDEN2.py` finishes the job |
 | **J** | the report, on screen and in `insert_new_level.log` |
 
-Ten things about it are worth knowing.
+Twelve things about it are worth knowing.
+
+**A run already made stops at once.** The commonest way to lose several minutes
+is to start the last run again by mistake — the wrong tab in PyCharm's Run
+window, the re-run icon clicked on a run that finished an hour ago. So before
+LOPT or the classification is asked for anything, the run tests whether it has
+anything to do: is the level in `new_levels.txt` and in
+`IDEN2/IDEN_level_ids.txt`, is it at the position asked for, and does the fit
+already hold for it exactly the set of lines this run would give it — the same
+observed wavenumbers against the same partner levels, none missing and none
+over? If all of that holds, the run says so and stops, having written nothing.
+`--force` goes through the sequence anyway. A level with no line in the fit is
+never mistaken for this: it has not been inserted at all.
+
+**LOPT is not run on files it has already fitted.** The Perl build takes
+minutes on a fit this size, and step D0 — the fit as it stands, taken only so
+that the fit at the end has something to be compared with — is very often the
+very fit the last run ended with. Every real LOPT run therefore records in
+`LOPT_snapshot.json` the size and modification time of each of the five files
+LOPT reads or writes (`LOPT.par`, `LOPT_input_lines.txt`, `LOPT_fixlev.txt`,
+`LOPT_output_levels.txt`, `LOPT_output_lines.txt`), together with the
+`RSS/degrees_of_freedom` it printed. `call_LOPT` measures them again on the
+next call and runs LOPT only if one of them differs; otherwise the outputs on
+disk are this run's outputs and the recorded RSS is handed back. The test is
+one-sided on purpose: size and time cannot prove two files equal, but every
+ordinary way of writing a file changes one or the other — including putting a
+backup back, which restores the older time — so the failure it can make is a
+run that was not needed, never a skip of one that was. `--force` runs LOPT
+regardless, and a missing or damaged snapshot simply costs a run.
 
 **A level already marked up in IDEN2 gets nothing added to it.** The lines of a
 level that has been gone through on the screen, line by line, against the
@@ -4702,6 +4835,7 @@ file and left it in another would be exactly the silent disagreement
 python move_level.py 059003.000565 --energy 118967.3776
 python move_level.py --iden2-row 828 --from-lopt
 python move_level.py 059003.000565 --energy 118967.3776 --yes
+python move_level.py 059003.000565 --energy 118967.3776 --yes --force
 ```
 
 The first form writes nothing: it prints what the move releases and what it
@@ -4783,6 +4917,16 @@ reported both ways — a level moved at the cost of the rest of the fit has to
 show itself. A residual above `--ritz-sigma` (4) times a line's own
 uncertainty, an error from `check_sync.py`, a bug or a Ctrl-C puts every file
 back byte for byte from `move_level_backup/`. `--dry-run` does it on purpose.
+
+**A move already made stops at once**, as a repeated insertion does. A level
+asked to go where it already sits, holding exactly the lines this run would
+leave it with, is a run started a second time by mistake: it is reported and
+the run stops before LOPT or the classification is asked for anything. If the
+position is unchanged but the set of lines is not, the run stops as well and
+says which is which — re-assigning a level at an unchanged position is a
+different thing to ask for, and `--force` is how it is asked for. `--force`
+also runs LOPT although its files are as it left them; the snapshot that
+decides that is the one `insert_new_level.py` keeps.
 
 ### Excel-friendly output files
 

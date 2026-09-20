@@ -1429,3 +1429,284 @@ def test_with_k_at_zero_the_level_offset_is_the_old_correction():
            + s_l ** 2 * sum_r ** 2
            / (2.0 * s ** 2 * (s ** 2 + n * s_l ** 2)))
     assert new == pytest.approx(old)
+
+
+# ---------------------------------------------------------------------------
+# The refit correction
+# ---------------------------------------------------------------------------
+# A level already in the run is scored against Ritz wavenumbers its own lines
+# helped to place; a position nobody has found is scored against Ritz
+# wavenumbers placed without it.  The correction runs the level optimization
+# with the lines the candidate claims and scores the WHOLE LIST again, so that
+# what a partner gains by moving to meet the candidate is set against what it
+# loses on the lines it already has.
+def _intens(gA, nu, e_up):
+    return C * gA * (nu / 1.0e8) * math.exp(-e_up / KT)
+
+
+def refit_ctx():
+    """A four-level run: a soft partner, a stiff one, and a level to find.
+
+    L001 is the ground level and anchors the fit.  L002 is held at 10000 by a
+    single line quoted to 0.5 cm^-1 and L003 at 20000 by one quoted to 0.0005,
+    so the first can be moved by a new assignment and the second cannot.  The
+    level being searched for is at 90000 and reaches all three; the line that
+    would be its transition to L002 sits 0.05 cm^-1 from where the run's
+    energies put it, exactly the displacement a move of L002 would remove.
+    """
+    g_a, g_b = 1.0e10, 1.0e10
+    wn = [10000.0, 20000.0, 70000.0, 79999.95, 90000.0]
+    i_obs = [_intens(g_a, 10000.0, 10000.0), _intens(g_b, 20000.0, 20000.0),
+             _intens(1.0e10, 70000.0, 90000.0),
+             _intens(1.0e10, 80000.0, 90000.0),
+             _intens(1.0e10, 90000.0, 90000.0)]
+    ctx = fake_ctx(wn, i_obs=i_obs)
+    ctx.acc = pd.DataFrame([
+        dict(low_id='L001', upp_id='L002', wn_obs=10000.0,
+             unc_wn_obs=0.5, BF=1.0),
+        dict(low_id='L001', upp_id='L003', wn_obs=20000.0,
+             unc_wn_obs=0.0005, BF=1.0)])
+    ctx.preds_all = pd.DataFrame([
+        dict(lo_id='L001', up_id='L002', I_pred=_intens(g_a, 10000.0, 10000.0),
+             u_calc=np.nan, S=np.nan),
+        dict(lo_id='L001', up_id='L003', I_pred=_intens(g_b, 20000.0, 20000.0),
+             u_calc=np.nan, S=np.nan)])
+    for i, e in ((1, 0.0), (2, 10000.0), (3, 20000.0)):
+        ctx.e_final[f'L{i:03d}'] = e
+        ctx.n_acc_level[f'L{i:03d}'] = 5
+    ctx.by_level = lp.group_predictions(ctx)
+    en, trans, mapping, e_meas, id_of = theory(LEVELS, TRANS)
+    lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
+                        log=lambda *a: None)
+    return ctx
+
+
+def test_the_refit_returns_the_energies_the_accepted_lines_determine():
+    """With nothing added, the solver must give the run back: the before and
+    the after of the correction are then measured with one instrument."""
+    ctx = refit_ctx()
+    base = lp.refit_base(ctx)
+    assert base['L001'] == pytest.approx(0.0)
+    assert base['L002'] == pytest.approx(10000.0, abs=1e-9)
+    assert base['L003'] == pytest.approx(20000.0, abs=1e-9)
+
+
+def test_a_released_levels_lines_are_left_out_of_the_refit():
+    """--drop-all-questionable frees their lines for the search, so the fit
+    must not go on holding those levels by them."""
+    ctx = refit_ctx()
+    assert len(lp.refit_lines(ctx)) == 2
+    ctx.released = {'L002'}
+    left = lp.refit_lines(ctx)
+    assert list(left['upp_id']) == ['L003']
+
+
+def test_the_level_being_scanned_on_its_own_row_leaves_the_fit_too():
+    """register_unknown releases its assignments for the search; holding its
+    energy by them in the refit would put them back."""
+    ctx = refit_ctx()
+    ctx.unknown_level = dict(level_id='L002', in_run=True)
+    assert list(lp.refit_lines(ctx)['upp_id']) == ['L003']
+    ctx.unknown_level = dict(level_id='L002', in_run=False)
+    assert len(lp.refit_lines(ctx)) == 2
+
+
+def test_the_candidates_lines_enter_as_observation_equations():
+    """One equation per real match, the candidate on the side its energy puts
+    it, and the weight of a blended component cut by the light it carries."""
+    ctx = refit_ctx()
+    _, tab = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array([90000.0]), detail=True)
+    rows = lp.claimed_observations(ctx, tab, 90000.0, lp.UNKNOWN_ID,
+                                   lp.refit_base(ctx))
+    assert rows, 'the position claims no line at all'
+    for r in rows:
+        assert r['upp_id'] == lp.UNKNOWN_ID    # 90000 is above all three
+        assert r['low_id'].startswith('L00')
+        assert r['BF'] == pytest.approx(1.0)   # every feature is free here
+        assert r['unc_wn_obs'] == pytest.approx(0.05)
+
+
+def test_a_component_of_a_claimed_feature_enters_with_less_weight():
+    """BF is the share of the feature's predicted light the transition
+    carries, so a component of a blend counts for less exactly as an accepted
+    component does."""
+    ctx = refit_ctx()
+    _, tab = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array([90000.0]), detail=True)
+    tab = tab.copy()
+    tab['C'] = tab['I_pred']          # a claim as bright as the prediction
+    rows = lp.claimed_observations(ctx, tab, 90000.0, lp.UNKNOWN_ID,
+                                   lp.refit_base(ctx))
+    assert rows and all(r['BF'] == pytest.approx(0.5) for r in rows)
+
+
+def test_a_soft_partner_moves_to_meet_the_candidate():
+    ctx = refit_ctx()
+    f = lp.refit_correction(ctx, lp.UNKNOWN_ID, 90000.0)
+    assert f is not None
+    moved = dict((p, d) for p, d, _ in f['worst'])
+    assert f['dR_own'] > 0.0, 'the fit did not improve the position at all'
+    assert moved.get('L002', 0.0) > 0.01, 'the soft partner did not move'
+    assert abs(moved.get('L003', 0.0)) < 1e-3, 'the stiff partner moved'
+
+
+def test_what_the_partner_gains_is_charged_against_its_own_lines():
+    """The partner that moves to meet the candidate moves away from the line
+    that was holding it, and dR_rest is what that costs."""
+    ctx = refit_ctx()
+    f = lp.refit_correction(ctx, lp.UNKNOWN_ID, 90000.0)
+    assert f['dR_rest'] < 0.0
+    assert f['dR'] == pytest.approx(f['dR_own'] + f['dR_rest'])
+    paid = dict((p, v) for p, _, v in f['worst'])
+    assert paid['L002'] < 0.0
+
+
+def test_the_correction_leaves_the_context_as_it_found_it():
+    """It moves every level of the list to score them; a scan that ran after
+    it would otherwise be reading a list the correction had rewritten."""
+    ctx = refit_ctx()
+    e0 = dict(ctx.e_final)
+    g0 = ctx.by_level[lp.UNKNOWN_ID]
+    lp.refit_correction(ctx, lp.UNKNOWN_ID, 90000.0)
+    assert ctx.e_final == e0
+    assert ctx.by_level[lp.UNKNOWN_ID] is g0
+
+
+def test_the_table_carries_the_fit_columns_only_when_it_is_asked_for():
+    ctx = refit_ctx()
+    r = dict(E_calc=90000.0, W=20.0, positions=[(90000.0, 6.0)])
+    plain = lp.unknown_table(ctx, r)
+    assert 'ln_R_fit' not in plain.columns
+    info = {}
+    fitted = lp.unknown_table(ctx, r, refit=True, info=info)
+    assert list(fitted.columns)[-5:-1] == ['E_fit', 'dR_own', 'dR_rest',
+                                           'ln_R_fit']
+    assert 90000.0 in info
+    assert fitted['ln_R_fit'][0] == pytest.approx(
+        fitted['ln_R_J'][0] + info[90000.0]['dR'])
+
+
+# ---------------------------------------------------------------------------
+# Combinations: several rows searched at once
+# ---------------------------------------------------------------------------
+# Two rows of one search are each scanned against a list in which the other
+# has not been placed, so both can be sent to the same position and both be
+# credited with the same lines.  A combination places them one after another,
+# each entering its lines as claimed light before the next is scored.
+COMBO_LEVELS = [(1, 0.0, 0.0, 0.5, 'f25d', True),
+                (2, 10000.0, 10000.0, 1.5, 'f25d', True),
+                (3, 20000.0, 20000.0, 2.5, 'f25d', True),
+                (6, 10001.0, 10001.0, 1.5, 'f25d', True),
+                (4, 90000.0, 90000.0, 2.5, 'f25f', False),
+                (5, 90001.0, 90001.0, 2.5, 'f25f', False)]
+# row 4 reaches L001, L002 and L003; row 5 reaches L001, L006 and L003.  At
+# 90000.0 and 90001.0 the two predict a line on the same recorded feature at
+# 80000, and nothing else in common
+COMBO_TRANS = [(4, 1, 1.0e10), (4, 2, 1.0e10), (4, 3, 1.0e10),
+               (5, 1, 1.0e10), (5, 6, 1.0e10), (5, 3, 1.0e10)]
+COMBO_WN = [70000.0, 70001.0, 80000.0, 90000.0, 90001.0]
+
+
+def combo_ctx():
+    """A run with three found levels and two rows to place, of which one
+    feature is wanted by both."""
+    i_obs = [_intens(1.0e10, 70000.0, 90000.0),
+             _intens(1.0e10, 70001.0, 90001.0),
+             _intens(1.0e10, 80000.0, 90000.0),
+             _intens(1.0e10, 90000.0, 90000.0),
+             _intens(1.0e10, 90001.0, 90001.0)]
+    ctx = fake_ctx(COMBO_WN, i_obs=i_obs)
+    for i, e in ((1, 0.0), (2, 10000.0), (3, 20000.0), (6, 10001.0)):
+        ctx.e_final[f'L{i:03d}'] = e
+        ctx.n_acc_level[f'L{i:03d}'] = 5
+    return ctx
+
+
+def combo_slots(ctx, positions=((90000.0,), (90001.0,))):
+    """The two rows registered and captured, as main() captures them."""
+    en, trans, mapping, e_meas, id_of = theory(COMBO_LEVELS, COMBO_TRANS)
+    slots = []
+    for idx, es in zip((4, 5), positions):
+        lp.register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of,
+                            log=lambda *a: None)
+        y, _ = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array(es, dtype=float))
+        r = dict(E_calc=float(es[0]), W=20.0,
+                 positions=[(float(e), float(v)) for e, v in zip(es, y)])
+        tab = lp.unknown_table(ctx, r)
+        slots.append(dict(idx=idx, tab=tab, j0=float(tab['ln_J'].min()),
+                          state=lp.slot_state(ctx), fit={},
+                          alone=dict(zip((float(x) for x in tab['E']),
+                                         (float(x) for x in tab['ln_R_J'])))))
+    return slots
+
+
+def test_installing_a_slot_scores_the_row_it_was_captured_from():
+    """The rows are registered one after another and only the last is left in
+    ctx; a combination has to be able to go back to the others."""
+    ctx = combo_ctx()
+    slots = combo_slots(ctx)
+    first = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array([90000.0]))[0][0]
+    lp.install_slot(ctx, slots[0]['state'])
+    assert list(ctx.by_level[lp.UNKNOWN_ID]['partner']) == ['L001', 'L002',
+                                                            'L003']
+    back = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array([90000.0]))[0][0]
+    assert back != pytest.approx(first)   # row 5 was the one left registered
+    assert back == pytest.approx(slots[0]['alone'][90000.0], abs=1e-9)
+
+
+def test_the_lines_a_position_takes_become_claimed_light():
+    ctx = combo_ctx()
+    slots = combo_slots(ctx)
+    lp.install_slot(ctx, slots[0]['state'])
+    _, tab = lp.ln_ratio(ctx, lp.UNKNOWN_ID, np.array([90000.0]), detail=True)
+    n = lp.add_claims(ctx, tab)
+    assert n == 3
+    assert (ctx.claimed_tot > 0).sum() == 3
+    assert list(ctx.n_acc_line[[0, 2, 3]]) == [1, 1, 1]
+
+
+def test_two_rows_after_the_same_line_cost_each_other():
+    """Both want the feature at 80000; whichever is entered second meets it
+    already claimed, and the combination is worth less than the two positions
+    scored apart."""
+    ctx = combo_ctx()
+    slots = combo_slots(ctx)
+    tab = lp.combination_table(ctx, slots)
+    both = tab[tab['E_4'].notna() & tab['E_5'].notna()].iloc[0]
+    assert both['shared'] < -0.01
+    assert both['total'] == pytest.approx(both['alone'] + both['shared'])
+    one = tab[tab['E_4'].notna() & tab['E_5'].isna()].iloc[0]
+    assert one['shared'] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_a_combination_leaves_the_context_as_it_found_it():
+    """It rewrites the claimed-light arrays to enter each row; the scan that
+    follows must not see them."""
+    ctx = combo_ctx()
+    slots = combo_slots(ctx)
+    tot0, n0 = ctx.claimed_tot.copy(), ctx.n_acc_line.copy()
+    st0 = lp.slot_state(ctx)
+    lp.combination_table(ctx, slots)
+    assert np.array_equal(ctx.claimed_tot, tot0)
+    assert np.array_equal(ctx.n_acc_line, n0)
+    assert ctx.by_level[lp.UNKNOWN_ID] is st0['block']
+
+
+def test_two_rows_are_never_sent_to_the_same_position():
+    """One position can hold one level: the lines are the same lines."""
+    ctx = combo_ctx()
+    slots = combo_slots(ctx, positions=((90000.0, 90001.0),
+                                        (90000.0, 90001.0)))
+    tab = lp.combination_table(ctx, slots)
+    pair = tab[tab['E_4'].notna() & tab['E_5'].notna()]
+    assert len(pair) == 2      # the two ways round, not four
+    assert (abs(pair['E_4'] - pair['E_5']) >= lp.COMBO_SAME).all()
+
+
+def test_leaving_a_row_unplaced_is_one_of_the_combinations():
+    """A combination has to beat placing only one of the rows, or neither."""
+    ctx = combo_ctx()
+    slots = combo_slots(ctx)
+    tab = lp.combination_table(ctx, slots)
+    assert (tab['E_4'].isna() & tab['E_5'].isna()).any()
+    none = tab[tab['E_4'].isna() & tab['E_5'].isna()].iloc[0]
+    assert none['total'] == pytest.approx(0.0)

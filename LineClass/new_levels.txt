@@ -38,3 +38,6 @@ level_id	E	J	parity	iden2_row	cowan_lid	comment
 059003.000659	95003.796	3/2	o	903	220	Found with level_positions --unknown 903.
 059003.000660	87829.735	5/2	o	924	199	Found with level_positions --unknown 924.
 059003.000661	136902.699	11/2	e	319	2317	Found with level_positions --unknown 319.
+059003.000662	133945.399	15/2	e	446	2236	Found with level_positions --unknown 446.
+059003.000663	134004.092	13/2	e	447	2235	Found with level_positions --unknown 447.
+059003.000664	134696.627	9/2	e	406	2263	Found with level_positions --unknown 406.

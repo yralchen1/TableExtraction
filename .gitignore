@@ -76,6 +76,7 @@ LineClass/level_positions_scan.xlsx
 LineClass/level_positions_audit.xlsx
 LineClass/sync_report.txt
 LineClass/Work_on_hfs_plan.md
+LineClass/params.txt
 
 # Excel lock files
 ~$*.xlsx
@@ -107,3 +108,4 @@ LineClass/sync_report.txt
 LineClass/sync_report.txt
 LineClass/insert_new_level_backup/
 LineClass/insert_new_level.log
+LineClass/LOPT_snapshot.json

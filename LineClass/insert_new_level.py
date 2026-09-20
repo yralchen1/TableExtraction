@@ -64,6 +64,15 @@ C. **The lines.**  The assignments already marked in ``IDEN2/trans.dat`` for
    nothing about what it will do; ``--show-skipped`` lists them with the
    reason.
 
+   A RUN ALREADY MADE STOPS HERE.  When the level is in the level list and in
+   the identifier table, sits at the position asked for, and the fit already
+   holds for it exactly the set of lines this run would give it - the same
+   observed wavenumbers against the same partner levels, none missing and none
+   over - there is nothing left to do, and the run says so and stops before
+   LOPT and the classification are asked for the minutes they take.  That is
+   the state a run started a second time by mistake finds.  ``--force`` goes
+   through the sequence anyway.
+
    ``--reject WN=reason`` writes a reject verdict and assigns nothing.  WN is
    the OBSERVED wavenumber of the line - the ``obs wn`` column of the table,
    never the Ritz wavenumber, which differs from it by the residual and would
@@ -85,8 +94,14 @@ D. **The LOPT input.**  One record per accepted assignment is inserted into
 
 E. **LOPT.**  ``lopt.bat LOPT.par`` (the Perl v5 build; never the Java jar,
    which has no centroid blend model), run once on the untouched input first
-   so that there is a before to compare with.  Two things are then read out of
-   the fit.
+   so that there is a before to compare with.  That first run is very often a
+   repetition of the one the last run ended with, and the Perl build takes
+   minutes, so LOPT is called through ``call_LOPT``: it runs only when one of
+   the five files LOPT reads or writes has changed size or modification time
+   since LOPT last stopped, and otherwise hands back the fit that is already
+   on disk together with the ``RSS/degrees_of_freedom`` recorded with it in
+   ``LOPT_snapshot.json``.  ``--force`` runs it regardless.  Two things are
+   then read out of the fit.
 
    ``RSS/degrees_of_freedom`` is LOPT's own measure of how well the whole fit
    holds together - the sum over every fitted line of the squared difference
@@ -179,6 +194,7 @@ import bisect
 import csv
 import datetime
 import io
+import json
 import math
 import os
 import shutil
@@ -214,6 +230,9 @@ LOPT_LINES = os.path.join(HERE, 'LOPT_output_lines.txt')
 LOPT_LEVELS = os.path.join(HERE, 'LOPT_output_levels.txt')
 LOPT_FIXLEV = os.path.join(HERE, 'LOPT_fixlev.txt')
 SYNC_REPORT = os.path.join(HERE, 'sync_report.txt')
+# Where call_LOPT records what the files looked like when LOPT last ran; see
+# the comment over call_LOPT.  It is a derived file and is not tracked.
+LOPT_SNAPSHOT = os.path.join(HERE, 'LOPT_snapshot.json')
 LOGFILE = os.path.join(HERE, 'insert_new_level.log')
 BACKUP_DIR = os.path.join(HERE, 'insert_new_level_backup')
 
@@ -910,6 +929,35 @@ def reweigh(rows, wavenumbers, calc_of, log) -> int:
     return n
 
 
+def level_components(rows, level_id: str) -> set:
+    """Every component of the fit that has this level at one of its ends, as
+    ``{(wavenumber, lower, upper)}``.
+
+    A component the file carries with the flag ``P`` is a predicted line and
+    not an observation, so it is no part of what the level was given; a
+    component of zero weight is in the file but out of the fit.  Neither is
+    counted, because neither is something a run of this tool put there.
+    """
+    return {(lopt_key(r['wn']), r['low_id'], r['upp_id']) for r in rows
+            if level_id in (r['low_id'], r['upp_id'])
+            and 'P' not in (r.get('flag') or '')
+            and float(r.get('weight') or 0.0) > 0.0}
+
+
+def nothing_to_do(level_id: str, accepted, rows) -> bool:
+    """Is this run a repetition of one already made?
+
+    True when the fit already holds, for this level, exactly the set of lines
+    this run would give it - the same observed wavenumbers against the same
+    partners, none missing and none over.  That is what "the level is already
+    inserted with the same set of lines" means, and it is the state a second
+    run started by mistake would find.  An empty set is not it: a level with
+    no line in the fit has not been inserted at all.
+    """
+    want = {(lopt_key(c.wn), c.low_id, c.upp_id) for c in accepted}
+    return bool(want) and want == level_components(rows, level_id)
+
+
 # ---------------------------------------------------------------------------
 # E. LOPT, and the Ritz check
 # ---------------------------------------------------------------------------
@@ -980,6 +1028,125 @@ def run_lopt(log):
         log('   LOPT printed no %s line' % RSS_RE)
     else:
         log('   %s = %.2f (%d degrees of freedom)' % (RSS_RE, rss, dof))
+    return rss, dof
+
+
+# ---------------------------------------------------------------------------
+# Running LOPT only when it would make a difference
+# ---------------------------------------------------------------------------
+# The Perl build of LOPT takes minutes on a fit this size, and a good part of
+# what these tools ask of it is a repetition: the run begins by fitting the
+# files exactly as they stand, only so that the fit it ends with has something
+# to be compared against, and those same files were very likely left by the
+# LOPT run at the end of the last one.
+#
+# call_LOPT therefore records, every time LOPT really runs, what each of
+# LOPT's own files looked like the moment it finished - the size in bytes and
+# the modification time of the two inputs, of the parameter file that says how
+# to read them, and of the two outputs - together with the RSS/degrees_of
+# _freedom it printed.  On the next call the five files are measured again: if
+# every one of them is byte-for-byte the same size and carries the same
+# modification time as when LOPT last stopped, then nothing that the fit
+# depends on has moved and nothing it produced has been touched, so the
+# outputs on disk are the outputs this run would get and it is handed the
+# recorded RSS instead of spending the minutes.
+#
+# The test is deliberately one-sided.  Size and time cannot prove two files
+# equal - an edit that keeps the length and restores the timestamp would slip
+# through - but anything that writes a file in the ordinary way changes one or
+# the other, and putting a backup back with shutil.copy2 (which is how these
+# tools undo themselves) restores the old time, which does not match the
+# snapshot either and so is rerun.  The failure that matters is the opposite
+# one, skipping a run that was needed, and it takes a deliberate forgery.
+#
+# The snapshot lives in LOPT_snapshot.json beside the files it describes.  If
+# it is missing, unreadable or of an older layout, LOPT runs; that is the
+# whole of the error handling this needs.
+LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES]
+SNAPSHOT_VERSION = 1
+
+
+def file_stamp(path: str):
+    """``[size in bytes, modification time]``, or ``None`` if there is no
+    such file - a file that is absent now and absent then is unchanged."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return [st.st_size, st.st_mtime]
+
+
+def lopt_stamps(paths=None) -> dict:
+    """The stamp of every file LOPT reads or writes, by its base name."""
+    return {os.path.basename(p): file_stamp(p)
+            for p in (paths or LOPT_FILES)}
+
+
+def read_snapshot(path: str = None) -> dict:
+    """The record of the last LOPT run, or ``{}`` if there is none to read."""
+    try:
+        with io.open(path or LOPT_SNAPSHOT, encoding='utf-8') as fh:
+            snap = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(snap, dict) \
+            or snap.get('version') != SNAPSHOT_VERSION:
+        return {}
+    return snap
+
+
+def write_snapshot(stamps: dict, rss, dof, path: str = None) -> None:
+    """Record what the files look like now, and what LOPT just printed."""
+    snap = {'version': SNAPSHOT_VERSION, 'when': datetime.datetime.now()
+            .strftime('%Y-%m-%d %H:%M:%S'), 'files': stamps,
+            'rss': rss, 'dof': dof}
+    try:
+        with io.open(path or LOPT_SNAPSHOT, 'w', encoding='utf-8',
+                     newline='\n') as fh:
+            fh.write(json.dumps(snap, indent=1, sort_keys=True) + '\n')
+    except OSError:
+        pass                     # a snapshot that cannot be kept costs a run
+
+
+def snapshot_match(snap: dict, stamps: dict):
+    """``None`` if `stamps` is what `snap` recorded, else the name of the
+    first file that differs, which is what the report has to say."""
+    if not snap:
+        return '(no snapshot of a previous run)'
+    old = snap.get('files') or {}
+    if set(old) != set(stamps):
+        return '(the snapshot lists other files)'
+    for name in sorted(stamps):
+        if old[name] != stamps[name]:
+            return name
+    return None
+
+
+def call_LOPT(log, force: bool = False, snapshot: str = None):
+    """Run LOPT unless its files are exactly as it left them.
+
+    Returns ``(RSS/dof, degrees of freedom)`` either way, so that a skipped
+    run is worth the same to the caller as a real one.  `force` runs it
+    whatever the snapshot says.
+    """
+    path = snapshot or LOPT_SNAPSHOT
+    stamps = lopt_stamps()
+    if not force:
+        changed = snapshot_match(read_snapshot(path), stamps)
+        if changed is None:
+            snap = read_snapshot(path)
+            rss, dof = snap.get('rss'), snap.get('dof')
+            log('   LOPT was not run: every file it reads and writes is as '
+                'it left them on %s' % snap.get('when', 'the last run'))
+            if rss is not None:
+                log('   %s = %.2f (%d degrees of freedom), as recorded then'
+                    % (RSS_RE, rss, dof))
+            return rss, dof
+        log('   LOPT has to run: %s' % ('%s has changed since it last ran'
+                                        % changed if '(' not in changed
+                                        else changed))
+    rss, dof = run_lopt(log)
+    write_snapshot(lopt_stamps(), rss, dof, path)
     return rss, dof
 
 
@@ -1557,6 +1724,11 @@ def parse_args(argv=None):
                         'a rebuild puts into the fit every assignment the '
                         'classification accepts, including ones this run '
                         'never proposed and nobody has looked at')
+    p.add_argument('--force', action='store_true',
+                   help='do the work again even when there is nothing to do: '
+                        'go on although the level is already in the fit with '
+                        'exactly these lines, and run LOPT although its files '
+                        'are as it left them')
     p.add_argument('--undo', action='store_true',
                    help='put back every file of the last run from '
                         + os.path.basename(BACKUP_DIR) + ' and do nothing '
@@ -1681,6 +1853,7 @@ def _run(args, rejects, accepts, saved, log, today):
                 if str(r.get('iden2_row') or '').strip() == str(index)]
     id_rows = read_id_map_rows(ID_MAP)
     by_row = {v: k for k, v in id_rows.items()}
+    moved_here = False           # did this run change the level's position?
     if existing:
         level_id = existing[0]['level_id'].strip()
         log('   %s is already in %s at %s cm^-1; left as it stands'
@@ -1689,6 +1862,7 @@ def _run(args, rejects, accepts, saved, log, today):
                                            - args.energy) > 5e-4:
             log('   --energy moves it to %.3f cm^-1' % args.energy)
             existing[0]['E'] = '%.3f' % args.energy
+            moved_here = True
             if args.yes:
                 write_new_levels(NEW_LEVELS, fields, rows)
         new_row = None
@@ -1759,8 +1933,8 @@ def _run(args, rejects, accepts, saved, log, today):
         for c in candidates:
             if any(abs(c.wn - w) < 5e-3 for w in marked_loose):
                 marked_pairs.setdefault(c.key(), c.wn)
-    share = blend_share_of(candidates, calc_index,
-                           read_lopt_input(LOPT_INPUT), marked_pairs)
+    lopt_now = read_lopt_input(LOPT_INPUT)
+    share = blend_share_of(candidates, calc_index, lopt_now, marked_pairs)
     choose(candidates, marked_pairs, args.strong_sigma, args.propose_window,
            args.propose, share=share, min_share=args.min_share)
     if marked and args.propose is None:
@@ -1794,6 +1968,28 @@ def _run(args, rejects, accepts, saved, log, today):
         log('   %d line(s) left free for another transition:' % len(left))
         for c in left:
             log('     %11.3f  %s' % (c.wn, c.verdict))
+
+    # --- has this run been made already? ------------------------------------
+    # The rest of the sequence costs several minutes of LOPT and of the
+    # classification, and a run repeated by mistake - the wrong tab clicked in
+    # the Run window - would spend all of it to arrive back where it started.
+    # It is stopped here, at the last point where everything needed to tell
+    # the two cases apart is known and nothing has yet been spent: the level
+    # is already in the level list and in the identifier table, its position
+    # is the one asked for, and the fit already holds exactly the lines this
+    # run would give it.
+    settled = not new_row and not map_row_needed and not moved_here
+    if (settled and not args.force
+            and nothing_to_do(level_id, accepted, lopt_now)):
+        log('')
+        log('%s is already in the fit at %s cm^-1 with exactly these %d '
+            'line(s); this run has been made already and there is nothing '
+            'left for it to do.'
+            % (level_id, existing[0]['E'] if existing else '?', len(accepted)))
+        log('Nothing was written.  --force does the whole sequence again '
+            'anyway.')
+        restore(saved, log)
+        return 0
 
     if not args.yes:
         log('')
@@ -1840,7 +2036,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # worse? - cannot be answered.
     log('')
     log('D0. the fit as it stands')
-    rss_before, _dof = run_lopt(log)
+    rss_before, _dof = call_LOPT(log, force=args.force)
 
     # --- D. the LOPT input --------------------------------------------------
     log('')
@@ -1890,7 +2086,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # --- E. LOPT ------------------------------------------------------------
     log('')
     log('E. LOPT')
-    rss_after, _dof = run_lopt(log)
+    rss_after, _dof = call_LOPT(log, force=args.force)
     if rss_before is not None and rss_after is not None:
         log('   RSS/degrees_of_freedom %.2f -> %.2f (%+.2f)'
             % (rss_before, rss_after, rss_after - rss_before))
@@ -2045,7 +2241,7 @@ def _run(args, rejects, accepts, saved, log, today):
         if args.rebuild:
             if run([sys.executable, 'make_LOPT_input.py'], log)[0] != 0:
                 raise Abort('make_LOPT_input.py failed')
-            rss_r, _dof = run_lopt(log)
+            rss_r, _dof = call_LOPT(log, force=args.force)
             if rss_before is not None and rss_r is not None:
                 log('     RSS/degrees_of_freedom %.2f -> %.2f (%+.2f)'
                     % (rss_before, rss_r, rss_r - rss_before))

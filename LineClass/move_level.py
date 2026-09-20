@@ -116,7 +116,18 @@ F. **The new position is built.**  The new energy goes into whichever of
 
 G. **LOPT.**  ``lopt.bat LOPT.par`` (the Perl v5 build; never the Java jar,
    which has no centroid blend model), run once before anything is changed so
-   that there is a before to compare with, and once after.
+   that there is a before to compare with, and once after.  The first of those
+   is asked for through ``insert_new_level.call_LOPT``, which runs it only if
+   one of the files LOPT reads or writes has changed since LOPT last stopped
+   and otherwise hands back the fit already on disk; ``--force`` runs it
+   regardless.
+
+   A MOVE ALREADY MADE STOPS BEFORE ANY OF THIS.  A level asked to go where it
+   already is, holding exactly the lines this run would leave it with, is a
+   run repeated by mistake: it is reported and the run stops, having spent
+   nothing.  If the position is unchanged but the lines are not, the run stops
+   as well and says so, since re-assigning at an unchanged position is a
+   different thing to ask for and ``--force`` is how it is asked for.
    ``RSS/degrees_of_freedom`` - the sum over every fitted line of its squared
    observed-minus-Ritz difference divided by its uncertainty, per degree of
    freedom, about 1 when the uncertainties are honest and the identifications
@@ -677,6 +688,11 @@ def parse_args(argv=None):
     p.add_argument('--rebuild', action='store_true',
                    help='run make_LOPT_input.py after the classification, so '
                         'that everything it accepts goes into the fit')
+    p.add_argument('--force', action='store_true',
+                   help='do the work again even when there is nothing to do: '
+                        'go on although the level is already at this position '
+                        'holding exactly these lines, and run LOPT although '
+                        'its files are as it left them')
     p.add_argument('--undo', action='store_true',
                    help='put back everything the last run wrote and stop')
     p.add_argument('--yes', action='store_true',
@@ -782,9 +798,15 @@ def _run(args, rejects, accepts, saved, log, today):
     else:
         e_new = args.energy
     log('   %.4f -> %.4f cm^-1   (dE = %+.4f)' % (e_old, e_new, e_new - e_old))
-    if abs(e_new - e_old) < 5e-4:
-        raise Abort('the level is already at %.4f cm^-1; there is nothing to '
-                    'move' % e_new)
+    # A move to the position the level already occupies is either a run made
+    # twice - the commonest way of losing several minutes is to start the last
+    # run again by mistake - or a real request to re-apply the lines at an
+    # unchanged position.  Which of the two it is cannot be said until the
+    # lines are known, so the question is held until they are, below.
+    same_place = abs(e_new - e_old) < 5e-4
+    if same_place:
+        log('   the level is already at this position; whether anything is '
+            'left to do is decided below, once its lines are known')
 
     # --- C. what it holds at the old position -------------------------------
     log('')
@@ -871,6 +893,29 @@ def _run(args, rejects, accepts, saved, log, today):
                            sum(1 for c in accepted if c.source == 'IDEN2'),
                            sum(1 for c in accepted if c.source == 'proposed')))
 
+    # --- has this move been made already? -----------------------------------
+    # The level is where it was asked to go and the fit holds, for it, exactly
+    # the lines this run would leave it with: there is nothing to move and
+    # nothing to re-assign, and the minutes that LOPT and the classification
+    # would take are spent for no change at all.
+    if same_place and not args.force:
+        held = INL.level_components(lopt_rows, level_id)
+        want = {(INL.lopt_key(c.wn), c.low_id, c.upp_id) for c in accepted}
+        if held == want:
+            log('')
+            log('%s is already at %.4f cm^-1 holding exactly these %d '
+                'line(s); this move has been made already and there is '
+                'nothing left for it to do.' % (level_id, e_new, len(want)))
+            log('Nothing was written.  --force does the whole sequence again '
+                'anyway.')
+            INL.restore(saved, log)
+            return 0
+        raise Abort('the level is already at %.4f cm^-1, so there is no move '
+                    'to make, but the fit holds %d line(s) for it where this '
+                    'run would leave %d.  Re-applying the lines at an '
+                    'unchanged position is what --force does; say so '
+                    'deliberately.' % (e_new, len(held), len(want)))
+
     if not args.yes:
         log('')
         log('Nothing was written.  Run again with --yes to apply.')
@@ -883,7 +928,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # that the RSS after the move has something to be measured against.
     log('')
     log('G0. the fit as it stands')
-    rss_before, _dof = INL.run_lopt(log)
+    rss_before, _dof = INL.call_LOPT(log, force=args.force)
 
     # --- E. the old position is taken apart ---------------------------------
     log('')
@@ -980,7 +1025,7 @@ def _run(args, rejects, accepts, saved, log, today):
     # --- G. LOPT ------------------------------------------------------------
     log('')
     log('G. LOPT')
-    rss_after, _dof = INL.run_lopt(log)
+    rss_after, _dof = INL.call_LOPT(log, force=args.force)
     if rss_before is not None and rss_after is not None:
         log('   RSS/degrees_of_freedom %.2f -> %.2f (%+.2f)'
             % (rss_before, rss_after, rss_after - rss_before))
@@ -1117,7 +1162,7 @@ def _run(args, rejects, accepts, saved, log, today):
         if args.rebuild:
             if INL.run([sys.executable, 'make_LOPT_input.py'], log)[0] != 0:
                 raise Abort('make_LOPT_input.py failed')
-            rss_r, _dof = INL.run_lopt(log)
+            rss_r, _dof = INL.call_LOPT(log, force=args.force)
             if rss_before is not None and rss_r is not None:
                 log('     RSS/degrees_of_freedom %.2f -> %.2f (%+.2f)'
                     % (rss_before, rss_r, rss_r - rss_before))

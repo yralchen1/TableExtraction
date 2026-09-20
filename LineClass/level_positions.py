@@ -605,6 +605,89 @@ one at a time and re-scan.  059003.000604 is the demonstration - with
 after 000371 moves does the alternate at 136728.75 become the best position in
 the whole window.
 
+6a.  The refit correction: E_fit, dR_own, dR_rest, ln_R_fit
+-----------------------------------------------------------
+ln R is built from Ritz wavenumbers nu = sign*(E - E_M), and every partner
+energy E_M in it was fitted to the lines that partner already has.  For a level
+of the run that includes its own lines; for a position nobody has found it
+cannot.  The two are not judged alike: a candidate whose lines would pull their
+partners into agreement is charged for a disagreement the level optimization
+would remove, and the softer the partner the heavier the unearned charge.  A
+position resting on three high-precision lines can then be called a poor match
+because two of them sit two sigma from Ritz values that would not survive the
+level's own acceptance.
+
+The correction, run for each candidate the scan reports, removes that
+asymmetry.  The lines the position would really claim - the real matches of
+match_kinds(), the assignments a classification run would make there - are
+added to the accepted set as ordinary observation equations E(upper) -
+E(lower) = wn_obs weighted BF^2/u^2, and every level energy is re-solved with
+lopt_lines.refit_energies(), the pipeline's own least squares and the same
+model classify_lines.optimize_levels() applies between classification passes.
+Fed the run's own accepted set it returns the run's own energies to better than
+1e-6 cm^-1, so the correction is not measured with a different instrument from
+the thing it corrects.  LOPT is not run and could not be: this is done once per
+candidate position, in about a second.
+
+WHAT IS SCORED IS THE WHOLE LIST.  A partner that moves to meet the new level
+moves away from the lines it already has, and its own neighbours move after it.
+dR_own is what the candidate gains once its partners have moved; dR_rest is
+what every level the fit moves gains or loses on its OWN lines; only
+dR_own + dR_rest compares one hypothesis with another.  Scoring the candidate
+alone would credit it with a gain borrowed from its partners' lines, and so
+reward a position in proportion to how much it distorts the fit - the worst
+possible thing to reward.  The two are not a fine distinction: at IDEN2 row 446
+the position 134004.084 cm^-1 gains dR_own = +2.36 while the rest of the list
+pays dR_rest = -2.03.  Its rival at 133945.384 gains +0.02 and pays -0.07, so
+the correction moves the two apart by 2.3 nats and the total by 0.4, and the
+gap between them closes from 4.73 to 4.35 - the direction the softness of the
+partners predicts, a tenth of the size it looks with the partners left out.
+
+ln_R_fit = ln_R_J + dR_own + dR_rest is written beside ln_R_J and THE TABLE IS
+STILL RANKED ON ln_R_J, with a line under it when the correction would reorder
+the candidates.  The correction is a second-order repair of one known
+asymmetry, not a better likelihood: it takes the claimed lines as certain where
+ln R does not, and it charges nothing for the freedom the moved energies are.
+It says which way, and by how much, a position would move the argument - not
+where the argument ends.  --no-refit turns it off.
+
+6b.  Combinations: several rows searched at once
+------------------------------------------------
+--unknown 446 447 scans each row against a list in which the OTHER row has not
+been placed either, because neither has been.  Both can therefore be sent to
+the same position and both be credited with the same lines, and when two rows
+of the same configuration compete for the same two positions - which is the
+usual reason for searching them together - that is exactly the question the
+separate tables cannot answer.
+
+The combination section answers it.  A combination is one candidate position
+for each row, or none for a row left unplaced, with no two rows at the same
+position (closer than COMBO_SAME = ALT_SEP).  It is scored by entering the rows
+one at a time, the strongest first: a row is scored where the combination puts
+it, the lines it really claims are then entered as claimed light on the
+features they fall on, and the next row is scored against a list that already
+holds them.  A line the first row has taken is then read the way any blended
+component is read - it has to improve the account of the feature's brightness
+to be worth anything - and a line neither row wants is untouched.
+
+THE ORDER THE ROWS ARE ENTERED IN BARELY MATTERS, which is a property of the
+model and not an assumption.  On a shared feature the intensity term of the
+first row is ln p(x | C + I_1) - ln p(x | C) and of the second
+ln p(x | C + I_1 + I_2) - ln p(x | C + I_1); the two sum to
+ln p(x | C + I_1 + I_2) - ln p(x | C) whichever went first.  Only whether a
+feature is read as free or as blended depends on the order, and strongest
+first gives a contested line to the position with the better case for it.
+
+The columns are the position each row takes and what it is worth THERE IN THIS
+COMBINATION, their sum `total`, the same positions' ln_R_J added up as the
+separate tables report them (`alone`), `shared` = total - alone, and
+`total_fit` = total plus each position's refit correction of section 6a.
+`shared` is the whole of the interaction: it is zero when the rows want no line
+in common - in which case the combination is no more than the separate answers
+side by side - and negative by the cost of sending two levels after the same
+evidence.  --combine N sets how many of each row's candidate positions are
+drawn on (0 turns the section off).
+
 7.  Reading the report
 ----------------------
 WHAT ln R MEANS.  ln R is a log odds, so its sign is the whole of its meaning.
@@ -741,6 +824,7 @@ sorted by ln R regardless, because that is what they are for.
 
 import argparse
 import hashlib
+import itertools
 import math
 import os
 import sys
@@ -3676,6 +3760,240 @@ def release_levels(ctx, ids, args, log=print):
     return int(sel.sum())
 
 
+# ---------------------------------------------------------------------------
+# The refit correction
+# ---------------------------------------------------------------------------
+# ln R weighs a candidate position against Ritz wavenumbers nu = sign*(E - E_M)
+# built from the partner energies E_M THE RUN ADOPTED, and those energies were
+# fitted to the lines the partners already have - without the candidate's.  A
+# level that has been found is therefore scored against Ritz values that its
+# own lines helped to place, and a level that has not been found is scored
+# against Ritz values placed without it.  The two are not judged alike, and the
+# candidate whose lines would pull its partners into agreement is charged for a
+# disagreement that the optimization would remove.
+#
+# The correction runs that optimization.  For one candidate position the lines
+# that position would really claim are added to the accepted set as ordinary
+# observation equations, every level energy is re-solved, and ln R is read
+# again with the partners where the fit put them.  The solver is
+# lopt_lines.refit_energies(), which is the pipeline's own least squares - the
+# same model classify_lines.optimize_levels() applies between classification
+# passes: one equation E(upper) - E(lower) = wn_obs per accepted line, weighted
+# by BF^2/u^2 with BF the branching fraction of the component and u the quoted
+# wavenumber uncertainty, the ground level held at zero.  Fed this run's own
+# accepted set it returns this run's own energies to better than 1e-6 cm^-1, so
+# it is not an approximation of the fit being corrected for: it is that fit.
+#
+# WHAT IS SCORED IS THE WHOLE LIST, NOT THE CANDIDATE.  A partner that moves to
+# meet the new level moves away from the lines it already has, and its own
+# neighbours move after it.  Scoring the candidate alone after an optimization
+# would credit it with a gain borrowed from its partners' lines and so reward a
+# position for distorting the fit - the harder a position is to accommodate,
+# the more it would appear to gain.  dR_own is what the candidate gains,
+# dR_rest what every level the fit moves loses or gains on its own lines, and
+# dR = dR_own + dR_rest is the only one of the three that is a likelihood
+# ratio of one hypothesis against another.  Measured on IDEN2 rows 446 and 447
+# the two are worlds apart: at 134004.084 cm^-1 the candidate gains +2.36
+# while the rest of the list pays -2.03, so of an apparent two and a half nats
+# about three tenths survive, while its rival at 133945.384 gains +0.02 and
+# pays -0.07.
+#
+# The columns are reported BESIDE ln_R and the table is ranked as it was.  The
+# correction is a second-order repair of one known asymmetry, not a better
+# likelihood: it takes the claimed lines as certain when ln R itself does not,
+# and it charges nothing for the extra parameter the moved energies amount to.
+# It says which way, and by how much, the position would move the argument -
+# not where the argument ends.
+REFIT_EPS = 1e-5      # cm^-1: a level that moves less than this has not moved
+REFIT_SPAN = 0.30     # cm^-1 either side of the candidate that the refitted
+REFIT_STEP = 0.002    # position is looked for, and the step of that search
+REFIT_MARK = 0.5      # |dR| worth remarking on in the text under the table
+
+
+def refit_dropped(ctx):
+    """The levels whose accepted rows the refit leaves out."""
+    out = set(str(x) for x in (getattr(ctx, 'released', None) or set()))
+    held = getattr(ctx, 'unknown_level', None)
+    if held is not None and held.get('in_run'):
+        out.add(str(held['level_id']))
+    return out
+
+
+def refit_lines(ctx):
+    """The accepted set as observation equations for lopt_lines.refit_energies.
+
+    The rows of the levels whose claims this run has released are dropped:
+    --drop-all-questionable frees their lines for the search, and a level being
+    scanned on a row it already occupies has its own lines freed by
+    register_unknown().  Their energies would otherwise be held by the very
+    assignments the search is reconsidering, and the candidate would be made to
+    add lines the fit is already holding somewhere else.
+    """
+    acc, out = ctx.acc, refit_dropped(ctx)
+    cols = ['low_id', 'upp_id', 'wn_obs', 'unc_wn_obs', 'BF']
+    df = acc[cols].copy()
+    df['low_id'] = df['low_id'].astype(str)
+    df['upp_id'] = df['upp_id'].astype(str)
+    if out:
+        keep = ~(df['low_id'].isin(out) | df['upp_id'].isin(out))
+        df = df[keep]
+    df['accepted'] = 1
+    return df.reset_index(drop=True)
+
+
+def refit_base(ctx):
+    """The level energies the accepted set alone determines, cached on ctx.
+
+    With nothing released this is the run's own energy list, reproduced from
+    the lines; it is recomputed rather than taken from the run so that the
+    before and the after of the correction are measured with one instrument.
+    """
+    # the search moves from one IDEN2 row to the next, and a row that IS a
+    # level of the run takes its own lines out of the fit, so the cache is
+    # keyed on which levels are left out
+    key = frozenset(refit_dropped(ctx))
+    if getattr(ctx, '_refit_key', None) != key:
+        ctx._refit_base = lopt_lines.refit_energies(
+            refit_lines(ctx), e_input=ctx.e_final, verbose=False)
+        ctx._refit_key = key
+    return ctx._refit_base
+
+
+def claimed_observations(ctx, tab, e, level_id, energies):
+    """The lines a candidate position would claim, as observation equations.
+
+    Only the REAL matches of match_kinds() are taken - the recorded lines that
+    count as evidence for the level - since those are the assignments the
+    position is proposing and the only ones a classification run would make.
+    Each becomes one row of the same shape as an accepted line: the weight
+    BF^2/u^2 is built from the share of the feature's predicted light the
+    transition carries, so that a component of a blend counts for less exactly
+    as an accepted component does, and u is the measured width of the feature
+    where the workbook quotes no uncertainty.
+    """
+    if tab is None or not len(tab):
+        return []
+    _, real, free = match_kinds(tab)
+    rows = []
+    for (_, r), is_real, is_free in zip(tab.iterrows(), real, free):
+        if not is_real:
+            continue
+        p = str(r['partner'])
+        if p not in energies:
+            continue
+        i = int(observed_index(ctx, [float(r['wn_obs'])])[0])
+        u = ctx.unc_o[i]
+        if not np.isfinite(u) or u <= 0:
+            u = ctx.meas_o[i]
+        if not np.isfinite(u) or u <= 0:
+            continue
+        # the light this transition carries of what the feature is claimed to
+        # carry: 1 on a free feature, its share of the total on a blended one
+        claimed = 0.0 if is_free else float(np.nan_to_num(r['C']))
+        share = float(r['I_pred']) / max(float(r['I_pred']) + claimed, 1e-30)
+        up = e > energies.get(p, np.nan)
+        rows.append(dict(low_id=p if up else str(level_id),
+                         upp_id=str(level_id) if up else p,
+                         wn_obs=float(r['wn_obs']), unc_wn_obs=float(u),
+                         BF=share, accepted=1))
+    return rows
+
+
+def _put_energies(ctx, energies, group, shift):
+    """Hold the whole list at ``energies`` and rebuild every prediction on it.
+
+    ``group`` is the candidate's own prediction block, whose partner energies
+    are moved by ``shift`` here because group_predictions() cannot rebuild it:
+    the candidate is not a level of the run and has no row in preds_all.
+    """
+    ctx.e_final = dict(energies)
+    ctx.by_level = group_predictions(ctx)
+    if group is not None:
+        g = dict(group)
+        g['e_m'] = np.array([x + shift.get(str(p), 0.0)
+                             for x, p in zip(group['e_m'], group['partner'])])
+        ctx.by_level[UNKNOWN_ID] = g
+
+
+def _score_all(ctx, ids, energies, group, shift):
+    """ln R of every level of ``ids`` with the list at ``energies``.
+
+    Each level is scored not only at its own new position but against partners
+    at theirs, which is the whole point: a level that did not move at all still
+    loses if the levels it is seen with have moved away from its lines.
+    """
+    _put_energies(ctx, energies, group, shift)
+    return {p: float(ln_ratio(ctx, p, np.array([energies[p]]))[0][0])
+            for p in ids if p in ctx.by_level and p in energies}
+
+
+def refit_correction(ctx, level_id, e, span=REFIT_SPAN, step=REFIT_STEP):
+    """What a level optimization does to ln R of one candidate position.
+
+    Returns ``None`` when the position claims no line, and otherwise a dict:
+
+    E_fit    where ln R peaks once the list has been re-optimized
+    dR_own   the candidate's own gain: the peak of its ln R after the refit
+             against the peak before it, both over the same interval
+    dR_rest  what every level the fit moves gains or loses on ITS OWN lines
+    dR       dR_own + dR_rest, the change in the total evidence
+    n_lines  observation equations the position adds
+    n_moved  levels the fit moves by more than REFIT_EPS
+    dE_max   the largest of those moves, and ``moved_most`` whose it is
+    worst    the four levels that lose most, as (level_id, dE, d ln R)
+    """
+    e_final0, by_level0 = ctx.e_final, ctx.by_level
+    group0 = by_level0.get(UNKNOWN_ID) if str(level_id) == UNKNOWN_ID else None
+    base = refit_base(ctx)
+    try:
+        _, tab = ln_ratio(ctx, level_id, np.array([float(e)]), detail=True)
+        extra = claimed_observations(ctx, tab, float(e), level_id, base)
+        if not extra:
+            return None
+        e_in = dict(base)
+        e_in[str(level_id)] = float(e)
+        df = pd.concat([refit_lines(ctx), pd.DataFrame(extra)],
+                       ignore_index=True)
+        fit = lopt_lines.refit_energies(df, e_input=e_in, verbose=False)
+        shift = {p: fit[p] - base[p] for p in fit
+                 if p in base and abs(fit[p] - base[p]) > REFIT_EPS}
+        ids = [p for p in base if p in by_level0]
+
+        zero = {p: 0.0 for p in shift}
+        before = _score_all(ctx, ids, base, group0, zero)
+        after_e = dict(base)
+        after_e.update({p: base[p] + d for p, d in shift.items()})
+        after = _score_all(ctx, ids, after_e, group0, shift)
+
+        # The candidate itself, at the peak of its own ln R before and after.
+        # BOTH are taken over a grid of the same span and step: the scan that
+        # proposed this position worked in steps of GRID_STEP and its maximum
+        # is up to half a step off the true one, and that difference must not
+        # be collected as a gain the refit made.
+        e_ls = float(fit.get(str(level_id), e))
+        _put_energies(ctx, base, group0, zero)
+        y0, _ = ln_ratio(ctx, level_id,
+                         float(e) + np.arange(-span, span + 0.5 * step, step))
+        r0 = float(y0.max())
+        _put_energies(ctx, after_e, group0, shift)
+        grid = e_ls + np.arange(-span, span + 0.5 * step, step)
+        y, _ = ln_ratio(ctx, level_id, grid)
+        k = int(np.argmax(y))
+        d_rest = sum(after[p] - before[p] for p in before)
+        worst = sorted(((p, shift.get(p, 0.0), after[p] - before[p])
+                        for p in before),
+                       key=lambda z: z[2])[:4]
+        big = max(shift.items(), key=lambda z: abs(z[1])) if shift \
+            else ('', 0.0)
+        return dict(E_fit=float(grid[k]), E_ls=e_ls,
+                    dR_own=float(y[k]) - r0, dR_rest=d_rest,
+                    dR=float(y[k]) - r0 + d_rest,
+                    ln_R_before=r0, n_lines=len(extra), n_moved=len(shift),
+                    dE_max=big[1], moved_most=big[0], worst=worst)
+    finally:
+        ctx.e_final, ctx.by_level = e_final0, by_level0
+
+
 def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0,
                  k=WINDOW_K):
     """Every position in the calculation's window where the lines want a level.
@@ -3712,7 +4030,7 @@ def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0,
                 float('nan'))
 
 
-def unknown_table(ctx, r):
+def unknown_table(ctx, r, refit=False, info=None):
     """One row per candidate position, best first.
 
     ln_R    what the recorded lines alone say about that energy
@@ -3751,6 +4069,18 @@ def unknown_table(ctx, r):
             taking them from a level already found
     free_gain  what those free lines are worth in ln R
     top_share  the largest single line's share of the positive evidence
+    E_fit   where the level lands, and ln_R_fit what the position is worth,
+            once the level optimization has been run with the lines this
+            position claims: the correction of the section above.  dR_own is
+            what the candidate gains by itself and dR_rest what the levels the
+            fit moves lose on their own lines; ln_R_fit = ln_R_J + dR_own +
+            dR_rest is the change in the TOTAL evidence and the only one of
+            them that compares one hypothesis with another.  It is written
+            against ln_R_J, the column the table is ranked on, so that the two
+            are read side by side.  A candidate whose
+            dR_own is large and whose dR_rest cancels it has not been shown to
+            be right: it has been shown to be expensive.  The table is still
+            ranked on ln_R_J, and these columns are read beside it
     ln_J    the delta J fingerprint: how much better the pattern of matches
             and absences fits a level of a DIFFERENT J than this one.  Zero
             where the lines are spread over the delta J classes as their
@@ -3773,6 +4103,9 @@ def unknown_table(ctx, r):
     folded = fold_j([v for _, v in r['positions']],
                     [sp['ln_J'] for sp in sups])
     for (e, v), sup, v_j in zip(r['positions'], sups, folded):
+        fit = refit_correction(ctx, UNKNOWN_ID, e) if refit else None
+        if info is not None and fit is not None:
+            info[e] = fit
         rows.append(dict(E=e, ln_R=v, ln_R_J=v_j, look=v_j - math.log(n),
                          dE=e - r['E_calc'],
                          z=(e - r['E_calc']) / r['W'] if r['W'] > 0
@@ -3782,15 +4115,19 @@ def unknown_table(ctx, r):
                          n_miss=sup['n_miss_alt'], n_free=sup['n_free'],
                          free_gain=sup['free_gain'],
                          top_share=sup['top_share'], ln_J=sup['ln_J'],
+                         E_fit=fit['E_fit'] if fit else np.nan,
+                         dR_own=fit['dR_own'] if fit else np.nan,
+                         dR_rest=fit['dR_rest'] if fit else np.nan,
+                         ln_R_fit=v_j + fit['dR'] if fit else np.nan,
                          verdict=position_verdict(
                              sup['n_free'], sup['free_gain'],
                              sup['top_share'], v_j - math.log(n))))
-    tab = pd.DataFrame(rows, columns=['E', 'ln_R', 'ln_R_J', 'look', 'dE',
-                                      'z',
-                                      'n_obs', 'n_match', 'n_poor',
-                                      'n_miss',
-                                      'n_free', 'free_gain', 'top_share',
-                                      'ln_J', 'verdict'])
+    cols = ['E', 'ln_R', 'ln_R_J', 'look', 'dE', 'z',
+            'n_obs', 'n_match', 'n_poor', 'n_miss',
+            'n_free', 'free_gain', 'top_share', 'ln_J']
+    if refit:
+        cols += ['E_fit', 'dR_own', 'dR_rest', 'ln_R_fit']
+    tab = pd.DataFrame(rows, columns=cols + ['verdict'])
     if tab.empty:
         return tab
     rank = {'firm': 0, 'weak': 1, 'no support': 2}
@@ -3823,8 +4160,50 @@ def position_verdict(n_free, free_gain, top_share, look):
     return 'weak'
 
 
-def print_unknown(ctx, idx, en, r, n_pred, top=0):
-    """The report for one unfound level."""
+def print_refit(tab, info):
+    """What the level optimization did, under the candidate table."""
+    print(f"\n  E_fit, dR_own, dR_rest, ln_R_fit: the level optimization run "
+          f"with the lines each position claims.  The already known levels "
+          f"are scored against Ritz\n  values their own lines helped to "
+          f"place, a position nobody has found against Ritz values placed "
+          f"without it; running the fit removes that asymmetry.\n  dR_own is "
+          f"what the position gains once its partners have moved to meet it, "
+          f"dR_rest what the levels the fit moves lose on their own lines, "
+          f"and\n  ln_R_fit = ln_R_J + dR_own + dR_rest the change in the total "
+          f"evidence.  A large dR_own with a dR_rest that cancels it is a "
+          f"position the list pays for.")
+    for e in tab['E']:
+        f = info.get(float(e))
+        if f is None:
+            continue
+        print(f"    {e:.3f}: {f['n_lines']} lines added, "
+              + (f"{f['n_moved']} levels move, the largest by "
+                 f"{f['dE_max']:+.4f} cm^-1 ({f['moved_most']})"
+                 if f['n_moved'] else "no level of the run moves at all")
+              + f"; the level itself to {f['E_ls']:.3f}")
+        pay = [w for w in f['worst'] if w[2] < -0.05]
+        if pay:
+            print("      paid by  " + "   ".join(
+                f"{p} {d:+.4f} cm^-1 ({v:+.2f})" for p, d, v in pay))
+    ok = tab[tab['ln_R_fit'].notna()]
+    if len(ok) > 1:
+        was = ok.sort_values('ln_R_J', ascending=False).iloc[0]
+        now = ok.sort_values('ln_R_fit', ascending=False).iloc[0]
+        if abs(float(now['E']) - float(was['E'])) > 1e-9:
+            print(f"  THE CORRECTION REORDERS THE CANDIDATES: on ln_R_fit the "
+                  f"best position is {now['E']:.3f} "
+                  f"({now['ln_R_fit']:+.2f}), not {was['E']:.3f} "
+                  f"({was['ln_R_fit']:+.2f}).")
+
+
+def print_unknown(ctx, idx, en, r, n_pred, top=0, refit=True):
+    """The report for one unfound level.
+
+    Returns the candidate table and the refit dictionary keyed on the
+    candidate energy, so that a search over several rows can put their
+    candidates together afterwards; ``(None, None)`` when the window offers no
+    candidate at all.
+    """
     row = en.loc[idx]
     print(f"\nIDEN2 row {idx}  {row['label']}  J = {row['J']}  "
           f"{'FOUND' if row['known'] else 'not found'}")
@@ -3878,8 +4257,9 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0):
         print(f"  A position just outside the window is not seen: "
               f"--unknown {idx} --at E scores any energy, and "
               f"--window-sigmas widens the search.")
-        return
-    tab = unknown_table(ctx, r)
+        return None, None
+    info = {}
+    tab = unknown_table(ctx, r, refit=refit, info=info)
     counts = tab['verdict'].value_counts()
     shown = tab if not top else tab.head(top)
     print(f"  {len(tab)} positions where ln R > {cut:g}: "
@@ -3887,10 +4267,12 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0):
                       for k in ('firm', 'weak', 'no support'))
           + (f"; the best {len(shown)} shown" if len(shown) < len(tab)
              else ''))
-    with pd.option_context('display.width', 200, 'display.max_columns', 16):
+    with pd.option_context('display.width', 220, 'display.max_columns', 24):
         print()
         print(shown.to_string(index=False, na_rep='-',
                               float_format=lambda x: f'{x:.3f}'))
+    if info:
+        print_refit(shown, info)
     print(f"\n  --unknown {idx} --at E lists the transitions at any one of "
           f"these energies.")
     if not int(counts.get('firm', 0)) and not int(counts.get('weak', 0)):
@@ -3900,6 +4282,228 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0):
     print(f"  A position here is conditional on the rest of the level list, "
           f"exactly as an alternate position is: the lines it takes are "
           f"lines its neighbours could take instead.")
+    return tab, info
+
+
+# ---------------------------------------------------------------------------
+# Combinations: several rows searched at once
+# ---------------------------------------------------------------------------
+# Each row is scanned on its own, and on its own each is scored against a list
+# in which no OTHER row has been placed either.  Two rows of the same search
+# can therefore both be sent to the same position, and both be credited with
+# the same lines - which is the question --unknown 446 447 really asks, since
+# the two rows compete for the two positions 133945.384 and 134004.084 and
+# only one of them can have each.
+#
+# A combination is one position per row, or none for a row left unplaced.  It
+# is scored by entering the rows one after another: the first is scored as the
+# table scores it, its lines are then entered as claimed light on the features
+# they fall on, and the next row is scored against a list that already holds
+# them.  A line the second row wanted and the first has taken is then read the
+# way any blended component is read - it must improve the account of the
+# feature's brightness to be worth anything - and a line neither wanted is
+# untouched.
+#
+# THE ORDER THE ROWS ARE ENTERED IN BARELY MATTERS, and that is a property of
+# the model rather than an assumption.  On a shared feature the intensity term
+# of the row entered first is ln p(x | C + I_1) - ln p(x | C), of the row
+# entered second ln p(x | C + I_1 + I_2) - ln p(x | C + I_1), and the two sum
+# to ln p(x | C + I_1 + I_2) - ln p(x | C) whichever went first.  Only the
+# positional reading of a feature - free or blended - depends on the order,
+# and the rows are entered strongest first so that a line goes to the position
+# with the better claim on it.
+#
+# `shared` is the whole interaction: the combination's total against the sum
+# of the same positions' ln_R_J taken separately.  It is zero when the rows
+# want no line in common, and it is what a combination pays for sending two
+# levels after the same evidence.
+COMBO_TOP = 4        # candidate positions per row a combination may draw on
+COMBO_SAME = ALT_SEP  # two rows this close are asking for the same position
+
+
+def slot_state(ctx):
+    """Everything register_unknown() puts in ctx for the row being searched."""
+    return dict(block=ctx.by_level.get(UNKNOWN_ID),
+                own=ctx.own_claim.get(UNKNOWN_ID),
+                j=ctx.j_of.get(UNKNOWN_ID),
+                held=getattr(ctx, 'unknown_level', None))
+
+
+def install_slot(ctx, st):
+    """Make the row that ``st`` was captured from the row ctx is scoring."""
+    if st.get('block') is None:
+        ctx.by_level.pop(UNKNOWN_ID, None)
+    else:
+        ctx.by_level[UNKNOWN_ID] = st['block']
+    if st.get('own') is None:
+        ctx.own_claim.pop(UNKNOWN_ID, None)
+    else:
+        ctx.own_claim[UNKNOWN_ID] = st['own']
+    if st.get('j') is None:
+        ctx.j_of.pop(UNKNOWN_ID, None)
+    else:
+        ctx.j_of[UNKNOWN_ID] = st['j']
+    ctx.unknown_level = st.get('held')
+
+
+def add_claims(ctx, tab):
+    """Enter the lines a candidate position claims as light already claimed.
+
+    Only the REAL matches of match_kinds(), the same lines the refit adds as
+    observation equations: the assignments the position is proposing.  The
+    next row scored then sees those features as claimed - C > 0 in ln_ratio -
+    and has to earn its share of them as a blend component.
+    """
+    if tab is None or not len(tab):
+        return 0
+    _, real, _ = match_kinds(tab)
+    n = 0
+    for (_, row), is_real in zip(tab.iterrows(), real):
+        if not is_real:
+            continue
+        i = int(observed_index(ctx, [float(row['wn_obs'])])[0])
+        ctx.claimed_tot[i] += float(row['I_pred'])
+        ctx.n_acc_line[i] += 1
+        n += 1
+    return n
+
+
+def score_one(ctx, st, e, j0):
+    """ln_R_J of one row at one energy, with ctx as it stands.
+
+    ``j0`` is the row's own fingerprint zero - the smallest ln_J among its
+    candidates - so that the number is on the same scale as the ln_R_J of that
+    row's table, where fold_j() subtracted the same zero.  Returns the score
+    and the detail table, whose claims the caller enters before scoring the
+    next row.
+    """
+    install_slot(ctx, st)
+    v, tab = ln_ratio(ctx, UNKNOWN_ID, np.array([float(e)]), detail=True)
+    if tab is None:
+        return float(v[0]), None
+    seen, real, _ = match_kinds(tab)
+    j = ln_j_pattern(tab, ctx.j_of.get(UNKNOWN_ID, float('nan')), ctx.j_of,
+                     seen, real)
+    return float(v[0]) - (j['ln_J'] - j0), tab
+
+
+def combo_score(ctx, slots, choice):
+    """Score one combination; ``choice[k]`` is a position of slot k, or None.
+
+    Returns ``{k: ln_R_J of that row in this combination}``.  ctx is left
+    exactly as it was found: the claimed-light arrays are copied before the
+    rows are entered and put back afterwards.
+    """
+    tot0, n0 = ctx.claimed_tot.copy(), ctx.n_acc_line.copy()
+    st0 = slot_state(ctx)
+    parts = {}
+    try:
+        # strongest first, so that a feature both rows want is read as the
+        # free line of the position that has the better case for it
+        order = sorted((k for k in range(len(slots)) if choice[k] is not None),
+                       key=lambda k: -slots[k]['alone'].get(choice[k], 0.0))
+        for k in order:
+            parts[k], tab = score_one(ctx, slots[k]['state'], choice[k],
+                                      slots[k]['j0'])
+            add_claims(ctx, tab)
+    finally:
+        ctx.claimed_tot, ctx.n_acc_line = tot0, n0
+        install_slot(ctx, st0)
+    return parts
+
+
+def combination_table(ctx, slots, top=COMBO_TOP):
+    """Every way of giving each row one of its candidate positions, or none.
+
+    Columns: the position each row takes and what it is worth there in THIS
+    combination; `total` their sum; `alone` the same positions' ln_R_J added
+    up as the separate tables report them; `shared` = total - alone, what the
+    rows cost each other; and, where the refit correction was run for every
+    position of the combination, `total_fit` = total + the dR of each.
+    """
+    opts = [[None] + [float(e) for e in s['tab']['E'].head(top)]
+            for s in slots]
+    rows = []
+    for choice in itertools.product(*opts):
+        picked = [e for e in choice if e is not None]
+        if any(abs(a - b) < COMBO_SAME
+               for i, a in enumerate(picked) for b in picked[i + 1:]):
+            continue
+        parts = combo_score(ctx, slots, choice)
+        row, alone, d_fit = {}, 0.0, 0.0
+        # the refit correction is added only where every placed row of the
+        # combination has one; where the search was run with --no-refit, or a
+        # position claims no line, the column is left empty
+        have_fit = bool(picked)
+        for k, s in enumerate(slots):
+            e = choice[k]
+            row[f"E_{s['idx']}"] = e if e is not None else np.nan
+            row[f"R_{s['idx']}"] = parts[k] if e is not None else np.nan
+            if e is None:
+                continue
+            alone += s['alone'].get(e, np.nan)
+            f = s['fit'].get(e)
+            if f is None:
+                have_fit = False
+            else:
+                d_fit += float(f['dR'])
+        total = sum(parts.values())
+        row.update(total=total, alone=alone, shared=total - alone,
+                   total_fit=total + d_fit if have_fit else np.nan)
+        rows.append(row)
+    tab = pd.DataFrame(rows)
+    if tab.empty:
+        return tab
+    if not tab['total_fit'].notna().any():
+        tab = tab.drop(columns='total_fit')
+    key = 'total_fit' if 'total_fit' in tab.columns else 'total'
+    return tab.sort_values(key, ascending=False).reset_index(drop=True)
+
+
+def print_combinations(ctx, slots, top=COMBO_TOP, show=8):
+    """The combination section, printed after the rows have been reported."""
+    names = ', '.join(str(s['idx']) for s in slots)
+    print(f"\n{'=' * 70}\nCOMBINATIONS OF ROWS {names}")
+    print(f"  Each row above was scored against a list in which no other row "
+          f"of this search has been placed, so two rows can both be sent to "
+          f"the same\n  position and both be credited with the same lines.  "
+          f"Here each row is entered in turn, strongest first, and the lines "
+          f"it takes are entered\n  with it as claimed light, so the next row "
+          f"meets them as it would meet the lines of any level already "
+          f"found.  A row may also be left unplaced\n  (its position shown as "
+          f"-), which is what the combination has to beat.  Positions closer "
+          f"than {COMBO_SAME:g} cm^-1 to each other are the same position "
+          f"and\n  are not combined.")
+    tab = combination_table(ctx, slots, top=top)
+    if tab.empty:
+        print("  no combination to score")
+        return tab
+    print(f"\n  E_<row> where the row is put, R_<row> what it is worth there "
+          f"in this combination, total their sum, alone the same positions "
+          f"scored\n  separately, shared = total - alone what the rows cost "
+          f"each other"
+          + (", total_fit the same with each position's refit correction "
+             "added" if 'total_fit' in tab.columns else '') + ".")
+    with pd.option_context('display.width', 220, 'display.max_columns', 24):
+        print()
+        print(tab.head(show).to_string(index=False, na_rep='-',
+                                       float_format=lambda x: f'{x:.3f}'))
+    best = tab.iloc[0]
+    told = []
+    for s in slots:
+        e = float(best['E_%d' % s['idx']])
+        told.append(f"{s['idx']} at {e:.3f}" if np.isfinite(e)
+                    else f"{s['idx']} unplaced")
+    where = '; '.join(told)
+    key = 'total_fit' if ('total_fit' in tab.columns
+                          and np.isfinite(best['total_fit'])) else 'total'
+    print(f"\n  Best combination: {where}  ({key} = {best[key]:+.2f}).")
+    if abs(float(best['shared'])) > 0.005:
+        print(f"  The rows of this combination cost each other "
+              f"{best['shared']:+.2f}; where that is near zero they are not "
+              f"competing for lines at all, and the combination is no more "
+              f"than the separate answers put side by side.")
+    return tab
 
 
 def parse_args(argv):
@@ -3953,6 +4557,26 @@ def parse_args(argv):
     p.add_argument('--top', type=int, default=0, metavar='N',
                    help='--unknown lists only the best N positions '
                         '(default: all of them)')
+    p.add_argument('--combine', type=int, default=COMBO_TOP, metavar='N',
+                   help='when several rows are searched at once, score every '
+                        'way of giving each of them one of its best N '
+                        'candidate positions, or none, with no two rows at '
+                        'the same position.  Each row of a combination is '
+                        'entered in turn and the lines it takes are claimed '
+                        'before the next is scored, so two rows can no '
+                        'longer both be credited with the same line '
+                        '(default %(default)s; 0 turns the section off)')
+    p.add_argument('--no-refit', dest='refit', action='store_false',
+                   help='do not re-optimize the level energies at each '
+                        'candidate position of an --unknown search.  The '
+                        'correction is on by default: without it a position '
+                        'nobody has found is judged against Ritz wavenumbers '
+                        'fitted without its lines, while every level already '
+                        'in the run is judged against Ritz wavenumbers its '
+                        'own lines helped to place, and a candidate whose '
+                        'partners would move to meet it is charged for a '
+                        'disagreement the fit would remove.  It costs about '
+                        'a second per candidate')
     p.add_argument('--scan', action='store_true',
                    help='scan the alternate-position window of every level')
     p.add_argument('--audit', action='store_true',
@@ -4046,6 +4670,7 @@ def main(argv=None):
         if args.drop_questionable:
             release_levels(ctx, questionable_levels(args.out), args)
         en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+        slots = []
         for idx in args.unknown:
             if idx not in en.index:
                 print(f"\nIDEN2 row {idx} is not in enlev.dat")
@@ -4063,7 +4688,19 @@ def main(argv=None):
                 continue
             r = scan_unknown(ctx, idx, en, per_cfg, whole, step=args.step,
                              min_ln_r=args.min_ln_r, k=args.window_sigmas)
-            print_unknown(ctx, idx, en, r, n_pred, top=args.top)
+            tab, info = print_unknown(ctx, idx, en, r, n_pred, top=args.top,
+                                      refit=args.refit)
+            if tab is not None and len(tab):
+                # the fingerprint zero of this row's own candidates, the one
+                # fold_j subtracted to make the ln_R_J of its table
+                j0 = float(tab['ln_J'].min())
+                slots.append(dict(
+                    idx=idx, tab=tab, j0=j0, state=slot_state(ctx),
+                    fit=dict(info or {}),
+                    alone=dict(zip((float(x) for x in tab['E']),
+                                   (float(x) for x in tab['ln_R_J'])))))
+        if args.combine and len(slots) > 1:
+            print_combinations(ctx, slots, top=args.combine)
         return 0
 
     ids = args.levels if args.levels else list(ctx.per['level_id'])

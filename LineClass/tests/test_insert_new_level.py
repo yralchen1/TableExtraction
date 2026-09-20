@@ -1064,3 +1064,145 @@ def test_a_failed_run_keeps_its_sync_report_and_classification(tmp_path,
         == b'PK\x03\x04 workbook'
     assert any('sync_report.failed.txt' in s for s in said)
     assert any('line_classifications.failed.xlsx' in s for s in said)
+
+
+# ---------------------------------------------------------------------------
+# Runs that have been made already
+# ---------------------------------------------------------------------------
+# Two of them: LOPT asked to fit files it has already fitted, and the whole
+# tool started a second time on a level that is already in.  Both cost minutes
+# and change nothing, and both are recognised before anything is spent.
+def _lopt_dir(tmp_path):
+    """A directory carrying the five files LOPT reads and writes, with
+    INL pointing at them."""
+    names = ('LOPT.par', 'LOPT_input_lines.txt', 'LOPT_fixlev.txt',
+             'LOPT_output_levels.txt', 'LOPT_output_lines.txt')
+    paths = []
+    for name in names:
+        p = tmp_path / name
+        p.write_text(name + '\n')
+        paths.append(str(p))
+    return paths
+
+
+@pytest.fixture
+def lopt_files(tmp_path, monkeypatch):
+    paths = _lopt_dir(tmp_path)
+    monkeypatch.setattr(INL, 'LOPT_FILES', paths)
+    monkeypatch.setattr(INL, 'LOPT_SNAPSHOT', str(tmp_path / 'snap.json'))
+    return paths
+
+
+def _counting_lopt(monkeypatch, rss=1.16, dof=5261):
+    """Stand in for the run itself, counting the times it is asked for."""
+    calls = []
+
+    def fake(log):
+        calls.append(1)
+        return rss, dof
+
+    monkeypatch.setattr(INL, 'run_lopt', fake)
+    return calls
+
+
+def test_the_first_call_runs_lopt_and_records_what_it_found(lopt_files,
+                                                            monkeypatch):
+    calls = _counting_lopt(monkeypatch)
+    said = []
+    assert INL.call_LOPT(said.append) == (1.16, 5261)
+    assert len(calls) == 1
+    snap = INL.read_snapshot()
+    assert snap['rss'] == 1.16 and snap['dof'] == 5261
+    assert set(snap['files']) == {os.path.basename(p) for p in lopt_files}
+
+
+def test_a_second_call_on_untouched_files_does_not_run_lopt(lopt_files,
+                                                            monkeypatch):
+    calls = _counting_lopt(monkeypatch)
+    INL.call_LOPT(lambda s: None)
+    said = []
+    assert INL.call_LOPT(said.append) == (1.16, 5261)
+    assert len(calls) == 1               # the second call did not run it
+    assert any('LOPT was not run' in s for s in said)
+
+
+def test_a_changed_input_makes_lopt_run_again(lopt_files, monkeypatch):
+    calls = _counting_lopt(monkeypatch)
+    INL.call_LOPT(lambda s: None)
+    with io.open(lopt_files[1], 'a') as fh:      # LOPT_input_lines.txt
+        fh.write('one more line\n')
+    said = []
+    INL.call_LOPT(said.append)
+    assert len(calls) == 2
+    assert any('LOPT_input_lines.txt has changed' in s for s in said)
+
+
+def test_a_changed_output_makes_lopt_run_again(lopt_files, monkeypatch):
+    # The outputs matter as much as the inputs: if something has written over
+    # what LOPT left, what is on disk is no longer this fit's answer.
+    calls = _counting_lopt(monkeypatch)
+    INL.call_LOPT(lambda s: None)
+    with io.open(lopt_files[4], 'a') as fh:      # LOPT_output_lines.txt
+        fh.write('edited\n')
+    INL.call_LOPT(lambda s: None)
+    assert len(calls) == 2
+
+
+def test_force_runs_lopt_whatever_the_snapshot_says(lopt_files, monkeypatch):
+    calls = _counting_lopt(monkeypatch)
+    INL.call_LOPT(lambda s: None)
+    INL.call_LOPT(lambda s: None, force=True)
+    assert len(calls) == 2
+
+
+def test_an_unreadable_snapshot_costs_a_run_and_nothing_else(lopt_files,
+                                                             monkeypatch):
+    calls = _counting_lopt(monkeypatch)
+    INL.call_LOPT(lambda s: None)
+    with io.open(INL.LOPT_SNAPSHOT, 'w') as fh:
+        fh.write('{not json at all')
+    INL.call_LOPT(lambda s: None)
+    assert len(calls) == 2
+
+
+LEVEL = '059003.000900'
+
+
+def _component(wn, partner, flag='', weight=1.0):
+    return {'wn': wn, 'unc': 0.005, 'intens': 1.0, 'low_id': partner,
+            'upp_id': LEVEL, 'flag': flag, 'weight': weight, 'raw': ''}
+
+
+def _accepted(wn, partner):
+    c = _candidate(wn, wn, 1.0, 1.0)
+    c.low_id, c.upp_id = partner, LEVEL
+    return c
+
+
+def test_the_lines_a_level_holds_leave_out_predictions_and_dead_weights():
+    rows = [_component(20000.0, 'A'),
+            _component(20001.0, 'B', flag='P'),
+            _component(20002.0, 'C', weight=0.0),
+            _component(20003.0, 'D')]
+    rows.append({'wn': 20004.0, 'unc': 0.005, 'intens': 1.0, 'low_id': 'E',
+                 'upp_id': 'F', 'flag': '', 'weight': 1.0, 'raw': ''})
+    assert INL.level_components(rows, LEVEL) \
+        == {(20000.0, 'A', LEVEL), (20003.0, 'D', LEVEL)}
+
+
+def test_the_same_lines_already_in_the_fit_mean_there_is_nothing_to_do():
+    rows = [_component(20000.0, 'A'), _component(20003.0, 'D')]
+    accepted = [_accepted(20000.0, 'A'), _accepted(20003.0, 'D')]
+    assert INL.nothing_to_do(LEVEL, accepted, rows)
+
+
+def test_one_line_more_or_one_less_is_not_a_repetition():
+    rows = [_component(20000.0, 'A'), _component(20003.0, 'D')]
+    assert not INL.nothing_to_do(LEVEL, [_accepted(20000.0, 'A')], rows)
+    assert not INL.nothing_to_do(
+        LEVEL, [_accepted(20000.0, 'A'), _accepted(20003.0, 'D'),
+                _accepted(20005.0, 'E')], rows)
+
+
+def test_a_level_with_no_line_in_the_fit_has_not_been_inserted():
+    assert not INL.nothing_to_do(LEVEL, [], [])
