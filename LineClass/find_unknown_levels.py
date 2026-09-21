@@ -176,6 +176,18 @@ def block_of(text, idx):
     return text[at + 1:]
 
 
+def failure_line(text):
+    """The last line a failed search printed - the exception, usually.
+
+    A search that dies takes its traceback with it into the transcript, and
+    until the walk is over the analyst sees only the word ``error``.  The last
+    non-empty line is the exception type and message, which is the one line
+    worth putting on the console beside the verdict.
+    """
+    lines = [s.rstrip() for s in text.splitlines() if s.strip()]
+    return lines[-1] if lines else '(the search printed nothing)'
+
+
 def parse_counts(block):
     """(n_firm, n_weak, n_no_support) from the counts line, or None.
 
@@ -375,6 +387,13 @@ def parse_args(argv):
                    metavar='IDEN2_ROW',
                    help='search these rows only, in this order, whatever '
                         'their n_prom')
+    p.add_argument('--merge', action='store_true',
+                   help='write the levels searched now into the table already '
+                        'at --out instead of replacing it, and append to the '
+                        'log instead of starting it again.  This is how a '
+                        'handful of levels are searched again - the ones '
+                        'whose search failed, say - without losing the rest '
+                        'of the walk')
     p.add_argument('--limit', type=int, default=None, metavar='N',
                    help='stop after N levels, whatever their n_prom')
     p.add_argument('--dup-tol', '--dup_tol', dest='dup_tol', type=float,
@@ -450,6 +469,22 @@ def collect(lev, code, block, all_columns):
     return row
 
 
+def merge_into(old, new, columns):
+    """`new` written over `old` row by row, matched on the IDEN2 row.
+
+    A re-run of a few levels - the ones whose search failed, usually - is a
+    correction to a table already on disk, not a table of its own.  A level
+    searched again replaces its earlier row in place, keeping the order of the
+    old table; a level not in the old table is added at the end.  The Note
+    column of the merged table is whatever `add_notes` makes of it afterwards,
+    since a re-run row can change the notes of rows nobody re-ran.
+    """
+    fresh = {int(r['idx']): r for _, r in new.iterrows()}
+    rows = [fresh.pop(int(r['idx']), r) for _, r in old.iterrows()]
+    rows.extend(fresh.values())
+    return pd.DataFrame(rows, columns=columns).reset_index(drop=True)
+
+
 def write(tab, path):
     """The table to disk, with counts written as counts and LF endings."""
     # A count written as 2.0 reads as a measurement, and Int64 is the dtype
@@ -471,7 +506,9 @@ def write(tab, path):
 
 def main(argv=None):
     args = parse_args(argv)
-    output_files.require_writable([args.out], 'output file')
+    output_files.require_writable(
+        [args.out] + ([] if args.notes_only or args.log == '-' else [args.log]),
+        'output file')
 
     if args.notes_only:
         tab = pd.read_csv(args.out)
@@ -496,42 +533,69 @@ def main(argv=None):
     columns = (KEEP + CORE + (EXTRA if args.all_columns else [])
                + ['cowan_lid'] + FLAGS + ['Note'])
     out_rows = []
-    transcript = []
     t0 = time.time()
 
-    for n, (_, lev) in enumerate(todo.iterrows(), 1):
-        idx = int(lev['idx'])
-        code, text = run_search(idx, args.pass_through)
-        block = block_of(text, idx)
-        transcript.append('=' * 78)
-        transcript.append('IDEN2 row %d   exit %d' % (idx, code))
-        transcript.append('=' * 78)
-        transcript.append(block or text)
+    # The transcript is written level by level, not accumulated and saved at
+    # the end: a walk of several hundred levels takes hours, and a search that
+    # dies has to be readable while the walk is still going, not only after it.
+    log_fh = (None if args.log == '-'
+              else open(args.log, 'a' if args.merge else 'w', newline=''))
+    try:
+        for n, (_, lev) in enumerate(todo.iterrows(), 1):
+            idx = int(lev['idx'])
+            code, text = run_search(idx, args.pass_through)
+            block = block_of(text, idx)
+            if log_fh is not None:
+                log_fh.write('%s\nIDEN2 row %d   exit %d\n%s\n%s\n'
+                             % ('=' * 78, idx, code, '=' * 78, block or text))
+                log_fh.flush()
 
-        row = collect(lev, code, block, args.all_columns)
-        row['cowan_lid'] = lid_of_row.get(idx)
-        out_rows.append(row)
-        print('%4d/%d  row %-5d n_prom %2d  %-12s n_found %-3s%s'
-              % (n, len(todo), idx, int(lev['n_prom']), row['verdict'] or '-',
-                 '-' if row['n_found'] is None else int(row['n_found']),
-                 '  E = %.3f' % row['E_found']
-                 if row['E_found'] is not None else ''))
+            row = collect(lev, code, block, args.all_columns)
+            row['cowan_lid'] = lid_of_row.get(idx)
+            out_rows.append(row)
+            print('%4d/%d  row %-5d n_prom %2d  %-12s n_found %-3s%s'
+                  % (n, len(todo), idx, int(lev['n_prom']),
+                     row['verdict'] or '-',
+                     '-' if row['n_found'] is None else int(row['n_found']),
+                     '  E = %.3f' % row['E_found']
+                     if row['E_found'] is not None else ''))
+            if row['verdict'] == 'error':
+                # The verdict alone says only that the search exited non-zero.
+                # Name the exception here, where it can still be acted on.
+                print('        %s' % failure_line(text))
+    finally:
+        if log_fh is not None:
+            log_fh.close()
 
     tab = pd.DataFrame(out_rows, columns=columns)
+    searched = len(tab)
+    if args.merge and os.path.exists(args.out):
+        old = pd.read_csv(args.out)
+        tab = merge_into(old, tab, columns)
+        print('')
+        print('%d searched now, merged into the %d rows already in %s'
+              % (searched, len(old), shortest(args.out)))
     print('')
     add_notes(tab, args.dup_tol, cowan_gA.read_id_map(ID_MAP))
     write(tab, args.out)
-    if args.log != '-':
-        with open(args.log, 'w', newline='') as fh:
-            fh.write('\n'.join(transcript) + '\n')
 
     firm = tab['verdict'] == 'firm'
     print('')
-    print('%d searched in %.0f s: %d firm, %d of them the only position with '
+    print('%d searched in %.0f s' % (searched, time.time() - t0))
+    print('%d levels in the table: %d firm, %d of them the only position with '
           'any support, %d with nothing in the window'
-          % (len(tab), time.time() - t0, int(firm.sum()),
+          % (len(tab), int(firm.sum()),
              int((firm & tab['unique_found']).sum()),
              int(tab['not_found'].sum())))
+    bad = tab.index[tab['verdict'] == 'error']
+    if len(bad):
+        # An error is a search that failed, not a level that was searched and
+        # found wanting; it has to be run again, so name the rows and the way
+        # to run them without losing the rest of the table.
+        print('%d search%s failed - run again with'
+              % (len(bad), '' if len(bad) == 1 else 'es'))
+        print('    python find_unknown_levels.py --merge --idx %s'
+              % ' '.join(str(int(tab.loc[i, 'idx'])) for i in bad))
     print('wrote %s' % shortest(args.out))
     if args.log != '-':
         print('every search in full is in %s' % shortest(args.log))

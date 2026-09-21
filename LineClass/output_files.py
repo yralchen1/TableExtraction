@@ -28,10 +28,59 @@ There remains a gap of the length of the run between the check and the write:
 nothing stops the analyst from opening the file in Excel while the run is
 going.  The check turns the common case - the file was already open when the
 run started - into an immediate, explanatory stop, which is what it is for.
+
+READING is affected by the same lock.  A program that opens a file with the
+sharing mode Excel and several editors use denies everyone else even read
+access while it holds it, and the hold can last a fraction of a second - long
+enough to kill one subprocess of a walk over hundreds of levels and no longer.
+:func:`read_retry` is for that: it repeats a read that failed with
+PermissionError a few times, a moment apart, and only then gives up.  It is
+the read-side companion of `require_writable`, and it is used for the files
+that every run reads and some runs write - IDEN2/enlev.dat,
+IDEN2/IDEN_level_ids.txt, the Cowan transition list and its cache.
 """
 import os
+import time
 
-__all__ = ['why_unwritable', 'unwritable', 'require_writable', 'with_twin']
+__all__ = ['why_unwritable', 'unwritable', 'require_writable', 'with_twin',
+           'read_retry']
+
+
+def read_retry(read, path, tries: int = 5, pause: float = 0.4, log=None):
+    """`read(path)`, repeated while the file is momentarily locked.
+
+    `read` is any callable taking the path - `pd.read_csv`, `open`, a lambda
+    that wraps either.  A PermissionError is taken to mean that some other
+    program holds the file open right now, and the read is tried again after
+    `pause` seconds, then after twice that, and so on, up to `tries` attempts
+    in all - about 6 seconds by default.  Any other exception is raised at
+    once: a missing file, a bad format or a genuine read-only file is not
+    something waiting can cure.
+
+    When the last attempt fails the original PermissionError is raised with
+    the file named and the waiting stated, so that the traceback says what
+    happened rather than only `[Errno 13] Permission denied`.  `log` is an
+    optional printer for the note written when a read has to be repeated;
+    the default prints nothing, because most retries succeed on the second
+    attempt and are of no interest.
+    """
+    say = log or (lambda *_: None)
+    wait = pause
+    for attempt in range(1, tries + 1):
+        try:
+            return read(path)
+        except PermissionError as exc:
+            if attempt == tries:
+                raise PermissionError(
+                    '%s is held open by another program (Excel locks the file '
+                    'it has open); %d attempts over %.1f s all failed'
+                    % (os.path.basename(path), tries,
+                       pause * (2 ** (tries - 1) - 1))) from exc
+            say('  %s is locked (open in Excel?) - waiting %.1f s and trying '
+                'again (%d of %d)'
+                % (os.path.basename(path), wait, attempt, tries - 1))
+            time.sleep(wait)
+            wait *= 2
 
 
 def _excel_owner_file(path: str) -> str:

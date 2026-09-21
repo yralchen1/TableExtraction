@@ -116,3 +116,59 @@ def test_the_message_names_every_file_that_is_held(tmp_path):
     message = str(exc.value)
     assert 'a.csv' in message and 'b.xlsx' in message
     assert 'run again' in message
+
+
+# ---------------------------------------------------------------------------
+# read_retry: a read of a file another program holds open for a moment
+# ---------------------------------------------------------------------------
+
+def test_read_retry_returns_the_value_on_the_first_attempt():
+    calls = []
+    got = output_files.read_retry(lambda p: calls.append(p) or 'ok', 'f.txt')
+    assert got == 'ok' and calls == ['f.txt']
+
+
+def test_read_retry_waits_out_a_lock_that_lets_go(monkeypatch):
+    """Two refusals then success: the value comes back and nothing is raised."""
+    monkeypatch.setattr(output_files.time, 'sleep', lambda _s: None)
+    state = {'n': 0}
+
+    def read(path):
+        state['n'] += 1
+        if state['n'] < 3:
+            raise PermissionError(13, 'Permission denied')
+        return 'contents'
+
+    notes = []
+    assert output_files.read_retry(read, 'IDEN_level_ids.txt',
+                                   log=notes.append) == 'contents'
+    assert state['n'] == 3
+    # One note per repeat, each naming the file.
+    assert len(notes) == 2
+    assert all('IDEN_level_ids.txt' in note for note in notes)
+
+
+def test_read_retry_gives_up_and_names_the_file(monkeypatch):
+    monkeypatch.setattr(output_files.time, 'sleep', lambda _s: None)
+
+    def read(_path):
+        raise PermissionError(13, 'Permission denied')
+
+    with pytest.raises(PermissionError) as exc:
+        output_files.read_retry(read, os.path.join('IDEN2', 'enlev.dat'),
+                                tries=3)
+    message = str(exc.value)
+    assert 'enlev.dat' in message and '3 attempts' in message
+
+
+def test_read_retry_does_not_wait_for_an_error_waiting_cannot_cure(monkeypatch):
+    """A missing file or a bad format is raised at once, not retried."""
+    slept = []
+    monkeypatch.setattr(output_files.time, 'sleep', slept.append)
+
+    def read(_path):
+        raise FileNotFoundError('no such file')
+
+    with pytest.raises(FileNotFoundError):
+        output_files.read_retry(read, 'gone.csv')
+    assert slept == []

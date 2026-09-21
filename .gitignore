@@ -109,3 +109,5 @@ LineClass/sync_report.txt
 LineClass/insert_new_level_backup/
 LineClass/insert_new_level.log
 LineClass/LOPT_snapshot.json
+LineClass/discard_level_backup/
+LineClass/discard_level.log

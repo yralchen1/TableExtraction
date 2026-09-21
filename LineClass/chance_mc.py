@@ -197,6 +197,19 @@ def read_input_levels() -> pd.DataFrame:
                          str(rec['J']).strip(), str(rec['parity']).strip()))
     df = pd.DataFrame(recs, columns=['level_id', 'E_input', 'is_new_level',
                                      'note', 'J', 'parity'])
+    # Levels whose measured position the work has given up (files.discarded_
+    # levels) come out again, exactly as classify_lines.py takes them out of
+    # its own list.  A level nobody claims must not go on contributing to the
+    # evidence that the claims are sound: decoy_mc.py would plant decoys
+    # around a position that has been withdrawn, and level_shifts.py would
+    # measure a dE from it.
+    if getattr(cl, 'DISCARDED_LEVELS', '') \
+            and os.path.exists(cl.DISCARDED_LEVELS):
+        gone = {cl.to_str_id(r.get('level_id'))
+                for r in cl.read_discarded_records(cl.DISCARDED_LEVELS)}
+        gone.discard('')
+        if gone:
+            df = df[~df['level_id'].isin(gone)].reset_index(drop=True)
     if cl.LEVEL_OVERRIDES:
         emap = cl.read_energy_overrides(cl.LEVEL_OVERRIDES)
         unknown = sorted(set(emap) - set(df['level_id']))

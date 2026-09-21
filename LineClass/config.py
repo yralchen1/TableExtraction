@@ -53,13 +53,14 @@ _ENUMS = {
 # into load() below.
 _OPTIONAL = {'files.level_overrides', 'files.line_decisions',
              'files.new_levels', 'files.icalc_extra',
+             'files.discarded_levels',
              'decisions', 'decisions.max_forced_offset'}
 
 _SCHEMA = {
     'files': {'levels': str, 'lines': str, 'icalc': str,
               'output': str, 'output_csv': str, 'level_overrides': str,
               'line_decisions': str, 'new_levels': str,
-              'icalc_extra': str},
+              'icalc_extra': str, 'discarded_levels': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -141,6 +142,7 @@ class Config:
     line_decisions: str       # csv of manual accept/reject verdicts, '' if none
     new_levels: str           # csv of levels found since the level list, '' if none
     icalc_extra: str          # workbook of their calculated transitions, '' if none
+    discarded_levels: str     # csv of levels whose position was given up, '' if none
     wn_min: float             # lower end of the observed range, cm^-1
     wn_max: float             # upper end of the observed range, cm^-1
     levels: Layout
@@ -188,6 +190,8 @@ def load(path: str = None) -> Config:
                     if raw['files'].get('new_levels') else ''),
         icalc_extra=(_p('icalc_extra')
                      if raw['files'].get('icalc_extra') else ''),
+        discarded_levels=(_p('discarded_levels')
+                          if raw['files'].get('discarded_levels') else ''),
         wn_min=raw['range']['wn_min'],
         wn_max=raw['range']['wn_max'],
         levels=Layout(**raw['levels']['layout']),

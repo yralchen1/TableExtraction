@@ -621,6 +621,26 @@ The gap between the check and the write is the length of the run: nothing stops
 a file being opened in Excel while the run is going. What the check settles is
 the common case — the file was already open when the run began.
 
+#### A file held open for a moment is waited out, not fatal
+
+The same lock denies *reading*. A program that opens a file the way Excel and
+several editors do keeps everyone else out of it, reading included, and the
+hold can last a fraction of a second — long enough to kill one subprocess of a
+walk over hundreds of levels and no longer. This is what made three searches of
+the first `find_unknown_levels.py` run, and two of a later one, die on
+`IDEN2/IDEN_level_ids.txt` with `PermissionError: [Errno 13] Permission
+denied` while every level around them was searched normally.
+
+`output_files.read_retry(read, path)` is the read-side companion of
+`require_writable`: a read refused with `PermissionError` is tried again after
+0.4 s, then 0.8, 1.6, 3.2 — five attempts over about six seconds — and only
+then given up, with a message naming the file and saying how long it was
+waited for. Any other error is raised at once, since a missing file or a bad
+format is not something waiting can cure. The files every run reads and some
+runs write go through it: `IDEN2/enlev.dat`, `IDEN2/IDEN_level_ids.txt`, the
+Cowan transition list `tp_E1_no_trials.xlsx` and its cache
+(`cowan_gA.read_enlev_levels`, `read_id_map`, `read_transitions`).
+
 Rows are sorted by **decreasing observed wavenumber** (`wn_obs`), then decreasing Ritz wavenumber (`rwn`), then increasing `grade` for ties (`build_output`). Unclassified observed lines still appear, as a single blank-classification row.
 
 ### Output Columns (24)
@@ -3154,10 +3174,10 @@ every matched free row, by ln(0.094/0.039) ≈ 0.9 in the positional half alone.
 The free lines are not a mystery, and this is where `tp_E1_no_trials.xlsx` — Cowan's complete E1
 transition list, which was not in the project when the likelihood was written — earns its place in
 the null model. A recorded line that carries no accepted transition is, in this spectrum, almost
-always a transition of a level the calculation predicts and nobody has found: **658** of the 1253
-calculated levels of `IDEN2/enlev.dat` are in that state, **61290** of their E1 transitions have a
-partner that *has* been found, and summing the probability P that each would have been recorded
-gives **≈ 2970** expected lines — the same order as the 2142 free ones actually there. The file
+always a transition of a level the calculation predicts and nobody has found. In the run this was
+measured on, **658** of the 1253 calculated levels of `IDEN2/enlev.dat` were in that state, **61290**
+of their E1 transitions had a partner that *has* been found, and summing the probability P that each
+would have been recorded gave **≈ 2970** expected lines — the same order as the 2142 free ones actually there. The file
 therefore predicts the very population rho and g describe, and predicts its *structure* as well as
 its size: the expected rate runs from 0.001 per cm⁻¹ below 10000 to 0.052 near 55000, more than an
 order of magnitude, which no single number and no 21-nearest-neighbour smoothing of sparse data can
@@ -4217,7 +4237,7 @@ up. It rewrites both of them from the current fit and the current calculated int
 * **`IDEN2/enlev.dat`** — the measured energy of every found level and its uncertainty are
   taken from `LOPT_output_levels.txt`. The uncertainty is the larger of LOPT's `D1` and
   `D2tot`, rounded to a thousandth of a wavenumber, which is the rule the file already
-  follows for all 594 levels. The observed-minus-calculated column is recomputed from each
+  follows for all 636 levels. The observed-minus-calculated column is recomputed from each
   level's own calculated energy. A level that has **not** been found keeps its calculated
   energy as its adopted energy — this run knows nothing better — but its uncertainty is
   rewritten too, and there the column means something else entirely.
@@ -4284,17 +4304,17 @@ which would undo everything the run has done.
 The reader of the Cowan table is `cowan_gA.py`, a module of its own, because
 `level_positions.py` needs it too: it is the only source of a calculated strength for a
 transition of a level that has never been found, and so the only way to say which of the
-659 unfound levels are worth looking for. It also carries the join between the three
+617 unfound levels are worth looking for. It also carries the join between the three
 numberings of the same levels — the calculation's `lid`, IDEN2's row number, and Wyart's
 `level_id` — which it works out by aligning the two energy-ordered level lists and then
-checking the result against all 594 levels whose row number and `level_id` are both known.
+checking the result against all 636 levels whose row number and `level_id` are both known.
 
 ### Which unfound levels are worth searching for: `unfound_levels.py`
 
-**What it answers.** Cowan's calculation gives Pr III 1253 levels. 594 have been found; the
-other 659 have never been placed, and each of them is an energy the calculation predicts and
+**What it answers.** Cowan's calculation gives Pr III 1253 levels. 636 have been found; the
+other 617 have never been placed, and each of them is an energy the calculation predicts and
 the line list has never been searched for. Searching for one is an afternoon's work in IDEN2,
-so the question is which of the 659 to spend it on. A level can only be found through its
+so the question is which of the 617 to spend it on. A level can only be found through its
 lines, so the answer is a count: **how many of the transitions the calculation gives it would
 have been recorded on the plates**. One is never enough — a single line can be made to fit any
 energy, so one coincidence is no evidence — and ten is a position that, if the level is there
@@ -4520,6 +4540,7 @@ python find_unknown_levels.py --min-n-prom 8    # a shorter, safer list
 python find_unknown_levels.py --idx 742 913     # these rows only, whatever their n_prom
 python find_unknown_levels.py --all-columns     # + look, z, n_obs, n_miss, free_gain, top_share
 python find_unknown_levels.py --notes-only --dup-tol 0.3   # re-do the Note column, no searching
+python find_unknown_levels.py --merge --idx 951 691        # redo these rows inside the table
 ```
 
 `--notes-only` reads the table already at `--out` and works its `Note` column out again, so
@@ -4527,6 +4548,14 @@ another `--dup-tol` costs nothing; `--limit N` cuts a run short; `--pass-through
 after it to `level_positions.py` unchanged; `--log` names the transcript (`-` keeps none). The
 transcript, `find_unknown_levels.log`, holds every search in full, each behind a banner naming
 the row and the exit status, which is where to look when a row's one-line summary is not enough.
+It is written level by level as the walk goes, so a search that died can be read while the run is
+still going, and the console prints the exception beside the word `error` as well.
+
+`--merge` is how a handful of rows are searched again: the levels searched now are written over
+their rows in the table already at `--out`, in place, and the rest of the table is kept — without
+it, `--idx 951 691` leaves a table of two rows where a walk of ninety used to be. The transcript
+is appended to rather than started again. A run that ends with any `error` prints the exact
+`--merge --idx ...` line that redoes those levels.
 
 **What the first full run found.** 106 levels, 516 s: 37 `firm`, 48 `weak`, 1 `no support`, 17
 with nothing in the window at all, and 3 that failed on a locked `IDEN_level_ids.txt` and are to
@@ -4928,6 +4957,94 @@ different thing to ask for, and `--force` is how it is asked for. `--force`
 also runs LOPT although its files are as it left them; the snapshot that
 decides that is the one `insert_new_level.py` keeps.
 
+### Giving up a level's position: `discard_level.py`
+
+`move_level.py` takes a level to a better position. `discard_level.py` is for
+the level that has none. `level_positions.py --audit` sometimes reports a
+position that is not merely second best but worse than nothing — `ln_R`, the
+log of how much more likely the observed lines are with the level there than
+with no level there at all, comes out negative — and no alternate position the
+audit will support. Levels 812 and 436 are the two at the time of writing: 812
+has two lines, both blends taking about half their features and neither of them
+its own; 436's four lines want four different energies spread over 1.9 cm⁻¹,
+which is why LOPT gives it `D1 = 0.29` cm⁻¹, ten to forty times a sound level's.
+
+```
+python discard_level.py --iden2-row 812 --reason "no support; 2 lines, both blends"
+python discard_level.py 059003.000561 --reason "..." --yes
+python discard_level.py --iden2-row 812 --undo
+```
+
+**What is denied is the position, not the level.** Cowan's calculation predicts
+both levels and will go on predicting them. Of the 1253 calculated levels, 636
+have been found and 617 have never been placed, and what decides which pool a
+level is in is a single character — the `*` in columns 39–40 of
+`IDEN2/enlev.dat`. So the tool does not delete a level: it **unfinds** it, and
+`unfound_levels.py` ranks it again by `n_prom` while `level_positions.py
+--unknown 812` can search for it afresh. That keeps the change reversible and
+the two counts adding to 1253.
+
+**Unfinding is a gain, not merely a tidy way of giving up.** The uncertainty
+column of an unfound row of `enlev.dat` is not a measurement but a prediction —
+the half-width of the window IDEN2 will search — and what belongs there is the
+rms of `E_obs − E_calc` over the levels of that configuration that are *still*
+found. A level held at a position the evidence does not support is usually one
+of the worst-placed levels of its configuration, so while it counts as found it
+is widening the window every other level of that configuration is searched in.
+Discarding 812 takes `f26d` from 60.418 to 57.629 cm⁻¹ for its 62 unfound
+levels; discarding 436 takes `f25f` from 106.140 to 103.358 for its 16.
+`sync_IDEN2.configuration_uncertainties()` does that arithmetic already, for
+every unfound level of every configuration, so clearing the star is the whole of
+this tool's part in it.
+
+The placeholder `5000.000` survives in one case and should. A configuration with
+fewer than `MIN_CFG_LEVELS = 3` found levels has nothing to average, and
+`configuration_uncertainties` leaves those rows exactly as they stand — which
+says *nobody knows*, and is the truth. The run reports the configuration's found
+count and window before and after, and warns when a discard crosses that
+threshold.
+
+**The record is `discarded_levels.csv`** (`files.discarded_levels`), with the
+columns `level_id, iden2_row, date, ln_R, reason`. The pipeline's own readers
+obey it: `classify_lines.drop_discarded_levels()` takes the level out of the
+level list, `retag_legacy_identifications()` withdraws the published
+identifications naming it without re-seeding them anywhere, and
+`chance_mc.read_input_levels()` stops counting it, so `decoy_mc.py` plants no
+decoys for it and `level_shifts.py` measures no `dE` from it. A level in both
+this file and `revised_level_energies.csv` stops the run: one says where the
+level is and the other says nobody knows. `iden2_row` is not redundant — the
+tool takes the level's row out of `IDEN2/IDEN_level_ids.txt`, and this column is
+where the association survives and what `--undo` restores it from.
+
+Three things are worth knowing before the first run:
+
+* **The Ritz check is inverted.** A discarded level has no line of its own left
+  to test, so the test moves to the blend partners: every observed wavenumber
+  that lost a component is re-examined, and a *surviving* component whose
+  residual now exceeds `--ritz-sigma` times its own uncertainty puts every file
+  back and stops the run. A feature whose two Ritz values straddle the observed
+  wavenumber is a real blend, and taking one side of it away is not free.
+* **A discard writes no ledger row for the level, and must not.**
+  `check_forced_decisions()` treats a `line_decisions.csv` row naming a level
+  that is not in the level list as a fault and stops the run — for a `reject`
+  row as much as an `accept` one. A move needs reject rows because the level is
+  still in the list and its old lines would be proposed again; a discarded level
+  generates no candidate at all. The rows it used to hold are moved into
+  `line_decisions_removed.csv` with the date and the reason, which is where the
+  decision can be read back from.
+* **The released lines are not re-assigned.** Any other level's component on a
+  freed line that the classification now accepts is named, with its dossier, and
+  left alone: releasing a line hands it back to whatever else can have it, and
+  which of them gets it is a judgement to make on the screen.
+
+`--undo` has two depths. With the run's own backups in `discard_level_backup/`
+it puts every file back byte for byte. With those gone — a discard made in an
+earlier session — it deletes the `discarded_levels.csv` row and restores the
+`IDEN_level_ids.txt` line from that row's `iden2_row`. The level is then in the
+list again holding no line, which is `insert_new_level.py`'s starting state. It
+is **not** put back at the position it was discarded from; there was never any
+evidence for that one.
+
 ### Excel-friendly output files
 
 All validation tables are written by `save_table()` (in `chance_mc.py`): every CSV gets an `.xlsx` twin, and floating-point columns are rounded to physically meaningful decimals. The rounding matters for CSVs: Python prints a 64-bit float with up to 17 significant digits (the number needed to reproduce the binary value exactly — not extra precision), while Excel reads at most 15 and converts longer numbers to text; in the `.xlsx` twins, J values such as `3/2` stay text instead of being converted to dates. If a target file is locked (open in Excel), the writer falls back to a `_new`-suffixed name instead of aborting the run.
@@ -5055,7 +5172,8 @@ LineClass/
 ├── check_sync.py                 # Do all the files still describe the same identification?
 ├── sync_IDEN2.py                 # Brings the IDEN2 files into step with the current fit
 ├── output_files.py               # require_writable(): a file open in Excel stops a run at the
-│                                 #   start rather than at the end
+│                                 #   start rather than at the end; read_retry(): a file held
+│                                 #   open for a moment is waited out rather than fatal
 ├── swap_line_assignments.py      # Repair: run the three scripts below in order
 ├── swap_line_assignments_LOPT.py # Repair: exchange two levels' lines in the LOPT transitions
 │                                 #   file, keeping both level identifiers where they are

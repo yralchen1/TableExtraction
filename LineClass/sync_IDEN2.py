@@ -156,7 +156,7 @@ def read_lopt_levels(path):
     statistical uncertainty of the level relative to its neighbours, and
     ``D2tot``, its uncertainty relative to the ground level, rounded to a
     thousandth of a wavenumber.  That is the rule the present ``enlev.dat``
-    already follows, to the last digit, for all 594 levels.
+    already follows, to the last digit, for all 636 levels.
     """
     t = pd.read_csv(path, sep='\t', dtype={'Designation': str})
     for column in ('Designation', 'Energy', 'D1', 'D2tot'):

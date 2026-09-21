@@ -361,11 +361,11 @@ puts the mean of g about 0.6 in ln I too high.
 
 The free lines are not a mystery.  A recorded line that carries no accepted
 transition is, in this spectrum, almost always a transition of a level that the
-calculation predicts and nobody has yet found: 658 of the 1253 calculated
-levels of IDEN2/enlev.dat are in that state, 61290 of their E1 transitions have
-a partner that HAS been found, and summing the probability P_t that each of
-those would have been recorded gives about 2970 expected lines - of the same
-order as the 2142 free ones actually there.  Cowan's full transition list,
+calculation predicts and nobody has yet found.  In the run this was measured
+on, 658 of the 1253 calculated levels of IDEN2/enlev.dat were in that state,
+61290 of their E1 transitions had a partner that HAS been found, and summing
+the probability P_t that each of those would have been recorded gave about 2970
+expected lines - of the same order as the 2142 free ones actually there.  Cowan's full transition list,
 tp_E1_no_trials.xlsx, therefore predicts the very population rho and g are
 supposed to describe, and it predicts its structure as well as its size: the
 expected rate runs from 0.001 per cm^-1 below 10000 to 0.052 near 55000, more
@@ -468,7 +468,7 @@ level whose fingerprint is unchanged is not scanned again.
 The fingerprint is deliberately LOCAL.  A run in which one relocation has been
 accepted differs from the previous one in that level, in its partners, and in
 the lines near it; a fingerprint over the run as a whole would invalidate all
-594 entries and the registry would never save anything.  As written, accepting
+636 entries and the registry would never save anything.  As written, accepting
 a relocation costs a re-scan of the levels that share lines or partners with
 it and of nothing else.
 

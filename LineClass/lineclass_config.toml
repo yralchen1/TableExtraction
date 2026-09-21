@@ -61,6 +61,16 @@ new_levels = "new_levels.txt"
 # reading, so that these rows sit on the same intensity scale as Icalc.xlsx
 # however they were made.
 # icalc_extra = "icalc_new.xlsx"
+# Levels whose measured position the work has GIVEN UP (columns level_id,
+# iden2_row, date, ln_R, reason).  A level listed here is taken out of the
+# level list for this run: no candidate is generated for it, no published
+# identification naming it stands, and the validation runs stop counting it.
+# It is not deleted - the calculation still predicts it, IDEN2 still carries
+# its row, and unfound_levels.py ranks it again among the levels nobody has
+# found - so a discard is a level returned to the pool it came from, dated and
+# reasoned, and reversible by deleting its row here.  Written by
+# discard_level.py.  Comment the line out to run on every level as found.
+discarded_levels = "discarded_levels.csv"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions

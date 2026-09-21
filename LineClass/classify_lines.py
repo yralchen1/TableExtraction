@@ -60,6 +60,8 @@ MISSING_POLICY = 'none'  # missing_gA.policy in force: 'none' or 'impute'
 _IMPUTED = None          # cached imputation constants; see imputed_values()
 LEGACY_MOVED = set()     # levels re-positioned by hand; see read_level_provenance()
 LEGACY_SWAPPED = {}      # level -> the level its measured position went to
+DISCARDED = set()        # levels whose position was given up; see
+                         #   drop_discarded_levels()
 LEVEL_REVISIONS = {}     # level_id -> (energy before, energy after, comment), from
                          #   the revised-energies file; see apply_energy_overrides()
 MAX_FORCED_OFFSET = 5.0  # cm^-1; how far a ledger-accepted pair's Ritz wavenumber
@@ -76,6 +78,7 @@ def apply_config(cfg, policy: str = None) -> None:
     """
     global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
+    global DISCARDED_LEVELS
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
@@ -87,6 +90,7 @@ def apply_config(cfg, policy: str = None) -> None:
     LINE_DECISIONS = cfg.line_decisions
     NEW_LEVELS = cfg.new_levels
     ICALC_EXTRA = cfg.icalc_extra
+    DISCARDED_LEVELS = cfg.discarded_levels
     WN_MIN = cfg.wn_min
     WN_MAX = cfg.wn_max
     MAX_FORCED_OFFSET = cfg.max_forced_offset
@@ -281,6 +285,12 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
     print(f"  Read {len(levels_list)} energy levels.")
     if NEW_LEVELS:
         add_new_levels(levels_dict, levels_list, NEW_LEVELS)
+    # After add_new_levels, so that a level found by this work can be given up
+    # as well as one of the published list, and BEFORE apply_energy_overrides,
+    # so that a revised energy for a level that has been given up is caught as
+    # the contradiction it is rather than quietly applied to nothing.
+    if DISCARDED_LEVELS:
+        drop_discarded_levels(levels_dict, levels_list, DISCARDED_LEVELS)
     if LEVEL_OVERRIDES:
         apply_energy_overrides(levels_dict, LEVEL_OVERRIDES)
         set_level_provenance(levels_dict, LEVEL_OVERRIDES)
@@ -392,6 +402,88 @@ def add_new_levels(levels_dict: dict, levels_list: list, path: str) -> int:
         print(f"  Added {added} level(s) found since the level list was "
               f"published, from {os.path.basename(path)}.")
     return added
+
+
+def read_discarded_records(path: str) -> list:
+    """The rows of files.discarded_levels, as dicts keyed by the header.
+
+    The one reader of that file, so that every program sees the same discards.
+    A file without a level_id column is an error rather than an empty list, on
+    the rule read_new_level_records() obeys: a ledger read with the wrong
+    delimiter, or written with the wrong header, would otherwise drop every
+    discard without a word, and the levels would come back into the run as if
+    nothing had been decided about them.
+    """
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh)
+        if 'level_id' not in (rdr.fieldnames or []):
+            raise ValueError(f"{os.path.basename(path)}: missing column "
+                             f"level_id")
+        return list(rdr)
+
+
+def drop_discarded_levels(levels_dict: dict, levels_list: list,
+                          path: str) -> int:
+    """Take the levels of `path` out of the level list read so far.
+
+    WHAT IS BEING DENIED IS THE POSITION, NOT THE LEVEL.  The calculation
+    still predicts every level named here and IDEN2 still carries its row; all
+    that has been given up is the energy somebody once measured for it.  So
+    the level is removed from THIS RUN's list - nothing proposes a line for it,
+    nothing carries a published identification of it, and the validation runs
+    stop counting it - and it stays in the pool of levels nobody has found,
+    where unfound_levels.py ranks it and level_positions.py --unknown can
+    search for it again.  Deleting its row here is how the discard is undone.
+
+    Clearing the star in IDEN2 is not enough on its own, which is why this
+    file exists.  The pipeline builds its level list from Wyart's workbook,
+    an external published list that is never edited and that knows nothing of
+    IDEN2's star, so a level unfound in IDEN2 alone would be generated with
+    its full set of calculated transitions on the next run and would simply
+    re-acquire lines.
+
+    Two errors stop the run rather than passing silently:
+
+      * a level named here that is in neither the workbook nor
+        files.new_levels - a name that matches nothing is a typo, not a no-op,
+        which is the rule read_energy_overrides() already obeys;
+      * a level named here AND in files.level_overrides - one file says where
+        the level is and the other says nobody knows, and the run cannot
+        decide which of the two was meant.
+
+    Returns the number of levels removed, and leaves their identifiers in
+    DISCARDED, where legacy_identification() reads them.
+    """
+    global DISCARDED
+    wanted = []
+    for rec in read_discarded_records(path):
+        lid = to_str_id(rec.get('level_id'))
+        if lid:
+            wanted.append(lid)
+    unknown = sorted(set(wanted) - set(levels_dict))
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: level id(s) not in the "
+                         f"level list: {', '.join(unknown)}")
+    if LEVEL_OVERRIDES and os.path.exists(LEVEL_OVERRIDES):
+        both = sorted(set(wanted) & set(read_energy_overrides(LEVEL_OVERRIDES)))
+        if both:
+            raise ValueError(
+                f"{', '.join(both)} is in both {os.path.basename(path)} and "
+                f"{os.path.basename(LEVEL_OVERRIDES)}: one says the level has "
+                f"been given up and the other says where it is.  Remove "
+                f"whichever row no longer holds.")
+    DISCARDED = set(wanted)
+    for lid in wanted:
+        lev = levels_dict.pop(lid)
+        print(f"    {lid}  E = {lev.energy:.4f} cm^-1 given up; the level "
+              f"returns to the pool nobody has found")
+    if wanted:
+        gone = set(wanted)
+        levels_list[:] = [lv for lv in levels_list
+                          if lv.level_id not in gone]
+        print(f"  Dropped {len(wanted)} level(s) whose measured position has "
+              f"been given up, from {os.path.basename(path)}.")
+    return len(wanted)
 
 
 def read_energy_overrides(path: str) -> dict[str, float]:
@@ -542,8 +634,16 @@ def legacy_identification(low_id: str, upp_id: str):
     position was exchanged with another's.  None if a level of the pair has
     been re-positioned, meaning there is no longer any published
     identification here to carry over.
+
+    A level whose position has been GIVEN UP is treated as a re-positioned
+    one, and for the same reason: the published identification was made at an
+    energy nobody now claims, so there is no position for it to be an
+    identification of.  Unlike an exchange there is nowhere to carry it to, so
+    it is withdrawn and not re-seeded under any other identifier.
     """
     if low_id in LEGACY_MOVED or upp_id in LEGACY_MOVED:
+        return None
+    if low_id in DISCARDED or upp_id in DISCARDED:
         return None
     return (LEGACY_SWAPPED.get(low_id, low_id),
             LEGACY_SWAPPED.get(upp_id, upp_id))
@@ -660,8 +760,8 @@ def retag_legacy_identifications(observed_lines: list, levels_dict: dict = None,
         print(f"  Published identifications: {kept} stand as written, "
               f"{carried} carried over to the level that now holds the "
               f"measured position, {withdrawn} withdrawn because a level of "
-              f"theirs has been re-positioned; the pairs they used to name "
-              f"are no longer candidates on their lines.")
+              f"theirs has been re-positioned or given up; the pairs they "
+              f"used to name are no longer candidates on their lines.")
 
 
 def read_override_comments(path: str) -> dict[str, str]:

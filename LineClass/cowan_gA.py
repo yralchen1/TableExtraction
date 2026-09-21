@@ -58,7 +58,7 @@ Three different numberings of the same levels are in play:
                  like, used by every other file of the pipeline
 
 ``IDEN2/IDEN_level_ids.txt`` maps the IDEN2 index to the level_id, but only
-for the 594 levels that have been found; the other 659 have no level_id at
+for the 636 levels that have been found; the other 617 have no level_id at
 all, so for them there is nothing to join on.  :func:`match_to_enlev` supplies
 the missing half.
 
@@ -73,7 +73,7 @@ different J values is forbidden outright, and leaving a level unpaired costs
 ``GAP``.  An order reversal shows up as two adjacent unpaired levels, and a
 second pass pairs those off against each other by energy.
 
-The result is then checked, not trusted: every one of the 594 levels whose
+The result is then checked, not trusted: every one of the 636 levels whose
 IDEN2 index and level_id are both known must come out paired with the
 spreadsheet row carrying that same level_id.  A single disagreement raises
 :class:`MatchError` rather than returning a mapping that is wrong somewhere.
@@ -85,6 +85,8 @@ import re
 
 import numpy as np
 import pandas as pd
+
+import output_files
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TP_FILE = os.path.join(HERE, 'tp_E1_no_trials.xlsx')
@@ -146,11 +148,15 @@ def read_transitions(path=TP_FILE, cache=True, log=None):
     if cache and os.path.exists(cache_path) \
             and os.path.getmtime(cache_path) >= os.path.getmtime(path):
         say(f"reading {os.path.basename(cache_path)}")
-        t = pd.read_csv(cache_path, dtype={'id1': str, 'id2': str})
+        t = output_files.read_retry(
+            lambda p: pd.read_csv(p, dtype={'id1': str, 'id2': str}),
+            cache_path, log=say)
         return t.fillna({'id1': '', 'id2': ''})
 
     say(f"reading {os.path.basename(path)} (this takes a few seconds)")
-    raw = pd.read_excel(path, usecols=[c for c, _ in _COLS])
+    raw = output_files.read_retry(
+        lambda p: pd.read_excel(p, usecols=[c for c, _ in _COLS]),
+        path, log=say)
     # usecols returns the columns in spreadsheet order whatever order they
     # were asked for, so name them in that order.
     raw.columns = [n for _, n in sorted(_COLS)]
@@ -215,30 +221,44 @@ def levels(trans):
 # ---------------------------------------------------------------------------
 # enlev.dat, read only for what the alignment needs
 # ---------------------------------------------------------------------------
-def read_enlev_levels(path):
+def read_enlev_levels(path, log=None):
     """``idx, E_calc, E_obs, J, label`` for every row of ``enlev.dat``.
 
     Only what the alignment and the report need; ``sync_IDEN2.py`` reads the
     file properly, through ``swap_line_assignments_IDEN.Enlev``, when it comes
     to writing it.
+
+    The file is read in one go through :func:`output_files.read_retry`, so
+    that a momentary lock by another program is waited out instead of ending
+    the run.
     """
+    def slurp(p):
+        with io.open(p, encoding='latin-1', newline='') as fh:
+            return fh.read()
+
     rows = []
-    with io.open(path, encoding='latin-1', newline='') as fh:
-        for line in fh:
-            line = line.rstrip('\r\n')
-            if not line.strip():
-                continue
-            head, _, tail = line.partition('/')
-            label = tail.partition('/')[0]
-            v = head.replace('*', ' ').split()
-            rows.append((int(v[0]), float(v[1]), float(v[3]), float(v[5]),
-                         label))
+    for line in output_files.read_retry(slurp, path, log=log).splitlines():
+        line = line.rstrip('\r\n')
+        if not line.strip():
+            continue
+        head, _, tail = line.partition('/')
+        label = tail.partition('/')[0]
+        v = head.replace('*', ' ').split()
+        rows.append((int(v[0]), float(v[1]), float(v[3]), float(v[5]),
+                     label))
     return pd.DataFrame(rows, columns=['idx', 'E_calc', 'E_obs', 'J', 'label'])
 
 
-def read_id_map(path):
-    """``{IDEN2 index: level_id}`` from ``IDEN2/IDEN_level_ids.txt``."""
-    t = pd.read_csv(path, sep='\t', dtype={'level_id': str})
+def read_id_map(path, log=None):
+    """``{IDEN2 index: level_id}`` from ``IDEN2/IDEN_level_ids.txt``.
+
+    Read through :func:`output_files.read_retry`: this file is small, is read
+    by every run, and is occasionally held for a moment by another program, in
+    which case the read is repeated rather than failing the run.
+    """
+    t = output_files.read_retry(
+        lambda p: pd.read_csv(p, sep='\t', dtype={'level_id': str}),
+        path, log=log)
     return dict(zip(t['IDEN_id'].astype(int), t['level_id']))
 
 

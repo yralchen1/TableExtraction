@@ -10,12 +10,12 @@ Run from inside LineClass/:
 
 1.  The question
 ----------------
-Cowan's calculation gives Pr III 1253 levels.  594 of them have been found in
-the spectrum; the other 659 have never been placed, and each of them is an
+Cowan's calculation gives Pr III 1253 levels.  636 of them have been found in
+the spectrum; the other 617 have never been placed, and each of them is an
 energy the calculation predicts and the observed line list has never been
 searched for.  Searching for one is work - it means putting a trial energy into
 IDEN2 and looking at what lines fall on the transitions the level would then
-have - so the question this module answers is which of the 659 are worth the
+have - so the question this module answers is which of the 617 are worth the
 work.
 
 A level can only be found through its lines, so the answer is a count: how many
@@ -98,14 +98,14 @@ the width used for them is a guess.
 
 4.  What the count does not say
 -------------------------------
-``n_prom`` says the evidence would exist, not that it can be recognised.  Three
+``n_prom`` says the evidence would exist, not that it can be recognized.  Three
 things it does not know:
 
 - **Whether the lines are still free.**  A promising transition may fall on a
   feature some other level has already been given.  Where the level might be
   anywhere in a window hundreds of wavenumbers wide, there is no way to say in
   advance which lines it would reach; ``rho``, the density of recorded lines in
-  the neighbourhood of its transitions, is the closest thing to a warning the
+  the neighborhood of its transitions, is the closest thing to a warning the
   table can carry.  A level whose promising transitions all lie in a crowded
   region will find something wherever it is put, and finding something is not
   the same as finding it.
@@ -272,7 +272,7 @@ def validate(ctx, en, trans, mapping, per_cfg, whole, e_meas,
     A level's ``n_prom`` is computed from the calculation alone - calculated
     energy, calculated gA, the measured plate coverage and noise - and never
     looks at whether any line was in fact assigned to the level.  So it can be
-    scored on the 594 levels that HAVE been found by computing it for them as
+    scored on the 636 levels that HAVE been found by computing it for them as
     though they had not, and comparing it with the number of accepted lines
     each of them really carries in the run.
 
