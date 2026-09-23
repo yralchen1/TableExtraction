@@ -78,7 +78,13 @@ one changes the input the next one is computed from.
      Sugar (1965), extending the calculation to the LS-coupled 4f5d<sup>2</sup>
      and 4f<sup>3</sup> levels;
    - apply the correction inside `make_LOPT_input.py` behind a switch, leaving
-     `Pr3_lines.xlsx` as the record of what was measured, and refit with LOPT.
+     `Pr3_lines.xlsx` as the record of what was measured, and refit with LOPT;
+   - apply the **plate wavelength calibration** the same way. Measured in
+     `wavelength_calibration.py` (see "The wavelength calibration of the
+     observed line list") and decided in favor of applying it on 2026-09-22:
+     the correction to the observed wavenumbers, the statistical uncertainty
+     re-derived per character per era once it is removed, and the per-group
+     systematic uncertainty that LOPT carries as a function of wavelength.
 
    The working hypothesis on the measurement convention is that Sugar measured
    the **centre of gravity** of every line except those he flagged, supported
@@ -1877,6 +1883,311 @@ python tools/coverage_map.py --no-pred  # spline-only baseline, for comparison
 `coverage_gaps.txt` (the segment table above), `coverage_map.log` (the BIC scan and the
 fitted `r0`, `a`, `b`) and `coverage_map.png` (recorded density, baseline and `c`, in five
 panels).
+
+### The wavelength calibration of the observed line list: `wavelength_calibration.py`
+
+**What it measures.** Sugar's wavenumbers come from wavelengths measured on photographic
+plates and reduced against comparison lines recorded on the same plate. If a plate's
+comparison scale is slightly wrong, every line of that plate is displaced by the same amount
+*in wavelength*. Call that displacement `delta_lambda`, in angstrom, positive when the
+reported wavelength is too long. A wavelength too long is a wavenumber too small, because
+`wn = 1e8 / lambda`, so
+
+```
+delta_wn = -delta_lambda * wn^2 * 1e-8
+```
+
+and the model fitted to every accepted, singly assigned line is
+
+```
+wn_measured = (E_upp - E_low + kappa * D) - delta_lambda * wn^2 * 1e-8
+```
+
+The level energies `E`, the hyperfine convention factors `kappa` of `hfs_kappa.py`, and every
+`delta_lambda` are free parameters of **one** weighted least-squares fit — 4373 lines against
+803 unknowns. The groups are not fitted one at a time and could not be: a group is tied to
+the rest of the spectrum only through the levels its lines share with other groups, and that
+tie is the whole measurement. `D` is the calculated hyperfine displacement of the line and
+`kappa` the fraction of it Sugar's measuring convention picked up (plan Step 3); the `*r` and
+`*v` flagged lines have their measured displacement removed directly and carry no `kappa`.
+
+**Blocks and groups.** A *block* is one plate, as nearly as the line list can show it. Sugar's
+exposure boundaries were never published, but at a join no line of any species was recorded,
+so the list goes blind over a stretch of wavelength; `tools/coverage_map.py` has already
+measured those ten stretches into `coverage_gaps.txt`, and they cut the spectrum into 19
+blocks. Each blind stretch is a block in its own right, not a hole: it is thin, not empty,
+and the few lines recorded inside it came from whatever exposure did reach there. Nothing
+ties one block's calibration to the next — no line was recorded on both — so no correction is
+ever carried across a join.
+
+A *group* is one `delta_lambda` parameter inside a block. Walking a block from its blue end,
+25 Å bins are accumulated until the group holds at least 12 lines; a short group left at the
+red end is merged back into its predecessor. A group therefore never spans a join, and a
+block that cannot raise 12 lines in total is not given a group. Twelve blocks carry groups;
+there are **151 groups** in all, of which 28 are in the 5068–8756 Å block.
+`wavelength_calibration.csv` and the `group` column of `wavelength_calibration_points.csv`
+carry the same 151 and name them the same way. The 40 remaining lines, in the seven thinner
+blocks, have that column empty, so a count of distinct (block, group) pairs in the points file
+gives **158**: the 151 groups and the seven blocks that have none.
+
+**The thin blocks, on trial.** A block too thin for a group of its own is not dismissed
+without a hearing. It is given one constant over the whole block, and that constant is then
+judged by its own significance — the ratio of its uncertainty to its value. A constant smaller
+than its own uncertainty has measured nothing, and is fixed at zero. All six blocks that have
+at least two lines fail that test:
+
+```
+  blk  lines    d_lambda_A         u_A    |u/d|   verdict
+    1      5      -0.00307     0.00360     1.17   fixed at zero
+    5      3      -0.00137     0.00529     3.85   fixed at zero
+   11     10      -0.00497     0.01189     2.39   fixed at zero
+   13      8      -0.00470     0.01383     2.94   fixed at zero
+   15      3      -0.01191     0.02195     1.84   fixed at zero
+   17     10      -0.02096     0.03958     1.89   fixed at zero
+```
+
+Keeping them is not free. A block of three or five lines has no Ritz network of its own: its
+constant trades almost exactly against the energies of the few levels its lines touch, and
+that near-degeneracy leaks out through the common mode — the one direction of the fit that is
+already weakly determined — into every other group in the spectrum. With all six kept, the
+largest eigenvalue of the 157×157 calibration covariance is 4.893e-02 against 7.396e-04 for
+the 151, a factor of 66 in variance, and the median `u_own_correction` over the whole line
+list rises from 0.020 to 0.184 cm⁻¹. This is precisely the malformed covariance matrix that a
+poorly determined parameter produces, and the significance test is what keeps it out.
+
+The lines of a block fixed at zero are not left empty, though: they take a correction of zero
+with the uncertainty measured in the trial, which is what `dlv.dat` needs. Only block 0 and
+block 19 — one line each, and one line can measure nothing, since the fit can satisfy it by
+moving a level instead — are left without a number.
+
+**Piecewise or smooth — and the test that chooses.** A calibration error, as a spectroscopist
+derives it, is a smooth polynomial in wavelength: the reference wavelengths are fitted against
+the measured plate positions, and whatever is wrong with that fit is wrong smoothly. So the
+program carries both models and fits both on every run.
+
+`--model groups`, the default, is **piecewise constant**: the 151 group parameters above.
+`--model poly` puts **one polynomial in wavelength on each block**, in a Legendre basis scaled
+to the block's own wavelength range, with the degree chosen by the data. Twenty-seven
+coefficients over the twelve blocks, against 151 steps.
+
+**How a degree is chosen.** Every degree up to the block's ceiling is tried — not only the
+degrees up to the first one that fails. This matters: a plate whose error is a symmetric bow
+gains nothing at all from a slope and a great deal from a curve, so a search that stopped at
+the first disappointment would report the block as unfittable when it is in fact well fitted.
+Block 6 is exactly that case: degree 1 buys 0.6 in chi-square and degree 4 buys 109. A degree
+costs 9 in chi-square per parameter it adds (3 sigma each), the winner is the degree that
+beats that price by the widest margin, and a block may carry one coefficient per 12 of its
+lines. The scan is repeated until no block changes its mind, because the blocks are coupled
+through the level energies they share.
+
+Which of the two models the spectrum asks for is then a measurement, and the report prints it
+block by block: the two chi-squares side by side against the number of parameters between
+them. A plate that is smooth gives back about one unit of chi-square per parameter the
+staircase spends. Over the whole spectrum the staircase gives back **241 for 124 parameters**
+— 124 ± 16 is what noise alone would give, so the difference is 7 sigma. Block by block it is
+uneven, and that is the useful part:
+
+```
+blk    lines  deg  groups  chi2_poly  chi2_step  d_chi2  d_par
+  2       72    1       2      119.3      125.8    -6.5      0
+  3       16    0       1       19.7       19.0     0.7      0
+  4      710    4       8      556.4      560.6    -4.2      3
+  6      450    4      14      241.5      229.0    12.5      9
+  7       15    0       1       10.8       10.9    -0.0      0
+  8      655    0      17      183.1      132.9    50.2     16
+  9       61    2       3       71.2       89.1   -18.0      0
+ 10     1093    3      24      905.2      799.3   105.9     20
+ 12      294    0      14      193.2      163.5    29.7     13
+ 14      540    1      35      311.7      264.1    47.6     33
+ 16      377    0      28       90.5       68.1    22.4     27
+ 18       50    0       4       11.1       10.5     0.6      3
+ all     4333          151     2713.8     2472.8   240.9    124
+```
+
+Blocks 2, 3, 4, 6, 7, 9, 16 and 18 are smooth: their polynomial is as good as the staircase or
+better, and in blocks 2, 4, 7 and 9 it is better outright, the staircase having spent
+parameters on noise. Blocks 8, 10 and 12 are not smooth — block 10 gives back 106 chi-square
+for 20 parameters and block 8 gives 50 for 16, and no degree up to 5 recovers it. Block 14 is
+marginal at 48 for 33. Structure that a smooth curve cannot follow but a 25 Å step can is
+structure on the scale of tens of angstrom — an undetected join inside the block, or a
+reduction Sugar did in pieces.
+
+The staircase is still the default, and for the same reason: over the spectrum as a whole it
+is 7 sigma better, and it assumes nothing about smoothness that has not been tested, block by
+block. Where a block *is* smooth, the two agree to well inside their uncertainties, so nothing
+is lost by using the staircase there; where it is not, the polynomial would smooth over a real
+displacement.
+
+**No anchor.** Holding one group at `delta_lambda = 0` turns out to be an unnecessary
+constraint: freeing every group raises the rank of the design matrix from 801/802 to 802/803.
+The one remaining deficiency is the energy zero — every level raised by the same amount —
+and the program finds that direction from the matrix itself and reports the weight it puts on
+the calibration: 2.65e-16 against 3.93e-02 on the levels. The curve is therefore **absolute**,
+not relative to a held group. That a uniform `delta_lambda` is visible at all is because its
+signature in wavenumber goes as `wn^2`, which no level shift can imitate.
+
+**What it writes.**
+
+| file | contents |
+|---|---|
+| `wavelength_calibration.txt` | the report: blocks, curve, diagnostics, how large the error is, the common mode, the post-correction uncertainties |
+| `wavelength_calibration.csv` | the curve, one row per group: `block, lambda_lo_A, lambda_hi_A, lambda_mid_A, n_lines, d_lambda_A, u_d_lambda_A, shift_cm-1, u_shift_cm-1` |
+| `wavelength_calibration_points.csv` | the fit's input, one row per line (columns below) |
+| `wavelength_calibration_corrections.csv` | the correction of every observed wavenumber of the list, with its uncertainty |
+| `wavelength_calibration_poly.csv` | (`--model poly` only) the fitted coefficients and their full covariance |
+| `wavelength_calibration_fit/block_NN.txt` | the same points as `fit_power.py` input, one file per block |
+
+`shift_cm-1` is the correction to **add** to Sugar's wavenumber at the group's middle
+wavelength, and `u_shift_cm-1` is its uncertainty — a systematic of that group, since a
+calibration error displaces every line of the group the same way and so does not average down
+over the lines of a level.
+
+**The per-line points.** `ritz_cm1` is the fitted Ritz wavenumber of the line with the
+hyperfine displacement already in it, `ritz_cm1 = E_upp - E_low + kappa * D`, and
+`hfs_shift_cm1 = kappa * D` reports that displacement separately for inspection: it is not to
+be applied again. With that, for each line,
+
+```
+d_lambda_A   = (ritz_cm1 - wn_obs) / (wn_obs^2 * 1e-8)   =  1e8/wn_obs - 1e8/ritz_cm1
+u_d_lambda_A = u_wn / (wn_obs^2 * 1e-8)                  ( = u_wn/wn * (1e8/wn) )
+u_eff_A      = u_d_lambda_A / (1 - leverage)
+```
+
+that is, `d_lambda_A` is simply the observed wavelength minus the Ritz wavelength, positive
+where the measured wavelength is the longer of the two. `u_line_cm1` is the adopted
+uncertainty in the original units.
+
+**A point is an observation, not a correction.** `d_lambda_A` is one line's single, noisy
+measurement of its plate's displacement, and it carries the full measuring error of that line:
+in block 2, for instance, the points scatter by 0.0030 Å rms about a median `u_d_lambda_A` of
+0.0018 Å, while the two groups of that block are determined to 0.0005 Å. The calibration is
+the group parameter of `wavelength_calibration.csv`, the weighted mean of at least twelve such
+points, which is where the scatter averages down; the fitted `delta_lambda` of a group
+reproduces that weighted mean to 1e-5 Å over all 151 groups. Nothing in the per-line column
+is claimed to be smooth, and nothing in it is per level: every line of a group shares one
+`delta_lambda`, whatever levels it connects. Whether the *group* values are smooth in
+wavelength, as a calibration error must be, is a question the fit files answer — and they do:
+block 2's 72 points take a straight line in wavelength at chi^2/dof 0.99 (1.39 with no
+correction at all), and block 4's 708 points at 0.88.
+
+A line whose `leverage` is 1 has one level resting on it alone, so the fit satisfies it
+exactly and its `d_lambda_A` comes out equal to its group's fitted `delta_lambda` to every
+written digit. Such a point echoes the answer rather than measuring it, which is why it is
+excluded.
+
+**Why `u_eff_A` and not `u_d_lambda_A`.** The level energies are fitted to these same lines,
+so a point is not independent of the Ritz value it is compared with; the leverage `h` says how
+much of it the levels have already absorbed, the expected square of a residual being
+`sigma^2 (1 - h)` rather than `sigma^2`. Its mean is 0.183 here. Two effects pull opposite
+ways — the scatter about a group is *smaller* than `u` because the levels followed the points,
+while the uncertainty of the group's mean is *larger* than an independent average because the
+points share those levels — and no per-point uncertainty reproduces a correlated covariance
+exactly. `u_eff = u / (1 - h)` comes close: over the 151 groups it reproduces the group
+uncertainty of the full covariance matrix to a median ratio of 0.97, where plain `u` gives
+0.74. It also disposes of the nine lines with `h = 1`, which one of their levels rests on
+alone: the fit satisfies them exactly whatever the calibration is, so they measure nothing.
+They are written with an empty `u_eff_A` and left out of the `fit_power.py` files.
+
+**The correction of every observed wavenumber.** `wavelength_calibration_corrections.csv` is
+what the LOPT input and `dlv.dat` are to be built from. One row per distinct observed
+wavenumber of `line_classifications.csv` — 6669 of them, not the 4373 the fit rests on,
+because an unclassified line was recorded on the same plate as its neighbors and needs the
+same correction, and it is among the unclassified lines that the next identification has to be
+made. Columns: `wn_obs, lambda_A, block, char, era, group, in_fit, d_lambda_A, u_d_lambda_A,
+own_correction, u_own_correction`.
+
+`own_correction` is the correction in cm⁻¹ to **add** to Sugar's wavenumber, evaluated at that
+line's own wavelength, and `u_own_correction` is its uncertainty. Both come from the one
+covariance matrix of the whole fit: `delta_lambda = c·x` and `u² = cᵀ C c`, where `c` is the
+line's own row of the calibration part of the design matrix, so the correlation between one
+calibration parameter and the next, and between the calibration and the level energies, is
+carried. `u_own_correction` is a **systematic**: it does not average down over the lines of a
+level, and belongs in LOPT separately from the statistical uncertainty of the line.
+
+A line the fit never saw — an unclassified one, or one in a 25 Å bin holding no accepted line
+— has no group of its own. It is given the nearest group of its own block, since it was
+recorded on the same plate; a line in a block whose constant was fixed at zero gets zero with
+the trial's uncertainty, and a line in a block that holds only itself gets nothing.
+
+6667 of the 6669 lines get a correction. The rms correction is 0.110 cm⁻¹ and the median
+uncertainty 0.020 cm⁻¹; 2922 lines are corrected by more than twice their own uncertainty.
+The 51 lines of the six blocks whose constant was fixed at zero carry a correction of exactly
+zero with a real uncertainty; the two that carry nothing at all are the single lines of blocks
+0 and 19.
+
+| block | Å | lines | corrected | min | max | median `u` |
+|---|---|---|---|---|---|---|
+| 1 | 822–827 | 8 | 8 | 0 | 0 | 0.5297 |
+| 2 | 828–887 | 148 | 148 | −0.2857 | −0.0754 | 0.0710 |
+| 3 | 888–965 | 24 | 24 | −0.2811 | −0.2380 | 0.0831 |
+| 4 | 966–1164 | 977 | 977 | −0.1837 | +0.3978 | 0.0411 |
+| 5 | 1165–1174 | 7 | 7 | 0 | 0 | 0.3869 |
+| 6 | 1175–1523 | 787 | 787 | −0.3117 | +0.3577 | 0.0517 |
+| 7 | 1530–1664 | 25 | 25 | −0.0967 | −0.0817 | 0.0733 |
+| 8 | 1665–2103 | 905 | 905 | −0.3116 | −0.0045 | 0.0425 |
+| 9 | 2104–2191 | 69 | 69 | −0.0399 | +0.0766 | 0.0199 |
+| 10 | 2191–2780 | 1509 | 1509 | −0.0594 | +0.0375 | 0.0160 |
+| 11 | 2784–2806 | 14 | 14 | 0 | 0 | 0.1521 |
+| 12 | 2809–3211 | 456 | 456 | −0.0486 | +0.0195 | 0.0178 |
+| 13 | 3220–3249 | 9 | 9 | 0 | 0 | 0.1326 |
+| 14 | 3257–4931 | 998 | 998 | −0.0698 | +0.0325 | 0.0183 |
+| 15 | 4966–5032 | 3 | 3 | 0 | 0 | 0.0889 |
+| 16 | 5071–8750 | 656 | 656 | −0.0281 | +0.0325 | 0.0166 |
+| 17 | 8766–9019 | 10 | 10 | 0 | 0 | 0.0501 |
+| 18 | 9038–10327 | 62 | 62 | −0.0070 | +0.0130 | 0.0171 |
+
+(The blocks with a `min` and a `max` of exactly zero are the ones whose constant failed the
+significance test; their `u` is what the trial measured. The two uncorrected lines are in
+blocks 0 and 19, which hold one line each.)
+
+**The covariance matrix.** It is the pseudo-inverse of the weighted normal matrix, formed once
+for the whole fit. The pseudo-inverse and not the inverse, because the level system is rank
+deficient by exactly one — the energy zero — which the inverse cannot handle and which the
+pseudo-inverse handles correctly: it puts no variance along that direction and gives the right
+variance of every *estimable* function, which every calibration quantity here is. Three checks
+are printed on every run:
+
+* the largest departure from symmetry before the matrix is symmetrized, 5.7e-12 of its largest
+  element — rounding, as it must be;
+* the eigenvalues of its 151×151 calibration block, 6.1e-08 to 7.4e-04, all positive, so every
+  linear combination of calibration parameters has a positive variance;
+* the weight the one null direction puts on the calibration, 2.65e-16 against 3.93e-02 on the
+  levels.
+
+The leverage inflation `u_eff = u/(1 - h)` cannot distort any of this, and the concern that it
+might does not arise here: the fit weights each line by that line's own adopted uncertainty,
+and the leverage is computed *from* the solution and never fed back into it. `u_eff_A` exists
+only as a weight for an outside fit to `wavelength_calibration_points.csv`.
+
+**Running it.**
+
+```bash
+python wavelength_calibration.py              # from inside LineClass/
+python wavelength_calibration.py --model poly # one polynomial per block instead
+python wavelength_calibration.py --degree 2   # force a degree, for a test
+python wavelength_calibration.py --no-write   # print the report, write nothing
+fit_power.bat wavelength_calibration_fit/block_04.txt   # a smooth curve for one plate
+```
+
+The `fit_power.py` files are tab-delimited `lambda_A`, `d_lambda_A`, `u_eff_A`, a blank line,
+then `c0` and `c1` free — a straight line in wavelength, which is the natural first model for
+a plate. Block 4 (966–1164 Å, 708 points) fits `c0 = 3.596e-2 ± 2.77e-3`,
+`c1 = -3.351e-5 ± 2.61e-6` at chi^2/dof 0.876, reproducing the staircase there.
+
+**Results, 2026-09-22.** chi^2/dof 0.701, rms 0.1398 cm^-1,
+`kappa(plain 1974) = +0.941 ± 0.014`, `kappa(plain 1969) = +0.695 ± 0.037`,
+`kappa(c) = +0.201 ± 0.053`.
+
+| region | groups | beyond 2 sigma | mean `d_lambda` | rms | median `u` | max abs |
+|---|---|---|---|---|---|---|
+| 1969, below 2105 Å | 43 | 24 | +0.00150 | 0.00377 | 0.00117 | 0.01038 |
+| 1974, 2105–4500 Å | 71 | 20 | +0.00122 | 0.00347 | 0.00167 | 0.01387 |
+| 1974, above 4500 Å | 37 | 4 | +0.00069 | 0.00739 | 0.00785 | 0.01981 |
+
+The common mode — the mean over all 151 groups, with its uncertainty taken from the covariance
+matrix because the groups share the levels — is +0.00117 ± 0.00140 Å, consistent with zero.
+There is no significant error in the wavelength scale as a whole; what the fit measures well
+is the difference between one plate and the next.
 
 ### How often a line is lost where the map says the plate was looking: `tools/obscuration_rate.py`
 

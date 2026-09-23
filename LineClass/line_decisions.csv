@@ -250,7 +250,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 96061.297,059003.000046,059003.000353,accept,9/8/2026,IDEN2/LOPT: adding it to blend improves cg.
 32243.579,059003.000192,059003.000298,accept,9/8/2026,IDEN2/LOPT
 37675.259,059003.000130,059003.000233,accept,9/8/2026,IDEN2/LOPT
-38006.28,059003.000128,059003.000233,accept,9/8/2026,IDEN2/LOPT
+38006.28,059003.000128,059003.000233,reject,9/22/2026,the accept of 9/8/2026 is withdrawn: Sugar's wavelength-calibration curve does not account for it: still 7.2 sigma from Ritz with the curve removed
 23525.807,059003.000352,059003.000578,reject,9/9/2026,Line is well explained by another strong transition; this one is too far from Ritz; include in pub line list as masked.
 20737.662,059003.000475,059003.000604,reject,9/9/2026,"IDEN2: Too far from Ritz, too weak."
 32844.439,059003.000341,059003.000534,reject,9/9/2026,IDEN2: Would fix 000534 too tightly without much evidence.
@@ -278,7 +278,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 38411.4,059003.000204,059003.000318,accept,9/11/2026,Blend improves intensity agreement; cg is compatible with Ritz.
 41260.611,059003.000199,059003.000326,accept,9/11/2026,Blend is compatible with w char and improves intensity agreement; cg is compatible with Ritz.
 94403.676,059003.000064,059003.000360,reject,9/11/2026,Pulls cg in wrong direction.
-94650.523,059003.000078,059003.000384,accept,9/11/2026,IDEN2/LOPT
+94650.5226,059003.000078,059003.000384,accept,9/22/2026,IDEN2
 94950.80068530583,059003.000076,059003.000384,accept,9/11/2026,IDEN2/LOPT
 98546.421,059003.000075,059003.000487,accept,9/11/2026,Blend improves cg Ritz
 18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT
@@ -286,7 +286,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 30126.309,059003.000141,059003.000210,reject,9/11/2026,IDEN2: looks wrong
 37051,059003.000127,059003.000224,reject,9/11/2026,IDEN2: looks wrong
 32573.929,059003.000145,059003.000234,reject,9/11/2026,IDEN2: looks wrong; weak component; pulls cg in wrong direction.
-32573.929,059003.000150,059003.000244,accept,9/11/2026,IDEN2
+32573.929,059003.000150,059003.000244,reject,9/22/2026,the accept of 9/11/2026 is withdrawn: Sugar's wavelength-calibration curve does not account for it: still 5.5 sigma from Ritz with the curve removed
 37863.349,059003.000248,059003.000343,reject,9/11/2026,Too small predicted intensity to contribute to blend.
 17195.128,059003.000322,059003.000487,accept,9/11/2026,IDEN2
 39917.569,059003.000127,059003.000248,reject,9/12/2026,hfs analysys rejects it.
@@ -400,3 +400,19 @@ wn_obs,low_id,upp_id,decision,date,reason
 43594.569,059003.000150,059003.000286,accept,9/21/2026,IDEN2/LOPT
 22561.9597,059003.000676,059003.000560,reject,9/21/2026,"Too far from Ritz, too weak Icalc"
 32687.4082,059003.000450,059003.000678,reject,9/21/2026,IDEN2: not justified
+53195.877,059003.000257,059003.000679,accept,9/21/2026,IDEN2/LOPT
+56219.8218,059003.000230,059003.000680,accept,9/21/2026,IDEN2/LOPT
+29533.6003,059003.000629,059003.000681,accept,9/21/2026,IDEN2/LOPT
+56801.467,059003.000148,059003.000626,accept,9/21/2026,IDEN2/LOPT
+53644.01,059003.000161,059003.000626,accept,9/21/2026,IDEN2/LOPT
+37136.1898,059003.000133,059003.000239,reject,9/22/2026,"Sugar left this line unclassified; Sugar's wavelength-calibration curve does not account for it: still 14.2 sigma from Ritz with the curve removed. May belong to an unknown level, e.g. 059003.000310"
+31558.0793,059003.000149,059003.000233,reject,9/22/2026,"the classification was moved here from 31604.5391, which Sugar did classify; restored to Sugar. Sugar's wavelength-calibration curve does not account for it: still 10.7 sigma from Ritz with the curve removed"
+25042.9496,059003.000165,059003.000211,reject,9/22/2026,Sugar left this line unclassified; Sugar's wavelength-calibration curve does not account for it: still 9.6 sigma from Ritz with the curve removed
+31391.3796,059003.000141,059003.000218,reject,9/22/2026,"held only by a tenfold inflation of Sugar's uncertainty, now withdrawn; Sugar's wavelength-calibration curve does not account for it: still 7.2 sigma from Ritz with the curve removed"
+36875.8689,059003.000134,059003.000239,reject,9/22/2026,two measurements of one line 0.008 A apart; the classification belongs with 36875.7593 as Sugar had it. Sugar's wavelength-calibration curve does not account for it: still 6.2 sigma from Ritz with the curve removed
+117645.5125,059003.000054,059003.000516,reject,9/22/2026,Sugar left this line unclassified; Sugar's wavelength-calibration curve does not account for it: still 6.2 sigma from Ritz with the curve removed
+45994.3206,059003.000064,059003.000215,accept,9/22/2026,"retained. The 2150-2200 A calibration error of -0.0043 A (+0.091 cm-1 here) accounts for 41 per cent of the residual, which falls to 2.9 sigma with the curve removed; Sugar's uncertainty inflated 0.0635 -> 0.12 cm-1"
+31391.6526,059003.000141,059003.000218,reject,9/22/2026,"the pair moved here from 31391.3796, which was rejected the same day, and this position is farther from Ritz still: +0.89 cm-1 against +0.62. The inflated 0.3335 cm-1 does not excuse it, it only straddles the neighboring line 0.27 cm-1 away; the calibration correction here is +0.019 +- 0.025 cm-1 and takes the residual to +0.91"
+46172.4502,059003.000062,059003.000215,accept,9/22/2026,"IDEN2 1221-1062, the same upper level as 45994.3206, and undoubtedly this transition; Sugar left it unclassified. His uncertainty is inflated 0.0642 -> 0.12 cm-1, as for 45994.3206. The calibration does not help here: +0.058 +- 0.021 cm-1 takes the residual from +0.19 to +0.25 cm-1"
+38825.7505,059003.000111,059003.000215,accept,9/22/2026,"IDEN2 1170-1062, the same upper level again; Sugar's uncertainty inflated 0.0456 -> 0.0844 cm-1. The calibration correction of +0.015 +- 0.015 cm-1 takes the residual from -0.138 to -0.123 cm-1, 1.5 sigma on the inflated uncertainty"
+33300.241,059003.000331,059003.000529,reject,9/22/2026,"IDEN2: Too far from Ritz, too small Icalc."
