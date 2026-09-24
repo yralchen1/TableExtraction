@@ -1,0 +1,9 @@
+obs_wn	unc_wn	date	reason
+94650.5226	1.2542	2026-09-19	Sugar's own value doubled; the classification 000164 - 000424 is retained
+46172.4502	0.1200	2026-09-19	Sugar measured the position badly; 1221 - 1062 is not in doubt
+45994.3206	0.1200	2026-09-19	off the block trend; the classification is sound
+44652.5408	0.1948	2026-09-23	outlier of the block fit; 4 x the class value, not de-classified
+40374.4801	0.1461	2026-09-23	outlier of the block fit; 3 x the class value, not de-classified
+40150.6097	0.1461	2026-09-23	outlier of the block fit; 3 x the class value, not de-classified
+38825.7505	0.0844	2026-09-19	same kind as 46172.4502; the transition is 1170 - 1062
+38701.8602	0.1948	2026-09-23	outlier of the block fit; 4 x the class value, not de-classified

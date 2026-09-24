@@ -857,7 +857,9 @@ def read_line_decisions(path: str) -> dict:
     the nearest observed line within DECISIONS_WN_MATCH, so it may be written
     to fewer decimals than the line list carries; the closest two observed
     lines of this spectrum are 0.10 cm^-1 apart, ten times that window, so the
-    match cannot be ambiguous.
+    match cannot be ambiguous.  The wavenumber is the line's immutable name
+    (`SpectralLine.wn_key`), so one ledger serves the baseline, the corrected
+    and the final sets alike; see attach_line_decisions().
     """
     dmap = {}
     with open(path, newline='', encoding='utf-8-sig') as fh:
@@ -895,12 +897,22 @@ def attach_line_decisions(observed_lines: list, path: str) -> dict:
     - the assignment may have moved out of matching range - and is reported at
     the end of the run by report_unapplied_decisions().
 
+    The wavenumber written in the ledger is matched against `line.wn_key`, the
+    line's immutable name, not against the wavenumber this run works with.
+    The two are the same file column in a baseline run.  They are not in a
+    calibrated one: the corrections reach 0.66 cm^-1, sixty-six times
+    DECISIONS_WN_MATCH, so a ledger keyed on the run's own wavenumbers would
+    have to be rewritten for every set and the sets' verdicts would drift
+    apart.  Keyed on the name, one ledger rules on all of them - which is
+    right, because the verdict is about the physics of an assignment and not
+    about the scale the line was last measured on.
+
     Returns the verdicts as a list of (key, line, verdict) triples, key being
     (wn_obs, low_id, upp_id) as written in the file.
     """
     dmap = read_line_decisions(path)
-    lines_sorted = sorted(observed_lines, key=lambda l: l.wavenumber)
-    wns = [l.wavenumber for l in lines_sorted]
+    lines_sorted = sorted(observed_lines, key=lambda l: l.wn_key)
+    wns = [l.wn_key for l in lines_sorted]
 
     def _line_at(wn):
         j = bisect.bisect_left(wns, wn)
@@ -1667,6 +1679,11 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
     wb = openpyxl.load_workbook(LINES_FILE, read_only=True, data_only=True)
     ws = wb[CFG.lines.sheet]
     col = column_index(ws, CFG.lines, LINES_FILE)
+    # The column an observed line is named by in the hand-kept ledgers.  A
+    # corrected set reads its wavenumbers from one column and names its lines
+    # by another; where the configuration does not say otherwise the two are
+    # the same column, and nothing about a baseline run changes.
+    col_key = col.get('wn_key', col['wn'])
 
     observed_lines = []
     prev_line = None
@@ -1674,6 +1691,7 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
     for row in ws.iter_rows(min_row=2):  # skip header
         wn_val = row[col['wn']].value            # wavenumber
         unc_val = row[col['u_wn']].value         # its uncertainty
+        key_val = row[col_key].value             # the line's immutable name
         intens_val = row[col['intensity']].value
         char_val = row[col['character']].value   # line character
 
@@ -1684,6 +1702,9 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
             wavenumber = float(wn_val) + wn_shift
             uncertainty = float(unc_val)
             intensity = float(intens_val)
+            # never shifted: a chance-coincidence run displaces the
+            # measurements, not the names they are filed under
+            wn_key = float(key_val)
         except (ValueError, TypeError):
             continue
 
@@ -1699,7 +1720,8 @@ def read_observed_lines(levels_dict: dict, calc_trans_index: dict, wn_shift: flo
                 wavenumber=wavenumber,
                 wn_uncertainty=uncertainty,
                 intensity=intensity,
-                line_character=line_char
+                line_character=line_char,
+                wn_key=wn_key
             )
             observed_lines.append(current_line)
             prev_line = current_line
@@ -2127,6 +2149,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                               if t is not UNASSIGNED and t.accepted == 1)
         unassigned_row = {
             'wn_obs': obs_line.wavenumber,
+            'wn_key': obs_line.wn_key,
             'unc_wn_obs': obs_line.wn_uncertainty,
             'obs_intens': obs_line.intensity,
             'char': obs_line.line_character,
@@ -2170,6 +2193,7 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
+                    'wn_key': obs_line.wn_key,
                     'unc_wn_obs': u_own,
                     'obs_intens': obs_line.intensity,
                     'char': obs_line.line_character,
@@ -2275,6 +2299,7 @@ def write_output(df: pd.DataFrame):
     # Map column names to Excel number formats
     col_formats = {
         'wn_obs':  '0.000',
+        'wn_key':  '0.0000',
         'unc_wn_obs': '0.000',
         'obs_intens': '0.000',
         'calc_intens': '0.000',

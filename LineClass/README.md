@@ -1911,112 +1911,135 @@ tie is the whole measurement. `D` is the calculated hyperfine displacement of th
 `kappa` the fraction of it Sugar's measuring convention picked up (plan Step 3); the `*r` and
 `*v` flagged lines have their measured displacement removed directly and carry no `kappa`.
 
-**Blocks and groups.** A *block* is one plate, as nearly as the line list can show it. Sugar's
-exposure boundaries were never published, but at a join no line of any species was recorded,
-so the list goes blind over a stretch of wavelength; `tools/coverage_map.py` has already
-measured those ten stretches into `coverage_gaps.txt`, and they cut the spectrum into 19
-blocks. Each blind stretch is a block in its own right, not a hole: it is thin, not empty,
-and the few lines recorded inside it came from whatever exposure did reach there. Nothing
-ties one block's calibration to the next — no line was recorded on both — so no correction is
-ever carried across a join.
+**Blocks and groups.** A *block* is a stretch of wavelength over which one calibration can
+be carried. Two things end one.
+
+The first is a plate join. Sugar's exposure boundaries were never published, but at a join no
+line of any species was recorded, so the list goes blind over a stretch of wavelength;
+`tools/coverage_map.py` has measured those ten stretches into `coverage_gaps.txt`. Each blind
+stretch is a block in its own right, not a hole: it is thin, not empty, and the few lines
+recorded inside it came from whatever exposure did reach there.
+
+The second is a plate holder, and it leaves no trace in the coverage at all. The plates are
+rigid flat glass carrying the emulsion, and the spectrograph bends them onto the Rowland
+circle with two to four mechanical holders. The plate is pinched at each holder, so the
+dispersion curve — smooth everywhere else — is deformed there, and the calibration on one side
+of a holder does not carry to the other. A break of this kind can only be found by eye, from a
+trend in `d_lambda_A` that stops and restarts, and the eleven found so far are entered by hand
+in **`calibration_breaks.txt`**, one wavelength per line with the evidence for it in the
+comment. The sharp peak at 2498 Å is the clearest of them.
+
+Together the two cut the spectrum into **30 blocks**. Nothing ties one block's calibration to
+the next, so no correction is ever carried across a boundary of either kind.
 
 A *group* is one `delta_lambda` parameter inside a block. Walking a block from its blue end,
 25 Å bins are accumulated until the group holds at least 12 lines; a short group left at the
-red end is merged back into its predecessor. A group therefore never spans a join, and a
-block that cannot raise 12 lines in total is not given a group. Twelve blocks carry groups;
-there are **151 groups** in all, of which 28 are in the 5068–8756 Å block.
-`wavelength_calibration.csv` and the `group` column of `wavelength_calibration_points.csv`
-carry the same 151 and name them the same way. The 40 remaining lines, in the seven thinner
-blocks, have that column empty, so a count of distinct (block, group) pairs in the points file
-gives **158**: the 151 groups and the seven blocks that have none.
+red end is merged back into its predecessor. A group therefore never spans a break, and a
+block that cannot raise 12 lines in total is not given a group. There are **152 groups** in
+all. `wavelength_calibration.csv` and the `group` column of
+`wavelength_calibration_points.csv` carry the same 152 and name them the same way; the lines
+of the blocks that carry no group have that column empty, so a count of distinct
+(block, group) pairs in the points file exceeds the number of groups by the number of those
+blocks.
 
 **The thin blocks, on trial.** A block too thin for a group of its own is not dismissed
 without a hearing. It is given one constant over the whole block, and that constant is then
 judged by its own significance — the ratio of its uncertainty to its value. A constant smaller
-than its own uncertainty has measured nothing, and is fixed at zero. All six blocks that have
-at least two lines fail that test:
+than its own uncertainty has measured nothing, and is fixed at zero:
 
 ```
   blk  lines    d_lambda_A         u_A    |u/d|   verdict
-    1      5      -0.00307     0.00360     1.17   fixed at zero
-    5      3      -0.00137     0.00529     3.85   fixed at zero
-   11     10      -0.00497     0.01189     2.39   fixed at zero
-   13      8      -0.00470     0.01383     2.94   fixed at zero
-   15      3      -0.01191     0.02195     1.84   fixed at zero
-   17     10      -0.02096     0.03958     1.89   fixed at zero
+    1      5      -0.00449     0.00359     0.80   kept
+    5      3      -0.00339     0.00528     1.56   fixed at zero
+   19     10      -0.00976     0.01185     1.21   fixed at zero
+   21      8      -0.01036     0.01379     1.33   fixed at zero
+   23      3      -0.02076     0.02188     1.05   fixed at zero
+   28     10      -0.03797     0.03944     1.04   fixed at zero
 ```
 
-Keeping them is not free. A block of three or five lines has no Ritz network of its own: its
-constant trades almost exactly against the energies of the few levels its lines touch, and
-that near-degeneracy leaks out through the common mode — the one direction of the fit that is
-already weakly determined — into every other group in the spectrum. With all six kept, the
-largest eigenvalue of the 157×157 calibration covariance is 4.893e-02 against 7.396e-04 for
-the 151, a factor of 66 in variance, and the median `u_own_correction` over the whole line
-list rises from 0.020 to 0.184 cm⁻¹. This is precisely the malformed covariance matrix that a
-poorly determined parameter produces, and the significance test is what keeps it out.
+Keeping a constant that fails is not free. A block of three or ten lines has no Ritz network
+of its own: its constant trades almost exactly against the energies of the few levels its
+lines touch, and that near-degeneracy leaks out through the common mode — the one direction of
+the fit that is already weakly determined — into every other group in the spectrum. When all
+six were kept, the largest eigenvalue of the calibration covariance was 4.893e-02 against
+7.396e-04 with them out, a factor of 66 in variance, and the median `u_own_correction` over
+the whole line list rose from 0.020 to 0.184 cm⁻¹. This is precisely the malformed covariance
+matrix that a poorly determined parameter produces, and the significance test is what keeps it
+out.
 
 The lines of a block fixed at zero are not left empty, though: they take a correction of zero
-with the uncertainty measured in the trial, which is what `dlv.dat` needs. Only block 0 and
-block 19 — one line each, and one line can measure nothing, since the fit can satisfy it by
-moving a level instead — are left without a number.
+with the uncertainty measured in the trial, which is what `dlv.dat` needs. Only the two blocks
+that hold a single line each are left without a number — one line can measure nothing, since
+the fit can satisfy it by moving a level instead.
 
 **Piecewise or smooth — and the test that chooses.** A calibration error, as a spectroscopist
 derives it, is a smooth polynomial in wavelength: the reference wavelengths are fitted against
 the measured plate positions, and whatever is wrong with that fit is wrong smoothly. So the
 program carries both models and fits both on every run.
 
-`--model groups`, the default, is **piecewise constant**: the 151 group parameters above.
-`--model poly` puts **one polynomial in wavelength on each block**, in a Legendre basis scaled
-to the block's own wavelength range, with the degree chosen by the data. Twenty-seven
-coefficients over the twelve blocks, against 151 steps.
+`--model groups` is **piecewise constant**: the 152 group parameters above. `--model poly`
+puts **one polynomial in wavelength on each block**, in a Legendre basis scaled to the block's
+own wavelength range, with the degree chosen by the data — 47 coefficients over the 24
+parameterized blocks, against 152 steps.
 
 **How a degree is chosen.** Every degree up to the block's ceiling is tried — not only the
 degrees up to the first one that fails. This matters: a plate whose error is a symmetric bow
 gains nothing at all from a slope and a great deal from a curve, so a search that stopped at
 the first disappointment would report the block as unfittable when it is in fact well fitted.
-Block 6 is exactly that case: degree 1 buys 0.6 in chi-square and degree 4 buys 109. A degree
-costs 9 in chi-square per parameter it adds (3 sigma each), the winner is the degree that
-beats that price by the widest margin, and a block may carry one coefficient per 12 of its
-lines. The scan is repeated until no block changes its mind, because the blocks are coupled
-through the level energies they share.
+The 1175–1523 Å block is exactly that case: degree 1 buys 0.6 in chi-square and degree 4 buys
+109. A degree costs 9 in chi-square per parameter it adds (3 sigma each), the winner is the
+degree that beats that price by the widest margin, and a block may carry one coefficient per
+12 of its lines. The scan is repeated until no block changes its mind, because the blocks are
+coupled through the level energies they share.
 
-Which of the two models the spectrum asks for is then a measurement, and the report prints it
-block by block: the two chi-squares side by side against the number of parameters between
-them. A plate that is smooth gives back about one unit of chi-square per parameter the
-staircase spends. Over the whole spectrum the staircase gives back **241 for 124 parameters**
-— 124 ± 16 is what noise alone would give, so the difference is 7 sigma. Block by block it is
-uneven, and that is the useful part:
+**Is a plate smooth?** That is a different question from which polynomial to apply, and it is
+answered against a different fit. The price rule above asks whether a degree *earns its keep*;
+smoothness asks whether any polynomial the block can carry does as well as the staircase, so
+the test is made at the block's **ceiling** degree, however little the last degrees earned.
+Comparing the staircase with the priced winner instead convicts a block of structure when all
+it has is a curve too shallow to buy — which is how the 2809–3211 Å block was once reported as
+not smooth when a parabola in fact fits it well.
 
 ```
-blk    lines  deg  groups  chi2_poly  chi2_step  d_chi2  d_par
-  2       72    1       2      119.3      125.8    -6.5      0
-  3       16    0       1       19.7       19.0     0.7      0
-  4      710    4       8      556.4      560.6    -4.2      3
-  6      450    4      14      241.5      229.0    12.5      9
-  7       15    0       1       10.8       10.9    -0.0      0
-  8      655    0      17      183.1      132.9    50.2     16
-  9       61    2       3       71.2       89.1   -18.0      0
- 10     1093    3      24      905.2      799.3   105.9     20
- 12      294    0      14      193.2      163.5    29.7     13
- 14      540    1      35      311.7      264.1    47.6     33
- 16      377    0      28       90.5       68.1    22.4     27
- 18       50    0       4       11.1       10.5     0.6      3
- all     4333          151     2713.8     2472.8   240.9    124
+ blk   lines   deg  chi2_poly   top   chi2_top  groups  chi2_step   d_chi2  d_par  sigma
+   1       5     0        1.7     0        1.9       1        1.5      0.4      0      -
+   2      72     1      120.1     5      118.6       2      126.0     -7.4     -4      -
+   3      16     0       19.5     0       19.2       1       18.7      0.5      0      -
+   4     710     4      555.8     5      554.2       8      560.7     -6.5      2   -4.2
+   6     450     4      240.9     5      239.4      14      228.7     10.8      8    0.7
+   7      15     0       11.0     0       11.3       1       10.9      0.4      0      -
+   8      57     0       21.0     3       19.6       3       18.2      1.3     -1      -
+   9     598     4      121.5     5      120.3      14      114.4      6.0      8   -0.5
+  10      61     2       69.9     4       52.2       3       89.5    -37.3     -2      -
+  11      61     1       41.8     4       36.8       2       45.8     -9.0     -3      -
+  12      70     1       73.0     4       64.1       1       85.0    -20.9     -4      -
+  13      79     0       56.8     5       47.2       2       57.5    -10.4     -4      -
+  14     162     2      103.7     5       98.2       3      116.4    -18.2     -3      -
+  15     290     3      200.2     5      189.2       6      201.5    -12.3      0      -
+  16      93     0       77.2     5       59.1       2       80.9    -21.8     -4      -
+  17     162     0      130.4     5      120.6       3      131.5    -10.9     -3      -
+  18     176     0       78.6     5       72.0       6       73.9     -1.9      0      -
+  20     294     0      188.1     5      168.9      14      163.2      5.6      8   -0.6
+  22     540     1      307.7     5      287.3      35      264.0     23.3     29   -0.7
+  24      19     0        4.1     0        4.8       1        4.5      0.4      0      -
+  25     203     0       36.2     5       29.1      15       28.4      0.7      9   -2.0
+  26     102     0       22.0     5       16.4       7       15.6      0.8      1   -0.2
+  27      53     0       20.2     3       18.8       4       18.0      0.9      0      -
+  29      50     0       11.3     3        7.2       4       10.8     -3.7      0      -
+ all    4338           2512.7           2356.3     152     2465.3   -109.1     37  -17.0
 ```
 
-Blocks 2, 3, 4, 6, 7, 9, 16 and 18 are smooth: their polynomial is as good as the staircase or
-better, and in blocks 2, 4, 7 and 9 it is better outright, the staircase having spent
-parameters on noise. Blocks 8, 10 and 12 are not smooth — block 10 gives back 106 chi-square
-for 20 parameters and block 8 gives 50 for 16, and no degree up to 5 recovers it. Block 14 is
-marginal at 48 for 33. Structure that a smooth curve cannot follow but a 25 Å step can is
-structure on the scale of tens of angstrom — an undetected join inside the block, or a
-reduction Sugar did in pieces.
+`d_chi2` is what the staircase buys with its `d_par` extra parameters; noise alone would buy
+`d_par ± sqrt(2 d_par)`, which the last column counts. **Not one block now shows the staircase
+ahead by as much as 1 sigma**, and over the spectrum as a whole the polynomials are 109 in
+chi-square *better* with 37 fewer parameters. Before the hand breaks were entered, the
+2191–2781 Å stretch alone put the staircase 100 ahead for 18 parameters, 13.6 sigma; the
+breaks at 2225, 2250, 2283, 2343, 2498, 2543.1 and 2631.6 Å account for all of it. The plates
+are smooth — between the holders.
 
-The staircase is still the default, and for the same reason: over the spectrum as a whole it
-is 7 sigma better, and it assumes nothing about smoothness that has not been tested, block by
-block. Where a block *is* smooth, the two agree to well inside their uncertainties, so nothing
-is lost by using the staircase there; where it is not, the polynomial would smooth over a real
-displacement.
+`--model poly` is therefore the model to apply, and it is what the deliverables are currently
+written from: 47 coefficients against 152 steps, chi2/dof 0.690 against 0.698, and a
+correction defined *everywhere inside a block* rather than only where a group happens to fall.
 
 **No anchor.** Holding one group at `delta_lambda = 0` turns out to be an unnecessary
 constraint: freeing every group raises the rank of the design matrix from 801/802 to 802/803.
@@ -2035,7 +2058,6 @@ signature in wavenumber goes as `wn^2`, which no level shift can imitate.
 | `wavelength_calibration_points.csv` | the fit's input, one row per line (columns below) |
 | `wavelength_calibration_corrections.csv` | the correction of every observed wavenumber of the list, with its uncertainty |
 | `wavelength_calibration_poly.csv` | (`--model poly` only) the fitted coefficients and their full covariance |
-| `wavelength_calibration_fit/block_NN.txt` | the same points as `fit_power.py` input, one file per block |
 
 `shift_cm-1` is the correction to **add** to Sugar's wavenumber at the group's middle
 wavelength, and `u_shift_cm-1` is its uncertainty — a systematic of that group, since a
@@ -2063,7 +2085,7 @@ in block 2, for instance, the points scatter by 0.0030 Å rms about a median `u_
 0.0018 Å, while the two groups of that block are determined to 0.0005 Å. The calibration is
 the group parameter of `wavelength_calibration.csv`, the weighted mean of at least twelve such
 points, which is where the scatter averages down; the fitted `delta_lambda` of a group
-reproduces that weighted mean to 1e-5 Å over all 151 groups. Nothing in the per-line column
+reproduces that weighted mean to 1e-5 Å over all 152 groups. Nothing in the per-line column
 is claimed to be smooth, and nothing in it is per level: every line of a group shares one
 `delta_lambda`, whatever levels it connects. Whether the *group* values are smooth in
 wavelength, as a calibration error must be, is a question the fit files answer — and they do:
@@ -2082,19 +2104,24 @@ much of it the levels have already absorbed, the expected square of a residual b
 ways — the scatter about a group is *smaller* than `u` because the levels followed the points,
 while the uncertainty of the group's mean is *larger* than an independent average because the
 points share those levels — and no per-point uncertainty reproduces a correlated covariance
-exactly. `u_eff = u / (1 - h)` comes close: over the 151 groups it reproduces the group
+exactly. `u_eff = u / (1 - h)` comes close: over the 152 groups it reproduces the group
 uncertainty of the full covariance matrix to a median ratio of 0.97, where plain `u` gives
 0.74. It also disposes of the nine lines with `h = 1`, which one of their levels rests on
 alone: the fit satisfies them exactly whatever the calibration is, so they measure nothing.
-They are written with an empty `u_eff_A` and left out of the `fit_power.py` files.
+They are written with an empty `u_eff_A`.
 
 **The correction of every observed wavenumber.** `wavelength_calibration_corrections.csv` is
 what the LOPT input and `dlv.dat` are to be built from. One row per distinct observed
 wavenumber of `line_classifications.csv` — 6669 of them, not the 4373 the fit rests on,
 because an unclassified line was recorded on the same plate as its neighbors and needs the
 same correction, and it is among the unclassified lines that the next identification has to be
-made. Columns: `wn_obs, lambda_A, block, char, era, group, in_fit, d_lambda_A, u_d_lambda_A,
-own_correction, u_own_correction`.
+made. Columns: `wn_obs, lambda_A, block, char, era, group, in_fit, u_stat_cm1, d_lambda_A,
+u_d_lambda_A, own_correction, u_own_correction`.
+
+`u_stat_cm1` is the statistical uncertainty a *corrected* wavenumber is worth: the value the
+line's uncertainty class gives it under the two-term model below, or the value entered by
+hand in `inflated_unc_lines.txt` if it is listed there. Every row carries one, including the
+rows the fit never saw, so the corrected sets can be built from this file alone.
 
 `own_correction` is the correction in cm⁻¹ to **add** to Sugar's wavenumber, evaluated at that
 line's own wavelength, and `u_own_correction` is its uncertainty. Both come from the one
@@ -2109,36 +2136,47 @@ A line the fit never saw — an unclassified one, or one in a 25 Å bin holding 
 recorded on the same plate; a line in a block whose constant was fixed at zero gets zero with
 the trial's uncertainty, and a line in a block that holds only itself gets nothing.
 
-6667 of the 6669 lines get a correction. The rms correction is 0.110 cm⁻¹ and the median
-uncertainty 0.020 cm⁻¹; 2922 lines are corrected by more than twice their own uncertainty.
-The 51 lines of the six blocks whose constant was fixed at zero carry a correction of exactly
+6667 of the 6669 lines get a correction. The rms correction is 0.106 cm⁻¹ and the median
+uncertainty 0.017 cm⁻¹; 2567 lines are corrected by more than twice their own uncertainty.
+The 43 lines of the five blocks whose constant was fixed at zero carry a correction of exactly
 zero with a real uncertainty; the two that carry nothing at all are the single lines of blocks
-0 and 19.
+0 and 30.
 
 | block | Å | lines | corrected | min | max | median `u` |
 |---|---|---|---|---|---|---|
-| 1 | 822–827 | 8 | 8 | 0 | 0 | 0.5297 |
-| 2 | 828–887 | 148 | 148 | −0.2857 | −0.0754 | 0.0710 |
-| 3 | 888–965 | 24 | 24 | −0.2811 | −0.2380 | 0.0831 |
-| 4 | 966–1164 | 977 | 977 | −0.1837 | +0.3978 | 0.0411 |
-| 5 | 1165–1174 | 7 | 7 | 0 | 0 | 0.3869 |
-| 6 | 1175–1523 | 787 | 787 | −0.3117 | +0.3577 | 0.0517 |
-| 7 | 1530–1664 | 25 | 25 | −0.0967 | −0.0817 | 0.0733 |
-| 8 | 1665–2103 | 905 | 905 | −0.3116 | −0.0045 | 0.0425 |
-| 9 | 2104–2191 | 69 | 69 | −0.0399 | +0.0766 | 0.0199 |
-| 10 | 2191–2780 | 1509 | 1509 | −0.0594 | +0.0375 | 0.0160 |
-| 11 | 2784–2806 | 14 | 14 | 0 | 0 | 0.1521 |
-| 12 | 2809–3211 | 456 | 456 | −0.0486 | +0.0195 | 0.0178 |
-| 13 | 3220–3249 | 9 | 9 | 0 | 0 | 0.1326 |
-| 14 | 3257–4931 | 998 | 998 | −0.0698 | +0.0325 | 0.0183 |
-| 15 | 4966–5032 | 3 | 3 | 0 | 0 | 0.0889 |
-| 16 | 5071–8750 | 656 | 656 | −0.0281 | +0.0325 | 0.0166 |
-| 17 | 8766–9019 | 10 | 10 | 0 | 0 | 0.0501 |
-| 18 | 9038–10327 | 62 | 62 | −0.0070 | +0.0130 | 0.0171 |
+| 1 | 822–827 | 8 | 8 | +0.2344 | +0.2372 | 0.1377 |
+| 2 | 828–887 | 148 | 148 | −0.3909 | +0.0680 | 0.0730 |
+| 3 | 888–965 | 24 | 24 | −0.2498 | −0.2115 | 0.0842 |
+| 4 | 967–1164 | 977 | 977 | −0.1905 | +0.4130 | 0.0381 |
+| 5 | 1165–1173 | 7 | 7 | 0 | 0 | 0.3860 |
+| 6 | 1175–1522 | 787 | 787 | −0.1679 | +0.6440 | 0.0356 |
+| 7 | 1530–1664 | 25 | 25 | −0.0754 | −0.0637 | 0.0734 |
+| 8 | 1665–1749 | 86 | 86 | −0.1442 | −0.1307 | 0.0415 |
+| 9 | 1750–2103 | 819 | 819 | −0.2582 | +0.0439 | 0.0276 |
+| 10 | 2103–2191 | 69 | 69 | −0.1874 | +0.0860 | 0.0197 |
+| 11 | 2191–2225 | 88 | 88 | −0.0569 | +0.0539 | 0.0185 |
+| 12 | 2225–2250 | 95 | 95 | −0.0620 | +0.0176 | 0.0181 |
+| 13 | 2250–2282 | 105 | 105 | −0.0307 | −0.0299 | 0.0170 |
+| 14 | 2285–2342 | 215 | 215 | −0.0487 | +0.0662 | 0.0166 |
+| 15 | 2343–2498 | 408 | 408 | −0.0646 | +0.0049 | 0.0155 |
+| 16 | 2498–2543 | 139 | 139 | +0.0061 | +0.0063 | 0.0150 |
+| 17 | 2544–2632 | 224 | 224 | +0.0226 | +0.0241 | 0.0143 |
+| 18 | 2632–2780 | 235 | 235 | +0.0235 | +0.0262 | 0.0134 |
+| 19 | 2784–2806 | 14 | 14 | 0 | 0 | 0.1515 |
+| 20 | 2809–3211 | 456 | 456 | −0.0115 | −0.0088 | 0.0121 |
+| 21 | 3220–3249 | 9 | 9 | 0 | 0 | 0.1322 |
+| 22 | 3257–4930 | 998 | 998 | −0.0226 | +0.0252 | 0.0091 |
+| 23 | 4966–5032 | 3 | 3 | 0 | 0 | 0.0886 |
+| 24 | 5071–5370 | 40 | 40 | +0.0075 | +0.0084 | 0.0134 |
+| 25 | 5370–7385 | 362 | 362 | +0.0053 | +0.0100 | 0.0086 |
+| 26 | 7386–8178 | 174 | 174 | +0.0155 | +0.0190 | 0.0083 |
+| 27 | 8190–8749 | 80 | 80 | −0.0024 | −0.0021 | 0.0098 |
+| 28 | 8766–9019 | 10 | 10 | 0 | 0 | 0.0498 |
+| 29 | 9038–10327 | 62 | 62 | +0.0049 | +0.0064 | 0.0106 |
 
 (The blocks with a `min` and a `max` of exactly zero are the ones whose constant failed the
 significance test; their `u` is what the trial measured. The two uncorrected lines are in
-blocks 0 and 19, which hold one line each.)
+blocks 0 and 30, which hold one line each.)
 
 **The covariance matrix.** It is the pseudo-inverse of the weighted normal matrix, formed once
 for the whole fit. The pseudo-inverse and not the inverse, because the level system is rank
@@ -2147,11 +2185,11 @@ pseudo-inverse handles correctly: it puts no variance along that direction and g
 variance of every *estimable* function, which every calibration quantity here is. Three checks
 are printed on every run:
 
-* the largest departure from symmetry before the matrix is symmetrized, 5.7e-12 of its largest
+* the largest departure from symmetry before the matrix is symmetrized, 4.2e-11 of its largest
   element — rounding, as it must be;
-* the eigenvalues of its 151×151 calibration block, 6.1e-08 to 7.4e-04, all positive, so every
+* the eigenvalues of its 47×47 calibration block, 2.3e-08 to 1.3e-04, all positive, so every
   linear combination of calibration parameters has a positive variance;
-* the weight the one null direction puts on the calibration, 2.65e-16 against 3.93e-02 on the
+* the weight the one null direction puts on the calibration, 7.5e-17 against 3.93e-02 on the
   levels.
 
 The leverage inflation `u_eff = u/(1 - h)` cannot distort any of this, and the concern that it
@@ -2166,26 +2204,26 @@ python wavelength_calibration.py              # from inside LineClass/
 python wavelength_calibration.py --model poly # one polynomial per block instead
 python wavelength_calibration.py --degree 2   # force a degree, for a test
 python wavelength_calibration.py --no-write   # print the report, write nothing
-fit_power.bat wavelength_calibration_fit/block_04.txt   # a smooth curve for one plate
 ```
 
-The `fit_power.py` files are tab-delimited `lambda_A`, `d_lambda_A`, `u_eff_A`, a blank line,
-then `c0` and `c1` free — a straight line in wavelength, which is the natural first model for
-a plate. Block 4 (966–1164 Å, 708 points) fits `c0 = 3.596e-2 ± 2.77e-3`,
-`c1 = -3.351e-5 ± 2.61e-6` at chi^2/dof 0.876, reproducing the staircase there.
+`wavelength_calibration_points.csv` is the input for a fit by hand: `lambda_A`,
+`d_lambda_A` and `u_eff_A` are the three columns `fit_power.py` wants, and the points of one
+block paste straight out of `wavelength_calibration_points.xlsm`. The program no longer writes
+a file per block, since the block divisions it would use are the ones being questioned.
 
-**Results, 2026-09-22.** chi^2/dof 0.701, rms 0.1398 cm^-1,
-`kappa(plain 1974) = +0.941 ± 0.014`, `kappa(plain 1969) = +0.695 ± 0.037`,
-`kappa(c) = +0.201 ± 0.053`.
+**Results, 2026-09-23** (`--model poly`, 47 coefficients). chi^2/dof 0.690, rms 0.1403 cm^-1,
+`kappa(plain 1974) = +0.939 ± 0.014`, `kappa(plain 1969) = +0.687 ± 0.037`,
+`kappa(c) = +0.201 ± 0.053`. The staircase on the same blocks gives chi^2/dof 0.698 and
+rms 0.1395 cm^-1 for 152 parameters.
 
 | region | groups | beyond 2 sigma | mean `d_lambda` | rms | median `u` | max abs |
 |---|---|---|---|---|---|---|
-| 1969, below 2105 Å | 43 | 24 | +0.00150 | 0.00377 | 0.00117 | 0.01038 |
-| 1974, 2105–4500 Å | 71 | 20 | +0.00122 | 0.00347 | 0.00167 | 0.01387 |
-| 1974, above 4500 Å | 37 | 4 | +0.00069 | 0.00739 | 0.00785 | 0.01981 |
+| 1969, below 2105 Å | 44 | 27 | +0.00104 | 0.00333 | 0.00074 | 0.00842 |
+| 1974, 2105–4500 Å | 72 | 9 | +0.00019 | 0.00180 | 0.00108 | 0.00409 |
+| 1974, above 4500 Å | 36 | 11 | −0.00308 | 0.00553 | 0.00324 | 0.01038 |
 
-The common mode — the mean over all 151 groups, with its uncertainty taken from the covariance
-matrix because the groups share the levels — is +0.00117 ± 0.00140 Å, consistent with zero.
+The common mode — the mean over all 152 groups, with its uncertainty taken from the covariance
+matrix because the groups share the levels — is −0.00034 ± 0.00135 Å, consistent with zero.
 There is no significant error in the wavelength scale as a whole; what the fit measures well
 is the difference between one plate and the next.
 
@@ -2513,6 +2551,236 @@ python tools/obscuration_length.py --epsilon 0.05 # impose a rate instead of mea
 separations and the jointly absent close pairs), `obscuration_length.csv` (one row per jointly
 absent close pair), `obscuration_length.png` (φ(d) with the fit, the coincidence artefact, and
 the branch separations against L) and `obscuration_length.log`.
+
+## The uncertainty of an observed wavenumber: the two-term model
+
+Sugar states one uncertainty per class of line — 0.0030 Å for a plain line of 1974, 0.0040 Å
+for one of 1969, 0.0070 Å for everything else — and those are **total** uncertainties, his
+plate-reading error with everything else already added in quadrature. `hfs_kappa.py` used to
+replace each of them by a single constant in **cm⁻¹**, measured from the residuals of the
+convention fit. That cannot be right at both ends of a class: the plain lines of 1974 run from
+2100 Å to 10300 Å, and the factor `1e-8·wn²` that turns an angstrom into a cm⁻¹ changes by 24
+across that span, so one constant is too generous at one end and too mean at the other. The
+symptom was a chi-square per degree of freedom of 0.22 in the red blocks against 0.87 in the
+blue, and a normal-probability slope of 0.76 where it should be 1.
+
+What the residuals actually show is two independent errors:
+
+```
+u(lambda)^2 = a^2 + (b / (1e-8 * wn^2))^2          a in angstrom, b in cm-1
+u(wn)^2     = (a * 1e-8 * wn^2)^2 + b^2            the same thing in wavenumber
+```
+
+`a` is a **distance on the plate**: reading a line's position wrong by `a` angstrom is the same
+mistake wherever on the plate the line falls. `b` is an error of the **energy scale**, and for a
+line whose hyperfine structure Sugar could not resolve it is exactly that — a hyperfine center
+of gravity displaced by a fixed number of cm⁻¹, however far into the red the line lies. The two
+have nothing to do with each other, so they add in quadrature. `hfs_kappa.two_term` evaluates
+this and `hfs_kappa.fit_two_term` fits the pair by maximum likelihood per class, with the
+leverage inside the variance (`E[r²] = (1 − h)·u²`) so that lines the level energies have
+already followed do not pretend to measure more than they do. A class whose lines span too
+little spectrum for `1e-8·wn²` to change by `MIN_SPAN` cannot tell the two terms apart and is
+given `b` alone.
+
+The evidence that this is the right form, per class, by Akaike information criterion against
+the two one-parameter alternatives (lower is better; ΔAIC is the excess over the best of the
+three):
+
+| class | n | constant in Å | ΔAIC | constant in cm⁻¹ | ΔAIC | a (Å) | b (cm⁻¹) | ΔAIC |
+|---|---|---|---|---|---|---|---|---|
+| plain 1969 | 1759 | 0.0034 | 98.1 | 0.1956 | 379.9 | 0.0026 | 0.0918 | **0.0** |
+| plain 1974 | 1617 | 0.0076 | 2088.2 | 0.0374 | 80.7 | 0.0017 | 0.0291 | **0.0** |
+| w 1974 | 423 | 0.0079 | 358.7 | 0.0449 | 52.1 | 0.0028 | 0.0282 | **0.0** |
+| \*r 1974 | 131 | 0.0118 | 82.7 | 0.0796 | **0.0** | 0.0000 | 0.0796 | 2.0 |
+| \*v 1974 | 125 | 0.0105 | 93.9 | 0.0705 | **0.0** | 0.0000 | 0.0705 | 2.0 |
+
+The two large classes, which between them are three quarters of the spectrum and carry the long
+lever arm in wavelength, prefer the two-term form by hundreds of units of AIC over either
+alternative. The narrow-range flagged classes have no lever arm and settle on `b` alone, which
+the two-term fit finds for itself by driving `a` to zero — so nothing has to be special-cased.
+Note that `a` comes out *below* what Sugar states in every class that measures it, which is what
+it should do if his stated values are totals and this one is the plate-reading part alone.
+
+**Measured twice.** `hfs_kappa.adopt_uncertainties` has no calibration terms, so the calibration
+error is still inside the residuals it measures — and those uncertainties are then the weights
+of the calibration fit, which is circular. `wavelength_calibration.py` therefore fits the
+calibration once with them, calls `hfs_kappa.refit_uncertainties` on the residuals that fit
+leaves behind, and remakes the fit; `UNC_ROUNDS` says how many times. The report's last table is
+the test, `chi2/dof = sum(r²/u²) / sum(1 − h)` per class, which must be close to 1.
+
+## Lines whose uncertainty is set by hand: `inflated_unc_lines.txt`
+
+Some observed lines do not fit the smooth trend of their block and yet their classification is
+not in doubt. Each is judged individually: some classifications are dropped, and the rest stay
+with an inflated uncertainty. `inflated_unc_lines.txt` is the registry of the second kind,
+tab-delimited (not `.csv` — Excel would not offer the import dialogue for a tab-delimited file
+with that extension):
+
+```
+obs_wn	unc_wn	date	reason
+45994.3206	0.1200	2026-09-19	off the block trend; the classification is sound
+```
+
+A line listed here keeps the value written in `unc_wn` whatever the class model says, and three
+things follow from that. It is **not offered to the outlier filter**, since it has already been
+judged by hand — before the registry existed the 4-sigma filter was throwing exactly these lines
+out of the calibration fit, which is how two accepted lines came to be missing from
+`wavelength_calibration_points.csv`. It is **not used to measure its class**, since a line that
+does not belong to the class would widen every other line in it. And its value is what
+`u_stat_cm1` carries into `wavelength_calibration_corrections.csv`, so the corrected sets and
+`dlv.dat` see it too.
+
+The registry changes as the work goes on. A better fit may bring an outlier into agreement, in
+which case its row is deleted and the line goes back to its class model; or it may show the
+classification to be wrong, in which case the line is unassigned in IDEN2, in LOPT and in
+`line_decisions.csv`, and *then* the row is deleted. `hfs_kappa.read_inflated` reads it and
+returns an empty registry if the file is absent.
+
+## Three sets of LOPT files: baseline, iteration, final
+
+The calibration produces wavenumbers that differ from Sugar's by up to 0.66 cm⁻¹, far more than
+their uncertainties, so LOPT cannot go on being run on the same input file. There are three
+sets, in three directories, because LOPT is run as `lopt.bat LOPT.par` from a directory and a
+`.par` names its own files — a directory costs no renaming and no new arguments.
+
+| set | where | built from | what it is for |
+|---|---|---|---|
+| baseline | `LineClass/` | `line_classifications.csv` | Sugar's wavenumbers, exactly as measured. The assignment pipeline reads and writes this set and nothing else, so a calibration iteration can never disturb the assignments being made by hand, and a rebuild from scratch is always one command away |
+| iteration | `LineClass/iter/` | the above, plus `wavelength_calibration_corrections.csv`, as `iter/Pr3_lines_corrected.xlsx` | the corrected wavenumbers and the statistical uncertainties that go with them. LOPT is run here, its levels go back into `wavelength_calibration.py`, the corrections are remade and the set is rewritten. It converges in one or two passes |
+| final | `LineClass/final/` | the converged iteration set | the hyperfine components merged to centers of gravity, the systematic uncertainties of the calibration entered as LOPT group functions, and the final wavenumbers and uncertainties. This is what the published line list and the paper are cut from |
+
+Each of the two derived directories has its own `IDEN2/` subdirectory, because a decision to
+exclude or to inflate a line is made by looking at IDEN2, and IDEN2 has to be showing the set the
+decision is about — its wavenumbers, its residuals, its level positions. The *verdict* that comes
+out of that looking is then shared with every set, as the next section explains; what is per-set
+is the view it was reached from, not the judgment.
+
+```
+python make_LOPT_input.py --corrections wavelength_calibration_corrections.csv --outdir iter
+cd iter && lopt.bat LOPT.par
+python sync_IDEN2.py --iden2 iter/IDEN2 --lopt-levels iter/LOPT_output_levels.txt
+```
+
+`make_LOPT_input.apply_corrections` does the substitution: `wn_obs` becomes
+`wn_obs + own_correction` and `unc_wn_obs` becomes `u_stat_cm1`, after which the repeat filter,
+the blend weights and the written file all work on the corrected values without knowing that
+they are corrected. A record whose wavenumber the corrections file does not carry keeps Sugar's
+value and is reported. Input files are resolved beside the classification table, not inside
+`--outdir`, so a corrected set does not silently find no hyperfine widths.
+
+### A set is a directory with its own configuration
+
+`config.load(path)` resolves every name in `[files]` against the directory that holds the
+configuration file, so a second configuration file *is* a second set, and no path-handling code
+has to know about it. `iter/lineclass_config.toml` is the whole of the iteration set's
+definition:
+
+```toml
+inherit = "../lineclass_config.toml"
+
+[files]
+lines      = "Pr3_lines_corrected.xlsx"
+output     = "line_classifications.xlsx"
+output_csv = "line_classifications.csv"
+
+[lines.layout.columns]
+wn     = "own_corr"
+u_wn   = "unc_own_corr"
+wn_key = "own"
+```
+
+Three things are going on there, and each answers one way the sets could have drifted apart.
+
+**`inherit` keeps one copy of what does not differ.** A configuration file may name another,
+which is read first and laid under it, table by table; the inherited file's own relative paths
+are resolved against the directory holding *it* before the merge, so `levels =
+"../TableExtraction/Pr3_lev_Wyart_1999.xlsm"` goes on naming the same workbook when a set in
+`iter/` inherits it. A set therefore writes down only what it changes, and the intensity model,
+the wavenumber range, the completeness cutoff and the missing-gA policy cannot come to differ
+between the sets by being edited in one file and not the other. The circular case stops the
+run.
+
+**The columns are looked up by name, so the corrected wavenumbers need no code.** Pointing `wn`
+at `own_corr` is the entire change: `config.resolve_columns` finds it in the header row and
+every reader downstream is told an index. The set is classified from
+`iter/Pr3_lines_corrected.xlsx`, not from `wavelength_calibration_corrections.csv` — that file
+carries wavenumbers, corrections and uncertainties, and the pipeline also needs the observed
+intensity, the line character and the published identification. `Pr3_lines_corrected.xlsx` is
+Sugar's own workbook with `own` and `unc_own` untouched and two columns added,
+`own_corr = own + own_correction` and `unc_own_corr = u_stat_cm1`
+(`wavelength_calibration.write_corrected_lines`, written by `--set iter`).
+
+**`wn_key` is the name of an observed line, and it never changes.** The files kept by hand are
+not copied per set: there is one `line_decisions.csv`, one `new_levels.txt`, one
+`revised_level_energies.csv`, one `discarded_levels.csv` and one `inflated_unc_lines.txt`, and
+they rule on all three sets. They have to, because a verdict on an assignment is a statement
+about the physics and not about the scale the line was last measured on; two copies of a ledger
+are two answers to the same question, with nothing to say which is the work.
+
+What makes it possible is that a ledger row names its line by a wavenumber, and
+`attach_line_decisions` matches that wavenumber to an observed line within `DECISIONS_WN_MATCH`
+= 0.01 cm⁻¹ — while the calibration moves lines by up to 0.66 cm⁻¹, sixty-six times as far. A
+ledger keyed on the wavenumber a set works with would therefore not merely go stale on the
+corrected set; every row of it would fail to match, and the run would stop. So the match is made
+against `SpectralLine.wn_key`, the column named by `[lines.layout.columns] wn_key`, which
+defaults to the `wn` column and so changes nothing about a baseline run. A set that reads
+corrected wavenumbers leaves `wn_key` on Sugar's original column, and the line keeps its name
+while its measurement moves. `line_classifications.csv` carries `wn_key` beside `wn_obs` so that
+the name travels with the table, and `hfs_kappa.read_inflated`, whose registry is keyed
+`'%.4f' % wn`, is on the same footing: its keys are Sugar's values and the calibration is
+derived from them.
+
+One consequence is worth stating plainly, because it is a feature and not a fault. A line
+rejected for sitting too far from its Ritz wavenumber may be perfectly placed once the plate it
+was measured on is corrected, and the verdict that then goes into the ledger applies to the
+baseline as well — where that line still sits too far out, and now weighs on the fit. The
+baseline's chi-square per degree of freedom rises accordingly. That is the honest statement: the
+uncalibrated scale fits worse, and the identification is right regardless of which scale it was
+established on.
+
+### Choosing the set from the command line
+
+`classify_lines.py` and `gA_imputation.py` take `--config`. The other dozen programs cannot: they
+`import classify_lines`, which calls `apply_config(config.load())` while it is being imported, so
+the configuration is already chosen before any of them parses an argument. The lever that reaches
+all of them is therefore an environment variable, read by `config.DEFAULT_PATH`:
+
+```
+LINECLASS_CONFIG=iter/lineclass_config.toml python level_positions.py --scan
+LINECLASS_CONFIG=iter/lineclass_config.toml python unfound_levels.py --detail
+```
+
+`check_sync.py` is the exception at the other end: it reads no configuration at all, because most
+of what it checks — the LOPT files, `IDEN2/`, `sync_report.txt` — is not in one. It takes
+`--set DIR` instead, which resolves each of its file names in that directory first and in the
+project directory otherwise (`swap_paths.working_path`). That fallback is exactly the arrangement
+the sets are meant to have: the set's own classification table and LOPT files are found in the
+set, and the shared ledger and level overrides in the project, with no list of which is which.
+
+```
+python check_sync.py --set iter
+```
+
+### The two ways into the corrected set
+
+`make_LOPT_input.py --corrections ... --outdir iter` applies the corrections to the *baseline*
+classification on its way into LOPT's input file, and re-classifies nothing. It is the quick
+route, and it is right while the question is only where LOPT puts the levels.
+
+Classifying the set — `python classify_lines.py --config iter/lineclass_config.toml` — asks the
+larger question, because the corrected wavenumbers change which identifications are acceptable,
+which is what the iteration is ultimately for. **The two are alternatives, not steps.** A run of
+`make_LOPT_input.py --corrections` on a classification table that already holds corrected
+wavenumbers would apply the correction a second time.
+
+**The systematic uncertainty is not applied during the iterations.** The correction of a line is
+correlated with the correction of every other line on the same plate, so adding
+`u_own_correction` to each line in quadrature would be wrong twice over — it would double-count,
+and it would treat a shared displacement as independent scatter. It belongs in the `.par` as the
+systematic uncertainty function of the line's group, and it has no effect on where the level
+optimization puts the levels, only on the systematic and total uncertainties that are finally
+reported. It is therefore done once, on the final set, with the groups numbered sequentially in
+order of increasing wavelength.
 
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
@@ -3639,6 +3907,37 @@ by k(n), the second by w_hfs. `level_hfs_widths.csv` holds the fitted widths and
 `make_LOPT_input.py` reads the same column, so the uncertainties LOPT is given and the ones the
 scan uses cannot drift apart.
 
+**One observed line, one uncertainty.** `w_hfs(low)² + w_hfs(upp)²` is a property of the
+*transition*, and one observed line may be assigned to several of them, sitting on levels of
+different widths. LOPT, though, reads one record per component and takes the uncertainty of each
+as the uncertainty of the measurement that record constrains, so two components of one blend
+written with two uncertainties are two different weights on one measured wavenumber — which is a
+statement the measurement cannot make. An observed line is therefore given a single value for all
+of its records: the mean of its transitions' values weighted by the weights LOPT is given, the
+calculated intensity fractions, so that the component which carries the line governs its width
+(`make_LOPT_input.blend_uncertainty`). Records flagged `P` take the same value although they are
+outside the fit, since they describe the same measurement; a line whose records are all flagged
+has no weights to average with and takes the plain mean. Before this rule was applied, on
+2026-09-24, 196 of the 511 blends in the fit carried two uncertainties or more — differing by as
+much as a factor of 3.15, a factor of 10 in weight — and 1365 observed lines did if the flagged
+records are counted. `check_sync.py` now reports any that remain, which is what keeps this from
+coming back silently whichever program wrote the file.
+
+**One transition, one record.** The same pair of levels can be named by more than one observed
+line — one line assigned to it and rejected while another is accepted, or two rejected candidates
+naming it at two wavenumbers. A transition has one energy difference, so a second record of it
+tells LOPT nothing the first does not, and if two of them were weighted LOPT would fit the pair
+twice and split its evidence between the copies. Only one record is written
+(`make_LOPT_input.one_record_per_transition`): the accepted one, there being at most one — a
+transition accepted at two wavenumbers is one energy difference measured twice by one line list,
+which is a contradiction in the classification, and the script stops rather than choose. Where no
+record is accepted they are all flagged `P` and weightless, so the first is written and which
+wavenumber that is does not matter. The repeats are dropped before the weights and the
+uncertainties of their observed lines are worked out, so a record that is not written cannot weigh
+on one that is. The table of 2026-09-24 holds one such repeat, the flagged pair 059003.000141 -
+059003.000218 at 31391.653 and 31391.380 cm⁻¹. `check_sync.py` reports any that remain in the
+file.
+
 **A level the fit cannot measure takes its configuration's width.** A level with fewer than four
 lines of 1974 has no width of its own, and used to be given zero — which asserts it has no
 hyperfine structure, when all that is known is that nobody has measured it. Its configuration is
@@ -4434,7 +4733,7 @@ The ten checks, in the order they are made:
 |---|---|---|
 | 1 | every artefact against the files it is built from, by modification time | the cheapest check, and it usually explains all the others at once |
 | 2 | `line_classifications.csv` against `.xlsx` | they are written together by `classify_lines.py`, so a difference was made afterwards — an edit in Excel, or one file left over from an earlier run |
-| 3 | the classification against `LOPT_input_lines.txt` | what has to agree is the fit: every accepted classification weighted, nothing else weighted, and each carrying the right share of its observed line |
+| 3 | the classification against `LOPT_input_lines.txt` | what has to agree is the fit: every accepted classification weighted, nothing else weighted, and each carrying the right share of its observed line. The transitions file is also checked against itself here: every record of one observed line must carry one uncertainty, or the components of a blend are weighted differently on one measured wavenumber, and every transition must be written once, or LOPT fits one energy difference twice |
 | 4 | `LOPT_input_lines.txt` against `LOPT_output_lines.txt` | LOPT must have been run on the transitions file that is on disk now |
 | 5 | LOPT's line output against its level output | different level energies in the two mean they are from different runs |
 | 6 | `revised_level_energies.csv` against the fitted levels | a revision written down and never carried out — or one made and then undone by a later run started from an older classification |
@@ -5159,6 +5458,23 @@ the component that was there alone loses exactly what the new one gains. The
 records carrying the `P` flag — candidates LOPT is shown but does not fit — are
 not components and stay at weight zero. This is
 `make_LOPT_input.blend_weights()`, the same rule that a full rebuild applies.
+
+**And a record joining a line already in the file takes that line's
+uncertainty.** One observed line is one measurement, so every record of it has
+to carry the same uncertainty; a record inserted here would otherwise bring its
+own quoted value, which carries no hyperfine term for the two levels it joins.
+It is given instead the value the other records of that wavenumber already
+carry — `insert_new_level.line_uncertainty`, the same weighted mean a full
+rebuild works out — and the change is reported. Nothing already in the file is
+rewritten for it.
+
+**And it is not added at all if the transition is already in the fit.** A
+transition is one energy difference and gets one record, so a pair of levels
+that the file already carries under another wavenumber is left as it is when
+that record is weighted, and the run says which wavenumber holds it. When the
+records found there are only flagged candidates, they are removed and the
+accepted one takes their place, an accepted record being the better use of the
+transition. Both are reported in `insert_new_level.log`.
 
 ### Moving an assigned level: `move_level.py`
 

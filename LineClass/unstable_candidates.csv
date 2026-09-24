@@ -1,2 +1,1 @@
 wn_obs,low_id,upp_id,obs_intens,calc_intens,grade,new,oscillated_between,states,accepted,notes2
-21762.57173212909,059003.000626,059003.000563,257.5036585509042,31.11114101944792,5G,1,Step-5 cycles,0->1->0,0,Step3 Rejected: decisions oscillate between weeding iterations or cycles

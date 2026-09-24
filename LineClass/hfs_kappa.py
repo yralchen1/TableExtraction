@@ -138,6 +138,19 @@ FLOOR = 0.0055
 #: characters are pooled into one "other" class per era.
 MIN_CLASS = 20
 
+#: the two terms of an uncertainty cannot be told apart over a short stretch
+#: of spectrum.  What separates them is the factor `1e-8 * wn^2` that turns
+#: an angstrom into a cm^-1; unless it changes by at least this much across
+#: a class, the class is given the wavenumber-constant term alone, `a` fixed
+#: at zero.
+MIN_SPAN = 1.5
+
+#: lines whose uncertainty is fixed by hand, one per row, tab-delimited:
+#: `obs_wn`, `unc_wn`, `date`, `reason`.  A line listed here keeps the value
+#: written there whatever the model says, and is never set aside by the
+#: outlier filter - it has already been judged by hand.
+INFLATED = 'inflated_unc_lines.txt'
+
 Line = collections.namedtuple(
     'Line', 'wn char era cls ucls low upp D dJ')
 
@@ -164,6 +177,38 @@ def stated_uncertainty(char, era, wn):
     """
     ang = STATED_PLAIN[era] if char == '' else STATED_OTHER
     return ang * 1e-8 * wn * wn
+
+
+def read_inflated(path=None):
+    """`{wavenumber rounded to 4 decimals: uncertainty in cm^-1}`.
+
+    The registry of lines whose uncertainty the user has fixed by hand.  Such
+    a line has been looked at individually - it does not fit the smooth trend
+    of its block, but its classification stands - so neither the class model
+    nor the outlier filter is allowed to touch it.  A missing file is an empty
+    registry, which is the state the project starts from.
+
+    The key is `'%.4f' % wn`, the precision the wavenumbers are quoted to
+    everywhere else in the project; matching floats exactly would depend on
+    how many digits the file that wrote them happened to carry.
+    """
+    path = path or os.path.join(HERE, INFLATED)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding='utf-8', newline='') as fh:
+        for row in csv.DictReader(fh, delimiter='	'):
+            wn = (row.get('obs_wn') or '').strip()
+            unc = (row.get('unc_wn') or '').strip()
+            if not wn or wn.startswith('#') or not unc:
+                continue
+            out['%.4f' % float(wn)] = float(unc)
+    return out
+
+
+def inflated_key(wn):
+    """The key `read_inflated` files a wavenumber under."""
+    return '%.4f' % wn
 
 
 def read_A_constants(path=None):
@@ -347,56 +392,225 @@ def difference(fit, a, b):
     return ka, math.sqrt(max(va + vb - 2 * cab, 0.0))
 
 
+#: the uncertainty of one class: `a` angstrom added in quadrature with `b`
+#: cm^-1, the count of lines behind them, the mean adopted value and the mean
+#: value Sugar stated, both in cm^-1.
+ClassUnc = collections.namedtuple('ClassUnc', 'a b n adopted stated')
+
+
+def two_term(a, b, wn):
+    """The uncertainty of a line in cm^-1 under the two-term model.
+
+    `a` is a constant in angstrom - the error of reading a position off the
+    plate, which is a distance on the plate and so a fixed wavelength - and
+    `b` is a constant in cm^-1 - an error of the energy scale, which for a
+    line whose hyperfine structure is not resolved is a fixed wavenumber
+    however far into the red it lies.  The two are independent, so they add in
+    quadrature.  A wavelength error of `a` angstrom is worth `a * 1e-8 * wn^2`
+    cm^-1, because wn = 1e8 / lambda.
+    """
+    return math.sqrt((a * 1e-8 * wn * wn) ** 2 + b * b)
+
+
+def fit_two_term(values, fix_a=False):
+    """Maximum-likelihood `(a, b)` for one class, leverage folded in.
+
+    `values` are `(residual in cm^-1, leverage, wavenumber)` triples.  A
+    fitted level value has already followed part of each residual, so what a
+    residual measures is not the uncertainty itself but `E[r^2] = (1 - h) u^2`
+    with `h` the leverage; the `(1 - h)` therefore sits inside the variance
+    rather than being divided out afterwards, which is what lets lines of very
+    different leverage be fitted together.  Minimizing
+    `sum(log v + r^2 / v)` is then the likelihood of independent normal
+    residuals of variance `v`.
+
+    The minimization is coordinate descent - `a` at fixed `b`, then `b` at
+    fixed `a` - on the logarithms of the two parameters, each step a
+    golden-section search.  The function is smooth and has one minimum along
+    each coordinate, so this converges without needing a general optimizer.
+    `fix_a` holds `a` at zero, for a class whose lines cover too little
+    spectrum to tell the two terms apart.
+    """
+    r = [v[0] for v in values]
+    s = [1e-8 * v[2] * v[2] for v in values]
+    g = [max(1.0 - v[1], 1e-3) for v in values]
+
+    def nll(a, b):
+        t = 0.0
+        for i in range(len(r)):
+            v = g[i] * ((a * s[i]) ** 2 + b * b)
+            t += math.log(v) + r[i] * r[i] / v
+        return t
+
+    def golden(f, lo, hi, rounds=60):
+        """The minimum of `f` on `[lo, hi]`, which it has exactly one of."""
+        k = (math.sqrt(5.0) - 1.0) / 2.0
+        c, d = hi - k * (hi - lo), lo + k * (hi - lo)
+        fc, fd = f(c), f(d)
+        for _ in range(rounds):
+            if fc < fd:
+                hi, d, fd = d, c, fc
+                c = hi - k * (hi - lo)
+                fc = f(c)
+            else:
+                lo, c, fc = c, d, fd
+                d = lo + k * (hi - lo)
+                fd = f(d)
+        return 0.5 * (lo + hi)
+
+    # a starting point that is already of the right size: the plain rms split
+    # evenly between the two terms.
+    rms = math.sqrt(sum(x * x for x in r) / max(sum(g), 1.0))
+    mean_s = sum(s) / len(s)
+    a = 0.0 if fix_a else 0.7 * rms / mean_s
+    b = 0.7 * rms
+    for _ in range(40):
+        a0, b0 = a, b
+        if not fix_a:
+            a = math.exp(golden(lambda x: nll(math.exp(x), b), -20.0, 0.0))
+            if a < 1e-7:
+                a = 0.0
+        b = math.exp(golden(lambda x: nll(a, math.exp(x)), -20.0, 3.0))
+        if abs(a - a0) <= 1e-9 + 1e-6 * a and abs(b - b0) <= 1e-9 + 1e-6 * b:
+            break
+    return a, b
+
+
+def refit_uncertainties(lines, residual, leverage, ucls=None):
+    """The two-term model again, from the residuals of a fit given from
+    outside - the calibration fit.
+
+    `adopt_uncertainties` has to measure the classes against a fit that knows
+    nothing of the wavelength calibration, so the calibration error is still
+    in the residuals it measures and is therefore built into the very
+    uncertainties that are later used to weight the calibration fit.  Once
+    that fit exists its residuals are free of it, and the classes can be
+    measured again against them.  This is the one iteration the model needs:
+    the weights change, but the residuals a correct model leaves behind do
+    not change with the weights.
+
+    `residual` and `leverage` are per line, `None` for a line the fit left
+    out.  Returns `(sigma, table)` in the form `adopt_uncertainties` returns
+    them.  Registry lines keep their own value here as well.
+    """
+    ucls = uncertainty_classes(lines) if ucls is None else ucls
+    fixed = read_inflated()
+    held = [fixed.get(inflated_key(ln.wn)) for ln in lines]
+    span = collections.defaultdict(list)
+    for i, ln in enumerate(lines):
+        span[ucls[i]].append(ln.wn)
+    fix_a = {k: (max(v) / min(v)) ** 2 < MIN_SPAN for k, v in span.items()}
+
+    groups = collections.defaultdict(list)
+    for i, ln in enumerate(lines):
+        if residual[i] is not None and held[i] is None:
+            groups[ucls[i]].append((residual[i], leverage[i], ln.wn))
+    fitted = {}
+    for key, values in groups.items():
+        if len(values) >= MIN_CLASS:
+            fitted[key] = fit_two_term(values, fix_a=fix_a.get(key, False))
+
+    sigma = []
+    for i, ln in enumerate(lines):
+        if held[i] is not None:
+            sigma.append(held[i])
+        else:
+            # a class too thin to measure itself falls back on the plain
+            # lines of its own era, which are the bulk of the spectrum and
+            # share its plates; Sugar's stated value is the last resort.
+            ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
+            sigma.append(max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
+                         else max(stated_uncertainty(ln.char, ln.era, ln.wn),
+                                  FLOOR))
+    table = {}
+    for key, (a_ang, b_wn) in fitted.items():
+        mine = [i for i in range(len(lines)) if ucls[i] == key]
+        table[key] = ClassUnc(
+            a=a_ang, b=b_wn, n=len(groups[key]),
+            adopted=sum(sigma[i] for i in mine) / max(len(mine), 1),
+            stated=sum(stated_uncertainty(ln.char, ln.era, ln.wn)
+                       for ln in (lines[i] for i in mine))
+            / max(len(mine), 1))
+    return sigma, table
+
+
 def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
                         max_rounds=10, tol=0.01):
     """The Step 1 loop: stated uncertainties in, adopted uncertainties out.
 
     Returns `(sigma, keep, table, fit)`: the adopted uncertainty of every
-    line, the mask of the lines that survived the outlier filter, the adopted
-    value per uncertainty class with the count behind it, and the last fit.
+    line, the mask of the lines that survived the outlier filter, a `ClassUnc`
+    per uncertainty class, and the last fit.
 
-    The rms of the residuals of a fit understates the uncertainty, because the
-    fitted level values have already followed the residuals; the factor
-    `sqrt(n / (n - rank))` puts that back, and is applied to every class
-    alike since the level values are shared.
+    Each class is given the two-term model of `two_term`: a constant in
+    angstrom and a constant in cm^-1, added in quadrature and fitted together
+    by `fit_two_term` from the class's own residuals.  A single constant was
+    used here before, in cm^-1, and could not be right for both ends of a
+    class: the plain lines of 1974 run from 2100 to 10300 angstrom, over which
+    the conversion between the two units changes by a factor of 24, so one
+    constant is too generous at one end and too mean at the other.
+
+    A line in the inflation registry keeps the value entered there, whatever
+    the model says, and is not offered to the outlier filter or to the fit of
+    its class: it has been looked at by hand, and letting it measure the class
+    it does not belong to would widen every other line of that class.
     """
     ucls = uncertainty_classes(lines)
-    sigma = [stated_uncertainty(ln.char, ln.era, ln.wn) for ln in lines]
+    fixed = read_inflated()
+    held = [fixed.get(inflated_key(ln.wn)) for ln in lines]
+    sigma = [held[i] if held[i] is not None
+             else stated_uncertainty(ln.char, ln.era, ln.wn)
+             for i, ln in enumerate(lines)]
     keep = [True] * len(lines)
     stated = dict(sigma=list(sigma))
+    # a class whose lines cover too little spectrum cannot separate the two
+    # terms; it is given the wavenumber-constant one alone.
+    span = collections.defaultdict(list)
+    for i, ln in enumerate(lines):
+        span[ucls[i]].append(ln.wn)
+    fix_a = {k: (max(v) / min(v)) ** 2 < MIN_SPAN for k, v in span.items()}
     table, fit = {}, None
     for _ in range(max_rounds):
         fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
                     sigma=sigma, use=keep)
         res = fit['residual']
         lev = fit['leverage']
-        keep = [res[i] is not None and abs(res[i]) <= outlier * sigma[i]
+        keep = [res[i] is not None
+                and (held[i] is not None
+                     or abs(res[i]) <= outlier * sigma[i])
                 for i in range(len(lines))]
         groups = collections.defaultdict(list)
         for i, ln in enumerate(lines):
-            if keep[i]:
-                groups[ucls[i]].append((res[i], lev[i]))
+            if keep[i] and held[i] is None:
+                groups[ucls[i]].append((res[i], lev[i], ln.wn))
         new = {}
         for key, values in groups.items():
-            # E[r^2] = sigma^2 (1 - h), so the sum of (1 - h) is the number
-            # of residuals the class really has left to measure itself with.
-            free_n = sum(1.0 - h for _, h in values)
-            rms = math.sqrt(sum(r * r for r, _ in values) / max(free_n, 1.0))
-            new[key] = (max(rms, FLOOR), len(values))
-        moved = max(abs(new[k][0] - table.get(k, (0.0,))[0])
-                    / max(new[k][0], 1e-12) for k in new)
+            a_ang, b_wn = fit_two_term(values, fix_a=fix_a.get(key, False))
+            new[key] = (a_ang, b_wn, len(values))
+        moved = 0.0
+        for key in new:
+            for i, was in enumerate(table.get(key, (0.0, 0.0))[:2]):
+                now = new[key][i]
+                moved = max(moved, abs(now - was) / max(now, 1e-12))
         table = new
-        sigma = [table[ucls[i]][0] if ucls[i] in table else sigma[i]
-                 for i in range(len(lines))]
+        for i, ln in enumerate(lines):
+            if held[i] is not None:
+                continue
+            key = ucls[i]
+            if key in table:
+                sigma[i] = max(two_term(table[key][0], table[key][1], ln.wn),
+                               FLOOR)
         if moved < tol:
             break
-    # the stated value each class started from, for the report
-    for key in table:
-        lo = [stated['sigma'][i] for i in range(len(lines))
-              if ucls[i] == key]
-        table[key] = (table[key][0], table[key][1],
-                      sum(lo) / len(lo) if lo else float('nan'))
-    return sigma, keep, table, fit
+    # the mean adopted value and the mean stated value, for the report
+    out = {}
+    for key, (a_ang, b_wn, n) in table.items():
+        mine = [i for i in range(len(lines)) if ucls[i] == key]
+        out[key] = ClassUnc(
+            a=a_ang, b=b_wn, n=n,
+            adopted=sum(sigma[i] for i in mine) / max(len(mine), 1),
+            stated=sum(stated['sigma'][i] for i in mine) / max(len(mine), 1))
+    return sigma, keep, out, fit
 
 
 def write_uncertainties(table, path=None):
@@ -616,11 +830,13 @@ def main(argv=None):
     sigma, keep, table, fit = adopt_uncertainties(
         lines, scale=args.scale, outlier=args.outlier)
     print('\nadopted uncertainties, per character per era (Step 1)')
-    print('   char  era   n_lines   stated    adopted   (cm^-1)')
-    for (char, era), (adopted, n, started) in sorted(
+    print('   u^2 = (a * 1e-8 * wn^2)^2 + b^2, a in angstrom, b in cm^-1;')
+    print('   stated and adopted are the means over the class, in cm^-1')
+    print('   char  era   n_lines        a        b     stated    adopted')
+    for (char, era), u in sorted(
             table.items(), key=lambda kv: (kv[0][1], kv[0][0])):
-        print('   %-5s %4d %8d   %8.4f %10.4f'
-              % (char or "''", era, n, started, adopted))
+        print('   %-5s %4d %8d %8.4f %8.4f   %8.4f %10.4f'
+              % (char or "''", era, u.n, u.a, u.b, u.stated, u.adopted))
 
     n_out = sum(1 for k in keep if not k)
     print('\nset aside as probably misassigned, beyond %.0f sigma: %d of %d'

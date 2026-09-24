@@ -36,6 +36,16 @@ class SpectralLine:
     wn_uncertainty: float   # Uncertainty of wavenumber
     intensity: float        # Observed intensity reduced to a uniform scale (>0)
     line_character: str
+    wn_key: float = 0.0
+    # The immutable name of this observed line: the wavenumber it is filed
+    # under in the hand-kept ledgers, whatever scale `wavenumber` is on.  It
+    # comes from the column named by `[lines.layout.columns] wn_key`, which
+    # defaults to the `wn` column, so a baseline run has wn_key == wavenumber.
+    # A corrected set reads its wavenumbers from another column and leaves
+    # this one on Sugar's original value, and then `line_decisions.csv`,
+    # `new_levels.txt`, `revised_level_energies.csv` and
+    # `inflated_unc_lines.txt` are the same files for both sets: a line's
+    # identity does not change when the scale it is measured on does.
     assigned_transitions: List['Transition'] = field(default_factory=list)
     original_assignments: List['Transition'] = field(default_factory=list)
     decisions: Dict[tuple, tuple] = field(default_factory=dict)

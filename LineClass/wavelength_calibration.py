@@ -96,16 +96,6 @@ What comes out
                               the input of the fit, one row per line: the
                               wavelength, the displacement in angstrom that
                               line asks for, and its uncertainty.
-`wavelength_calibration_fit/` the same points as tab-delimited input files
-                              for `fit_power.py`, one per block, weighted by
-                              `u_eff_A`, so that the wavelength dependence
-                              inside a plate can be fitted as a smooth
-                              function rather than as a staircase.  A block
-                              too thin to carry a fitted group here gets a
-                              file all the same: its points
-                              are measurements of its own plate, and a
-                              one-parameter fit to them is worth more than
-                              nothing.
 
 The per-line displacement is
 
@@ -158,6 +148,7 @@ import os
 import numpy as np
 
 import hfs_kappa
+import output_files
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -177,17 +168,20 @@ MIN_THIN = 2
 #: a line whose leverage reaches this carries no information about the
 #: calibration at all: one of its levels rests on that line alone, so the fit
 #: satisfies it exactly whatever `delta_lambda` is.  Such a line is written
-#: into `wavelength_calibration_points.csv` with an empty `u_eff_A` and is
-#: left out of the `fit_power.py` input files.
+#: into `wavelength_calibration_points.csv` with an empty `u_eff_A`.
 H_MAX = 0.999
 
 GAPS = os.path.join(HERE, 'coverage_gaps.txt')
+BREAKS = os.path.join(HERE, 'calibration_breaks.txt')
 OUT_REPORT = os.path.join(HERE, 'wavelength_calibration.txt')
 OUT_CURVE = os.path.join(HERE, 'wavelength_calibration.csv')
 OUT_POINTS = os.path.join(HERE, 'wavelength_calibration_points.csv')
 OUT_CORR = os.path.join(HERE, 'wavelength_calibration_corrections.csv')
 OUT_POLY = os.path.join(HERE, 'wavelength_calibration_poly.csv')
-OUT_FIT = os.path.join(HERE, 'wavelength_calibration_fit')
+
+#: the calibrated working set, and the line list written into it.
+DEF_SET = 'iter'
+OUT_LINES = 'Pr3_lines_corrected.xlsx'
 
 #: the highest degree a block's polynomial may reach, and the drop in the
 #: total chi-square that buys one more degree.  9 is 3 sigma on the one
@@ -195,17 +189,43 @@ OUT_FIT = os.path.join(HERE, 'wavelength_calibration_fit')
 DEG_MAX = 5
 DCHI2 = 9.0
 
+#: how many times the uncertainties are measured again against the chosen
+#: model and the fit remade with them.
+UNC_ROUNDS = 2
+
 #: the anchor is looked for above this wavelength, in the middle of the 1974
 #: region where the lines are densest and Sugar's stated uncertainty smallest.
 ANCHOR_ABOVE = 2190.0
 
 
-def read_blocks(path=GAPS):
+def read_breaks(path=BREAKS):
+    """The breaks inside a plate, in angstrom, from `calibration_breaks.txt`.
+
+    A plate is pinched by the holders that bend it onto the Rowland circle,
+    and its dispersion curve is deformed there without any gap appearing in
+    the line list.  Such a break cannot be measured from the coverage, so it
+    is entered by hand; the file carries the evidence for each one.
+    """
+    if not os.path.exists(path):
+        return []
+    out = []
+    with open(path, encoding='utf-8') as fh:
+        for row in fh:
+            row = row.split('#')[0].strip()
+            if row:
+                out.append(float(row.split()[0]))
+    return sorted(set(out))
+
+
+def read_blocks(path=GAPS, breaks=None):
     """The stretches of wavelength the blind ones cut the spectrum into.
 
     Returns a list of `(lam_lo, lam_hi)` covering the whole axis without
     overlap: the observed stretches and the blind stretches alternate, and
-    each blind stretch is a block in its own right.
+    each blind stretch is a block in its own right.  A break of
+    `calibration_breaks.txt` that falls inside one of them splits it further,
+    for the same reason and with the same consequence: nothing carries the
+    calibration across it.
     """
     cuts = []
     with open(path, encoding='utf-8') as fh:
@@ -222,6 +242,16 @@ def read_blocks(path=GAPS):
         edges.append((lo, hi))
         prev = hi
     edges.append((prev, 1e9))
+    cut = read_breaks() if breaks is None else sorted(set(breaks))
+    if cut:
+        out = []
+        for lo, hi in edges:
+            here = [c for c in cut if lo < c < hi]
+            for c in here:
+                out.append((lo, c))
+                lo = c
+            out.append((lo, hi))
+        edges = out
     return edges
 
 
@@ -231,6 +261,88 @@ def block_of(blocks, value):
         if lo <= value < hi:
             return k
     return len(blocks) - 1
+
+
+def write_corrected_lines(corr, path, source=None):
+    """The published line list with the calibration added to it, as a workbook.
+
+    The corrected set cannot be classified from
+    `wavelength_calibration_corrections.csv`: that file carries wavenumbers
+    and corrections and nothing else, and the pipeline also needs the observed
+    intensity, the line character and the published identification.  So the
+    line list itself is copied, with `own` and `unc_own` left exactly as Sugar
+    published them - the corrected set still has to be able to say what he
+    measured, and that column is what names the line in the files kept by hand
+    - and two columns added beside them:
+
+        own_corr      = own + own_correction               (cm^-1)
+        unc_own_corr  = u_stat_cm1                         (cm^-1)
+
+    `u_stat_cm1` is the STATISTICAL uncertainty alone.  The systematic part,
+    `u_own_correction`, is shared by every line recorded on the same plate;
+    adding it to each line in quadrature would count it once per line instead
+    of once per plate.  It belongs in LOPT's parameter file as the systematic
+    uncertainty of the line's group, and it is entered there once, on the
+    final set.
+
+    A line the corrections file does not carry - or carries with no correction,
+    because its block never got a parameter - keeps the published value in
+    both new columns, and is counted in the second return value.  Returns
+    `(n_corrected, n_unchanged)`.
+    """
+    import openpyxl
+
+    source = source or os.path.join(hfs_kappa.HERE, 'Pr3_lines.xlsx')
+    by_key = {}
+    for row in corr:
+        by_key['%.4f' % float(row['wn_obs'])] = row
+
+    wb = openpyxl.load_workbook(source)
+    ws = wb[wb.sheetnames[0]]
+    header = {}
+    for cell in next(ws.iter_rows(min_row=1, max_row=1)):
+        if cell.value is not None:
+            header.setdefault(str(cell.value).strip(), cell.column)
+    for name in ('own', 'unc_own'):
+        if name not in header:
+            raise SystemExit('%s: no column named %r' % (source, name))
+    for name in ('own_corr', 'unc_own_corr'):
+        if name not in header:
+            header[name] = ws.max_column + 1
+            ws.cell(row=1, column=header[name], value=name)
+
+    n, miss = 0, 0
+    for r in range(2, ws.max_row + 1):
+        wn = ws.cell(row=r, column=header['own']).value
+        if wn is None:
+            continue
+        rec = by_key.get('%.4f' % float(wn))
+        shift = None
+        u = None
+        if rec is not None:
+            if rec['own_correction']:
+                shift = float(rec['own_correction'])
+            if rec['u_stat_cm1']:
+                u = float(rec['u_stat_cm1'])
+        if shift is None:
+            miss += 1
+        else:
+            n += 1
+        old_u = ws.cell(row=r, column=header['unc_own']).value
+        if u is None:
+            u = float(old_u or 0.0)
+        cell = ws.cell(row=r, column=header['own_corr'],
+                       value=round(float(wn) + (shift or 0.0), 4))
+        cell.number_format = '0.0000'
+        cell = ws.cell(row=r, column=header['unc_own_corr'], value=round(u, 4))
+        cell.number_format = '0.0000'
+
+    out_dir = os.path.dirname(path)
+    if out_dir and not os.path.isdir(out_dir):
+        os.makedirs(out_dir)
+    wb.save(path)
+    wb.close()
+    return n, miss
 
 
 def observed_wavenumbers(path=None):
@@ -440,7 +552,22 @@ def main(argv=None):
                          'instead of letting the data choose it')
     ap.add_argument('--no-write', action='store_true',
                     help='print the report without writing any file')
+    ap.add_argument('--set', metavar='DIR', default=DEF_SET, dest='set_dir',
+                    help='the working set the corrected line list is written '
+                         'into, as %s (default: %%(default)s).  An empty '
+                         'value writes no line list.' % OUT_LINES)
     args = ap.parse_args(argv)
+
+    # The fit takes a minute or two and every file is written at the end of
+    # it, so a report left open in Excel would otherwise be discovered only
+    # after all the work was done.  Ask now, before anything is computed.
+    if not args.no_write:
+        outputs = [OUT_REPORT, OUT_CURVE, OUT_POINTS, OUT_CORR]
+        if args.model == 'poly':
+            outputs.append(OUT_POLY)
+        if args.set_dir:
+            outputs.append(os.path.join(HERE, args.set_dir, OUT_LINES))
+        output_files.require_writable(outputs, 'output file')
 
     blocks = read_blocks()
     lines = hfs_kappa.read_lines()
@@ -453,6 +580,24 @@ def main(argv=None):
     def run(ncal, terms):
         parts = build(lines, lam, blk, binof, sigma, keep, ncal, terms)
         return parts, solve(*parts[5:])
+
+    # ---- the uncertainties, measured again once the curve is known -------
+    # `hfs_kappa.adopt_uncertainties` has no calibration terms, so the
+    # calibration error is still inside the uncertainties it adopts - and
+    # those uncertainties are the weights of this fit.  A staircase fit is
+    # enough to take the error out of the residuals; the classes are then
+    # measured against those, and the whole fit below is made with the
+    # uncertainties that come out, and once more below against the model
+    # that is finally chosen - a staircase leaves smaller residuals behind
+    # than one polynomial per block does, so the first pass alone would
+    # adopt uncertainties a little too narrow.
+    pre_parts, pre_fit = run(*model_groups(good))
+    per_line = [None] * len(lines)
+    lev_line = [None] * len(lines)
+    for r, i in enumerate(pre_parts[0]):
+        per_line[i] = pre_fit['residual'][r]
+        lev_line[i] = float(pre_fit['leverage'][r])
+    sigma, table = hfs_kappa.refit_uncertainties(lines, per_line, lev_line)
 
     def extent(good):
         """The blocks that carry a parameter, their line counts and the
@@ -548,10 +693,32 @@ def main(argv=None):
             if not moved:
                 break
 
+    # The price rule above chooses the polynomial to *apply*: a degree has
+    # to earn its keep.  Whether a plate is smooth is a different question,
+    # and it is answered against the best polynomial the block can carry, at
+    # its ceiling degree, however little the last degrees earned.  Comparing
+    # the staircase with the priced winner instead convicts a block of
+    # structure when all it has is a curve too shallow to buy.
+    tops = {b: min(DEG_MAX, max(0, nblk[b] // MIN_IN_BIN - 1))
+            for b in parblocks}
+    tparts, tfit = run(*model_poly(tops, ranges))
+
     if args.model == 'groups':
         ncal, terms, parts, fit = gcal, gterms, gparts, gfit
     else:
         fit = cur
+
+    # ---- and measured once more, against the model actually chosen -------
+    for _ in range(UNC_ROUNDS):
+        per_line = [None] * len(lines)
+        lev_line = [None] * len(lines)
+        for r, i in enumerate(parts[0]):
+            per_line[i] = fit['residual'][r]
+            lev_line[i] = float(fit['leverage'][r])
+        sigma, table = hfs_kappa.refit_uncertainties(lines, per_line,
+                                                     lev_line)
+        parts, fit = run(ncal, terms)
+
     rows, levels, lidx, off, kidx, A, y, w = parts
     sol, cov = fit['sol'], fit['cov']
     ncol = A.shape[1]
@@ -601,9 +768,8 @@ def main(argv=None):
         'line list')
     say('the displacement delta_lambda is in angstrom, positive where '
         "Sugar's wavelength is too long;")
-    say('the correction to add to his wavenumber is '
-        '-delta_lambda * wn^2 * 1e-8, so a positive')
-    say('delta_lambda means his wavenumber is too small.')
+    say('a positive delta_lambda therefore means his wavenumber is too small, and the')
+    say('correction to add to it is +delta_lambda * wn^2 * 1e-8.')
     say()
     say('model: %s' % ('one polynomial in wavelength per block, its degree '
                        'chosen by the data'
@@ -719,35 +885,46 @@ def main(argv=None):
     say('Is a plate smooth?  The polynomial against the staircase')
     say('-------------------------------------------------------')
     say('Every block is fitted both ways.  chi2 is that block\'s share of '
-        'the total, and the')
-    say('difference is what the staircase buys with its extra parameters.  '
-        'If the plate is')
-    say('smooth, the staircase is only fitting noise and d_chi2 is about '
-        'd_par; if a block')
-    say('needs more freedom than its polynomial has, d_chi2 is much the '
-        'larger of the two.')
-    say('%4s %8s %6s %7s %11s %11s %8s %6s'
-        % ('blk', 'lines', 'deg', 'groups', 'chi2_poly', 'chi2_step',
-           'd_chi2', 'd_par'))
+        'the total; deg is')
+    say('the degree the price rule selected, and top the highest degree the '
+        'block may carry.')
+    say('The smoothness test is the staircase against chi2_top, the best a '
+        'polynomial can do')
+    say('there: d_chi2 is what the staircase buys with its d_par extra '
+        'parameters, and noise')
+    say('alone would buy d_par +- sqrt(2 d_par), which is what the last '
+        'column counts.')
+    say('%4s %7s %5s %10s %5s %10s %7s %10s %8s %6s %6s'
+        % ('blk', 'lines', 'deg', 'chi2_poly', 'top', 'chi2_top',
+           'groups', 'chi2_step', 'd_chi2', 'd_par', 'sigma'))
     grows = {i: r for r, i in enumerate(gparts[0])}
     prows = {i: r for r, i in enumerate(rows)}
-    tot = [0.0, 0.0, 0]
+    trows = {i: r for r, i in enumerate(tparts[0])}
+    tot = [0.0, 0.0, 0.0, 0]
     for b in parblocks:
         sel = [i for i in range(len(lines)) if keep[i] and blk[i] == b]
         c_p = sum((cur['residual'][prows[i]] / sigma[i]) ** 2
                   for i in sel if i in prows)
+        c_t = sum((tfit['residual'][trows[i]] / sigma[i]) ** 2
+                  for i in sel if i in trows)
         c_g = sum((gfit['residual'][grows[i]] / sigma[i]) ** 2
                   for i in sel if i in grows)
         ng = len([g for g in good if g[0] == b])
-        dpar = ng - (degrees[b] + 1)
+        dpar = ng - (tops[b] + 1)
         tot[0] += c_p
-        tot[1] += c_g
-        tot[2] += dpar
-        say('%4d %8d %6d %7d %11.1f %11.1f %8.1f %6d'
-            % (b, nblk[b], degrees[b], ng, c_p, c_g, c_p - c_g, dpar))
-    say('%4s %8d %6s %7d %11.1f %11.1f %8.1f %6d'
-        % ('all', sum(nblk.values()), '', len(good), tot[0], tot[1],
-           tot[0] - tot[1], tot[2]))
+        tot[1] += c_t
+        tot[2] += c_g
+        tot[3] += dpar
+        say('%4d %7d %5d %10.1f %5d %10.1f %7d %10.1f %8.1f %6d %6s'
+            % (b, nblk[b], degrees[b], c_p, tops[b], c_t, ng, c_g,
+               c_t - c_g, dpar,
+               ('%.1f' % ((c_t - c_g - dpar) / math.sqrt(2.0 * dpar)))
+               if dpar > 0 else '-'))
+    say('%4s %7d %5s %10.1f %5s %10.1f %7d %10.1f %8.1f %6d %6s'
+        % ('all', sum(nblk.values()), '', tot[0], '', tot[1], len(good),
+           tot[2], tot[1] - tot[2], tot[3],
+           '%.1f' % ((tot[1] - tot[2] - tot[3]) / math.sqrt(2.0 * tot[3]))))
+
     if search:
         say()
         say('The degrees were chosen one block at a time, and up '
@@ -885,26 +1062,37 @@ def main(argv=None):
         'taken their share;')
     say('the floor of %.4f cm-1 is hfs_kappa.FLOOR.' % hfs_kappa.FLOOR)
     say()
-    say('%-10s %6s %7s %11s %11s %11s %8s'
-        % ('char', 'era', 'n', 'Sugar_A', 'adopted', 'after', 'factor'))
+    say('a_A and b_cm1 are the two terms of the class model, '
+        'u^2 = (a*1e-8*wn^2)^2 + b^2;')
+    say('adopted is their mean over the class and "after" the rms of the '
+        'residuals, both')
+    say('in cm-1.  The two are not the same average - the rms leans on the '
+        'widest lines of')
+    say('the class and the mean does not - so the test of the model is the '
+        'last column,')
+    say('chi2/dof = sum(r^2/u^2) / sum(1-h), which must be close to 1.')
+    say()
+    say('%-10s %6s %7s %9s %9s %10s %10s %9s'
+        % ('char', 'era', 'n', 'a_A', 'b_cm1', 'adopted', 'after',
+           'chi2/dof'))
     ucls = hfs_kappa.uncertainty_classes(lines)
     classes = collections.defaultdict(list)
     for r, i in enumerate(rows):
         if has_par[i]:
             classes[ucls[i]].append((fit['residual'][r], fit['leverage'][r],
-                                     lines[i]))
+                                     sigma[i]))
     for key in sorted(classes, key=lambda k: (-k[1], str(k[0]))):
         v = classes[key]
         dof = max(sum(1.0 - h for _, h, _ in v), 1.0)
-        rms = max(math.sqrt(sum(e * e for e, _, _ in v) / dof),
-                  hfs_kappa.FLOOR)
+        rms = math.sqrt(sum(e * e for e, _, _ in v) / dof)
+        chi2 = sum((e / u) ** 2 for e, _, u in v) / dof
         ch, era = key
-        stated = sum(hfs_kappa.stated_uncertainty(
-            ch if ch != 'other' else 'w', era, ln.wn) for _, _, ln in v)
-        adopted = table[key][0] if key in table else float('nan')
-        say('%-10s %6d %7d %11.4f %11.4f %11.4f %8.2f'
-            % (ch or '(plain)', era, len(v), stated / len(v), adopted, rms,
-               rms / adopted))
+        u = table.get(key)
+        say('%-10s %6d %7d %9.4f %9.4f %10.4f %10.4f %9.2f'
+            % (ch or '(plain)', era, len(v),
+               float('nan') if u is None else u.a,
+               float('nan') if u is None else u.b,
+               float('nan') if u is None else u.adopted, rms, chi2))
 
     say()
     say('The lines that carry it')
@@ -918,18 +1106,17 @@ def main(argv=None):
     say('without allowing for it will report a chi-square low by about as '
         'much.  The column')
     say('u_eff_A = u_d_lambda_A / (1 - leverage) is the weight to fit by '
-        'instead, and it is')
-    say('what the files in wavelength_calibration_fit/ carry.  It is a '
-        'weight for an outside')
-    say('fit only: this program never uses it, so it cannot reach the '
-        'covariance matrix.')
+        'instead.  It is a')
+    say('weight for an outside fit only: this program never uses it, so it '
+        'cannot reach the')
+    say('covariance matrix.')
     say('%d line%s reach%s a leverage of %.3f or more - one of their levels '
         'rests on that'
         % (nodata, '' if nodata == 1 else 's',
            'es' if nodata == 1 else '', H_MAX))
     say('line alone, so the fit satisfies them exactly whatever the '
         'calibration is; they')
-    say('measure nothing and are left out of those files.')
+    say('measure nothing.')
 
     # ---- the per-line points --------------------------------------------
     E = {v: sol[k] for k, v in enumerate(levels)}
@@ -982,6 +1169,28 @@ def main(argv=None):
             return None
         return min(here, key=lambda g: abs(mid_of[g] - lam_value))
 
+    # The statistical uncertainty of every observed line, fitted or not, from
+    # the class model above.  A line the fit never saw - unclassified, or
+    # classified to more than one transition - still belongs to a character
+    # and an era, and so still has a model value; that is what the corrected
+    # set is given as its uncertainty.
+    key_of_char = {}
+    for i, ln in enumerate(lines):
+        key_of_char[(ln.char, ln.era)] = ucls[i]
+    fixed_unc = hfs_kappa.read_inflated()
+
+    def u_stat(wn_value, char_value):
+        held = fixed_unc.get(hfs_kappa.inflated_key(wn_value))
+        if held is not None:
+            return held
+        era_value = hfs_kappa.era_of(wn_value)
+        key = key_of_char.get((char_value, era_value), ('other', era_value))
+        u = table.get(key) or table.get(('', era_value))
+        if u is None:
+            return max(hfs_kappa.stated_uncertainty(
+                char_value, era_value, wn_value), hfs_kappa.FLOOR)
+        return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR)
+
     corr = []
     for wn, char in observed_wavenumbers():
         lam_value = 1e8 / wn
@@ -991,11 +1200,12 @@ def main(argv=None):
         row = dict(wn_obs='%.4f' % wn, lambda_A='%.4f' % lam_value,
                    block=b, char=char, era=hfs_kappa.era_of(wn),
                    group=('%.0f-%.0f' % span[g]) if g in span else '',
-                   in_fit=1 if round(wn, 6) in fitted else 0)
+                   in_fit=1 if round(wn, 6) in fitted else 0,
+                   u_stat_cm1='%.4f' % u_stat(wn, char))
         if (b in degrees) if args.model == 'poly' else (g is not None):
             v, u = value(cvec(b, g, lam_value))
             row.update(d_lambda_A='%+.5f' % v, u_d_lambda_A='%.5f' % u,
-                       own_correction='%+.4f' % (-v * scale),
+                       own_correction='%+.4f' % (v * scale),
                        u_own_correction='%.4f' % (u * scale))
         elif b in thin_u:
             # The block was tried and its constant fixed at zero because it
@@ -1034,6 +1244,11 @@ def main(argv=None):
         w2 = csv.DictWriter(fh, list(corr[0]), lineterminator='\n')
         w2.writeheader()
         w2.writerows(corr)
+    if args.set_dir:
+        n, miss = write_corrected_lines(
+            corr, os.path.join(HERE, args.set_dir, OUT_LINES))
+        print('  %s: %d line(s) corrected, %d left on the published value.'
+              % (os.path.join(args.set_dir, OUT_LINES), n, miss))
 
     # ---- the parameters themselves, with their covariance ---------------
     if args.model == 'poly':
@@ -1057,22 +1272,6 @@ def main(argv=None):
                             + ['%+.6e' % float(c.dot(cov).dot(vec[j]))
                                for j in keys])
 
-    if not os.path.isdir(OUT_FIT):
-        os.mkdir(OUT_FIT)
-    made = []
-    for b in sorted(set(p['block'] for p in points)):
-        sel = [p for p in points if p['block'] == b and p['u_eff_A']]
-        sel.sort(key=lambda p: float(p['lambda_A']))
-        name = os.path.join(OUT_FIT, 'block_%02d.txt' % b)
-        with open(name, 'w', encoding='utf-8', newline='\n') as fh:
-            for p in sel:
-                fh.write('%s\t%s\t%s\n'
-                         % (p['lambda_A'], p['d_lambda_A'], p['u_eff_A']))
-            fh.write('\n')
-            fh.write('c0\t0.0\tvary\n')
-            fh.write('c1\t0.0\tvary\n')
-        made.append((b, len(sel)))
-
     print(out.getvalue(), end='')
     print('written: %s' % os.path.basename(OUT_REPORT))
     print('written: %s (%d groups)'
@@ -1085,9 +1284,6 @@ def main(argv=None):
     if args.model == 'poly':
         print('written: %s (%d coefficients)'
               % (os.path.basename(OUT_POLY), ncal))
-    print('written: %s/ (%d blocks, %d points)'
-          % (os.path.basename(OUT_FIT), len(made),
-             sum(n for _, n in made)))
     return 0
 
 

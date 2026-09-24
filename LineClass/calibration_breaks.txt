@@ -1,0 +1,32 @@
+# Breaks inside a plate, in angstrom.
+#
+# coverage_gaps.txt cuts the spectrum where no line of any species was
+# recorded: those are the joins between one exposure and the next, and they
+# are measured.  This file carries the other kind of break, the one that
+# happens inside a single plate and leaves no gap in the line list.
+#
+# The plates are rigid flat glass covered by emulsion, and the spectrograph
+# bends them onto the Rowland circle with two to four mechanical holders.
+# The plate is pinched at each holder, so the dispersion curve - smooth
+# everywhere else - is deformed there, and the calibration on one side of a
+# holder does not carry to the other.  A break of this kind is found by eye,
+# from a trend in d_lambda_A that stops and restarts, and so each one is
+# entered here by hand with the evidence for it.
+#
+# One wavelength per line, optionally followed by a comment.  A break inside
+# a block splits it; a break that falls in a blind stretch does nothing.
+#
+# Entered 2026-09-23 from the user's inspection of
+# wavelength_calibration_points.xlsm in Excel, block by block.
+
+1750.0    # block 8: below it a constant fits, above it a 4th degree poly
+2225.0    # block 10
+2250.0    # block 10
+2283.0    # block 10
+2343.0    # block 10
+2498.0    # block 10: the tip of a sharp peak, most likely a plate holder
+2543.1    # block 10
+2631.6    # block 10
+5370.0    # block 16: a poorly defined constant below, a cubic above
+7385.0    # block 16
+8190.0    # block 16

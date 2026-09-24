@@ -896,6 +896,26 @@ def write_lopt_input(path: str, rows) -> None:
             fh.write(record_text(r) + make_LOPT_input.EOL_LINES)
 
 
+def line_uncertainty(rows):
+    """The uncertainty the records of one observed line already carry.
+
+    One observed line is one measurement, so LOPT has to read one uncertainty
+    for it however many transitions it is assigned to: two values on one
+    wavenumber are two weights on one measurement.  `make_LOPT_input.py` gives
+    a blend the mean of its components' values weighted by the weights LOPT is
+    given, and a record added here to a line that is already in the file takes
+    that same value rather than its own quoted one - which carries no
+    hyperfine term for the levels it joins and would otherwise reopen the
+    disagreement.  Returns None if the line is not in the file yet.
+    """
+    if not rows:
+        return None
+    return make_LOPT_input.blend_uncertainty(
+        [r['unc'] for r in rows],
+        [0.0 if 'P' in (r.get('flag') or '').upper()
+         else float(r.get('weight') or 0.0) for r in rows])
+
+
 def reweigh(rows, wavenumbers, calc_of, log) -> int:
     """Divide each touched observed line's weight among its unflagged records.
 
@@ -2067,21 +2087,59 @@ def _run(args, rejects, accepts, saved, log, today):
     in_fit = {(lopt_key(r['wn']), r['low_id'], r['upp_id']) for r in lopt_rows
               if 'P' not in (r.get('flag') or '')
               and float(r.get('weight') or 0.0) > 0.0}
+    # A transition is one energy difference, so the file holds one record of
+    # it however many observed lines have been assigned to it.  A pair that is
+    # already there under another wavenumber therefore does not get a second
+    # record: if that one is in the fit it is the measurement and this run
+    # leaves it alone; if it is only a flagged candidate it is the one to go,
+    # an accepted record being the better use of the transition.
+    pair_rows = {}
+    for r in lopt_rows:
+        pair_rows.setdefault((r['low_id'], r['upp_id']), []).append(r)
     n_new = 0
+    n_replaced = 0
     for c in accepted:
         key = (lopt_key(c.wn), c.low_id, c.upp_id)
         if key in present:
             continue
-        row = {'wn': c.wn, 'unc': c.line.wn_uncertainty,
+        others = [r for r in pair_rows.get((c.low_id, c.upp_id), [])
+                  if lopt_key(r['wn']) != key[0]]
+        fitted = [r for r in others if 'P' not in (r.get('flag') or '')
+                  and float(r.get('weight') or 0.0) > 0.0]
+        if fitted:
+            log('   skipped %11.3f  %s - %s, the same transition is already '
+                'in the fit at %.3f cm-1; one transition is one energy '
+                'difference and gets one record'
+                % (c.wn, c.low_id, c.upp_id, fitted[0]['wn']))
+            continue
+        for r in others:
+            log('   replaced %11.3f  %s - %s, a flagged record of the '
+                'transition this run accepts at %.3f cm-1'
+                % (r['wn'], c.low_id, c.upp_id, c.wn))
+            lopt_rows.remove(r)
+            group = present.get((lopt_key(r['wn']), r['low_id'], r['upp_id']))
+            if group and r in group:
+                group.remove(r)
+            n_replaced += 1
+        shared = line_uncertainty([r for r in lopt_rows
+                                   if lopt_key(r['wn']) == key[0]])
+        if shared is not None and abs(shared - c.line.wn_uncertainty) > 5e-4:
+            log('   uncertainty %11.3f  %s - %s  %.3f -> %.3f, the value the '
+                'other record(s) of this observed line carry'
+                % (c.wn, c.low_id, c.upp_id, c.line.wn_uncertainty, shared))
+        row = {'wn': c.wn,
+               'unc': c.line.wn_uncertainty if shared is None else shared,
                'intens': c.line.intensity, 'low_id': c.low_id,
                'upp_id': c.upp_id, 'flag': '', 'weight': 1.0, 'raw': None}
         lopt_rows.append(row)
         present.setdefault(key, []).append(row)
+        pair_rows.setdefault((c.low_id, c.upp_id), []).append(row)
         n_new += 1
     n_w = reweigh(lopt_rows, [c.wn for c in accepted], calc_of, log)
     write_lopt_input(LOPT_INPUT, lopt_rows)
-    log('   %d record(s) inserted, %d weight(s) changed, %d record(s) in all'
-        % (n_new, n_w, len(lopt_rows)))
+    log('   %d record(s) inserted, %d flagged record(s) of the same '
+        'transition removed, %d weight(s) changed, %d record(s) in all'
+        % (n_new, n_replaced, n_w, len(lopt_rows)))
 
     # --- E. LOPT ------------------------------------------------------------
     log('')

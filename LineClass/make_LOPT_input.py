@@ -1,7 +1,7 @@
 """
 make_LOPT_input.py
 ==================
-Build the three input files of LOPT (the level-optimisation code of
+Build the three input files of LOPT (the level-optimization code of
 A. Kramida) from the classification table produced by classify_lines.py.
 
 LOPT needs
@@ -34,8 +34,8 @@ Rules applied to the transitions file
     how much of the blend each component contributes.  The proportions are
     normalised so that the components of one blend sum to 1.0000.
 
-Why the weights of a blend are normalised here.  LOPT normalises them
-itself, so only their ratios matter; what normalising buys is that every
+Why the weights of a blend are normalised here.  LOPT normalizes them
+itself, so only their ratios matter; what normalizing buys is that every
 weight then fits the six characters of the weight column at four decimals,
 and the transitions file keeps exactly the column layout of the sample - no
 column position in the parameter file has to be touched.  Raw calc_intens
@@ -62,6 +62,32 @@ assignment is known:
 
     unc = sqrt(unc_wn_obs^2 + w_hfs(lower)^2 + w_hfs(upper)^2)
 
+That is a property of the *transition*, and one observed line may be assigned
+to several of them, whose levels carry different widths.  LOPT, though, reads
+one record per component and takes the uncertainty of each as the uncertainty
+of the measurement it constrains, so two components of one blend written with
+two uncertainties are two different weights on the same measured wavenumber -
+which is a statement the measurement cannot make.  An observed line therefore
+gets one uncertainty for all of its records: the mean of the transitions'
+values weighted by the very weights LOPT is given, the calculated intensity
+fractions, so that the component which carries the line governs its width.
+Records flagged P take the same value although they are outside the fit, since
+they describe the same measurement.  A line whose records are all flagged has
+no weights to average with, and takes the plain mean.
+
+One transition, one record.  The same pair of levels can be reached from
+several observed lines - a line of the list is assigned to it and rejected,
+another is assigned to it and accepted, or two rejected candidates name it at
+two wavenumbers.  A transition, however, has one energy difference, so a second
+record for it tells LOPT nothing it does not already have, and only one is
+written.  The accepted record wins, there being at most one: a transition
+accepted at two wavenumbers would be one energy difference measured twice by
+one line list, and the script stops rather than choose.  Where no record is
+accepted, all of them are flagged P and carry no weight, so LOPT prints the
+first and which wavenumber that is does not matter.  The rest are dropped
+before the weights and the uncertainty of their observed lines are worked out,
+so a record that is not written cannot affect one that is.
+
 The blending factor k(n) of level_positions.py is deliberately NOT included.
 LOPT.par sets BLEND TREATMENT = centroid, so LOPT already compares the observed
 wavenumber against the intensity-weighted centroid of a blend's components and
@@ -74,6 +100,17 @@ The rows are written in order of decreasing wavenumber, as in the sample.
 Usage
     python make_LOPT_input.py
     python make_LOPT_input.py --classifications my_lines.csv --par-out run7.par
+    cd iter && python ../make_LOPT_input.py     # builds iter's three files
+
+The working set
+    The classification table says which set is being built, and the three
+    output files are written beside it.  An input named by its bare name -
+    the sample parameter file, the sample fixed-levels file,
+    level_hfs_widths.csv - is looked for beside that table first and in the
+    project directory only if the set has not got it, so running the script
+    from an iteration folder finds the project's copies instead of failing
+    on them or silently doing without them.  All three resolved paths are
+    printed.
 """
 
 import argparse
@@ -81,6 +118,7 @@ import csv
 import os
 
 import output_files
+from swap_paths import working_path
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -176,6 +214,79 @@ def read_classifications(path):
     return rows
 
 
+def read_corrections(path):
+    """`{wavenumber: (correction, statistical uncertainty)}` in cm^-1.
+
+    `wavelength_calibration_corrections.csv` is written by
+    `wavelength_calibration.py`.  `own_correction` is what has to be added to
+    Sugar's measured wavenumber to put the line on the corrected scale, and
+    `u_stat_cm1` is what the line's uncertainty class says its measuring
+    scatter is once that correction has been made - which is the uncertainty
+    a corrected wavenumber is worth, not the one Sugar stated and not the one
+    adopted before the curve was known.  A line the calibration could not
+    reach carries a correction of zero and its class uncertainty all the
+    same.
+
+    The key is `'%.4f' % wn`, the precision the wavenumbers are quoted to.
+    """
+    out = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        for r in csv.DictReader(fh):
+            wn = (r.get('wn_obs') or '').strip()
+            if not wn:
+                continue
+            d = (r.get('own_correction') or '').strip()
+            u = (r.get('u_stat_cm1') or '').strip()
+            out['%.4f' % float(wn)] = (float(d) if d else 0.0,
+                                       float(u) if u else None)
+    return out
+
+
+def apply_corrections(rows, corrections):
+    """Put the classified rows on the corrected wavenumber scale.
+
+    Returns `(shifted, largest, unknown)`: how many rows moved, the largest
+    shift in cm^-1, and the rows whose wavenumber the corrections file does
+    not carry.  The rows are changed in place, so everything downstream -
+    the repeat filter, the blend weights, the written file - works on the
+    corrected values without knowing that they are corrected.
+    """
+    # A classification table written by a corrected set already carries
+    # corrected wavenumbers, and says so: its wn_key column is the name of the
+    # line, which is the wavenumber on the published scale, and the two differ
+    # exactly where a correction has been applied.  Correcting again would
+    # double every shift, silently, so it stops the run instead.
+    already = [r for r in rows
+               if (r.get('wn_key') or '').strip()
+               and abs(float(r['wn_key']) - float(r['wn_obs'])) > 1e-4]
+    if already:
+        raise SystemExit(
+            'make_LOPT_input.py: --corrections was given a classification '
+            'table whose wavenumbers are already corrected (%d of %d rows '
+            'differ from their wn_key, the first at %.4f cm-1).  Applying '
+            'the corrections to it would count them twice.  Either build '
+            'LOPT input from the baseline table with --corrections, or '
+            'classify the corrected set and build from its own table without '
+            'them - they are alternatives, not steps.'
+            % (len(already), len(rows), float(already[0]['wn_key'])))
+
+    shifted, largest, unknown = 0, 0.0, []
+    for row in rows:
+        wn = float(row['wn_obs'])
+        rec = corrections.get('%.4f' % wn)
+        if rec is None:
+            unknown.append(wn)
+            continue
+        d, u = rec
+        if d:
+            row['wn_obs'] = repr(wn + d)
+            shifted += 1
+            largest = max(largest, abs(d))
+        if u is not None:
+            row['unc_wn_obs'] = repr(u)
+    return shifted, largest, unknown
+
+
 def is_accepted(row):
     return float(row['accepted'] or 0) == 1
 
@@ -223,6 +334,50 @@ def total_unc(unc, low_id, upp_id, w_hfs):
     return (unc ** 2 + a ** 2 + b ** 2) ** 0.5
 
 
+def one_record_per_transition(rows):
+    """`rows` reduced to one record per pair of levels, and the ones dropped.
+
+    Returns `(kept, dropped)`, `kept` in the order it was given.  A transition
+    is one energy difference, so a second record for it adds nothing to the
+    fit; the accepted record is the one kept, or the first where none is
+    accepted - those are all flagged P, weightless, and LOPT prints whichever
+    wavenumber it is given.  Two accepted records of one transition are a
+    contradiction in the classification, not something to choose between, and
+    stop the run.
+    """
+    seen = {}
+    for r in rows:
+        key = (r['low_id'].strip(), r['upp_id'].strip())
+        chosen = seen.get(key)
+        if chosen is None:
+            seen[key] = r
+        elif is_accepted(r):
+            if is_accepted(chosen):
+                raise SystemExit(
+                    f'the transition {key[0]} - {key[1]} is accepted at two '
+                    f'observed wavenumbers, {float(chosen["wn_obs"]):.3f} and '
+                    f'{float(r["wn_obs"]):.3f} cm-1; one transition is one '
+                    f'energy difference, so at most one of them can be its '
+                    f'measurement - settle it in the classification')
+            seen[key] = r
+    kept_ids = {id(r) for r in seen.values()}
+    return ([r for r in rows if id(r) in kept_ids],
+            [r for r in rows if id(r) not in kept_ids])
+
+
+def blend_uncertainty(uncs, weights):
+    """The one uncertainty the records of a single observed line share.
+
+    `uncs` are the per-transition uncertainties of those records and `weights`
+    the weights LOPT is given, zero for a record it does not fit.  The result
+    is their weighted mean, or the plain mean where nothing is fitted.
+    """
+    total = sum(weights)
+    if total <= 0:
+        return sum(uncs) / float(len(uncs))
+    return sum(w * u for w, u in zip(weights, uncs)) / total
+
+
 def blend_weights(rows):
     """Return {id(row): weight} for the accepted rows of one observed line.
 
@@ -242,13 +397,19 @@ def blend_weights(rows):
 
 
 def write_lines_file(rows, path, w_hfs=None):
-    """Write the LOPT transitions file; return (written, accepted, flagged, widened).
+    """Write the LOPT transitions file.
 
-    `w_hfs` is {level_id: hyperfine width}; the width of the two levels a line
-    joins is added to its quoted uncertainty in quadrature.  `widened` counts
-    the records that got one.
+    Returns (written, accepted, flagged, widened, dropped).  `w_hfs` is
+    {level_id: hyperfine width}; the width of the two levels a line joins is
+    added to its quoted uncertainty in quadrature.  `widened` counts the
+    records that got one, `dropped` the repeated records of a transition that
+    is already written.
     """
     w_hfs = w_hfs or {}
+    # A transition is one energy difference, however many observed lines have
+    # been assigned to it.  The repeats go before anything else is computed,
+    # so that a record which is not written cannot weigh on one that is.
+    rows, dropped = one_record_per_transition(rows)
     # The accepted classifications of one observed line share its weight, so
     # they have to be weighed together; wn_obs identifies the observed line.
     groups = {}
@@ -259,13 +420,29 @@ def write_lines_file(rows, path, w_hfs=None):
     for group in groups.values():
         weights.update(blend_weights(group))
 
+    # And they share its uncertainty, which the hyperfine term would otherwise
+    # make differ from one component to the next.
+    per_row = {}
+    all_rows = {}
+    for r in rows:
+        per_row[id(r)] = total_unc(float(r['unc_wn_obs']),
+                                   r['low_id'].strip(), r['upp_id'].strip(),
+                                   w_hfs)
+        all_rows.setdefault(r['wn_obs'], []).append(r)
+    shared = {}
+    for key, group in all_rows.items():
+        if len(group) > 1:
+            shared[key] = blend_uncertainty(
+                [per_row[id(r)] for r in group],
+                [weights.get(id(r), 0.0) for r in group])
+
     records = []
     n_accepted_rows = 0
     n_widened = 0
     for r in rows:
         wn = float(r['wn_obs'])
         quoted = float(r['unc_wn_obs'])
-        unc = total_unc(quoted, r['low_id'].strip(), r['upp_id'].strip(), w_hfs)
+        unc = shared.get(r['wn_obs'], per_row[id(r)])
         if unc > quoted:
             n_widened += 1
         intens = float(r['obs_intens'])
@@ -291,7 +468,7 @@ def write_lines_file(rows, path, w_hfs=None):
         for _, text in records:
             fh.write(text + EOL_LINES)
     return (len(records), n_accepted_rows,
-            len(records) - n_accepted_rows, n_widened)
+            len(records) - n_accepted_rows, n_widened, len(dropped))
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +557,11 @@ def parse_args(argv=None):
                    help='name of the levels file LOPT itself will write')
     p.add_argument('--lines-output', default=DEF_LIN_OUT,
                    help='name of the transitions file LOPT itself will write')
+    p.add_argument('--corrections', default='',
+                   help='wavelength_calibration_corrections.csv: put the '
+                        'lines on the corrected wavenumber scale and give '
+                        'them the statistical uncertainty that goes with it '
+                        '(this is what makes the "iter" and "final" sets)')
     p.add_argument('--outdir', default='',
                    help='directory for the three written files '
                         '(default: alongside the classification table)')
@@ -396,9 +578,39 @@ def main(argv=None):
             os.path.abspath(args.classifications))
         return os.path.join(base, name)
 
+    def in_src(name):
+        """An input file: the working set's copy, else the project's.
+
+        The classification table says which set is being built, so an input
+        named by its bare name is looked for beside that table first and in
+        the project directory only if the set has not got it - the rule
+        swap_paths describes.  The set's own copy therefore wins where it
+        exists, and the files that exist in one place only - the sample
+        parameter file, the sample fixed-levels file, the hyperfine widths -
+        are found from anywhere instead of being silently skipped or
+        crashing the run.  `--outdir` says where the run's own output goes
+        and never where its inputs are looked for.
+        """
+        if os.path.isabs(name) or os.path.dirname(name):
+            return name
+        return working_path(
+            name, cwd=os.path.dirname(os.path.abspath(args.classifications)))
+
     lines_out = in_dir(args.lines_out)
     fixlev_out = in_dir(args.fixlev_out)
     par_out = in_dir(args.par_out)
+
+    # Resolved before anything is read or written, and reported below, so
+    # that an input picked up from the project directory rather than from
+    # the set is visible in the run's own output.
+    sample_fixlev = in_src(args.sample_fixlev)
+    sample_par = in_src(args.sample_par)
+    hfs_widths = in_src(args.hfs_widths)
+    for what, path in (('sample fixed levels', sample_fixlev),
+                       ('sample parameter file', sample_par)):
+        if not os.path.exists(path):
+            raise SystemExit('make_LOPT_input.py: %s not found: %s'
+                             % (what, path))
 
     # LOPT's input files are tab-delimited text, and an analyst who has one
     # of them open in Excel would otherwise learn of it only after the whole
@@ -406,25 +618,43 @@ def main(argv=None):
     output_files.require_writable([lines_out, fixlev_out, par_out])
 
     rows = read_classifications(args.classifications)
-    w_hfs = {} if args.no_hfs else read_hfs_widths(in_dir(args.hfs_widths))
-    written, accepted, flagged, widened = write_lines_file(
+    if args.corrections:
+        shifted, largest, unknown = apply_corrections(
+            rows, read_corrections(args.corrections))
+        print(f'{args.corrections}: {shifted} of {len(rows)} records put on '
+              f'the corrected scale, largest shift {largest:.4f} cm-1')
+        if unknown:
+            print(f'  {len(unknown)} record(s) are not in the corrections '
+                  f"file and keep Sugar's wavenumber and uncertainty; "
+                  f'the first is {unknown[0]:.4f}')
+    w_hfs = {} if args.no_hfs else read_hfs_widths(hfs_widths)
+    written, accepted, flagged, widened, dropped = write_lines_file(
         rows, lines_out, w_hfs)
-    write_fixlev_file(args.sample_fixlev, fixlev_out)
+    write_fixlev_file(sample_fixlev, fixlev_out)
     # The parameter file must name the input files as LOPT will look for
     # them; LOPT resolves them next to itself, so bare names are written.
-    write_par_file(args.sample_par, par_out,
+    write_par_file(sample_par, par_out,
                    os.path.basename(lines_out), os.path.basename(fixlev_out),
                    args.levels_output, args.lines_output)
 
+    print(f'classifications: {args.classifications}')
+    print(f'sample fixed levels: {sample_fixlev}')
+    print(f'sample parameter file: {sample_par}')
     print(f'{lines_out}: {written} transitions '
           f'({accepted} weighted, {flagged} flagged "P")')
+    if dropped:
+        print(f'  {dropped} repeated record(s) of a transition already '
+              f'written were dropped')
     if w_hfs:
-        print(f'  hyperfine widths: {len(w_hfs)} levels carry one; '
-              f'{widened} transitions had their uncertainty widened by it')
+        print(f'  hyperfine widths from {hfs_widths}: {len(w_hfs)} levels '
+              f'carry one; {widened} transitions had their uncertainty '
+              f'widened by it')
+    elif args.no_hfs:
+        print('  no hyperfine widths applied (--no-hfs)')
     else:
-        print('  no hyperfine widths applied')
-    print(f'{fixlev_out}: copied from {args.sample_fixlev}')
-    print(f'{par_out}: copied from {args.sample_par} with new file names')
+        print(f'  no hyperfine widths applied: {hfs_widths} does not exist')
+    print(f'{fixlev_out}: copied from {sample_fixlev}')
+    print(f'{par_out}: copied from {sample_par} with new file names')
     return 0
 
 

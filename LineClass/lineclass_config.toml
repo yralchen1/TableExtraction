@@ -102,6 +102,15 @@ sheet = "Sheet1"
 [lines.layout.columns]
 # wn        = observed wavenumber (cm^-1)
 # u_wn      = its uncertainty (cm^-1)
+# wn_key    = optional; the column an observed line is NAMED by in the files
+#             kept by hand - line_decisions.csv above, and
+#             inflated_unc_lines.txt.  It defaults to the wn column, which is
+#             what this set wants: here the two are the same measurement.  A
+#             calibrated set reads wn from a corrected column and leaves
+#             wn_key on Sugar's original one, so that a line keeps its name
+#             when the scale it is measured on changes and the ledgers do not
+#             have to be copied per set (see iter/lineclass_config.toml).  It
+#             is written out as a column of line_classifications.csv.
 # intensity = observed intensity reduced to a uniform scale
 # character = line-character flags of the original list ("bl", "w", ...)
 # id1, id2  = level ids of the identification given in that list, if any

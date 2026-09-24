@@ -226,13 +226,45 @@ def test_the_adopted_uncertainties_are_sane(fitted):
     worth wn^2 more in cm^-1 at short wavelength; that is arithmetic, not a
     statement about Sugar's plates.
     """
-    _, _, _, table, _ = fitted
-    assert all(u >= hfs_kappa.FLOOR for u, _, _ in table.values())
-    assert all(n >= 1 for _, n, _ in table.values())
-    plain74 = table[('', 1974)][0]
-    plain69 = table[('', 1969)][0]
+    _, sigma, _, table, _ = fitted
+    assert all(u.a >= 0.0 and u.b >= 0.0 for u in table.values())
+    assert all(u.n >= 1 for u in table.values())
+    assert all(x >= hfs_kappa.FLOOR for x in sigma)
+    plain74 = table[('', 1974)].adopted
+    plain69 = table[('', 1969)].adopted
     assert 0.02 < plain74 < 0.08
     assert plain69 > 5 * plain74
+
+
+def test_the_wavelength_term_is_smaller_than_Sugar_stated(fitted):
+    """`a` is the part of the uncertainty that is a distance on the plate.
+
+    Sugar states 0.0030 angstrom for a plain line of 1974 and 0.0040 for one
+    of 1969, and those are total uncertainties - the plate-reading error with
+    everything else already added in quadrature.  The term fitted here is the
+    plate-reading error alone, so it has to come out below what he states.
+    """
+    _, _, _, table, _ = fitted
+    assert 0.0 < table[('', 1974)].a < hfs_kappa.STATED_PLAIN[1974]
+    assert 0.0 < table[('', 1969)].a < hfs_kappa.STATED_PLAIN[1969]
+
+
+def test_a_registry_line_keeps_its_own_uncertainty(fitted):
+    """A line listed in `inflated_unc_lines.txt` keeps the value entered
+    there, and is not set aside by the outlier filter either."""
+    lines, sigma, keep, _, _ = fitted
+    fixed = hfs_kappa.read_inflated()
+    if not fixed:
+        pytest.skip('the registry is empty')
+    seen = 0
+    for i, ln in enumerate(lines):
+        want = fixed.get(hfs_kappa.inflated_key(ln.wn))
+        if want is None:
+            continue
+        seen += 1
+        assert sigma[i] == pytest.approx(want)
+        assert keep[i]
+    assert seen
 
 
 def test_only_a_handful_of_lines_are_set_aside(fitted):

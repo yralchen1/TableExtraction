@@ -26,8 +26,20 @@ import os
 import tomllib
 from dataclasses import dataclass
 
-DEFAULT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'lineclass_config.toml')
+#: The configuration `load()` reads when it is given no path.  The
+#: environment variable comes first so that a whole working set - the
+#: corrected one in `iter/`, the merged one in `final/` - can be selected for
+#: every program at once:
+#:
+#:     LINECLASS_CONFIG=iter/lineclass_config.toml python level_positions.py
+#:
+#: A per-program `--config` cannot do that job.  `classify_lines.py` loads the
+#: configuration when it is imported, and a dozen other programs import it, so
+#: the configuration is already chosen by the time any of them parses its own
+#: arguments.  The environment variable is read before the import, which is
+#: why it reaches all of them.
+DEFAULT_PATH = os.environ.get('LINECLASS_CONFIG') or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'lineclass_config.toml')
 
 
 class ConfigError(Exception):
@@ -51,12 +63,14 @@ _ENUMS = {
 
 # Keys the configuration file may leave out; they take the default written
 # into load() below.
-_OPTIONAL = {'files.level_overrides', 'files.line_decisions',
+_OPTIONAL = {'inherit',
+             'files.level_overrides', 'files.line_decisions',
              'files.new_levels', 'files.icalc_extra',
              'files.discarded_levels',
              'decisions', 'decisions.max_forced_offset'}
 
 _SCHEMA = {
+    'inherit': str,
     'files': {'levels': str, 'lines': str, 'icalc': str,
               'output': str, 'output_csv': str, 'level_overrides': str,
               'line_decisions': str, 'new_levels': str,
@@ -158,9 +172,42 @@ class Config:
     # the run stops.  See classify_lines.check_forced_decisions().
 
 
-def load(path: str = None) -> Config:
-    """Read, validate and return the configuration."""
-    path = os.path.abspath(path or DEFAULT_PATH)
+def _merge(base_tbl: dict, over: dict) -> dict:
+    """`over` laid on top of `base_tbl`, table by table.
+
+    A table is merged key by key, so a working set can name the two columns it
+    reads its wavenumbers from without repeating the other four; anything that
+    is not a table is replaced outright.
+    """
+    out = dict(base_tbl)
+    for key, val in over.items():
+        if isinstance(val, dict) and isinstance(out.get(key), dict):
+            out[key] = _merge(out[key], val)
+        else:
+            out[key] = val
+    return out
+
+
+def _read(path: str, seen=()) -> dict:
+    """The raw table of `path`, with anything it inherits already under it.
+
+    `inherit` names another configuration file, relative to this one.  The
+    working sets - the calibrated one in `iter/`, the merged one in `final/` -
+    are the whole point of it: each differs from the baseline in a handful of
+    settings, and a copy of the file would have to be kept in step with the
+    baseline by hand, which is how the intensity model of one set comes to be
+    a year older than the other's.
+
+    The inherited file's own paths are resolved to absolute names before the
+    merge, against the directory holding *it*; the inheriting file's are
+    resolved later against the directory holding itself.  So `levels =
+    "../TableExtraction/..."` in the baseline goes on naming the same workbook
+    when `iter/lineclass_config.toml` inherits it, and `lines =
+    "Pr3_lines_corrected.xlsx"` written in the set names the set's own.
+    """
+    if path in seen:
+        raise ConfigError("configuration inherits itself: "
+                          + ' -> '.join(seen + (path,)))
     if not os.path.isfile(path):
         raise ConfigError(f"configuration file not found: {path}")
     with open(path, 'rb') as fh:
@@ -168,6 +215,26 @@ def load(path: str = None) -> Config:
             raw = tomllib.load(fh)
         except tomllib.TOMLDecodeError as exc:
             raise ConfigError(f"{path}: {exc}") from None
+    parent_name = raw.pop('inherit', None)
+    if parent_name is None:
+        return raw
+    if not isinstance(parent_name, str):
+        raise ConfigError(f"{path}: 'inherit' must be a string")
+    here = os.path.dirname(path)
+    parent = _read(os.path.abspath(os.path.join(here, parent_name)),
+                   seen + (path,))
+    p_base = os.path.dirname(os.path.abspath(os.path.join(here, parent_name)))
+    for name, value in (parent.get('files') or {}).items():
+        if isinstance(value, str) and value:
+            parent['files'][name] = os.path.normpath(
+                os.path.join(p_base, value))
+    return _merge(parent, raw)
+
+
+def load(path: str = None) -> Config:
+    """Read, validate and return the configuration."""
+    path = os.path.abspath(path or DEFAULT_PATH)
+    raw = _read(path)
     _validate(raw, _SCHEMA)
 
     base = os.path.dirname(path)

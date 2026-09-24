@@ -181,7 +181,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 35664.4085,059003.000186,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 34181.9914,059003.000187,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 33540.698,059003.000190,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
-32382.6703,059003.000192,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
+32382.6703,059003.000192,059003.000447,reject,9/23/2026,"withdrawn 2026-09-23: Iobs is far above Icalc and the point falls about 3 sigma off the calibration trend its own plate follows, which is a parabola over 2809-3211 A. The re-keying of 9/6/2026, when 059003.000298 and 059003.000447 were swapped, was correct; the identification itself is not"
 69190.794,059003.000185,059003.000398,accept,9/6/2026,Required this fix after swap
 93341.584,059003.000101,059003.000398,accept,9/6/2026,Required this fix after swap
 95981.089,059003.000083,059003.000398,accept,9/7/2026,Required this fix after swap
@@ -416,3 +416,9 @@ wn_obs,low_id,upp_id,decision,date,reason
 46172.4502,059003.000062,059003.000215,accept,9/22/2026,"IDEN2 1221-1062, the same upper level as 45994.3206, and undoubtedly this transition; Sugar left it unclassified. His uncertainty is inflated 0.0642 -> 0.12 cm-1, as for 45994.3206. The calibration does not help here: +0.058 +- 0.021 cm-1 takes the residual from +0.19 to +0.25 cm-1"
 38825.7505,059003.000111,059003.000215,accept,9/22/2026,"IDEN2 1170-1062, the same upper level again; Sugar's uncertainty inflated 0.0456 -> 0.0844 cm-1. The calibration correction of +0.015 +- 0.015 cm-1 takes the residual from -0.138 to -0.123 cm-1, 1.5 sigma on the inflated uncertainty"
 33300.241,059003.000331,059003.000529,reject,9/22/2026,"IDEN2: Too far from Ritz, too small Icalc."
+31391.6526,059003.000139,059003.000213,reject,9/23/2026,"Too far from Ritz, too small Iobs"
+11956.92,059003.000055,059003.000126,reject,9/23/2026,"Too far from Ritz, too small Iobs"
+39719.0502,059003.000130,059003.000250,reject,9/23/2026,"Iobs is much greater than Icalc, and the point falls about 3 sigma off the calibration trend near 2518 A. The competing assignment 059003.000142-059003.000267 at the same wavenumber carries the intensity"
+39023.7615,059003.000210,059003.000326,reject,9/23/2026,"Iobs is much greater than Icalc, and the point falls about 3 sigma off the calibration trend near 2563 A"
+26937.8332,059003.000160,059003.000218,reject,9/23/2026,withdrawn despite the intensity match: even with u_d_lambda_A inflated to 0.02572 A the point disagrees with the calibration trend near 3712 A by 3 sigma
+21762.5717,059003.000626,059003.000563,reject,9/23/2026,IDEN2

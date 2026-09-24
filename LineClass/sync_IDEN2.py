@@ -107,6 +107,20 @@ USAGE
     python sync_IDEN2.py --dry-run       # say what would change, write nothing
     python sync_IDEN2.py --cutoff -45    # a longer list, down to weaker lines
     python sync_IDEN2.py --report sync_IDEN2_report.txt
+    python ../sync_IDEN2.py              # run from iter/: syncs iter/IDEN2
+    python sync_IDEN2.py --set iter      # the same, named from anywhere
+
+THE WORKING SET
+===============
+The files rewritten are the ones of the set the command is run from, not the
+ones beside the script.  ``IDEN2`` and ``LOPT_output_levels.txt`` are looked
+for in that directory first and in the project directory only if the set has
+not got them, which is what ``swap_paths`` describes and what
+``check_sync.py --set`` already does.  An IDEN2 from one set and a level
+table from another are refused: the corrected set's levels are on the
+corrected wavenumber scale and the baseline's are on Sugar's, so writing one
+into the other would move every Ritz wavenumber silently.  Both resolved
+paths are printed before anything is written.
 
 Close IDEN2 first.  It holds its files open and rewrites them from memory when
 it exits, which would undo everything this program has done.
@@ -127,6 +141,7 @@ import gA_imputation
 import level_interchange
 import output_files
 import swap_line_assignments_IDEN as IDEN
+from swap_paths import working_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IDEN2_DIR = os.path.join(HERE, 'IDEN2')
@@ -551,10 +566,19 @@ def parse_args(argv):
     p = argparse.ArgumentParser(
         description='Rewrite IDEN2 enlev.dat and trans.dat from the current '
                     'LOPT levels and the current calculated intensities.')
-    p.add_argument('--iden2', default=IDEN2_DIR, metavar='DIR',
-                   help='the IDEN2 directory (default %(default)s)')
-    p.add_argument('--lopt-levels', default=LOPT_LEVELS, metavar='PATH',
-                   help='LOPT output level table (default %(default)s)')
+    p.add_argument('--iden2', default=None, metavar='DIR',
+                   help="the IDEN2 directory (default: the working set's)")
+    p.add_argument('--lopt-levels', default=None, metavar='PATH',
+                   help="LOPT output level table (default: the working set's)")
+    p.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
+                   help='the working set to sync: its IDEN2 and its LOPT '
+                        'levels, falling back to the project directory for '
+                        'the files it has not got (default: the current '
+                        'directory)')
+    p.add_argument('--allow-mixed', action='store_true',
+                   help='sync an IDEN2 directory with a LOPT level table '
+                        'from a different set.  Refused by default, because '
+                        'the two sets are on different wavenumber scales')
     p.add_argument('--tp', default=cowan_gA.TP_FILE, metavar='PATH',
                    help='the Cowan transition probabilities '
                         '(default %(default)s)')
@@ -589,6 +613,24 @@ def main(argv=None):
         print(text)
         lines.append(text)
 
+    # The script lives in the project directory but is run from whichever
+    # working set is being iterated, so IDEN2 and the LOPT level table are
+    # resolved against that set first and against the project only for what
+    # the set has not got - the arrangement swap_paths describes and the one
+    # check_sync.py --set already follows.  Resolving them against the
+    # script's own directory instead would quietly rewrite the baseline
+    # IDEN2 from a run made somewhere else.
+    set_dir = os.path.abspath(args.set_dir or os.getcwd())
+    if not os.path.isdir(set_dir):
+        raise SystemExit('sync_IDEN2.py: --set %s is not a directory'
+                         % args.set_dir)
+    if args.iden2 is None:
+        args.iden2 = working_path('IDEN2', cwd=set_dir)
+    if args.lopt_levels is None:
+        args.lopt_levels = working_path('LOPT_output_levels.txt', cwd=set_dir)
+    if args.report and not os.path.isabs(args.report):
+        args.report = os.path.join(set_dir, args.report)
+
     enlev_path = os.path.join(args.iden2, 'enlev.dat')
     trans_path = os.path.join(args.iden2, 'trans.dat')
     map_path = os.path.join(args.iden2, 'IDEN_level_ids.txt')
@@ -599,6 +641,29 @@ def main(argv=None):
         output_files.require_writable([enlev_path, trans_path], 'IDEN2 file')
     if args.report:
         output_files.require_writable([args.report], 'report file')
+
+    # A level table from one set and an IDEN2 from another describe two
+    # different fits: the corrected set's levels are on the corrected
+    # wavenumber scale and the baseline's are on Sugar's, so writing one
+    # into the other moves every Ritz wavenumber by the calibration
+    # correction without saying so.
+    iden2_home = os.path.dirname(os.path.abspath(args.iden2))
+    levels_home = os.path.dirname(os.path.abspath(args.lopt_levels))
+    if iden2_home != levels_home and not args.allow_mixed:
+        raise SystemExit('\n'.join([
+            '',
+            'sync_IDEN2.py: the two files belong to different working sets:',
+            '    IDEN2        %s' % args.iden2,
+            '    LOPT levels  %s' % args.lopt_levels,
+            'Their level energies are on different wavenumber scales.  Run '
+            'LOPT in the set',
+            'first, or name both explicitly, or pass --allow-mixed if this '
+            'is meant.',
+            '']))
+
+    log('working set: %s' % set_dir)
+    log('  IDEN2        %s' % args.iden2)
+    log('  LOPT levels  %s' % args.lopt_levels)
 
     C, kT = intensity_model(args.icalc, log)
 

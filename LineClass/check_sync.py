@@ -985,6 +985,64 @@ def same_share(want, got):
     return d <= 1e-4 or d <= 0.01 * max(want, got)
 
 
+def one_record_per_transition(path):
+    """The transitions of the file that are written more than once.
+
+    Returns `{(lower, upper): [(wavenumber, flags)]}` for the pairs of levels
+    that carry several records.  A transition is one energy difference, so a
+    second record of it adds nothing to the fit; and if two of them are
+    weighted, LOPT fits the pair once per record and splits the evidence
+    between them.
+    """
+    def cut(rec, name):
+        first, last = IN_FIELDS[name]
+        return rec[first - 1:last].strip()
+
+    pairs = {}
+    with open(path, 'r', encoding='latin-1', newline='') as fh:
+        for raw in fh:
+            rec = raw.rstrip('\r\n')
+            if not rec.strip():
+                continue
+            low, upp = cut(rec, 'lower_level'), cut(rec, 'upper_level')
+            if not low or not upp:
+                continue
+            pairs.setdefault((low, upp), []).append(
+                (cut(rec, 'wavenumber'), cut(rec, 'flags')))
+    return {k: v for k, v in pairs.items() if len(v) > 1}
+
+
+def one_uncertainty_per_line(path):
+    """The observed lines of the transitions file that carry two uncertainties.
+
+    Returns `{wavenumber: [(uncertainty, flags, lower, upper)]}` for the
+    wavenumbers whose records disagree.  One observed line is one measurement,
+    so LOPT has to be given one uncertainty for it however many transitions it
+    is assigned to; two values on one wavenumber are two weights on one
+    measured position, which is a statement the measurement cannot make.  The
+    file is read here by columns rather than through `read_lopt_input`, which
+    keys its rows by the pair of levels and does not carry the uncertainty.
+    """
+    def cut(rec, name):
+        first, last = IN_FIELDS[name]
+        return rec[first - 1:last].strip()
+
+    groups = {}
+    with open(path, 'r', encoding='latin-1', newline='') as fh:
+        for raw in fh:
+            rec = raw.rstrip('\r\n')
+            if not rec.strip():
+                continue
+            wn, unc = cut(rec, 'wavenumber'), cut(rec, 'uncertainty')
+            if not wn or not unc:
+                continue
+            groups.setdefault(wn, []).append(
+                (unc, cut(rec, 'flags'),
+                 cut(rec, 'lower_level'), cut(rec, 'upper_level')))
+    return {wn: recs for wn, recs in groups.items()
+            if len({r[0] for r in recs}) > 1}
+
+
 def check_lopt_chain(cls, paths, ctx, rep, wn_tol):
     """The classification, the transitions file LOPT was given, and the two
     files LOPT wrote, are four views of one fit; each is made from the one
@@ -994,6 +1052,52 @@ def check_lopt_chain(cls, paths, ctx, rep, wn_tol):
     lev = paths.get(LOPT_LEVELS)
     lopt_in = ctx.lopt_in
     levels = ctx.levels
+
+    if inp:
+        split = one_uncertainty_per_line(inp)
+        if split:
+            fitted = sum(1 for recs in split.values()
+                         if len({r[0] for r in recs
+                                 if 'P' not in (r[1] or '').upper()}) > 1)
+            items = []
+            for wn in sorted(split, key=lambda t: -float(t)):
+                for unc, flag, low, upp in split[wn]:
+                    items.append('%12s  %7s  %-2s %s - %s'
+                                 % (wn, unc, flag, low, upp))
+            rep.warn('LOPT',
+                     '%d observed lines in %s carry more than one '
+                     'uncertainty, %d of them among the records the fit '
+                     'uses. LOPT reads the uncertainty of each record as the '
+                     'uncertainty of the measurement it constrains, so those '
+                     'lines are weighted differently in the components of one '
+                     'blend. Rebuilding the file cures it: make_LOPT_input.py '
+                     'gives an observed line one uncertainty, the mean of its '
+                     'transitions\' values weighted by the weights LOPT is '
+                     'given.' % (len(split), LOPT_IN, fitted), items)
+        else:
+            rep.ok('LOPT', 'every observed line in %s carries one '
+                           'uncertainty' % LOPT_IN)
+
+        twice = one_record_per_transition(inp)
+        if twice:
+            weighted = sum(1 for recs in twice.values()
+                           if sum(1 for _, f in recs
+                                  if 'P' not in (f or '').upper()) > 1)
+            items = []
+            for (low, upp) in sorted(twice):
+                for wn, flag in twice[(low, upp)]:
+                    items.append('%s - %s  %12s  %s' % (low, upp, wn, flag))
+            rep.warn('LOPT',
+                     '%d transitions in %s are written more than once, %d of '
+                     'them with more than one weighted record. A transition '
+                     'is one energy difference, so a second record of it adds '
+                     'nothing to the fit, and two weighted records make LOPT '
+                     'fit the pair twice and split its evidence. Rebuilding '
+                     'the file cures it: make_LOPT_input.py keeps the '
+                     'accepted record of a transition and drops the rest.'
+                     % (len(twice), LOPT_IN, weighted), items)
+        else:
+            rep.ok('LOPT', 'every transition in %s is written once' % LOPT_IN)
 
     if cls is not None and lopt_in is not None:
         want = classified_rows(classified(cls))
@@ -1528,20 +1632,44 @@ def parse_args(argv=None):
     ap.add_argument('--iden2', metavar='DIR', default=None,
                     help='the IDEN2 directory (default: IDEN2, resolved like '
                          'every other file)')
+    ap.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
+                    help='the working set to check: the directory holding its '
+                         'own classification table, LOPT files and IDEN2 '
+                         '(iter, final). A file that directory does not hold '
+                         'is taken from the project directory, which is what '
+                         'makes the hand-kept ledgers shared between the sets '
+                         '(default: the current directory)')
     return ap.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv)
+    # `--set iter` is `working_path` asked to look in `iter` first: the files
+    # that set has of its own - its classification table, its LOPT files, its
+    # IDEN2 - are its own, and the ones it has not got, the decision ledger
+    # and the level overrides, come from the project directory, which is
+    # exactly the arrangement the sets are meant to have.  The report is
+    # written into the set, since it describes that set.
+    set_dir = os.path.abspath(args.set_dir or os.getcwd())
+    if not os.path.isdir(set_dir):
+        raise SystemExit('check_sync.py: --set %s is not a directory'
+                         % args.set_dir)
+    out = args.out if os.path.isabs(args.out) else os.path.join(set_dir,
+                                                                args.out)
+    csv_out = args.csv
+    if csv_out and not os.path.isabs(csv_out):
+        csv_out = os.path.join(set_dir, csv_out)
+    args.out, args.csv = out, csv_out
     output_files.require_writable([args.out, args.csv], 'report file')
     names = [CLASSIFICATIONS_CSV, CLASSIFICATIONS_XLSX, LOPT_IN, LOPT_LINES,
              LOPT_LEVELS, DECISIONS, REVISIONS, UNSTABLE, POSITIONS,
              LINES_XLSX]
-    paths = {n: working_path(n) for n in names}
-    iden2 = args.iden2 or working_path(NAME_IDEN2)
+    paths = {n: working_path(n, cwd=set_dir) for n in names}
+    iden2 = args.iden2 or working_path(NAME_IDEN2, cwd=set_dir)
 
     head = ['check_sync.py - are the files describing the same '
             'identification?',
+            'working set: %s' % set_dir,
             '%-32s %s' % ('file', 'last written')]
     for n in names + ['IDEN2/enlev.dat', 'IDEN2/trans.dat']:
         p = paths.get(n) or os.path.join(iden2, os.path.basename(n))
