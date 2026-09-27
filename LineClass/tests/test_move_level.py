@@ -301,7 +301,7 @@ def test_the_overrides_file_keeps_lf_endings(sandbox):
 # ---------------------------------------------------------------------------
 def test_removed_ledger_rows_are_kept_with_their_reason(tmp_path):
     removed = tmp_path / 'line_decisions_removed.csv'
-    rec = {'wn_obs': '20000.0000', 'low_id': LOW, 'upp_id': UPP,
+    rec = {'wn_key': '20000.0000', 'low_id': LOW, 'upp_id': UPP,
            'decision': 'accept', 'date': '9/3/2026', 'reason': 'hand-made'}
     ML.archive_ledger_rows(str(removed), [(rec, ML.REASON_FAR)],
                            UPP, '9/15/2026')
@@ -312,12 +312,12 @@ def test_removed_ledger_rows_are_kept_with_their_reason(tmp_path):
     assert rows[0]['removed_for'] == UPP
     assert rows[0]['removed_because'] == ML.REASON_FAR
     assert rows[0]['reason'] == 'hand-made'          # the original, kept
-    assert rows[0]['wn_obs'] == '20000.0000'
+    assert rows[0]['wn_key'] == '20000.0000'
 
 
 def test_archiving_appends_and_writes_one_header(tmp_path):
     removed = tmp_path / 'line_decisions_removed.csv'
-    rec = {'wn_obs': '20000.0000', 'low_id': LOW, 'upp_id': UPP,
+    rec = {'wn_key': '20000.0000', 'low_id': LOW, 'upp_id': UPP,
            'decision': 'accept', 'date': '9/3/2026', 'reason': 'hand-made'}
     ML.archive_ledger_rows(str(removed), [(rec, 'one')], UPP, '9/15/2026')
     ML.archive_ledger_rows(str(removed), [(rec, 'two')], UPP, '9/15/2026')
@@ -336,7 +336,7 @@ def test_archiving_nothing_creates_no_file(tmp_path):
 def test_the_ledger_is_rewritten_without_the_removed_rows(tmp_path):
     ledger = tmp_path / 'line_decisions.csv'
     ledger.write_text(
-        'wn_obs,low_id,upp_id,decision,date,reason\n'
+        'wn_key,low_id,upp_id,decision,date,reason\n'
         '20000.0000,%s,%s,accept,9/3/2026,kept\n'
         '30000.0000,%s,%s,accept,9/3/2026,goes\n' % (LOW, OTHER, LOW, UPP),
         encoding='utf-8')

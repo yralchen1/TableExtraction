@@ -194,7 +194,7 @@ def line(wn, key=None):
                         line_character='', wn_key=key if key is not None else wn)
 
 
-LEDGER = ('wn_obs,low_id,upp_id,decision,reason\n'
+LEDGER = ('wn_key,low_id,upp_id,decision,reason\n'
           '45994.3206,059003.000141,059003.000218,accept,off the block trend\n')
 
 
@@ -244,7 +244,7 @@ def test_the_set_gets_its_own_files_and_shares_the_rest(tmp_path,
     import swap_paths
     project = str(tmp_path / 'LineClass')
     set_dir = os.path.join(project, 'iter')
-    write(os.path.join(project, 'line_decisions.csv'), 'wn_obs\n')
+    write(os.path.join(project, 'line_decisions.csv'), 'wn_key\n')
     write(os.path.join(project, 'line_classifications.csv'), 'wn_obs\n')
     write(os.path.join(set_dir, 'line_classifications.csv'), 'wn_obs\n')
     monkeypatch.setattr(swap_paths, 'PROJECT', project)

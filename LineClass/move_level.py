@@ -405,7 +405,7 @@ class Holding(object):
 def read_ledger_rows(path):
     """``(fieldnames, rows)`` of ``line_decisions.csv``."""
     if not os.path.exists(path):
-        return (['wn_obs', 'low_id', 'upp_id', 'decision', 'date', 'reason'],
+        return (['wn_key', 'low_id', 'upp_id', 'decision', 'date', 'reason'],
                 [])
     with io.open(path, encoding='utf-8-sig', newline='') as fh:
         rdr = csv.DictReader(fh)
@@ -431,7 +431,7 @@ def archive_ledger_rows(path, rows, level_id, today):
     if not rows:
         return
     fields = ['removed_on', 'removed_for', 'removed_because',
-              'wn_obs', 'low_id', 'upp_id', 'decision', 'date', 'reason']
+              'wn_key', 'low_id', 'upp_id', 'decision', 'date', 'reason']
     exists = os.path.exists(path)
     with io.open(path, 'a' if exists else 'w', encoding='utf-8',
                  newline='') as fh:
@@ -482,7 +482,7 @@ def gather_holdings(level_id, index, levels_dict, log):
         if level_id not in (low, upp):
             continue
         try:
-            wn = float(rec['wn_obs'])
+            wn = float(rec['wn_key'])
         except (KeyError, TypeError, ValueError):
             continue
         get(wn, low, upp).ledger.append(rec)
@@ -944,12 +944,12 @@ def _run(args, rejects, accepts, saved, log, today):
     if archived:
         keep_rows = []
         dropped = 0
-        want = {(round(float(r.get('wn_obs') or 0), 3),
+        want = {(round(float(r.get('wn_key') or 0), 3),
                  (r.get('low_id') or '').strip(),
                  (r.get('upp_id') or '').strip()) for r, _w in archived}
         for rec in ledger_all:
             try:
-                key = (round(float(rec['wn_obs']), 3),
+                key = (round(float(rec['wn_key']), 3),
                        (rec.get('low_id') or '').strip(),
                        (rec.get('upp_id') or '').strip())
             except (KeyError, TypeError, ValueError):
@@ -1100,7 +1100,7 @@ def _run(args, rejects, accepts, saved, log, today):
                 continue
             why = ('classify_lines did not propose it' if key not in verdicts
                    else 'classify_lines rejected it')
-            fresh.append({'wn_obs': '%.4f' % c.wn, 'low_id': c.low_id,
+            fresh.append({'wn_key': '%.4f' % c.wn, 'low_id': c.low_id,
                           'upp_id': c.upp_id, 'decision': 'accept',
                           'date': today, 'reason': REASON_ACCEPT})
             written.add(key)
@@ -1120,7 +1120,7 @@ def _run(args, rejects, accepts, saved, log, today):
                 reason = ('not part of the move: this level was moved to '
                           '%.4f cm^-1 and this assignment was not carried '
                           'over' % e_new)
-            fresh.append({'wn_obs': '%.4f' % wn, 'low_id': low,
+            fresh.append({'wn_key': '%.4f' % wn, 'low_id': low,
                           'upp_id': upp, 'decision': 'reject',
                           'date': today, 'reason': reason})
             written.add(key)
@@ -1141,7 +1141,7 @@ def _run(args, rejects, accepts, saved, log, today):
                         log('     %11.3f  %s - %s is on the screen already; '
                             'left as it is' % (kwn, low, upp))
                         continue
-                    fresh.append({'wn_obs': '%.4f' % kwn, 'low_id': low,
+                    fresh.append({'wn_key': '%.4f' % kwn, 'low_id': low,
                                   'upp_id': upp, 'decision': 'accept',
                                   'date': today, 'reason': reason})
                     written.add(key)

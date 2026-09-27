@@ -821,7 +821,7 @@ def test_a_mark_on_a_line_this_run_takes_a_share_of_is_written():
     assert left == []
     (key, row, still), = rows
     assert key == _KEY and still is True
-    assert row == {'wn_obs': '59485.8150', 'low_id': '059003.000121',
+    assert row == {'wn_key': '59485.8150', 'low_id': '059003.000121',
                    'upp_id': '059003.000453', 'decision': 'accept',
                    'date': '9/16/2026',
                    'reason': 'IDEN2/LOPT; may exclude from LOPT'}
@@ -935,7 +935,7 @@ def test_an_adopted_rejected_component_gets_its_row_with_its_own_reason():
     assert left == []
     (key, row, still), = rows
     assert key == _WEAK and still is False
-    assert row == {'wn_obs': '11476.0920', 'low_id': '059003.000058',
+    assert row == {'wn_key': '11476.0920', 'low_id': '059003.000058',
                    'upp_id': '059003.000127', 'decision': 'accept',
                    'date': '9/16/2026', 'reason': _WEAK_REASON}
 

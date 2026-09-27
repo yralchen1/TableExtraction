@@ -1,17 +1,20 @@
-"""Bring IDEN2's ``enlev.dat`` and ``trans.dat`` up to date with the fit.
+"""Bring IDEN2's ``enlev.dat``, ``trans.dat`` and ``dlv.dat`` up to date.
 
 WHAT IS OUT OF DATE, AND WHY
 ============================
-IDEN2 keeps two files of its own.  ``enlev.dat`` is the level list it shows on
-screen: one row per calculated level, carrying the level's calculated energy,
-the measured energy adopted for it, the uncertainty of that measurement and an
-asterisk when the level has been found at all.  ``trans.dat`` is the predicted
-transition list: one block per upper level, one row per transition, carrying a
-copy of the partner's energy, the predicted wavenumber, a code for the
-predicted intensity, and - where the analyst has identified the transition with
-an observed line - that line and its departure from the prediction.
+IDEN2 keeps three files of its own.  ``enlev.dat`` is the level list it shows
+on screen: one row per calculated level, carrying the level's calculated
+energy, the measured energy adopted for it, the uncertainty of that measurement
+and an asterisk when the level has been found at all.  ``trans.dat`` is the
+predicted transition list: one block per upper level, one row per transition,
+carrying a copy of the partner's energy, the predicted wavenumber, a code for
+the predicted intensity, and - where the transition has been identified with an
+observed line - that line and its departure from the prediction.  ``dlv.dat``
+is the observed line list: one row per measured line, carrying its intensity,
+its wavenumber, its standard wavelength, its character and the uncertainty of
+the measurement.
 
-Both drift out of step with the pipeline, in three separate ways.
+All three drift out of step with the pipeline, in five separate ways.
 
 *The level energies.*  Every LOPT run moves the measured levels a little.
 407 of the 594 levels differ from ``LOPT_output_levels.txt`` as things stand,
@@ -36,6 +39,21 @@ Cowan table it was built from, ``tp_E1_no_trials.xlsx``, holds 120273 whose
 two levels both appear in ``enlev.dat``; the rest were cut off at the bottom
 of the old intensity scale, at code -37.  Which transitions that cut keeps is
 not the same on the new scale as on the old one.
+
+*The observed lines.*  Every wavenumber in ``dlv.dat`` and every uncertainty
+beside it is a measurement, and both are revised: a corrected set applies the
+wavelength calibration correction to every line, and the uncertainty model is
+refitted whenever the evidence for it changes.  A line whose uncertainty is
+wrong here is a line the eye judges against the wrong window, which is the
+whole purpose the file serves.
+
+*Which lines are identified.*  The pipeline's statement of an identification is
+a record of ``LOPT_input_lines.txt``: a record not flagged ``P`` is one the fit
+uses, and a transition all of whose records are flagged ``P`` is one that was
+considered and rejected.  Every classification run changes that set, and
+``trans.dat`` goes on showing the identifications of the run before it.  A
+withdrawn identification left on the screen is worse than no identification at
+all, because it also consumes a line that some other transition may want.
 
 WHAT THIS PROGRAM DOES
 ======================
@@ -74,22 +92,46 @@ It rewrites both files from the current fit:
     that file would give.  The energies used here are the current ones.
 
  3. Every row of ``trans.dat`` is rewritten with the partner's new energy, the
-    new predicted wavenumber and the new intensity code, and a transition that
-    carries an identified line keeps it, with its observed-minus-predicted
-    recomputed against the new prediction.
+    new predicted wavenumber and the new intensity code, and every
+    identification is recomputed against the new prediction.
+
+ 4. The set's own line list - ``[files] lines`` of its configuration, read on
+    the ``wn`` and ``u_wn`` columns its ``[lines.layout.columns]`` names -
+    gives the wavenumber and the uncertainty of every observed line, and those
+    go into ``dlv.dat``.  Its row numbers are how ``trans.dat`` names a line,
+    so no row is added, removed or reordered: only the three measured fields
+    of each row change.  The uncertainty there is a WAVELENGTH uncertainty in
+    angstroms, as ``numset.dat`` states it too, and it is converted.
+
+ 5. ``LOPT_input_lines.txt`` says which transitions the fit is given, and the
+    identifications in ``trans.dat`` are made to match it: an accepted
+    transition keeps or gets its line, a transition every record of which is
+    flagged ``P`` loses it, and so does one the file does not mention at all.
+    Each removal and each addition is named in the report.
+
+    ``--keep-unlisted`` suspends the third of those.  It is for the one case
+    where the pipeline is the party out of date rather than IDEN2: lines just
+    marked by hand on the screen, which ``classify_lines.py`` has not yet been
+    run over.  ``--no-lines`` suspends steps 4 and 5 altogether.
 
 WHAT IS NEVER LOST
 ==================
-**An identification is never dropped.**  A transition that carries an observed
-line stays in ``trans.dat`` however weak its new intensity code makes it, and
-whether or not the Cowan table still has a gA for it.  One transition has no
-gA at all: it is Sugar's identification of a line that fell below the gA = 1e3
-s^-1 floor of the Cowan run and so was never calculated, adopted because the
-observed line's ``*v`` character matches the large hyperfine structure of the
-level, as the ``*r``, ``cl``, ``c`` and ``w`` characters of the transitions
-upward from it do.  It was added to ``trans.dat`` by hand with an intensity
-code of 0, it is the one imputed ``Icalc`` in ``line_classifications.csv``,
-and this program carries its row through untouched but for the geometry.
+**An identification the pipeline still holds is never dropped.**  Such a
+transition stays in ``trans.dat`` however weak its new intensity code makes it,
+and whether or not the Cowan table still has a gA for it.  One transition has
+no gA at all: it is Sugar's identification of a line that fell below the
+gA = 1e3 s^-1 floor of the Cowan run and so was never calculated, adopted
+because the observed line's ``*v`` character matches the large hyperfine
+structure of the level, as the ``*r``, ``cl``, ``c`` and ``w`` characters of
+the transitions upward from it do.  It was added to ``trans.dat`` by hand with
+an intensity code of 0, it is the one imputed ``Icalc`` in
+``line_classifications.csv``, and this program carries its row through
+untouched but for the geometry.
+
+What is dropped is an identification the pipeline has withdrawn, and the report
+lists every one of them with its wavenumber, its two levels and its row in
+``dlv.dat``, so that a removal can be looked at and, if it is wrong, put back
+by hand.  The previous files are kept under ``--backup-suffix`` in any case.
 
 WHICH TRANSITIONS ARE LISTED
 ============================
@@ -97,8 +139,9 @@ A transition is written when it carries an identified line, or when its new
 intensity code reaches ``--cutoff``.  The default cutoff is -41, which is the
 value that leaves the present list most nearly alone: it adds 420 transitions
 that the old scale had cut off and drops 47 - 38 that no longer reach the
-floor and 9 that have gone from the Cowan table - out of 104272.  A larger cutoff makes a shorter file - each step of one
-removes about 700 transitions, being a factor 1.105 in intensity - and
+floor and 9 that have gone from the Cowan table - out of 104272.  A larger
+cutoff makes a shorter file - each step of one removes about 700 transitions,
+being a factor 1.105 in intensity - and
 ``--cutoff -1000`` writes every calculated transition there is.
 
 USAGE
@@ -109,14 +152,17 @@ USAGE
     python sync_IDEN2.py --report sync_IDEN2_report.txt
     python ../sync_IDEN2.py              # run from iter/: syncs iter/IDEN2
     python sync_IDEN2.py --set iter      # the same, named from anywhere
+    python sync_IDEN2.py --no-lines      # levels and predictions only
+    python sync_IDEN2.py --keep-unlisted # keep identifications made by hand
 
 THE WORKING SET
 ===============
 The files rewritten are the ones of the set the command is run from, not the
-ones beside the script.  ``IDEN2`` and ``LOPT_output_levels.txt`` are looked
-for in that directory first and in the project directory only if the set has
-not got them, which is what ``swap_paths`` describes and what
-``check_sync.py --set`` already does.  An IDEN2 from one set and a level
+ones beside the script.  ``IDEN2``, ``LOPT_output_levels.txt``,
+``LOPT_input_lines.txt`` and ``lineclass_config.toml`` are looked for in that
+directory first and in the project directory only if the set has not got them,
+which is what ``swap_paths`` describes and what ``check_sync.py --set`` already
+does.  An IDEN2 from one set and a level or transitions
 table from another are refused: the corrected set's levels are on the
 corrected wavenumber scale and the baseline's are on Sugar's, so writing one
 into the other would move every Ritz wavenumber silently.  Both resolved
@@ -127,6 +173,8 @@ it exits, which would undo everything this program has done.
 """
 
 import argparse
+import bisect
+import io
 import math
 import os
 import shutil
@@ -152,6 +200,21 @@ DEF_CUTOFF = -41
 # configuration with fewer found levels than this is left alone.
 MIN_CFG_LEVELS = 3
 BACKUP_SUFFIX = '.presync'
+# dlv.dat, one row per observed line, fixed columns.  The uncertainty is a
+# WAVELENGTH uncertainty in angstroms - which is how numset.dat states it too -
+# and the wavelength is the standard one, vacuum below 2000 A and air above, so
+# it is not 1e8 divided by the wavenumber and cannot be rebuilt from it without
+# a dispersion formula.  It is rescaled instead; see rewrite_dlv.
+DLV_INTENS = (0, 5)
+DLV_WN = (5, 19)
+DLV_LAMBDA = (19, 33)
+DLV_UNC = (47, 60)
+DLV_ROW = (60, 66)
+DLV_WIDTH = 66
+# A row of dlv.dat and a row of the line list are the same observed line when
+# their wavenumbers agree to this much.  dlv.dat carries three decimals and the
+# line list carries more, so the difference is rounding and nothing else.
+DLV_MATCH = 0.001
 # The intensity code is round(10*ln(Icalc)); an Icalc of zero or less has no
 # logarithm, and a transition of exactly zero wavenumber none either.
 MIN_INTENSITY = 1e-300
@@ -181,6 +244,93 @@ def read_lopt_levels(path):
     for row in t.itertuples():
         unc = round(max(float(row.D1), float(row.D2tot)), 3)
         out[row.Designation] = (float(row.Energy), unc)
+    return out
+
+
+def read_lopt_transitions(path):
+    """``{(low_id, upp_id): (accepted, wn)}`` from ``LOPT_input_lines.txt``.
+
+    A record flagged ``P`` is one LOPT is told to exclude from the level
+    optimization.  A transition can have more than one record - the hyperfine
+    components of one observed line are written separately - so it counts as
+    accepted if any of its records is not flagged.
+    """
+    out = {}
+    with io.open(path, encoding='latin-1', newline='') as fh:
+        for rec in fh:
+            text = rec.rstrip('\r\n')
+            if not text.strip():
+                continue
+            wn = float(text[FIELD_WN[0]:FIELD_WN[1]])
+            low = text[FIELD_LOW[0]:FIELD_LOW[1]].strip()
+            upp = text[FIELD_UPP[0]:FIELD_UPP[1]].strip()
+            accepted = 'P' not in text[FIELD_FLAGS[0]:FIELD_FLAGS[1]]
+            was = out.get((low, upp))
+            if was is None or (accepted and not was[0]):
+                out[(low, upp)] = (accepted, wn)
+    return out
+
+
+# The columns of LOPT_input_lines.txt, as make_LOPT_input.FIELDS writes them,
+# in the half-open form the rest of this program uses.
+FIELD_WN = (0, 12)
+FIELD_UNC = (13, 19)
+FIELD_LOW = (42, 55)
+FIELD_UPP = (58, 71)
+FIELD_FLAGS = (72, 77)
+
+
+def read_line_list(cfg, log):
+    """``(wn_key, wn, u_wn)`` for every observed line of the set, sorted.
+
+    The set's own workbook and its own column names, so that the baseline set
+    is read on Sugar's wavenumbers and a corrected set on the corrected ones.
+    ``wn_key`` is the immutable name of the line - Sugar's wavenumber, which
+    never moves - and it is what a row of ``dlv.dat`` is matched on, because
+    that file was built on that scale and its row numbers are quoted all
+    through ``trans.dat``.
+    """
+    columns = cfg.lines.columns
+    key_name = columns.get('wn_key') or columns['wn']
+    frame = pd.read_excel(cfg.lines_file, sheet_name=cfg.lines.sheet or 0)
+    for name in (key_name, columns['wn'], columns['u_wn']):
+        if name not in frame.columns:
+            raise SyncError('%s has no %s column' % (cfg.lines_file, name))
+    table = frame[[key_name, columns['wn'], columns['u_wn']]].dropna()
+    log('observed lines: %s' % cfg.lines_file)
+    log('  %d lines; the wavenumber is its %s column and the uncertainty its '
+        '%s' % (len(table), columns['wn'], columns['u_wn']))
+    if key_name != columns['wn']:
+        log('  matched to dlv.dat on %s, the wavenumber that never moves'
+            % key_name)
+    # The line list names a blended feature once per component, so the same
+    # observed line can appear on several rows.  dlv.dat has one row per
+    # observed line and no way to hold two wavenumbers for it, so the
+    # repetitions are collapsed - and they must agree, because if two rows
+    # sharing a wavenumber carried different corrected wavenumbers there would
+    # be no answer to which of them IDEN2 should show.
+    seen, clash = {}, []
+    for a, b, c in table.to_numpy():
+        key = round(float(a), 3)
+        value = (float(a), float(b), float(c))
+        if key in seen:
+            if (abs(seen[key][1] - value[1]) > 5e-4
+                    or abs(seen[key][2] - value[2]) > 5e-5):
+                clash.append((key, seen[key], value))
+            continue
+        seen[key] = value
+    if clash:
+        raise SyncError(
+            '%d observed wavenumber(s) appear more than once in %s with '
+            'different corrected values, and dlv.dat has one row for each: '
+            '%s.  Nothing has been written.'
+            % (len(clash), os.path.basename(cfg.lines_file),
+               ', '.join('%.3f' % c[0] for c in clash[:10])))
+    if len(seen) != len(table):
+        log('  %d of them are repeated rows of the same observed line, which '
+            'is one row of dlv.dat; %d distinct lines remain'
+            % (len(table) - len(seen), len(seen)))
+    out = sorted(seen.values())
     return out
 
 
@@ -224,6 +374,92 @@ def intensity_model(icalc_path, log):
 # ---------------------------------------------------------------------------
 # The new numbers
 # ---------------------------------------------------------------------------
+def rewrite_dlv(records, lines, log):
+    """``dlv.dat`` on the set's own wavenumbers, and a report of the change.
+
+    Every row keeps its number, its place in the file, its intensity code and
+    its character: the row number is how ``trans.dat`` names the line, so
+    nothing may be inserted, removed or reordered here.  What is rewritten is
+    the wavenumber, the wavelength and the uncertainty.
+
+    The wavelength is the standard one - vacuum in the ultraviolet, air above
+    2000 A - so it is not a function of the wavenumber alone, and the
+    dispersion formula the file was built with is not recorded anywhere.  It
+    is therefore rescaled rather than recomputed,
+
+        lambda_new = lambda_old * wn_old / wn_new ,
+
+    which leaves the refractive index the row already implies exactly where it
+    is: the corrections are a few hundredths of a wavenumber in ten thousand,
+    and the index changes by nothing measurable over that.  The uncertainty is
+    converted to the wavelength scale the file states it on by
+    ``u_lambda = u_wn * lambda / wn``.
+
+    A row whose wavenumber matches no line of the list is left as it stands
+    and reported; so is a line of the list that has no row here, which cannot
+    be given one without renumbering the file.
+    """
+    keys = [k for k, _wn, _u in lines]
+    out, changed, unmatched = [], [], []
+    for rec in records:
+        if len(rec) < DLV_WIDTH or not rec.strip():
+            out.append(rec)
+            continue
+        wn_old = float(rec[DLV_WN[0]:DLV_WN[1]])
+        lam_old = float(rec[DLV_LAMBDA[0]:DLV_LAMBDA[1]])
+        u_old = float(rec[DLV_UNC[0]:DLV_UNC[1]])
+        row = int(rec[DLV_ROW[0]:DLV_ROW[1]])
+        k = bisect.bisect_left(keys, wn_old)
+        best = None
+        for m in (k - 1, k, k + 1):
+            if 0 <= m < len(keys) and abs(keys[m] - wn_old) <= DLV_MATCH:
+                if best is None or abs(keys[m] - wn_old) < abs(keys[best]
+                                                               - wn_old):
+                    best = m
+        if best is None:
+            unmatched.append((row, wn_old))
+            out.append(rec)
+            continue
+        _key, wn_new, u_wn = lines[best]
+        lam_new = lam_old * wn_old / wn_new
+        u_lam = u_wn * lam_new / wn_new
+        rec = IDEN.put(rec, DLV_WN, '%14.3f' % wn_new)
+        rec = IDEN.put(rec, DLV_LAMBDA, '%14.4f' % lam_new)
+        rec = IDEN.put(rec, DLV_UNC, '%13.4f' % u_lam)
+        out.append(rec)
+        if (abs(wn_new - wn_old) > 0.0005 or abs(u_lam - u_old) > 0.00005):
+            changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn))
+    absent = []
+    dlv_keys = sorted(float(rec[DLV_WN[0]:DLV_WN[1]]) for rec in records
+                      if len(rec) >= DLV_WIDTH and rec.strip())
+    for key, wn_new, u_wn in lines:
+        k = bisect.bisect_left(dlv_keys, key)
+        near = min((abs(dlv_keys[m] - key) for m in (k - 1, k)
+                    if 0 <= m < len(dlv_keys)), default=1e9)
+        if near > DLV_MATCH:
+            absent.append((key, wn_new, u_wn))
+    report = {'n_rows': len(records), 'changed': changed,
+              'unmatched': unmatched, 'absent': absent}
+    return out, report
+
+
+def dlv_rows_by_wavenumber(records):
+    """``{wavenumber rounded to 3 decimals: row number}`` for dlv.dat.
+
+    How a transition's assignment names its observed line: the last field of
+    the assignment is the row number, and this is the way back from a
+    wavenumber the pipeline knows to the row IDEN2 knows.
+    """
+    out = {}
+    for rec in records:
+        if len(rec) < DLV_WIDTH or not rec.strip():
+            continue
+        out[round(float(rec[DLV_WN[0]:DLV_WN[1]]), 3)] = (
+            int(rec[DLV_ROW[0]:DLV_ROW[1]]),
+            int(float(rec[DLV_INTENS[0]:DLV_INTENS[1]])))
+    return out
+
+
 def adopted_energies(enlev, id_of_row, lopt, log):
     """The energy and uncertainty every level should carry, and what changed.
 
@@ -380,6 +616,130 @@ def predicted_transitions(trans_table, mapping, energies, C, kT):
 # ---------------------------------------------------------------------------
 # Writing trans.dat
 # ---------------------------------------------------------------------------
+def sync_assignments(trans, id_of_row, lopt_lines, dlv_by_wn,
+                     keep_unlisted, log):
+    """Make the identified lines of ``trans.dat`` the ones LOPT is given.
+
+    IDEN2 shows an identification as a line assigned to a predicted
+    transition.  The pipeline's statement of the same thing is a record of
+    ``LOPT_input_lines.txt``: a transition with a record that is not flagged
+    ``P`` is one the fit uses, and a transition all of whose records are
+    flagged ``P`` is one that was considered and excluded.  The two drift
+    apart at every classification run, and an assignment IDEN2 still shows for
+    an excluded transition is an assignment that has been withdrawn.
+
+    So each of the four cases gets its own treatment:
+
+    * the transition is accepted - the assignment stays, and its observed
+      wavenumber and its row in ``dlv.dat`` are refreshed, because a corrected
+      set moves every observed wavenumber;
+    * every record of it is flagged ``P`` - the assignment is removed;
+    * the LOPT input does not mention it at all - the classification run no
+      longer proposes it, so the assignment is removed as well, unless
+      ``keep_unlisted`` says to leave it.  That switch is there for the one
+      case where removing it would be wrong: lines just marked by hand in
+      IDEN2, which the pipeline has not been told about yet;
+    * it is accepted and carries no assignment - one is made, when the
+      observed line has a row in ``dlv.dat`` to point at.
+
+    ``trans.records`` is rewritten in place for the transitions that have a
+    row.  The ones that have none are returned in ``wanted``, for
+    ``rebuild_trans`` to write when it builds the file.
+    """
+    row_of_id = {}
+    for row, level_id in id_of_row.items():
+        row_of_id[level_id] = row
+    state, unknown_ids = {}, set()
+    for (low, upp), (accepted, wn) in lopt_lines.items():
+        if low not in row_of_id or upp not in row_of_id:
+            unknown_ids.add(low if low not in row_of_id else upp)
+            continue
+        key = tuple(sorted((row_of_id[low], row_of_id[upp])))
+        was = state.get(key)
+        if was is None or (accepted and not was[0]):
+            state[key] = (accepted, wn)
+    if unknown_ids:
+        raise SyncError(
+            'the LOPT input names %d level(s) that IDEN_level_ids.txt has no '
+            'row for: %s.  Every level the pipeline uses is in enlev.dat, so '
+            'the lookup table is out of date rather than the level being '
+            'absent; nothing has been written.'
+            % (len(unknown_ids), ', '.join(sorted(unknown_ids)[:10])))
+
+    removed_p, removed_unlisted, refreshed, no_dlv_row = [], [], [], []
+    added, not_addable = [], []
+    for (owner, partner), k in sorted(trans.row_of.items()):
+        rec = trans.records[k]
+        tail = IDEN.assignment(rec)
+        if not IDEN.has_line(tail):
+            continue
+        key = tuple(sorted((owner, partner)))
+        known = state.get(key)
+        if known is None:
+            if keep_unlisted:
+                continue
+            removed_unlisted.append((IDEN.obs_wavenumber(tail), key,
+                                     IDEN.obs_row(tail)))
+            trans.records[k] = rec[:IDEN.TR_OBS] + IDEN.BLANK_OBS
+            continue
+        accepted, wn = known
+        if not accepted:
+            removed_p.append((IDEN.obs_wavenumber(tail), key,
+                              IDEN.obs_row(tail)))
+            trans.records[k] = rec[:IDEN.TR_OBS] + IDEN.BLANK_OBS
+            continue
+        hit = dlv_by_wn.get(round(wn, 3))
+        if hit is None:
+            no_dlv_row.append((wn, key))
+            continue
+        row, code = hit
+        old_wn = IDEN.obs_wavenumber(tail)
+        new_tail = make_assignment(code, wn, IDEN.obs_omc(tail), row)
+        if new_tail != tail:
+            refreshed.append((old_wn, wn, key))
+            trans.records[k] = rec[:IDEN.TR_OBS] + new_tail
+
+    marked = set()
+    for (owner, partner), k in trans.row_of.items():
+        if IDEN.has_line(IDEN.assignment(trans.records[k])):
+            marked.add(tuple(sorted((owner, partner))))
+    wanted = {}
+    for key, (accepted, wn) in sorted(state.items()):
+        if not accepted or key in marked:
+            continue
+        hit = dlv_by_wn.get(round(wn, 3))
+        if hit is None:
+            not_addable.append((wn, key))
+            continue
+        row, code = hit
+        # The departure from the prediction is not known until the row's
+        # predicted wavenumber is in hand, so it is left at zero here and
+        # recomputed by rebuild_trans along with every other row's.
+        tail = make_assignment(code, wn, 0.0, row)
+        k = trans.row(*key)
+        if k is None:
+            wanted[key] = tail
+        else:
+            trans.records[k] = trans.records[k][:IDEN.TR_OBS] + tail
+        added.append((wn, key, k is None))
+
+    report = {'removed_p': removed_p, 'removed_unlisted': removed_unlisted,
+              'refreshed': refreshed, 'no_dlv_row': no_dlv_row,
+              'added': added, 'not_addable': not_addable,
+              'n_lopt': len(state),
+              'n_accepted': sum(1 for v in state.values() if v[0])}
+    return wanted, report
+
+
+def make_assignment(code, wn, omc, row):
+    """The assignment tail of a ``trans.dat`` row, at its fixed widths."""
+    text = '%6d%12.3f%11.3f%6d' % (code, wn, omc, row)
+    if len(text) != len(IDEN.BLANK_OBS):
+        raise SyncError('built an assignment of %d characters, not %d: %r'
+                        % (len(text), len(IDEN.BLANK_OBS), text))
+    return text
+
+
 def existing_rows(trans):
     """``{(upper, lower): (code, assignment)}`` for the file as it stands.
 
@@ -444,7 +804,8 @@ def build_header(index, enlev):
     return rec
 
 
-def rebuild_trans(trans, enlev, energies, predictions, cutoff, log):
+def rebuild_trans(trans, enlev, energies, predictions, cutoff, log,
+                  wanted=None):
     """The new ``trans.dat`` as a list of records, and a report of the change.
 
     Blocks come in order of the upper level's IDEN2 index and rows within a
@@ -460,8 +821,10 @@ def rebuild_trans(trans, enlev, energies, predictions, cutoff, log):
                                      predictions['rwn'],
                                      predictions['Icalc'])}
 
+    wanted = dict(wanted or {})
     rows = {}                       # (upper, lower) -> (code, assignment)
     kept_no_gA, added, dropped, code_change = [], [], [], []
+    no_row = []                     # wanted assignments with nowhere to go
     for key, (old_code, tail) in old.items():
         upper, lower = key
         if energies[upper][0] < energies[lower][0]:
@@ -490,9 +853,16 @@ def rebuild_trans(trans, enlev, energies, predictions, cutoff, log):
     for (upper, lower), (code, _wn, _I) in pred.items():
         if (upper, lower) in rows or (lower, upper) in rows:
             continue
-        if code >= cutoff:
-            rows[(upper, lower)] = (code, IDEN.BLANK_OBS)
+        tail = wanted.pop(tuple(sorted((upper, lower))), None)
+        # A transition the pipeline has accepted is written whatever its
+        # intensity code, exactly as one that already carries a line is: the
+        # cutoff decides what is worth looking at, not what has been found.
+        if tail is not None or code >= cutoff:
+            rows[(upper, lower)] = (code, tail or IDEN.BLANK_OBS)
             added.append((upper, lower, code))
+    # An accepted transition with neither a row in the old file nor a
+    # calculated one to hang a row on cannot be shown at all.
+    no_row = sorted(wanted)
 
     # ---- assemble ----------------------------------------------------------
     by_owner = {}
@@ -533,6 +903,7 @@ def rebuild_trans(trans, enlev, energies, predictions, cutoff, log):
         'n_known_pairs': len(known_pairs),
         'n_known_kept': sum(1 for k in known_pairs
                             if k in rows or (k[1], k[0]) in rows),
+        'no_row': no_row,
     }
     return records, report
 
@@ -562,6 +933,67 @@ def backup(path, suffix, log):
         f"{os.path.basename(dest)}")
 
 
+def report_dlv(rep, log):
+    """What the rewrite of ``dlv.dat`` changed."""
+    changed = rep['changed']
+    log(f"dlv.dat: {rep['n_rows']} rows, {len(changed)} rewritten")
+    if changed:
+        dwn = np.array([new - old for _r, old, new, _uo, _un, _u in changed])
+        moved = np.abs(dwn[dwn != 0])
+        if len(moved):
+            log(f"  {len(moved)} wavenumbers move, by up to "
+                f"{moved.max():.3f} cm^-1 (median {np.median(moved):.4f})")
+        big = sorted(changed, key=lambda c: -abs(c[2] - c[1]))[:10]
+        log(f"  {'row':>5} {'was':>12} {'now':>12} {'move':>8} "
+            f"{'u_A was':>9} {'u_A now':>9} {'u_cm-1':>9}")
+        for row, old, new, u_old, u_new, u_wn in big:
+            log(f"  {row:5d} {old:12.3f} {new:12.3f} {new - old:+8.3f} "
+                f"{u_old:9.4f} {u_new:9.4f} {u_wn:9.4f}")
+    if rep['unmatched']:
+        log(f"  {len(rep['unmatched'])} rows match no line of the list and "
+            f"are left exactly as they were:")
+        for row, wn in rep['unmatched'][:20]:
+            log(f"    row {row:5d}  {wn:12.3f}")
+    if rep['absent']:
+        log(f"  {len(rep['absent'])} lines of the list have no row here.  A "
+            f"row cannot be added without renumbering the file, which every "
+            f"assignment in trans.dat refers to, so they are only listed:")
+        for key, wn, _u in rep['absent'][:20]:
+            log(f"    {wn:12.3f}" + ('' if abs(key - wn) < 5e-4
+                                     else f"  (was {key:.3f})"))
+
+
+def report_assignments(rep, log):
+    """What the sync of the identifications changed."""
+    log(f"  {rep['n_lopt']} transitions, {rep['n_accepted']} of them "
+        f"accepted; the rest are flagged P, which is to say considered and "
+        f"excluded")
+    log(f"identifications in trans.dat:")
+    log(f"  {len(rep['refreshed'])} kept, with the observed wavenumber and "
+        f"the dlv.dat row refreshed")
+    log(f"  {len(rep['removed_p'])} removed because every record of the "
+        f"transition is flagged P")
+    for wn, (a, b), row in rep['removed_p'][:40]:
+        log(f"    {wn:12.3f}  levels {a:4d} - {b:4d}  dlv row {row:5d}")
+    log(f"  {len(rep['removed_unlisted'])} removed because the LOPT "
+        f"transitions file does not mention the transition at all")
+    for wn, (a, b), row in rep['removed_unlisted'][:40]:
+        log(f"    {wn:12.3f}  levels {a:4d} - {b:4d}  dlv row {row:5d}")
+    log(f"  {len(rep['added'])} added for accepted transitions that carried "
+        f"none")
+    for wn, (a, b), new_row in rep['added'][:40]:
+        log(f"    {wn:12.3f}  levels {a:4d} - {b:4d}"
+            + ('  (a new row)' if new_row else ''))
+    if rep['no_dlv_row'] or rep['not_addable']:
+        stuck = sorted(rep['no_dlv_row'] + rep['not_addable'])
+        log(f"  {len(stuck)} accepted transitions name an observed "
+            f"wavenumber that has no row in dlv.dat; they are left as they "
+            f"are, and the line has to be put into dlv.dat before IDEN2 can "
+            f"show it:")
+        for wn, (a, b) in stuck[:20]:
+            log(f"    {wn:12.3f}  levels {a:4d} - {b:4d}")
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(
         description='Rewrite IDEN2 enlev.dat and trans.dat from the current '
@@ -570,6 +1002,23 @@ def parse_args(argv):
                    help="the IDEN2 directory (default: the working set's)")
     p.add_argument('--lopt-levels', default=None, metavar='PATH',
                    help="LOPT output level table (default: the working set's)")
+    p.add_argument('--lopt-lines', default=None, metavar='PATH',
+                   help="the LOPT transitions file, which says which "
+                        "identifications the fit is given (default: the "
+                        "working set's LOPT_input_lines.txt)")
+    p.add_argument('--config', default=None, metavar='PATH',
+                   help="the configuration naming the set's line list "
+                        "(default: the working set's lineclass_config.toml)")
+    p.add_argument('--no-lines', action='store_true',
+                   help='leave dlv.dat and the identifications alone and '
+                        'rewrite only the levels and the predictions, as this '
+                        'program did before it read the observed lines')
+    p.add_argument('--keep-unlisted', action='store_true',
+                   help='keep an identification that the LOPT transitions '
+                        'file does not mention at all, instead of removing '
+                        'it.  Use it when lines have just been marked by '
+                        'hand in IDEN2 and not yet put through '
+                        'classify_lines.py')
     p.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
                    help='the working set to sync: its IDEN2 and its LOPT '
                         'levels, falling back to the project directory for '
@@ -628,17 +1077,27 @@ def main(argv=None):
         args.iden2 = working_path('IDEN2', cwd=set_dir)
     if args.lopt_levels is None:
         args.lopt_levels = working_path('LOPT_output_levels.txt', cwd=set_dir)
+    if args.lopt_lines is None:
+        args.lopt_lines = working_path('LOPT_input_lines.txt', cwd=set_dir)
+    if args.config is None:
+        args.config = working_path('lineclass_config.toml', cwd=set_dir)
     if args.report and not os.path.isabs(args.report):
         args.report = os.path.join(set_dir, args.report)
 
     enlev_path = os.path.join(args.iden2, 'enlev.dat')
     trans_path = os.path.join(args.iden2, 'trans.dat')
+    dlv_path = os.path.join(args.iden2, 'dlv.dat')
     map_path = os.path.join(args.iden2, 'IDEN_level_ids.txt')
-    for path in (enlev_path, trans_path, map_path, args.lopt_levels, args.tp):
+    needed = [enlev_path, trans_path, map_path, args.lopt_levels, args.tp]
+    written = [enlev_path, trans_path]
+    if not args.no_lines:
+        needed += [dlv_path, args.lopt_lines, args.config]
+        written.append(dlv_path)
+    for path in needed:
         if not os.path.exists(path):
             raise SystemExit('%s does not exist' % path)
     if not args.dry_run:
-        output_files.require_writable([enlev_path, trans_path], 'IDEN2 file')
+        output_files.require_writable(written, 'IDEN2 file')
     if args.report:
         output_files.require_writable([args.report], 'report file')
 
@@ -648,22 +1107,31 @@ def main(argv=None):
     # into the other moves every Ritz wavenumber by the calibration
     # correction without saying so.
     iden2_home = os.path.dirname(os.path.abspath(args.iden2))
-    levels_home = os.path.dirname(os.path.abspath(args.lopt_levels))
-    if iden2_home != levels_home and not args.allow_mixed:
+    homes = [('LOPT levels', args.lopt_levels)]
+    if not args.no_lines:
+        homes.append(('LOPT lines', args.lopt_lines))
+    mixed = [(what, path) for what, path in homes
+             if os.path.dirname(os.path.abspath(path)) != iden2_home]
+    if mixed and not args.allow_mixed:
         raise SystemExit('\n'.join([
             '',
-            'sync_IDEN2.py: the two files belong to different working sets:',
+            'sync_IDEN2.py: these files belong to different working sets:',
             '    IDEN2        %s' % args.iden2,
-            '    LOPT levels  %s' % args.lopt_levels,
-            'Their level energies are on different wavenumber scales.  Run '
-            'LOPT in the set',
-            'first, or name both explicitly, or pass --allow-mixed if this '
-            'is meant.',
+            ] + ['    %-12s %s' % (what, path) for what, path in mixed] + [
+            'Their wavenumbers are on different scales.  Run the set through '
+            'the pipeline',
+            'and LOPT first, or name the files explicitly, or pass '
+            '--allow-mixed if this is meant.',
             '']))
 
     log('working set: %s' % set_dir)
     log('  IDEN2        %s' % args.iden2)
     log('  LOPT levels  %s' % args.lopt_levels)
+    if args.no_lines:
+        log('  --no-lines: dlv.dat and the identifications are left alone')
+    else:
+        log('  LOPT lines   %s' % args.lopt_lines)
+        log('  config       %s' % args.config)
 
     C, kT = intensity_model(args.icalc, log)
 
@@ -753,9 +1221,25 @@ def main(argv=None):
                if alone and n_unfound else ''))
     log(f"  {len(cfg_rep['changes'])} unfound levels change uncertainty")
 
+    dlv_records, dlv_rep, assign_rep = None, None, None
+    wanted = {}
+    if not args.no_lines:
+        log()
+        lines = read_line_list(config.load(args.config), log)
+        dlv_records, dlv_endings = IDEN.read_records(dlv_path)
+        dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log)
+        report_dlv(dlv_rep, log)
+        lopt_lines = read_lopt_transitions(args.lopt_lines)
+        log()
+        log('%s: %d records' % (args.lopt_lines, len(lopt_lines)))
+        wanted, assign_rep = sync_assignments(
+            trans, row_id, lopt_lines, dlv_rows_by_wavenumber(dlv_records),
+            args.keep_unlisted, log)
+        report_assignments(assign_rep, log)
+
     predictions = predicted_transitions(trans_table, mapping, energies, C, kT)
     records, rep = rebuild_trans(trans, enlev, energies, predictions,
-                                 args.cutoff, log)
+                                 args.cutoff, log, wanted=wanted)
 
     log()
     log(f"trans.dat: {rep['n_before']} transitions before, "
@@ -793,6 +1277,12 @@ def main(argv=None):
         f"known and which can therefore be looked for - "
         f"{rep['n_known_kept']} are on the list; the rest are below the "
         f"cutoff")
+    if rep['no_row']:
+        log(f"  {len(rep['no_row'])} accepted transitions have neither a row "
+            f"in the old file nor a calculated one, so they cannot be shown; "
+            f"their identification is not written:")
+        for upper, lower in rep['no_row'][:20]:
+            log(f"    levels {upper} - {lower}")
 
     log()
     if args.dry_run:
@@ -800,6 +1290,11 @@ def main(argv=None):
     else:
         backup(enlev_path, args.backup_suffix, log)
         backup(trans_path, args.backup_suffix, log)
+        if dlv_records is not None:
+            backup(dlv_path, args.backup_suffix, log)
+            IDEN.write_records(dlv_path, dlv_records, dlv_endings)
+            log(f"  {os.path.basename(dlv_path)} rewritten, "
+                f"{len(dlv_records)} rows")
         for index, (E, unc, known) in energies.items():
             enlev.set_measurement(index, unc, E, known)
         IDEN.write_records(enlev_path, enlev.records, enlev.endings)

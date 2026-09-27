@@ -266,7 +266,8 @@ def legacy_assignments(path, ids):
                 continue
             if (row.get('new') or '').strip() not in ('0', '0.0'):
                 continue
-            out.append({'wn': wavenumber(row.get('wn_obs')),
+            out.append({'wn': wavenumber(row.get('wn_key')
+                                         or row.get('wn_obs')),
                         'low': low, 'upp': upp, 'level': mine[0],
                         'intens': (row.get('obs_intens') or '').strip()})
     return out
@@ -399,7 +400,7 @@ def swap_id(lid, id1, id2):
 def ledger_key(row):
     """The key classify_lines.py reads a ledger row by."""
     try:
-        wn = float((row.get('wn_obs') or '').strip())
+        wn = float((row.get('wn_key') or '').strip())
     except ValueError:
         wn = None
     return (wn, (row.get('low_id') or '').strip(),
@@ -424,13 +425,13 @@ def rekey_ledger(rows, id1, id2, date):
             continue
         reason = (row.get('reason') or '').rstrip()
         if marker in reason:
-            skipped.append((n, (row.get('wn_obs') or '').strip(), low, upp))
+            skipped.append((n, (row.get('wn_key') or '').strip(), low, upp))
             continue
         was = (low, upp)
         row['low_id'] = swap_id(low, id1, id2)
         row['upp_id'] = swap_id(upp, id1, id2)
         row['reason'] = (reason + sentence) if reason else sentence[2:].strip()
-        touched.append((n, (row.get('wn_obs') or '').strip(), was,
+        touched.append((n, (row.get('wn_key') or '').strip(), was,
                         (row['low_id'], row['upp_id']),
                         (row.get('decision') or '').strip()))
     return touched, skipped
@@ -450,7 +451,7 @@ def legacy_orders(legacy, id1, id2, date, with_accepts):
         low_new = swap_id(item['low'], id1, id2)
         upp_new = swap_id(item['upp'], id1, id2)
         out.append({
-            'wn_obs': item['wn'], 'low_id': item['low'],
+            'wn_key': item['wn'], 'low_id': item['low'],
             'upp_id': item['upp'], 'decision': REJECT, 'date': date,
             'reason': ('identification of the published line list, at the '
                        'position %s held before the exchange; lines belonging '
@@ -458,7 +459,7 @@ def legacy_orders(legacy, id1, id2, date, with_accepts):
                        % (lid, mark(id1, id2), date, other))})
         if with_accepts:
             out.append({
-                'wn_obs': item['wn'], 'low_id': low_new,
+                'wn_key': item['wn'], 'low_id': low_new,
                 'upp_id': upp_new, 'decision': ACCEPT, 'date': date,
                 'reason': ('the same identification of the published line '
                            'list, re-keyed: lines belonging to %s on %s, and '
@@ -498,7 +499,7 @@ def merge_orders(rows, new_rows):
             'The exchange cannot be recorded until they are settled by hand: '
             'classify_lines.py stops on two rows that rule differently on the '
             'same assignment.'
-            % (standing, row['low_id'], row['upp_id'], row['wn_obs'],
+            % (standing, row['low_id'], row['upp_id'], row['wn_key'],
                row['decision'], len(clashes)))
     return added, already
 
@@ -671,7 +672,7 @@ def main(argv=None):
             raise ValueError('there is no decision ledger at %s'
                              % args.ledger)
         led_fields, led_rows = read_table(args.ledger)
-        for col in ('wn_obs', 'low_id', 'upp_id', 'decision'):
+        for col in ('wn_key', 'low_id', 'upp_id', 'decision'):
             if col not in led_fields:
                 raise ValueError('%s has no %s column' % (args.ledger, col))
         for col in ('date', 'reason'):
@@ -733,7 +734,7 @@ def main(argv=None):
                 % (len(added), len(already)))
             for row in added:
                 log('    %-7s %-14s %s - %s'
-                    % (row['decision'], row['wn_obs'], row['low_id'],
+                    % (row['decision'], row['wn_key'], row['low_id'],
                        row['upp_id']))
 
     if args.dry_run:

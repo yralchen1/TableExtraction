@@ -508,3 +508,238 @@ def test_the_real_gA_is_the_gA_of_Icalc():
     assert got.notna().all()
     assert np.allclose(got.to_numpy(float), icalc['gA'].to_numpy(float),
                        rtol=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# The observed lines: dlv.dat and the identifications
+# ---------------------------------------------------------------------------
+def dlv_record(code, wn, lam, character, u_lam, row):
+    """One row of dlv.dat at its fixed width of 66 characters."""
+    rec = ('%5d%14.3f%14.4f  /%10s/%13.4f%6d'
+           % (code, wn, lam, character, u_lam, row))
+    assert len(rec) == sync.DLV_WIDTH, len(rec)
+    return rec
+
+
+def test_read_lopt_transitions_lets_an_accepted_record_win():
+    """A transition with one accepted record and one flagged P is accepted."""
+    path = None
+    import tempfile
+    with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False,
+                                     newline='') as fh:
+        path = fh.name
+        for flag in ('P', ' '):
+            fh.write(make_lopt_record(20000.125, 0.050, '059003.000004',
+                                      '059003.000003', flag))
+        fh.write(make_lopt_record(30000.500, 0.060, '059003.000004',
+                                  '059003.000002', 'P'))
+    try:
+        got = sync.read_lopt_transitions(path)
+    finally:
+        os.unlink(path)
+    assert got[('059003.000004', '059003.000003')] == (True, 20000.125)
+    assert got[('059003.000004', '059003.000002')] == (False, 30000.500)
+
+
+def make_lopt_record(wn, unc, low, upp, flag):
+    """A record of LOPT_input_lines.txt in make_LOPT_input's own columns."""
+    buf = [' '] * 93
+    def put(span, text):
+        buf[span[0]:span[0] + len(text)] = text
+    put(sync.FIELD_WN, '%.3f' % wn)
+    put(sync.FIELD_UNC, '%.3f' % unc)
+    put(sync.FIELD_LOW, low)
+    put(sync.FIELD_UPP, upp)
+    put(sync.FIELD_FLAGS, flag)
+    put((89, 93), 'cm-1')
+    return ''.join(buf).rstrip() + '\r\n'
+
+
+def test_dlv_gets_the_new_wavenumber_and_the_uncertainty_in_angstroms():
+    """The three measured fields change and nothing else does.
+
+    The uncertainty in dlv.dat is a wavelength uncertainty, so a line at
+    20000 cm^-1 (5000 A) whose wavenumber is known to 0.2 cm^-1 is known to
+    0.2 * 5000 / 20000 = 0.05 A.
+    """
+    old = dlv_record(62, 20000.100, 4999.9750, 'c', 0.0070, 5215)
+    lines = [(20000.100, 20000.000, 0.2)]
+    new, rep = sync.rewrite_dlv([old], lines, lambda *a: None)
+    assert len(new) == 1 and len(new[0]) == sync.DLV_WIDTH
+    got = new[0]
+    assert float(got[sync.DLV_WN[0]:sync.DLV_WN[1]]) == 20000.000
+    assert abs(float(got[sync.DLV_UNC[0]:sync.DLV_UNC[1]]) - 0.0500) < 5e-5
+    # the wavelength is rescaled, which keeps the refractive index the row
+    # already implies: 4999.9750 * 20000.100 / 20000.000
+    assert abs(float(got[sync.DLV_LAMBDA[0]:sync.DLV_LAMBDA[1]])
+               - 4999.9750 * 20000.100 / 20000.000) < 5e-5
+    # the row number, the intensity and the character are untouched
+    assert got[:sync.DLV_WN[0]] == old[:sync.DLV_WN[0]]
+    assert got[sync.DLV_LAMBDA[1]:sync.DLV_UNC[0]] == \
+        old[sync.DLV_LAMBDA[1]:sync.DLV_UNC[0]]
+    assert got[sync.DLV_ROW[0]:] == old[sync.DLV_ROW[0]:]
+    assert len(rep['changed']) == 1 and not rep['unmatched']
+
+
+def test_a_dlv_row_with_no_line_is_left_alone_and_reported():
+    old = dlv_record(62, 20000.100, 4999.9750, 'c', 0.0070, 7)
+    new, rep = sync.rewrite_dlv([old], [(31000.000, 31000.000, 0.1)],
+                                lambda *a: None)
+    assert new == [old]
+    assert rep['unmatched'] == [(7, 20000.100)]
+    assert [round(a[0], 3) for a in rep['absent']] == [31000.000]
+
+
+def test_the_line_list_collapses_repeated_rows_of_one_line(tmp_path):
+    """A blend named once per component is one row of dlv.dat."""
+    path = tmp_path / 'lines.xlsx'
+    pd.DataFrame({'own': [100.0, 100.0, 200.0],
+                  'own_corr': [100.5, 100.5, 200.5],
+                  'unc_own_corr': [0.01, 0.01, 0.02]}).to_excel(
+                      path, index=False)
+    cfg = FakeConfig(str(path), {'wn_key': 'own', 'wn': 'own_corr',
+                                 'u_wn': 'unc_own_corr'})
+    got = sync.read_line_list(cfg, lambda *a: None)
+    assert got == [(100.0, 100.5, 0.01), (200.0, 200.5, 0.02)]
+
+
+def test_repeated_rows_that_disagree_are_a_stop(tmp_path):
+    """dlv.dat has one row per line and no way to hold two wavenumbers."""
+    path = tmp_path / 'lines.xlsx'
+    pd.DataFrame({'own': [100.0, 100.0],
+                  'own_corr': [100.5, 100.9],
+                  'unc_own_corr': [0.01, 0.01]}).to_excel(path, index=False)
+    cfg = FakeConfig(str(path), {'wn_key': 'own', 'wn': 'own_corr',
+                                 'u_wn': 'unc_own_corr'})
+    with pytest.raises(sync.SyncError) as exc:
+        sync.read_line_list(cfg, lambda *a: None)
+    assert '100.000' in str(exc.value)
+
+
+class FakeLayout(object):
+    def __init__(self, columns):
+        self.columns = columns
+        self.sheet = None
+
+
+class FakeConfig(object):
+    def __init__(self, lines_file, columns):
+        self.lines_file = lines_file
+        self.lines = FakeLayout(columns)
+
+
+# --- the identifications ----------------------------------------------------
+ID3 = '059003.000003'
+ID4 = '059003.000004'
+
+
+def assignment_sync(tmp_path, rows, lopt_lines, dlv, keep_unlisted=False):
+    """sync_assignments over a miniature IDEN2."""
+    d = mini_iden2(tmp_path, rows)
+    trans = IDEN.Trans(str(d / 'trans.dat'))
+    id_of_row = cowan_gA.read_id_map(str(d / 'IDEN_level_ids.txt'))
+    wanted, rep = sync.sync_assignments(
+        trans, id_of_row, lopt_lines, sync.dlv_rows_by_wavenumber(dlv),
+        keep_unlisted, lambda *a: None)
+    return trans, wanted, rep
+
+
+def test_an_excluded_transition_loses_its_identification(tmp_path):
+    """Every record flagged P means the identification has been withdrawn."""
+    tail = sync.make_assignment(62, 9880.250, 0.000, 11)
+    trans, wanted, rep = assignment_sync(
+        tmp_path, [(3, 4, 40, tail)],
+        {(ID4, ID3): (False, 9880.250)},
+        [dlv_record(62, 9880.250, 10121.1, 'c', 0.05, 11)])
+    k = trans.row_of[(3, 4)]
+    assert not IDEN.has_line(IDEN.assignment(trans.records[k]))
+    assert [r[0] for r in rep['removed_p']] == [9880.250]
+    assert not rep['removed_unlisted'] and not wanted
+
+
+def test_a_transition_the_lopt_input_never_mentions_loses_it_too(tmp_path):
+    tail = sync.make_assignment(62, 9880.250, 0.000, 11)
+    trans, _wanted, rep = assignment_sync(
+        tmp_path, [(3, 4, 40, tail)], {},
+        [dlv_record(62, 9880.250, 10121.1, 'c', 0.05, 11)])
+    k = trans.row_of[(3, 4)]
+    assert not IDEN.has_line(IDEN.assignment(trans.records[k]))
+    assert [r[0] for r in rep['removed_unlisted']] == [9880.250]
+
+
+def test_keep_unlisted_leaves_a_hand_marked_line_where_it_is(tmp_path):
+    """The switch for lines marked in IDEN2 and not yet classified."""
+    tail = sync.make_assignment(62, 9880.250, 0.000, 11)
+    trans, _wanted, rep = assignment_sync(
+        tmp_path, [(3, 4, 40, tail)], {},
+        [dlv_record(62, 9880.250, 10121.1, 'c', 0.05, 11)],
+        keep_unlisted=True)
+    k = trans.row_of[(3, 4)]
+    assert IDEN.assignment(trans.records[k]) == tail
+    assert not rep['removed_unlisted']
+
+
+def test_an_accepted_transition_has_its_wavenumber_refreshed(tmp_path):
+    """A corrected set moves the observed wavenumber; the row must follow."""
+    tail = sync.make_assignment(62, 9880.250, 0.000, 11)
+    trans, _wanted, rep = assignment_sync(
+        tmp_path, [(3, 4, 40, tail)],
+        {(ID4, ID3): (True, 9880.200)},
+        [dlv_record(77, 9880.200, 10121.2, 'c', 0.05, 11)])
+    obs = IDEN.assignment(trans.records[trans.row_of[(3, 4)]])
+    assert IDEN.obs_wavenumber(obs) == 9880.200
+    assert IDEN.obs_row(obs) == 11
+    assert [r[1] for r in rep['refreshed']] == [9880.200]
+
+
+def test_an_accepted_transition_with_no_row_is_added(tmp_path):
+    """The transition is in the fit and not on the screen at all."""
+    trans, wanted, rep = assignment_sync(
+        tmp_path, [(3, 4, 40, IDEN.BLANK_OBS)],
+        {(ID4, ID3): (True, 9880.250)},
+        [dlv_record(62, 9880.250, 10121.1, 'c', 0.05, 11)])
+    obs = IDEN.assignment(trans.records[trans.row_of[(3, 4)]])
+    assert IDEN.obs_wavenumber(obs) == 9880.250
+    assert not wanted                     # the row was already there
+    assert [r[0] for r in rep['added']] == [9880.250]
+
+
+def test_a_level_the_lookup_table_has_no_row_for_is_a_stop(tmp_path):
+    """The rule for IDEN2 lookups: report it, never guess."""
+    with pytest.raises(sync.SyncError) as exc:
+        assignment_sync(tmp_path, [(3, 4, 40, IDEN.BLANK_OBS)],
+                        {('059003.000999', ID3): (True, 9880.250)}, [])
+    assert '059003.000999' in str(exc.value)
+
+
+@real_file
+def test_the_real_dlv_uncertainty_is_a_wavelength_uncertainty():
+    """u_lambda * wn^2 / 1e8 is the line's uncertainty in cm^-1.
+
+    This is what the rewrite of dlv.dat rests on, and it is stated nowhere in
+    the file, so it is checked against the line list the baseline set uses.
+    """
+    import config
+    cfg = config.load(os.path.join(HERE, 'lineclass_config.toml'))
+    if not os.path.exists(cfg.lines_file):
+        pytest.skip('the line list is absent')
+    lines = sync.read_line_list(cfg, lambda *a: None)
+    u_of = {round(a, 3): c for a, _b, c in lines}
+    records, _ends = IDEN.read_records(os.path.join(REAL_IDEN2, 'dlv.dat'))
+    checked, agree = 0, 0
+    for rec in records:
+        if len(rec) < sync.DLV_WIDTH or not rec.strip():
+            continue
+        wn = float(rec[sync.DLV_WN[0]:sync.DLV_WN[1]])
+        u_lam = float(rec[sync.DLV_UNC[0]:sync.DLV_UNC[1]])
+        want = u_of.get(round(wn, 3))
+        if want is None:
+            continue
+        checked += 1
+        if abs(u_lam * wn * wn / 1e8 - want) < 0.002 + 0.02 * want:
+            agree += 1
+    assert checked > 6000, checked
+    # All but a handful: the exceptions are lines whose uncertainty was
+    # inflated by hand in the line list and never written back here, which is
+    # one of the things this rewrite is for.
+    assert agree > checked - 20, (agree, checked)

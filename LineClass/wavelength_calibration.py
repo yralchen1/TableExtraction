@@ -346,7 +346,8 @@ def write_corrected_lines(corr, path, source=None):
 
 
 def observed_wavenumbers(path=None):
-    """Every distinct observed wavenumber of the line list, with its character.
+    """Every distinct observed wavenumber of the line list, with its character
+    and its wn_key (Sugar's value, which names it in the hand-kept files).
 
     The fit rests on the accepted, singly assigned lines only, but the
     correction is a property of the plate and applies to every line recorded
@@ -358,7 +359,9 @@ def observed_wavenumbers(path=None):
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
             wn = float(row['wn_obs'])
-            seen.setdefault(round(wn, 6), (wn, row['char']))
+            key = (row.get('wn_key') or '').strip()
+            key = float(key) if key else wn
+            seen.setdefault(round(wn, 6), (wn, row['char'], key))
     return [seen[k] for k in sorted(seen)]
 
 
@@ -1179,8 +1182,8 @@ def main(argv=None):
         key_of_char[(ln.char, ln.era)] = ucls[i]
     fixed_unc = hfs_kappa.read_inflated()
 
-    def u_stat(wn_value, char_value):
-        held = fixed_unc.get(hfs_kappa.inflated_key(wn_value))
+    def u_stat(wn_value, char_value, key_value):
+        held = fixed_unc.get(hfs_kappa.inflated_key(key_value))
         if held is not None:
             return held
         era_value = hfs_kappa.era_of(wn_value)
@@ -1192,7 +1195,7 @@ def main(argv=None):
         return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR)
 
     corr = []
-    for wn, char in observed_wavenumbers():
+    for wn, char, key in observed_wavenumbers():
         lam_value = 1e8 / wn
         b = block_of(blocks, lam_value)
         scale = wn * wn * 1e-8
@@ -1201,7 +1204,7 @@ def main(argv=None):
                    block=b, char=char, era=hfs_kappa.era_of(wn),
                    group=('%.0f-%.0f' % span[g]) if g in span else '',
                    in_fit=1 if round(wn, 6) in fitted else 0,
-                   u_stat_cm1='%.4f' % u_stat(wn, char))
+                   u_stat_cm1='%.4f' % u_stat(wn, char, key))
         if (b in degrees) if args.model == 'poly' else (g is not None):
             v, u = value(cvec(b, g, lam_value))
             row.update(d_lambda_A='%+.5f' % v, u_d_lambda_A='%.5f' % u,

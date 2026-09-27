@@ -878,13 +878,13 @@ def _run(args, saved, log, today):
     ledger_fields, ledger_all = ML.read_ledger_rows(LINE_DECISIONS)
     archived = [(rec, REASON_DISCARDED) for h in holdings for rec in h.ledger]
     if archived:
-        want = {(round(float(r.get('wn_obs') or 0), 3),
+        want = {(round(float(r.get('wn_key') or 0), 3),
                  (r.get('low_id') or '').strip(),
                  (r.get('upp_id') or '').strip()) for r, _w in archived}
         keep_rows, dropped = [], 0
         for rec in ledger_all:
             try:
-                key = (round(float(rec['wn_obs']), 3),
+                key = (round(float(rec['wn_key']), 3),
                        (rec.get('low_id') or '').strip(),
                        (rec.get('upp_id') or '').strip())
             except (KeyError, TypeError, ValueError):

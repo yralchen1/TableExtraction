@@ -1334,7 +1334,7 @@ def read_ledger_keys(path: str) -> set:
     with io.open(path, encoding='utf-8-sig', newline='') as fh:
         for rec in csv.DictReader(fh):
             try:
-                wn = round(float(rec['wn_obs']), 3)
+                wn = round(float(rec['wn_key']), 3)
             except (KeyError, TypeError, ValueError):
                 continue
             keys.add((wn, (rec.get('low_id') or '').strip(),
@@ -1345,7 +1345,7 @@ def read_ledger_keys(path: str) -> set:
 def append_ledger(path: str, rows) -> None:
     """Append verdicts to ``line_decisions.csv``, header and all if it is new."""
     exists = os.path.exists(path)
-    fields = ['wn_obs', 'low_id', 'upp_id', 'decision', 'date', 'reason']
+    fields = ['wn_key', 'low_id', 'upp_id', 'decision', 'date', 'reason']
     if exists:
         with io.open(path, encoding='utf-8-sig', newline='') as fh:
             fields = csv.DictReader(fh).fieldnames or fields
@@ -1495,7 +1495,7 @@ def adoption_rows(adopted: dict, verdicts: dict, have: set, written: set,
                 and (round(kwn, 2), seen) in on_screen):
             left.append((kwn, low, upp))
             continue
-        rows.append((key, {'wn_obs': '%.4f' % kwn, 'low_id': low,
+        rows.append((key, {'wn_key': '%.4f' % kwn, 'low_id': low,
                            'upp_id': upp, 'decision': 'accept',
                            'date': today, 'reason': reason}, still))
     return rows, left
@@ -2240,7 +2240,7 @@ def _run(args, rejects, accepts, saved, log, today):
                 continue
             why = ('classify_lines did not propose it' if key not in verdicts
                    else 'classify_lines rejected it')
-            fresh.append({'wn_obs': '%.4f' % c.wn, 'low_id': c.low_id,
+            fresh.append({'wn_key': '%.4f' % c.wn, 'low_id': c.low_id,
                           'upp_id': c.upp_id, 'decision': 'accept',
                           'date': today, 'reason': REASON_ACCEPT})
             written.add(key)
@@ -2281,7 +2281,7 @@ def _run(args, rejects, accepts, saved, log, today):
                     key = (round(c.wn, 3), c.low_id, c.upp_id)
                     if key in have or key in written:
                         continue
-                    fresh.append({'wn_obs': '%.4f' % c.wn, 'low_id': c.low_id,
+                    fresh.append({'wn_key': '%.4f' % c.wn, 'low_id': c.low_id,
                                   'upp_id': c.upp_id, 'decision': 'reject',
                                   'date': today, 'reason': reason})
                     written.add(key)

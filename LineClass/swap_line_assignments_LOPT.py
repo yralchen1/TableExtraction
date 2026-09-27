@@ -615,7 +615,7 @@ def ledger_rows(path, id1, id2):
             if low not in (id1, id2) and upp not in (id1, id2):
                 continue
             other = {id1: id2, id2: id1}
-            rows.append((n, row.get('wn_obs', ''),
+            rows.append((n, row.get('wn_key', ''),
                          low, other.get(low, low),
                          upp, other.get(upp, upp),
                          (row.get('decision') or '').strip(),

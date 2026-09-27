@@ -474,7 +474,7 @@ def test_no_fixed_level_of_the_two_is_left_alone(tmp_path):
 
 def test_the_ledger_is_reported_with_the_replacement_identifier(tmp_path):
     path = write(tmp_path / 'ledger.csv',
-                 ['wn_obs,low_id,upp_id,decision,date,reason',
+                 ['wn_key,low_id,upp_id,decision,date,reason',
                   '94058.9743,059003.000095,%s,accept,9/3/2026,by hand' % ID1,
                   '100.0,059003.000001,059003.000002,reject,9/3/2026,no'],
                  eol='\n')

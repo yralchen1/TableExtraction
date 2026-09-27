@@ -1,4 +1,4 @@
-wn_obs,low_id,upp_id,decision,date,reason
+wn_key,low_id,upp_id,decision,date,reason
 12326.2201,059003.000339,059003.000479,accept,9/3/2026,stays accepted as before; classify withdrew it as oscillating
 12407.099,059003.000315,059003.000463,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
 12493.1929,059003.000337,059003.000481,reject,9/3/2026,among the weakest predicted transitions of the level while many stronger branches are missing (also outside the low-sensitivity regions); accepting it would make the line look taken in IDEN2 and impair the search for further levels
@@ -182,15 +182,15 @@ wn_obs,low_id,upp_id,decision,date,reason
 34181.9914,059003.000187,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 33540.698,059003.000190,059003.000447,accept,9/6/2026,"the same identification of the published line list, re-keyed: lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026, and 059003.000447 is the level that now sits where this line is"
 32382.6703,059003.000192,059003.000447,reject,9/23/2026,"withdrawn 2026-09-23: Iobs is far above Icalc and the point falls about 3 sigma off the calibration trend its own plate follows, which is a parabola over 2809-3211 A. The re-keying of 9/6/2026, when 059003.000298 and 059003.000447 were swapped, was correct; the identification itself is not"
-69190.794,059003.000185,059003.000398,accept,9/6/2026,Required this fix after swap
+69190.794,059003.000185,059003.000398,reject,9/25/2026,IDEN2/LOPT after hfs analysis
 93341.584,059003.000101,059003.000398,accept,9/6/2026,Required this fix after swap
 95981.089,059003.000083,059003.000398,accept,9/7/2026,Required this fix after swap
 92120.808,059003.000063,059003.000350,reject,9/7/2026,"Too large obs-Ritz, too small BF, no char"
 84849.889,059003.000186,059003.000510,accept,9/7/2026,IDEN2
 84849.889,059003.000068,059003.000334,reject,9/7/2026,IDEN2
 22700.698,059003.000461,059003.000587,reject,9/7/2026,IDEN2
-34395.482,059003.000148,059003.000255,accept,9/7/2026,IDEN2/LOPT; wide char supports blend
-34395.482,059003.000313,059003.000421,accept,9/7/2026,IDEN2/LOPT; wide char supports blend
+34395.482,059003.000148,059003.000255,accept,9/26/2026,IDEN2/LOPT; unc inflated
+34395.482,059003.000313,059003.000421,reject,9/26/2026,Too small Icalc
 53772.719,059003.000131,059003.000296,accept,9/7/2026,IDEN2/LOPT; hazy char supports blend
 75275.588,059003.000073,059003.000312,accept,9/7/2026,IDEN2/LOPT
 73579.083,059003.000124,059003.000323,accept,9/7/2026,IDEN2/LOPT
@@ -199,7 +199,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 34035.992,059003.000144,059003.000434,accept,9/7/2026,IDEN2/LOPT
 44600.91,059003.000100,059003.000434,accept,9/7/2026,IDEN2/LOPT
 11174.038,059003.000337,059003.000476,accept,9/7/2026,IDEN2/LOPT
-86339.222,059003.000150,059003.000496,accept,9/7/2026,IDEN2/LOPT; wide char supports blend; cg improves
+86339.222,059003.000150,059003.000496,reject,9/25/2026,"IDEN2/LOPT; too small Icalc, too far from Ritz after hfs analysis"
 115898.609,059003.000054,059003.000500,accept,9/7/2026,IDEN2/LOPT
 121279.416,059003.000047,059003.000525,reject,9/7/2026,predicted much too weak to explain Iobs; line should be free for grabs in search for new levels.
 54627.107,059003.000242,059003.000567,accept,9/7/2026,IDEN2/LOPT
@@ -255,8 +255,8 @@ wn_obs,low_id,upp_id,decision,date,reason
 20737.662,059003.000475,059003.000604,reject,9/9/2026,"IDEN2: Too far from Ritz, too weak."
 32844.439,059003.000341,059003.000534,reject,9/9/2026,IDEN2: Would fix 000534 too tightly without much evidence.
 12082.875,059003.000039,059003.000099,reject,9/9/2026,Negligibly small predicted intensity
-14332.722,059003.000036,059003.000105,reject,9/9/2026,Negligibly small predicted intensity
-14755.108,059003.000035,059003.000106,reject,9/9/2026,Negligibly small predicted intensity
+14332.722,059003.000036,059003.000105,accept,9/27/2026,"Negligibly small predicted intensity, but a possible explanation is found"
+14755.108,059003.000035,059003.000106,accept,9/27/2026,"Negligibly small predicted intensity, but a possible explanation is found"
 21496.541,059003.000043,059003.000149,accept,9/9/2026,Negligibly small predicted intensity; mark as questionable in pub list; line char consistent with large hfs in other classified lines of this level.
 86884.296,059003.000096,059003.000351,reject,9/9/2026,Line is well explained by another strong transition; this one is too far from Ritz; include in pub line list as masked.
 48572.079,059003.000108,059003.000268,accept,9/9/2026,IDEN2/LOPT
@@ -291,7 +291,6 @@ wn_obs,low_id,upp_id,decision,date,reason
 17195.128,059003.000322,059003.000487,accept,9/11/2026,IDEN2
 39917.569,059003.000127,059003.000248,reject,9/12/2026,hfs analysys rejects it.
 34926.912,059003.000134,059003.000223,reject,9/12/2026,hfs analysys rejects it.
-11513.796,059003.000541,059003.000459,reject,9/13/2026,IDEN2/LOPT
 12740.598,059003.000324,059003.000470,accept,9/13/2026,IDEN2/LOPT
 34926.912,059003.000256,059003.000337,reject,9/13/2026,IDEN2/LOPT
 45945.601,059003.000080,059003.000235,accept,9/13/2026,IDEN2/LOPT
@@ -392,7 +391,7 @@ wn_obs,low_id,upp_id,decision,date,reason
 39380.7389,059003.000244,059003.000669,accept,9/20/2026,IDEN2/LOPT
 38768.1197,059003.000250,059003.000669,accept,9/20/2026,IDEN2/LOPT
 41707.9092,059003.000251,059003.000671,accept,9/20/2026,IDEN2/LOPT
-35206.6198,059003.000276,059003.000671,accept,9/20/2026,IDEN2/LOPT
+35206.6198,059003.000276,059003.000671,reject,9/25/2026,IDEN2/LOPT: Too small Icalc
 27057.0196,059003.000308,059003.000672,accept,9/20/2026,IDEN2/LOPT
 53203.6278,059003.000086,059003.000674,accept,9/20/2026,IDEN2/LOPT
 30566.4503,059003.000454,059003.000675,reject,9/21/2026,"Too far from Ritz, too weak, pulls in wrong direction"
@@ -422,3 +421,106 @@ wn_obs,low_id,upp_id,decision,date,reason
 39023.7615,059003.000210,059003.000326,reject,9/23/2026,"Iobs is much greater than Icalc, and the point falls about 3 sigma off the calibration trend near 2563 A"
 26937.8332,059003.000160,059003.000218,reject,9/23/2026,withdrawn despite the intensity match: even with u_d_lambda_A inflated to 0.02572 A the point disagrees with the calibration trend near 3712 A by 3 sigma
 21762.5717,059003.000626,059003.000563,reject,9/23/2026,IDEN2
+100444.8406,059003.000047,059003.000472,accept,9/25/2026,"IDEN2/LOPT; blend, unc inflated"
+98910.889,059003.000072,059003.000406,accept,9/25/2026,"IDEN2/LOPT: char c, cg of blend agrees perfectly with Ritz"
+94365.2369,059003.000060,059003.000359,accept,9/25/2026,"IDEN2/LOPT: char c, cg of blend agrees perfectly with Ritz, Icalc significant"
+22715.8737,059003.000467,059003.000596,reject,9/25/2026,IDEN2/LOPT
+38872.985,059003.000255,059003.000348,accept,9/25/2026,IDEN2/LOPT: perfect Iobs/Icalc match; inflate the unc.
+87487.5208,059003.000131,059003.000394,reject,9/25/2026,IDEN2/LOPT after hfs analysis
+35206.6198,059003.000454,059003.000567,accept,9/25/2026,IDEN2/LOPT; unc inflated
+86648.2871,059003.000146,059003.000494,accept,9/25/2026,IDEN2/LOPT: cg improves with blend
+92660.89,059003.000126,059003.000411,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+92660.89,059003.000111,059003.000484,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+82334.21,059003.000166,059003.000410,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+82334.21,059003.000155,059003.000489,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+96306.0913,059003.000106,059003.000409,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+96306.0913,059003.000155,059003.000623,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+82020.47,059003.000163,059003.000492,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+93576.7973,059003.000111,059003.000489,accept,9/25/2026,IDEN2/LOPT; unc inflated
+94414.71,059003.000105,059003.000488,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+97588.5,059003.000080,059003.000488,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+91281.42,059003.000123,059003.000488,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+98910.8,059003.000072,059003.000406,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+95437.08,059003.000091,059003.000406,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+54434.39,059003.000215,059003.000678,accept,9/25/2026,IDEN2/LOPT; unc inflated
+97471.11,059003.000076,059003.000404,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+97636.21,059003.000073,059003.000482,accept,9/25/2026,IDEN2/LOPT; unc inflated
+93035.8028,059003.000105,059003.000482,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+97191.0897,059003.000075,059003.000482,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+12609.2196,059003.000336,059003.000481,accept,9/25/2026,IDEN2/LOPT; unc inflated
+100548.5,059003.000050,059003.000630,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+91530.77,059003.000104,059003.000475,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+91530.77,059003.000082,059003.000464,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+92940.1837,059003.000089,059003.000475,accept,9/25/2026,IDEN2/LOPT
+91210.32,059003.000104,059003.000382,accept,9/25/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+79029.7,059003.000157,059003.000473,accept,9/25/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+94127.21,059003.000080,059003.000380,accept,9/25/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+94678.03,059003.000066,059003.000367,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+96710.69,059003.000054,059003.000466,accept,9/26/2026,IDEN2/LOPT
+12046.213,059003.000320,059003.000465,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+97687.72,059003.000050,059003.000465,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+96774.6,059003.000054,059003.000365,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+88831.6258,059003.000104,059003.000365,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+12634.3494,059003.000315,059003.000464,accept,9/26/2026,IDEN2/LOPT
+22410.1128,059003.000359,059003.000580,accept,9/26/2026,IDEN2/LOPT
+90607.61,059003.000080,059003.000462,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+95591.98,059003.000053,059003.000459,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+94979.39,059003.000054,059003.000358,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+41386.719,059003.000255,059003.000673,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+41386.719,059003.000146,059003.000440,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+87270.01,059003.000097,059003.000353,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+38867.489,059003.000264,059003.000671,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+38716.051,059003.000251,059003.000347,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+91418.5244,059003.000108,059003.000389,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+22688.4104,059003.000173,059003.000205,accept,9/26/2026,IDEN2/LOPT
+14380.8984,059003.000034,059003.000098,accept,9/26/2026,IDEN2/LOPT
+53175.3359,059003.000135,059003.000300,accept,9/26/2026,IDEN2/LOPT
+18328.8767,059003.000180,059003.000208,accept,9/26/2026,IDEN2/LOPT
+15910.37564257057,059003.000299,059003.000314,accept,9/26/2026,IDEN2/LOPT
+42750.90102492946,059003.000142,059003.000440,accept,9/26/2026,IDEN2/LOPT
+41473.79906049907,059003.000104,059003.000224,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+37863.34865254375,059003.000212,059003.000323,accept,9/26/2026,Good c.g. on two assignments of comparable predicted intensity; wide char consistent with spread of two assignments; unc inflated
+39671.9098,059003.000146,059003.000437,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+36638.9386,059003.000209,059003.000541,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+40048.5715,059003.000196,059003.000541,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+40048.5715,059003.000246,059003.000560,accept,9/26/2026,IDEN2/LOPT: cg acceptable with blend; unc inflated
+23929.0473,059003.000360,059003.000597,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+33446.90967394179,059003.000310,059003.000570,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+43912.61002413144,059003.000276,059003.000650,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+26525.96029932674,059003.000308,059003.000565,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+56639.7988,059003.000150,059003.000308,accept,9/26/2026,IDEN2/LOPT; unc inflated
+11710.2263,059003.000335,059003.000388,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+87425.1129,059003.000127,059003.000388,accept,9/26/2026,IDEN2/LOPT; unc inflated
+43359.6308,059003.000073,059003.000208,accept,9/26/2026,IDEN2/LOPT; assume large error in weak Icalc
+10282.6502,059003.000035,059003.000075,accept,9/26/2026,IDEN2/LOPT
+11513.7962,059003.000541,059003.000459,accept,9/26/2026,"IDEN2/LOPT; unc inflated; char ""ch"" common for all precise lines of 000541"
+97879.5197,059003.000146,059003.000638,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+89043.9271,059003.000173,059003.000499,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+91634.4111,059003.000132,059003.000496,accept,9/26/2026,IDEN2/LOPT: cg improves with blend
+97566.3032,059003.000099,059003.000493,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+93959.4233,059003.000121,059003.000493,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+94964.8822,059003.000115,059003.000493,accept,9/27/2026,IDEN2/LOPT: cg and Iobs/Icalc improve with blend
+94964.8822,059003.000085,059003.000392,accept,9/27/2026,IDEN2/LOPT: cg and Iobs/Icalc improve with blend
+96942.8061,059003.000105,059003.000493,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+24350.6202,059003.000312,059003.000672,reject,9/27/2026,IDEN2/LOPT
+94935.7710,059003.000097,059003.000486,accept,9/27/2026,IDEN2/LOPT: cg and Iobs/Icalc improve with blend
+70186.5166,059003.000185,059003.000486,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+70186.5166,059003.000212,059003.000663,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+98089.7996,059003.000069,059003.000481,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+98015.0001,059003.000069,059003.000394,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+95033.3814,059003.000080,059003.000640,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+94472.4105,059003.000069,059003.000370,accept,9/27/2026,"IDEN2/LOPT: blend, unc inflated"
+94472.4105,059003.000070,059003.000372,accept,9/27/2026,"IDEN2/LOPT: blend, unc inflated"
+93850.5211,059003.000069,059003.000364,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+39307.2813,059003.000239,059003.000554,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+39307.2813,059003.000104,059003.000211,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+47252.2896,059003.000054,059003.000211,accept,9/27/2026,IDEN2/LOPT; unc inflated
+39983.8200,059003.000229,059003.000343,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+38333.6093,059003.000213,059003.000325,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+38333.6093,059003.000433,059003.000343,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+42117.3490,059003.000207,059003.000545,accept,9/27/2026,"IDEN2/LOPT: blend, unc inflated"
+37336.7713,059003.000226,059003.000332,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+42450.9007,059003.000196,059003.000326,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+87777.4198,059003.000043,059003.000322,accept,9/27/2026,IDEN2/LOPT: cg improves with blend
+38496.7892,059003.000201,059003.000541,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated
+59012.8194,059003.000165,059003.000644,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; unc inflated

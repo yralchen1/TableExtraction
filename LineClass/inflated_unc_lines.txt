@@ -1,9 +1,87 @@
-obs_wn	unc_wn	date	reason
-94650.5226	1.2542	2026-09-19	Sugar's own value doubled; the classification 000164 - 000424 is retained
-46172.4502	0.1200	2026-09-19	Sugar measured the position badly; 1221 - 1062 is not in doubt
-45994.3206	0.1200	2026-09-19	off the block trend; the classification is sound
-44652.5408	0.1948	2026-09-23	outlier of the block fit; 4 x the class value, not de-classified
-40374.4801	0.1461	2026-09-23	outlier of the block fit; 3 x the class value, not de-classified
-40150.6097	0.1461	2026-09-23	outlier of the block fit; 3 x the class value, not de-classified
-38825.7505	0.0844	2026-09-19	same kind as 46172.4502; the transition is 1170 - 1062
-38701.8602	0.1948	2026-09-23	outlier of the block fit; 4 x the class value, not de-classified
+wn_key	unc_wn	date	reason
+94650.5226	1.2542	9/19/2026	Sugar's own value doubled; the classification 000164 - 000424 is retained
+46172.4502	0.12	9/19/2026	Sugar measured the position badly; 1221 - 1062 is not in doubt
+45994.3206	0.12	9/19/2026	off the block trend; the classification is sound
+44652.5408	0.1948	9/23/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+40374.4801	0.1461	9/23/2026	"outlier of the block fit; 3 x the class value, not de-classified"
+40150.6097	0.1461	9/23/2026	"outlier of the block fit; 3 x the class value, not de-classified"
+38825.7505	0.0844	9/19/2026	same kind as 46172.4502; the transition is 1170 - 1062
+38701.8602	0.1948	9/23/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+38873.0195	0.1917	9/25/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+52321.7549	0.5	9/25/2026	"outlier of the block fit; 5 x the class value, not de-classified"
+57582.2533	0.5	9/25/2026	"outlier in IDEN2/LOPT, retained."
+56820.89	0.5	9/25/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+60205.3864	0.5	9/25/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+49280.699	0.4	9/25/2026	"outlier in IDEN2/LOPT, retained."
+66262.2386	0.5	9/25/2026	"outlier of the block fit; 4 x the class value, not de-classified"
+35206.6198	0.5	9/25/2026	"outlier in IDEN2/LOPT, retained."
+92660.89	0.5	9/25/2026	blend
+82334.2053	0.5	9/25/2026	blend
+96306.0913	0.5	9/25/2026	blend
+82020.47	0.5	9/25/2026	blend
+93576.7973	0.5	9/25/2026	"outlier in IDEN2/LOPT, retained."
+94526.6138	0.5	9/25/2026	"outlier in IDEN2/LOPT, retained."
+91281.42	0.5	9/25/2026	blend
+95038.7919	0.5	9/25/2026	blend
+97588.5	0.5	9/25/2026	blend
+98910.8	0.5	9/25/2026	blend
+95437.08	0.5	9/25/2026	blend
+54434.39	0.4	9/25/2026	"outlier in IDEN2/LOPT, retained."
+97471.11	0.5	9/25/2026	blend
+97636.21	0.4	9/25/2026	"outlier in IDEN2/LOPT, retained."
+93035.8028	0.5	9/25/2026	blend
+97191.0897	0.5	9/25/2026	blend
+12609.2196	0.039748105	9/25/2026	"outlier in IDEN2/LOPT, retained."
+100548.5	0.5	9/25/2026	blend
+91530.77	0.5	9/25/2026	blend
+91210.32	0.5	9/25/2026	blend
+79029.7	0.5	9/25/2026	blend
+100444.8406	0.5	9/25/2026	blend
+94127.21	0.5	9/25/2026	blend
+94678.03	0.5	9/26/2026	blend
+12046.213	0.03	9/26/2026	blend
+97687.72	0.5	9/26/2026	blend
+96774.6	0.5	9/26/2026	blend
+88831.6258	0.5	9/26/2026	blend
+41386.719	0.08	9/26/2026	blend
+38716.051	0.06	9/26/2026	blend
+41473.79906049907	0.105	9/26/2026	blend
+37863.34865254375	0.076	9/26/2026	blend
+24991.6901	0.12	9/26/2026	"outlier in IDEN2/LOPT, retained."
+53657.57	0.5	9/26/2026	"outlier in IDEN2/LOPT, retained."
+58215.0102	0.5	9/26/2026	"outlier in IDEN2/LOPT, retained."
+11397.5807	0.08	9/26/2026	"outlier in IDEN2/LOPT, retained."
+56639.7988	0.5	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc; fds"
+85804.0749	0.5	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+98068.1768	0.5	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+87425.1129	0.5	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+11513.7962	0.03	9/26/2026	IDEN2/LOPT
+17331.44354164608	0.0718	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+34395.482	0.2	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+91634.4111	0.5	9/26/2026	blend
+97566.3032	0.5	9/27/2026	blend
+93959.4233	0.5	9/27/2026	blend
+84402.0022	0.5	9/27/2026	blend
+94964.8822	0.5	9/27/2026	blend
+96942.8061	0.5	9/27/2026	blend
+94935.771	0.5	9/27/2026	blend
+70186.5166	0.3	9/27/2026	blend
+97022.6817	0.5	9/27/2026	blend
+98089.7996	0.5	9/27/2026	blend
+98015.0001	0.5	9/27/2026	blend
+95033.3814	0.5	9/27/2026	blend
+94472.4105	0.5	9/27/2026	blend
+94081.2304	0.5	9/27/2026	blend
+39307.2813	0.066	9/27/2026	blend
+47252.2896	0.22	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+38333.6093	0.1	9/27/2026	blend
+42117.349	0.12	9/27/2026	blend
+38940.38	0.084	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+37336.7713	0.3	9/27/2026	blend
+41260.6109	0.16	9/27/2026	blend
+38496.7892	0.084	9/27/2026	blend
+61938.6035	0.3	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+59012.8194	0.2	9/27/2026	blend
+57952.4325	0.5	9/27/2026	"outlier in IDEN2/LOPT, blend, OK with inflated unc"
+68213.5741	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+56993.5991	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"

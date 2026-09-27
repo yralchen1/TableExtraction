@@ -67,7 +67,7 @@ def classifications(tmp_path, rows=None, e_a=E_A, e_b=E_B,
     return write(tmp_path / name, CLASS_HEAD + '\n' + '\n'.join(rows) + '\n')
 
 
-LEDGER_HEAD = 'wn_obs,low_id,upp_id,decision,date,reason'
+LEDGER_HEAD = 'wn_key,low_id,upp_id,decision,date,reason'
 
 
 def ledger(tmp_path, rows=None, name='line_decisions.csv'):
@@ -261,7 +261,7 @@ def test_recording_the_same_exchange_twice_refreshes_only_the_energy():
 # The ledger
 # ---------------------------------------------------------------------------
 def test_an_order_naming_one_level_is_pointed_at_the_other():
-    rows = [{'wn_obs': '94058.9743', 'low_id': LOW, 'upp_id': A,
+    rows = [{'wn_key': '94058.9743', 'low_id': LOW, 'upp_id': A,
              'decision': 'accept', 'date': '9/3/2026', 'reason': 'hand-made'}]
     touched, skipped = pipe.rekey_ledger(rows, A, B, DATE)
     assert rows[0]['upp_id'] == B and rows[0]['low_id'] == LOW
@@ -272,7 +272,7 @@ def test_an_order_naming_one_level_is_pointed_at_the_other():
 
 
 def test_an_order_naming_neither_level_is_untouched():
-    rows = [{'wn_obs': '1.0', 'low_id': LOW, 'upp_id': '059003.000999',
+    rows = [{'wn_key': '1.0', 'low_id': LOW, 'upp_id': '059003.000999',
              'decision': 'reject', 'date': '', 'reason': 'no'}]
     before = dict(rows[0])
     pipe.rekey_ledger(rows, A, B, DATE)
@@ -282,7 +282,7 @@ def test_an_order_naming_neither_level_is_untouched():
 def test_an_order_already_marked_is_not_re_keyed_a_second_time():
     """Running the script twice must not point the order back at the level it
     started from."""
-    rows = [{'wn_obs': '94058.9743', 'low_id': LOW, 'upp_id': A,
+    rows = [{'wn_key': '94058.9743', 'low_id': LOW, 'upp_id': A,
              'decision': 'accept', 'date': '', 'reason': 'hand-made'}]
     pipe.rekey_ledger(rows, A, B, DATE)
     once = dict(rows[0])
@@ -312,9 +312,9 @@ def test_rejects_only_leaves_the_accept_to_the_classification():
 
 
 def test_an_order_that_says_the_same_thing_is_not_written_twice():
-    rows = [{'wn_obs': '94153.5203', 'low_id': LOW, 'upp_id': B,
+    rows = [{'wn_key': '94153.5203', 'low_id': LOW, 'upp_id': B,
              'decision': 'reject', 'date': '', 'reason': 'already'}]
-    new = [{'wn_obs': '94153.5203', 'low_id': LOW, 'upp_id': B,
+    new = [{'wn_key': '94153.5203', 'low_id': LOW, 'upp_id': B,
             'decision': 'reject', 'date': DATE, 'reason': 'again'}]
     added, already = pipe.merge_orders(rows, new)
     assert added == [] and len(already) == 1
@@ -324,9 +324,9 @@ def test_an_order_that_says_the_same_thing_is_not_written_twice():
 def test_an_order_that_contradicts_one_already_there_stops_the_script():
     """classify_lines.py aborts on two rows ruling differently on the same
     assignment, so the clash has to be caught here, not on the next run."""
-    rows = [{'wn_obs': '94153.5203', 'low_id': LOW, 'upp_id': B,
+    rows = [{'wn_key': '94153.5203', 'low_id': LOW, 'upp_id': B,
              'decision': 'accept', 'date': '', 'reason': 'kept'}]
-    new = [{'wn_obs': '94153.5203', 'low_id': LOW, 'upp_id': B,
+    new = [{'wn_key': '94153.5203', 'low_id': LOW, 'upp_id': B,
             'decision': 'reject', 'date': DATE, 'reason': 'moved'}]
     with pytest.raises(ValueError, match='already orders accept'):
         pipe.merge_orders(rows, new)
@@ -364,7 +364,7 @@ def test_end_to_end_writes_both_files(tmp_path, capsys):
         A: '%.4f' % E_B, B: '%.4f' % E_A}
 
     _fields, orders = pipe.read_table(str(tmp_path / 'line_decisions.csv'))
-    keyed = {(r['wn_obs'], r['low_id'], r['upp_id']): r['decision']
+    keyed = {(r['wn_key'], r['low_id'], r['upp_id']): r['decision']
              for r in orders}
     # the order that named A now names B
     assert keyed[('94058.9743', LOW, B)] == 'accept'
@@ -382,7 +382,7 @@ def test_legacy_orders_writes_the_pair_of_orders(tmp_path):
     exchange nowhere else."""
     assert run(tmp_path, ['--exchange', '--legacy-orders']) == 0
     _fields, orders = pipe.read_table(str(tmp_path / 'line_decisions.csv'))
-    keyed = {(r['wn_obs'], r['low_id'], r['upp_id']): r['decision']
+    keyed = {(r['wn_key'], r['low_id'], r['upp_id']): r['decision']
              for r in orders}
     # the legacy identification of B is rejected there and accepted at A
     assert keyed[('94153.5203', LOW, B)] == 'reject'
@@ -393,7 +393,7 @@ def test_no_overrides_still_writes_the_legacy_orders(tmp_path):
     """Nothing then records the exchange, so the ledger has to."""
     assert run(tmp_path, ['--exchange', '--no-overrides']) == 0
     _fields, orders = pipe.read_table(str(tmp_path / 'line_decisions.csv'))
-    keyed = {(r['wn_obs'], r['low_id'], r['upp_id']): r['decision']
+    keyed = {(r['wn_key'], r['low_id'], r['upp_id']): r['decision']
              for r in orders}
     assert keyed[('94153.5203', LOW, B)] == 'reject'
     assert keyed[('94153.5203', LOW, A)] == 'accept'

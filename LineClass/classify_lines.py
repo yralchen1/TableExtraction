@@ -847,10 +847,10 @@ DECISIONS_WN_MATCH = 0.01   # cm^-1; how far a ledger wavenumber may miss its li
 
 
 def read_line_decisions(path: str) -> dict:
-    """The manual verdicts of a csv, as {(wn_obs, low_id, upp_id): (decision, reason)}.
+    """The manual verdicts of a csv, as {(wn_key, low_id, upp_id): (decision, reason)}.
 
-    The file has a header and the columns wn_obs (the observed wavenumber of
-    the line, cm^-1), low_id and upp_id (the two levels of the assignment) and
+    The file has a header and the columns wn_key (Sugar's observed
+    wavenumber of the line, cm^-1), low_id and upp_id (the two levels of the assignment) and
     decision ("accept" or "reject").  A `reason` column, and any other column
     (a date, say), are optional; `reason` is carried into the report so that
     the ground for the verdict travels with it.  The wavenumber is matched to
@@ -865,20 +865,20 @@ def read_line_decisions(path: str) -> dict:
     with open(path, newline='', encoding='utf-8-sig') as fh:
         rdr = csv.DictReader(fh)
         fields = rdr.fieldnames or []
-        missing = [c for c in ('wn_obs', 'low_id', 'upp_id', 'decision')
+        missing = [c for c in ('wn_key', 'low_id', 'upp_id', 'decision')
                    if c not in fields]
         if missing:
             raise ValueError(f"{os.path.basename(path)}: missing column(s) "
                              f"{', '.join(missing)}")
         for n, rec in enumerate(rdr, start=2):
-            if not (rec.get('wn_obs') or '').strip():
+            if not (rec.get('wn_key') or '').strip():
                 continue
             decision = (rec['decision'] or '').strip().lower()
             if decision not in (DECISIONS_ACCEPT, DECISIONS_REJECT):
                 raise ValueError(f"{os.path.basename(path)} line {n}: decision "
                                  f"= {rec['decision']!r}; expected "
                                  f"'{DECISIONS_ACCEPT}' or '{DECISIONS_REJECT}'")
-            key = (float(rec['wn_obs']),
+            key = (float(rec['wn_key']),
                    to_str_id(rec['low_id']), to_str_id(rec['upp_id']))
             if key in dmap and dmap[key][0] != decision:
                 raise ValueError(f"{os.path.basename(path)} line {n}: "
@@ -908,7 +908,7 @@ def attach_line_decisions(observed_lines: list, path: str) -> dict:
     about the scale the line was last measured on.
 
     Returns the verdicts as a list of (key, line, verdict) triples, key being
-    (wn_obs, low_id, upp_id) as written in the file.
+    (wn_key, low_id, upp_id) as written in the file.
     """
     dmap = read_line_decisions(path)
     lines_sorted = sorted(observed_lines, key=lambda l: l.wn_key)

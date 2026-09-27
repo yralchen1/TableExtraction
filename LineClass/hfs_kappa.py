@@ -146,13 +146,18 @@ MIN_CLASS = 20
 MIN_SPAN = 1.5
 
 #: lines whose uncertainty is fixed by hand, one per row, tab-delimited:
-#: `obs_wn`, `unc_wn`, `date`, `reason`.  A line listed here keeps the value
+#: `wn_key`, `unc_wn`, `date`, `reason`.  `wn_key` is Sugar's observed
+#: wavenumber, the same number the line is named by in
+#: `line_decisions.csv`, so that a line keeps its row when a calibrated set
+#: measures it on a corrected scale.  A line listed here keeps the value
 #: written there whatever the model says, and is never set aside by the
 #: outlier filter - it has already been judged by hand.
 INFLATED = 'inflated_unc_lines.txt'
 
+#: `key` is the line's wn_key - Sugar's observed wavenumber, the name the
+#: registry and the ledger know it by.  `None` means the same as `wn`.
 Line = collections.namedtuple(
-    'Line', 'wn char era cls ucls low upp D dJ')
+    'Line', 'wn char era cls ucls low upp D dJ key', defaults=(None,))
 
 
 def era_of(wn):
@@ -188,17 +193,27 @@ def read_inflated(path=None):
     nor the outlier filter is allowed to touch it.  A missing file is an empty
     registry, which is the state the project starts from.
 
-    The key is `'%.4f' % wn`, the precision the wavenumbers are quoted to
+    The wavenumber is the `wn_key` column: Sugar's observed value, never a
+    calibrated one, so one registry serves every set.  The key is
+    `'%.4f' % wn_key`, the precision the wavenumbers are quoted to
     everywhere else in the project; matching floats exactly would depend on
     how many digits the file that wrote them happened to carry.
+
+    A file without a `wn_key` column is an error, not an empty registry:
+    silently dropping every hand-set uncertainty is the one outcome that
+    must not happen.
     """
     path = path or os.path.join(HERE, INFLATED)
     out = {}
     if not os.path.exists(path):
         return out
     with open(path, encoding='utf-8', newline='') as fh:
-        for row in csv.DictReader(fh, delimiter='	'):
-            wn = (row.get('obs_wn') or '').strip()
+        reader = csv.DictReader(fh, delimiter='	')
+        if 'wn_key' not in (reader.fieldnames or []):
+            raise ValueError('%s has no wn_key column (header: %s)'
+                             % (path, reader.fieldnames))
+        for row in reader:
+            wn = (row.get('wn_key') or '').strip()
             unc = (row.get('unc_wn') or '').strip()
             if not wn or wn.startswith('#') or not unc:
                 continue
@@ -207,8 +222,17 @@ def read_inflated(path=None):
 
 
 def inflated_key(wn):
-    """The key `read_inflated` files a wavenumber under."""
+    """The key `read_inflated` files a wavenumber under.
+
+    `wn` must be Sugar's observed wavenumber (the line's wn_key), not a
+    calibrated one; `line_key` gives it for a `Line`.
+    """
     return '%.4f' % wn
+
+
+def line_key(ln):
+    """The registry key of a `Line`: its wn_key, or its wn if it has none."""
+    return inflated_key(ln.wn if ln.key is None else ln.key)
 
 
 def read_A_constants(path=None):
@@ -271,13 +295,16 @@ def read_lines(path=None, constants=None, J_of=None):
             if not low or not upp:
                 continue
             wn = float(row['wn_obs'])
+            key = (row.get('wn_key') or '').strip()
+            key = float(key) if key else wn
             char = row['char']
             era = era_of(wn)
             jl, ju = J_of.get(low), J_of.get(upp)
             dJ = None if jl is None or ju is None else ju - jl
             lines.append(Line(wn=wn, char=char, era=era,
                               cls=kappa_class(char), ucls=(char, era),
-                              low=low, upp=upp, D=S(upp) - S(low), dJ=dJ))
+                              low=low, upp=upp, D=S(upp) - S(low), dJ=dJ,
+                              key=key))
     return lines
 
 
@@ -495,7 +522,7 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
     """
     ucls = uncertainty_classes(lines) if ucls is None else ucls
     fixed = read_inflated()
-    held = [fixed.get(inflated_key(ln.wn)) for ln in lines]
+    held = [fixed.get(line_key(ln)) for ln in lines]
     span = collections.defaultdict(list)
     for i, ln in enumerate(lines):
         span[ucls[i]].append(ln.wn)
@@ -557,7 +584,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     """
     ucls = uncertainty_classes(lines)
     fixed = read_inflated()
-    held = [fixed.get(inflated_key(ln.wn)) for ln in lines]
+    held = [fixed.get(line_key(ln)) for ln in lines]
     sigma = [held[i] if held[i] is not None
              else stated_uncertainty(ln.char, ln.era, ln.wn)
              for i, ln in enumerate(lines)]

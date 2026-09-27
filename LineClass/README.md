@@ -184,7 +184,7 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | `Icalc.xlsx`                        | `LineClass/` (`files.icalc`)          | `Icalc`     | Calculated (theoretical) transition intensities and their uncertainties.  |
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
 | `revised_level_energies.csv`        | `LineClass/` (`files.level_overrides`, optional) | csv | Adopted energies revised by the identification work, as `level_id,E_input` plus a comment column. A level listed here is read at that energy instead of the workbook value, and the comment is read too — it is what says whether the level was re-positioned or exchanged with another, and hence what becomes of the identifications the published line list makes with it. See [Revised level energies](#revised-level-energies). |
-| `line_decisions.csv`                | `LineClass/` (`files.line_decisions`, optional) | csv | The verdicts reached by hand on individual assignments, as `wn_obs,low_id,upp_id,decision` plus free `date`/`reason` columns. Applied after every automatic step, so it has the last word; an `accept` row is an order and *creates* its assignment when the matching never proposes it, and a row that cannot be carried out stops the run. See [The decision ledger](#the-decision-ledger-identifications-ruled-on-by-hand). |
+| `line_decisions.csv`                | `LineClass/` (`files.line_decisions`, optional) | csv | The verdicts reached by hand on individual assignments, as `wn_key,low_id,upp_id,decision` plus free `date`/`reason` columns. Applied after every automatic step, so it has the last word; an `accept` row is an order and *creates* its assignment when the matching never proposes it, and a row that cannot be carried out stops the run. See [The decision ledger](#the-decision-ledger-identifications-ruled-on-by-hand). |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
 ### Column mapping (as read by the code)
@@ -461,12 +461,14 @@ The **decision ledger** is that record: the csv named by `files.line_decisions`
 in `lineclass_config.toml`.
 
 ```
-wn_obs,low_id,upp_id,decision,date,reason
+wn_key,low_id,upp_id,decision,date,reason
 40047.2789,059003.000218,059003.000337,accept,2026-09-03,"well supported by the pattern of observed lines seen in IDEN2"
 44022.4591,059003.000105,059003.000245,reject,2026-09-03,"firmly rejected, stays so"
 ```
 
-* `wn_obs` — the observed wavenumber of the line, cm⁻¹. It is matched to the
+* `wn_key` — Sugar's observed wavenumber of the line, cm⁻¹, the same number
+  that names the line in `inflated_unc_lines.txt`; in a calibrated set it is
+  the line list's `wn_key`, not the corrected `wn_obs`. It is matched to the
   nearest observed line within `DECISIONS_WN_MATCH` = 0.01 cm⁻¹, so it may be
   written to fewer decimals than the line list carries; the closest two
   observed lines of this spectrum are 0.10 cm⁻¹ apart, so the match cannot be
@@ -2617,7 +2619,7 @@ tab-delimited (not `.csv` — Excel would not offer the import dialogue for a ta
 with that extension):
 
 ```
-obs_wn	unc_wn	date	reason
+wn_key	unc_wn	date	reason
 45994.3206	0.1200	2026-09-19	off the block trend; the classification is sound
 ```
 
@@ -2781,6 +2783,108 @@ systematic uncertainty function of the line's group, and it has no effect on whe
 optimization puts the levels, only on the systematic and total uncertainties that are finally
 reported. It is therefore done once, on the final set, with the groups numbered sequentially in
 order of increasing wavelength.
+
+### Reviewing what the two sets disagree about: `review_mismatches.py`
+
+The corrected wavenumbers carry much tighter uncertainties than Sugar's own, so the
+classification changes its mind about some assignments. A component of a blend that stood 1.1
+sigma from its Ritz value on Sugar's uncertainty stands 5 sigma from it on the fitted one, and
+the classification rejects it. Each such disagreement has to be looked at by hand, because the
+question behind it — is this observed feature one line or two? — is answered on the IDEN2 screen
+and not by any number in these files.
+
+`review_mismatches.py` does the mechanical half of that review twice over.
+
+Without `--apply` it writes a worksheet, `<set>/decisions.txt`, tab-delimited so that it opens
+in Excel: one row per disagreement, with every quantity the judgment needs already worked out —
+the observed line and its uncertainty, every transition the classification proposes for it with
+its predicted intensity and its departure from its Ritz value, the intensity-weighted center of
+gravity of those departures with and without the disputed component, how much that center of
+gravity improves or worsens, which transition holds the line in `IDEN2/trans.dat` today and how
+many IDEN2 intensity units brighter it is predicted to be, and the two levels with their rows in
+`IDEN2/enlev.dat`. The rows come in the order the levels are reviewed in, the row of the upper
+level, and `--from-iden2-id` picks the review up where it was left. A disagreement the ledger
+already rules on is left out unless `--all` is given.
+
+**Both directions are reported**, and the `direction` column says which one a row is. The common
+one is an assignment the baseline fits and the set does not. The other is an assignment the set
+fits and the baseline does not: a corrected wavenumber can bring a line into a Ritz window it
+missed before, or the set's LOPT input can carry a transition the baseline's does not carry at
+all. Both are decisions nobody has taken. A transition flagged `P` and a transition absent from
+the file are the same answer to the only question asked — does this set fit the assignment? — so
+a pair neither set fits is not a disagreement, and neither is a pair both fit. For the calibrated
+set against the baseline that is 142 rows, 99 of them at upper levels above IDEN2 row 830.
+
+**A transition the set's classification never proposed at all** — the corrected wavenumber put
+the line outside its Ritz window, so the table says nothing whatever about it — is the hardest
+case to judge by hand, and the worksheet assembles it instead of leaving it blank. The line, its
+corrected wavenumber and uncertainty, its intensity and its character, comes from another
+component of the same blend in the set's own table; failing that, from the set's line list
+(`Pr3_lines_corrected.xlsx`), matched on the wavenumber the line is named by. The predicted
+intensity comes from the baseline's table, which did propose the transition. The departure from
+the Ritz value is worked out here, against the set's own level energies — the classification's
+`low_E`/`upp_E` where a row of it names the level, and `LOPT_output_levels.txt` where none does.
+The `why` column names the sources the row used, and the row then joins the blend arithmetic like
+any other. There are five such rows: 24593.42, 38496.75, 54261.11, 23898.44 and 23063.21 cm⁻¹ in
+the calibrated set's scale.
+
+With `--apply` it reads the worksheet back and carries out whatever has been written in its
+`decision` column — `accepted`, `accepted, inflated` or `rejected` — in all five places a
+decision has to land:
+
+| file | what is written |
+|---|---|
+| `line_decisions.csv` | an `accept` or `reject` row, so the next classification run keeps the verdict |
+| `inflated_unc_lines.txt` | the widened uncertainty in cm⁻¹, under the four-decimal key `hfs_kappa.read_inflated` matches on |
+| `<set>/LOPT_input_lines.txt` | the flag, the weight and the uncertainty of **every** record of the observed line |
+| `IDEN2/dlv.dat` | the same uncertainty converted with the row's own wavelength, `u_λ = u_wn · λ / wn`, because that file states it in ångström |
+| `IDEN2/trans.dat` | the assignment itself, naming the line by its row in `dlv.dat` |
+
+The LOPT input is the one of the five that cannot be done row by row. The flag, the weight and
+the uncertainty are all properties of the observed line as a whole, so all of its records are
+rewritten together: the flag is empty for an accepted classification and `P` for one that is not;
+the accepted classifications divide the line's weight in proportion to their calculated
+intensities, so accepting a second component of a blend changes the weight of the first, and
+rejecting one gives the whole line back to what is left; and every record of the line — the `P`
+ones too — carries the line's single shared uncertainty. The three rules are `make_LOPT_input`'s
+own `blend_weights`, `total_unc` (which adds the two levels' hyperfine widths in quadrature) and
+`blend_uncertainty`, applied in that order, so the file says what a full regeneration would say.
+Restoring the two components of the blend at 41473.820 cm⁻¹, for instance, gives them the weights
+0.5128 and 0.4872 — the very numbers in the baseline's own `BF` column.
+
+Nothing is written without a decision written by hand. `--dry-run` says what would be written
+and writes nothing. A second `--apply` of the same worksheet adds nothing twice.
+
+**The `suggested` column is advisory and is never copied into `decision`.** The recipe behind it
+was checked against the half of the list already reviewed by hand — 39 disagreements at upper
+levels up to IDEN2 row 830, of which 3 were accepted and 36 left rejected. Three rules reproduce
+a verdict reliably: the transition is predicted at least 20 IDEN2 intensity units fainter than
+the transition holding the line (6 of 6 — the units are `round(10·ln(Icalc))`, so 20 is a factor
+of e²); there is nothing at the line to blend it with (5 of 6); the center of gravity of the
+blend would stand more than 0.75 cm⁻¹ from the Ritz value (6 of 7). Together they account for 22
+of the 35 rejections — **and they would also have rejected 2 of the 3 assignments that were in
+fact accepted.** The remaining 13 rejections are not distinguishable, by any quantity in these
+files, from the 3 acceptances: the center of gravity improves, the intensities are comparable,
+and the verdict went the other way. The judgment is being made on the IDEN2 screen, so the tool
+lays out the evidence and does not guess.
+
+`--free-lines` fills the same worksheet a second way: the rejected transitions whose observed
+line no assignment holds in IDEN2. A line no assignment claims is a line still on offer, and
+where the classification proposed a transition for it and rejected it for a reason other than
+the Ritz agreement, the transition is worth a second look at the level — which is how the
+assignments recovered by hand were found. Two filters keep the list short: `--z-max` (default 2)
+is how many of the line's own uncertainties its departure from Ritz may be, and `--ic-min`
+(default 0.04, the value the classification itself accepts a legacy Ritz match at) is the
+smallest share of the observed intensity the transition may be predicted to carry. A coincidence
+with a transition a hundred times too faint is a coincidence, not evidence.
+
+```bash
+python review_mismatches.py --set iter                      # the worksheet
+python review_mismatches.py --set iter --from-iden2-id 831  # carry on from level 831
+python review_mismatches.py --set iter --free-lines         # the lines still on offer
+python review_mismatches.py --set iter --apply --dry-run    # what the worksheet would do
+python review_mismatches.py --set iter --apply              # do it
+```
 
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
@@ -4689,6 +4793,7 @@ LOPT_output_levels.txt            the optimized level energies
     v
 IDEN2/enlev.dat                   the level list IDEN2 shows on screen
 IDEN2/trans.dat                   its predicted transitions and their assignments
+IDEN2/dlv.dat                     the observed lines it shows them against
 ```
 
 A step skipped anywhere leaves two of them disagreeing, and the disagreement is silent:
@@ -4710,7 +4815,10 @@ the precision its own uncertainty warrants (121279.416 comes back as 121279.42),
 decision ledger is written by hand from a printed list. Everything else — a line accepted
 in one file and absent from another, a ledger verdict the classification does not obey, a
 transition assigned in IDEN2 that the classification has withdrawn — has no tolerance at
-all and is reported item by item.
+all and is reported item by item. A fourth, `--dlv-tol` (0.0015 cm⁻¹), is a printing
+tolerance as well: `dlv.dat` and the line list both carry three decimals, rounded from
+different intermediate values, so one in the last digit is printing and nothing else, while
+a wavelength calibration correction is tens of times larger.
 
 **Why the level pair is the key and the wavenumber is not.** Two files are compared
 transition by transition, matched first on the pair of levels and then, within that pair, on
@@ -4727,7 +4835,7 @@ that is expected, or in one artefact that can simply be rebuilt. `ok` — checke
 say. The exit status is 2 if anything is an error, 1 if anything is a warning, 0 if
 everything is clean, so the script can gate a pipeline.
 
-The ten checks, in the order they are made:
+The twelve checks, in the order they are made:
 
 | # | what is compared | what a difference means |
 |---|---|---|
@@ -4740,7 +4848,17 @@ The ten checks, in the order they are made:
 | 7 | `IDEN2/trans.dat` against `IDEN2/enlev.dat` | trans.dat carries a copy of every partner energy, found flag and predicted wavenumber, and IDEN2 rewrites them together; a copy that no longer follows means every wavenumber trans.dat shows is stale |
 | 8 | `IDEN2/enlev.dat` against `LOPT_output_levels.txt`, joined through `IDEN2/IDEN_level_ids.txt` | the energy of every level, and the membership of the two lists both ways: levels starred in enlev.dat with no entry in the map, levels of the fit not marked found |
 | 9 | `IDEN2/trans.dat` against the accepted classifications | **the check the rest exists to make**: a transition IDEN2 shows as identified but the classification has withdrawn looks, on the screen, exactly like one that is still accepted |
-| 10 | `unstable_candidates.csv` and `line_decisions.csv` | stability rather than staleness — see below |
+| 10 | `IDEN2/dlv.dat` against the set's own line list | the wavenumber and the uncertainty of every observed line. This is the file the eye reads a measurement off, nothing in IDEN2 writes it, and a set seeded by copying another set's `IDEN2` directory keeps that set's numbers until `sync_IDEN2.py` is run; a row that matches the set's `wn_key` column instead of its `wn` column is named as what it is, a row the calibration correction has never been applied to. The file's own arithmetic is checked first — one row number per row in the order the rows are in, and one wavenumber per line — because `trans.dat` names every observed line by its row number |
+| 11 | `IDEN2/trans.dat` against `IDEN2/dlv.dat` | every identification carries both the wavenumber of its line and the number of its row; IDEN2 reads the row number, so if the two disagree the assignment is read as one line and reported as another |
+| 12 | `unstable_candidates.csv` and `line_decisions.csv` | stability rather than staleness — see below |
+
+**The uncertainty in `dlv.dat` is a wavelength uncertainty**, in ångström, to four decimals —
+the unit `numset.dat` states the per-set uncertainties in — and the wavelength beside it is
+the standard one, vacuum below 2000 Å and air above. So the comparison converts it with the
+row's own wavelength, `u_wn = u_λ · wn / λ`, and allows the last digit of the ångström field
+plus two per cent of the value: a hundredth of an uncertainty changes no judgment made by
+eye, and 0.0001 Å is 0.005 cm⁻¹ at 100000 cm⁻¹. Anything wider is an error, because that
+number *is* the window every identification is judged against on the screen.
 
 **Stability.** Two things can be unsettled rather than merely out of date. An *oscillating*
 assignment is one `classify_lines.py` accepted on one pass and rejected on the next until it
@@ -4831,6 +4949,7 @@ python check_sync.py --quiet             # only the checks that found something
 python check_sync.py --list 40           # up to 40 items under each finding on screen
 python check_sync.py --out mine.txt      # write the complete report elsewhere
 python check_sync.py --drift 0.1         # a stricter idea of "up to date"
+python check_sync.py --dlv-tol 0.001    # a stricter idea of one wavenumber printed twice
 python check_sync.py --csv sync.csv      # the findings as a table as well
 ```
 
@@ -5798,6 +5917,10 @@ LineClass/
 │                                 #   lid, IDEN2's row number and Wyart's level_id
 ├── check_sync.py                 # Do all the files still describe the same identification?
 ├── sync_IDEN2.py                 # Brings the IDEN2 files into step with the current fit
+├── review_mismatches.py          # The accept/reject disagreements between two sets, as a
+│                                 #   worksheet of the evidence; --apply carries out the
+│                                 #   decisions written into it, in all five files at once;
+│                                 #   --free-lines lists the lines still on offer
 ├── output_files.py               # require_writable(): a file open in Excel stops a run at the
 │                                 #   start rather than at the end; read_retry(): a file held
 │                                 #   open for a moment is waited out rather than fatal
