@@ -21,14 +21,14 @@ WHERE THEY COME FROM
 ====================
 The checked extraction of Sugar's Table 1,
 ``Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm``, sheet
-``Table 1``: 4358 rows, one per printed line, with the adopted wavenumber in
+``Table 1``: 4333 rows, one per printed line, with the adopted wavenumber in
 the column headed ``wn adopted``.  A component row is one whose ``Intens``
 column is 0.
 
-THE THREE ROWS THAT LOOK LIKE COMPONENTS AND ARE NOT
-====================================================
+THE ROWS THAT LOOK LIKE COMPONENTS AND ARE NOT
+==============================================
 ``Intens = 0`` is overloaded.  Besides Sugar's own component rows, the
-curation of the workbook set the intensity of three rows to zero by hand, each
+curation of the workbook set the intensity of two rows to zero by hand, each
 with a note of the form ``int 20 changed to 0``:
 
 * rows 80 and 2389 - lines Sugar printed with an intensity (20 and 5) whose
@@ -37,12 +37,15 @@ with a note of the form ``int 20 changed to 0``:
   its parent, which is to say it behaves exactly like a resolved component;
   they are kept, and marked ``origin = curated_duplicate`` so that nothing
   downstream mistakes them for rows Sugar printed without an intensity.
-* row 2053 - an error in Sugar's table (a 45.7 cm^-1 Ritz mismatch, its
-  classification moved elsewhere by the curation).  It is 6.9 cm^-1 from the
-  nearest flagged line, belongs to no pattern, and is dropped.
 
-So 501 rows carry ``Intens = 0``, 500 are written here, and 498 of those are
-Sugar's own.
+A third, row 2053 (31604.539 cm^-1, a 45.7 cm^-1 Ritz mismatch in Sugar's
+table), was zeroed the same way until the curation of 2026-09-23 gave it back
+its intensity (4) and character (``c``) as an unclassified line.  Were it ever
+zeroed again it would be dropped, not kept: it is 6.9 cm^-1 from the nearest
+flagged line and belongs to no pattern.
+
+So 500 rows carry ``Intens = 0``, all 500 are written here, and 498 of those
+are Sugar's own.
 
 HOW A COMPONENT IS PAIRED WITH ITS LINE
 =======================================

@@ -15,6 +15,9 @@ import hfs_patterns
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# the two levels `hfs_line_corrections.csv` still gives S = 0 (section 3.2)
+ZEROED_IN_CORRECTIONS = {'059003.000223', '059003.000248'}
+
 
 @pytest.fixture(scope='module')
 def extracted():
@@ -31,13 +34,16 @@ def written():
 
 # --- the extraction ---------------------------------------------------------
 def test_counts(extracted):
-    """501 rows carry Intens = 0; three of them are the curation's own."""
+    """500 rows carry Intens = 0; two of them are the curation's own.
+
+    Row 2053 was a third until the curation of 2026-09-23 restored its
+    intensity, so nothing is dropped any more.
+    """
     _, report = extracted
-    assert report['zero_intensity'] == 501
+    assert report['zero_intensity'] == 500
     assert report['sugar_components'] == 498
     assert report['curated_kept'] == 2
-    assert len(report['curated_dropped']) == 1
-    assert report['curated_dropped'][0]['xl_row'] == 2053
+    assert report['curated_dropped'] == []
 
 
 def test_every_component_has_a_flagged_line(extracted):
@@ -170,12 +176,12 @@ def test_the_calculated_constants_reproduce_the_measurements():
     """
     patterns, _ = hfs_patterns.read_patterns()
     tested = hfs_patterns.with_both_A(patterns)
-    assert len(tested) == 155
+    assert len(tested) == 152
     t = hfs_patterns.scale_tests(tested)
-    assert t['n'] == 313
-    assert t['rms_none'] == pytest.approx(0.090, abs=0.004)
+    assert t['n'] == 309
+    assert t['rms_none'] == pytest.approx(0.087, abs=0.004)
     assert t['scale'] == pytest.approx(0.958, abs=0.010)
-    assert t['rms_scale'] == pytest.approx(0.084, abs=0.004)
+    assert t['rms_scale'] == pytest.approx(0.080, abs=0.004)
     # with the scale free, the tabulated line has no measurable offset from
     # the strongest component: that is what says it IS that component.
     assert abs(t['both'][1]) < 3 * t['u_offset']
@@ -191,29 +197,49 @@ def test_kappa_one_is_what_the_pipeline_already_applies():
     with open(path, encoding='utf-8', newline='') as fh:
         corrections = {r['wn_obs']: r for r in csv.DictReader(fh)}
     patterns, _ = hfs_patterns.read_patterns()
-    checked = conflicted = 0
+    checked = stale = 0
     for p in hfs_patterns.with_both_A(patterns):
         row = corrections.get('%.3f' % p.wn)
         if row is None or row['class'] != 'flag':
             continue
         assert float(row['kappa']) == 1.0
-        if 'CONFLICTS' in p.src1 or 'CONFLICTS' in p.src2:
-            # the correction file refuses to use the A of a level whose
-            # calculated constant contradicts its own flags, and writes
-            # S = 0 for it instead; those seven lines are section 3.2's two
-            # conflicting levels and are settled there, not here.
-            conflicted += 1
+        if {row['low_id'], row['upp_id']} & ZEROED_IN_CORRECTIONS:
+            # the correction file was written while section 3.2 labeled these
+            # two levels as contradicting their own flags, and gives them
+            # S = 0.  The review of 2026-09-29 found both conflicts came from
+            # rejected lines and a blend, and the labels were withdrawn from
+            # `A_hfs_levels.csv`; the file has not been rewritten since.
+            assert float(row['S_low' if row['low_id'] in ZEROED_IN_CORRECTIONS
+                             else 'S_upp']) == 0.0
+            stale += 1
             continue
         assert float(row['delta_cm-1']) == pytest.approx(
             hfs_patterns.head_displacement(p.J1, p.A1, p.J2, p.A2), abs=1e-4)
         checked += 1
-    assert (checked, conflicted) == (148, 7)
+    assert (checked, stale) == (145, 7)
+
+
+def test_no_level_is_labeled_as_conflicting_any_more():
+    """Section 3.2's two conflicts were withdrawn on 2026-09-29.
+
+    `059003.000223`: its one contradicting flag, 34926.912 `*v`, was rejected
+    on 9/12.  `059003.000248`: 39917.569 `*r` was rejected on 9/12, and the
+    `*v` of 33417.350 belongs to the stronger blend component
+    `059003.000133`-`059003.000213`.  Every remaining flag of both levels
+    agrees with the calculated A.
+    """
+    with open(os.path.join(HERE, 'A_hfs_levels.csv'), encoding='utf-8',
+              newline='') as fh:
+        rows = {r['level_id']: r for r in csv.DictReader(fh)}
+    assert not [k for k, r in rows.items() if 'CONFLICT' in r['source']]
+    for lid in ZEROED_IN_CORRECTIONS:
+        assert rows[lid]['source'].startswith('composition')
 
 
 def test_no_pattern_is_wider_than_its_predicted_span():
     """A listed component cannot lie outside the pattern it belongs to.
 
-    Two of the 155 do, by a few hundredths; both are two-component patterns
+    Two of the 152 do, by a few hundredths; both are two-component patterns
     on levels whose A is itself uncertain.  The test holds the count so that a
     worse calculation shows up.
     """
@@ -236,7 +262,7 @@ def test_the_global_fit_is_reported_with_its_singular_direction():
     patterns, _ = hfs_patterns.read_patterns()
     _, _, _, _, diag = hfs_patterns.fit_levels(patterns)
     assert diag['rank'] < diag['unknowns']
-    assert diag['rms'] == pytest.approx(0.044, abs=0.004)
+    assert diag['rms'] == pytest.approx(0.031, abs=0.004)
 
 
 def test_a_uniform_shift_of_every_A_barely_moves_the_prediction():

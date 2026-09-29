@@ -52,7 +52,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000220,f26p,3.5,+0.0133,0.0078,composition,2
 059003.000221,f26p,3.5,+0.0341,0.0066,composition,4
 059003.000222,f5d2,2.5,+0.0000,0.0500,not determined,3
-059003.000223,f26p,5.5,+0.0227,0.0054,"composition, CONFLICTS with own flags",5
+059003.000223,f26p,5.5,+0.0227,0.0054,"composition, flags consistent (2026-09-29 review)",5
 059003.000224,f5d2,3.5,+0.0363,0.0500,not determined,5
 059003.000225,f5d2,6.5,+0.0252,0.0439,flag interval,2
 059003.000226,f5d2,6.5,+0.0252,0.0439,flag interval,3
@@ -75,7 +75,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000245,f26p,3.5,+0.0242,0.0056,composition,4
 059003.000246,f26p,5.5,+0.0231,0.0058,composition,3
 059003.000247,f5d2,4.5,+0.0251,0.0500,not determined,2
-059003.000248,f26p,3.5,+0.0251,0.0055,"composition, CONFLICTS with own flags",5
+059003.000248,f26p,3.5,+0.0251,0.0055,"composition, flags consistent (2026-09-29 review)",5
 059003.000249,f26p,2.5,+0.0244,0.0062,composition,1
 059003.000250,f5d2,3.5,+0.0332,0.0500,not determined,2
 059003.000251,f26p,4.5,+0.0243,0.0055,composition,5
