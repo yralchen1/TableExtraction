@@ -10,8 +10,8 @@ N       ; Write virtual lines (Y/N)?
 N       ; Divide levels into independent groups (Y/N)?
 5000    ; MIN. wavenumber for AIR wavelength [cm-1]
 50000   ; MAX. wavenumber for AIR wavelength [cm-1]
-99.0     ; ROUND-OFF threshold for output LEVELS
-99.0     ; ROUND-OFF threshold for output LINES
+99999.0     ; ROUND-OFF threshold for output LEVELS
+99999.0     ; ROUND-OFF threshold for output LINES
  1       ; 1st column of WAVELENGTH in the transitions-input file
  12      ; LAST column of WAVELENGTH in the transitions-input file
  14      ;1st column of wavelength UNCERTAINTY in the transitions-input file

@@ -1181,9 +1181,14 @@ def main(argv=None):
     for i, ln in enumerate(lines):
         key_of_char[(ln.char, ln.era)] = ucls[i]
     fixed_unc = hfs_kappa.read_inflated()
+    observed = observed_wavenumbers()
+    unknown = fixed_unc.check([key for _, _, key in observed])
+    if unknown:
+        print('  %s: no observed line has the wn_key of %s'
+              % (hfs_kappa.INFLATED, ', '.join(unknown)))
 
     def u_stat(wn_value, char_value, key_value):
-        held = fixed_unc.get(hfs_kappa.inflated_key(key_value))
+        held = fixed_unc.lookup(key_value)
         if held is not None:
             return held
         era_value = hfs_kappa.era_of(wn_value)
@@ -1195,7 +1200,7 @@ def main(argv=None):
         return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR)
 
     corr = []
-    for wn, char, key in observed_wavenumbers():
+    for wn, char, key in observed:
         lam_value = 1e8 / wn
         b = block_of(blocks, lam_value)
         scale = wn * wn * 1e-8

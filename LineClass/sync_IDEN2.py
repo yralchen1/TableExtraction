@@ -98,10 +98,13 @@ It rewrites both files from the current fit:
  4. The set's own line list - ``[files] lines`` of its configuration, read on
     the ``wn`` and ``u_wn`` columns its ``[lines.layout.columns]`` names -
     gives the wavenumber and the uncertainty of every observed line, and those
-    go into ``dlv.dat``.  Its row numbers are how ``trans.dat`` names a line,
-    so no row is added, removed or reordered: only the three measured fields
-    of each row change.  The uncertainty there is a WAVELENGTH uncertainty in
-    angstroms, as ``numset.dat`` states it too, and it is converted.
+    go into ``dlv.dat``.  The uncertainty is the one the pipeline uses: the
+    list's own, raised to the value ``inflated_unc_lines.txt`` sets for the
+    line where that is larger.  The line numbers in columns 61-66 are how
+    ``trans.dat`` names a line, so no row is added, removed or reordered:
+    only the three measured fields of each row change.  The uncertainty there
+    is a WAVELENGTH uncertainty in angstroms, as ``numset.dat`` states it too,
+    and it is converted.
 
  5. ``LOPT_input_lines.txt`` says which transitions the fit is given, and the
     identifications in ``trans.dat`` are made to match it: an accepted
@@ -186,6 +189,7 @@ import pandas as pd
 import config
 import cowan_gA
 import gA_imputation
+import hfs_kappa
 import level_interchange
 import output_files
 import swap_line_assignments_IDEN as IDEN
@@ -213,8 +217,11 @@ DLV_ROW = (60, 66)
 DLV_WIDTH = 66
 # A row of dlv.dat and a row of the line list are the same observed line when
 # their wavenumbers agree to this much.  dlv.dat carries three decimals and the
-# line list carries more, so the difference is rounding and nothing else.
-DLV_MATCH = 0.001
+# line list carries more, so the difference is rounding plus whatever the line
+# list's corrected wavenumber has moved by since dlv.dat was last written; in
+# the corrected set that is up to 0.0015, while the nearest other line is
+# never closer than 0.3.  check_sync.py joins the two files on the same value.
+DLV_MATCH = 0.0015
 # The intensity code is round(10*ln(Icalc)); an Icalc of zero or less has no
 # logarithm, and a transition of exactly zero wavenumber none either.
 MIN_INTENSITY = 1e-300
@@ -395,12 +402,19 @@ def rewrite_dlv(records, lines, log):
     converted to the wavelength scale the file states it on by
     ``u_lambda = u_wn * lambda / wn``.
 
-    A row whose wavenumber matches no line of the list is left as it stands
-    and reported; so is a line of the list that has no row here, which cannot
-    be given one without renumbering the file.
+    A row is the line whose current wavenumber it carries - a set already
+    brought up to date - or else the line whose ``wn_key`` it carries - a
+    file as first built, on the scale that never moves.  Both are needed:
+    a corrected set's dlv.dat holds the corrected wavenumbers after its
+    first sync, and those differ from ``wn_key`` by the calibration
+    correction, far more than ``DLV_MATCH``.
+
+    A row whose wavenumber matches no line of the list either way is left as
+    it stands and reported; so is a line of the list that has no row here.
     """
-    keys = [k for k, _wn, _u in lines]
-    out, changed, unmatched = [], [], []
+    by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
+    by_key = sorted((k, i) for i, (k, _wn, _u) in enumerate(lines))
+    out, changed, unmatched, matched = [], [], [], set()
     for rec in records:
         if len(rec) < DLV_WIDTH or not rec.strip():
             out.append(rec)
@@ -409,17 +423,14 @@ def rewrite_dlv(records, lines, log):
         lam_old = float(rec[DLV_LAMBDA[0]:DLV_LAMBDA[1]])
         u_old = float(rec[DLV_UNC[0]:DLV_UNC[1]])
         row = int(rec[DLV_ROW[0]:DLV_ROW[1]])
-        k = bisect.bisect_left(keys, wn_old)
-        best = None
-        for m in (k - 1, k, k + 1):
-            if 0 <= m < len(keys) and abs(keys[m] - wn_old) <= DLV_MATCH:
-                if best is None or abs(keys[m] - wn_old) < abs(keys[best]
-                                                               - wn_old):
-                    best = m
+        best = _nearest_line(by_wn, wn_old)
+        if best is None:
+            best = _nearest_line(by_key, wn_old)
         if best is None:
             unmatched.append((row, wn_old))
             out.append(rec)
             continue
+        matched.add(best)
         _key, wn_new, u_wn = lines[best]
         lam_new = lam_old * wn_old / wn_new
         u_lam = u_wn * lam_new / wn_new
@@ -429,18 +440,69 @@ def rewrite_dlv(records, lines, log):
         out.append(rec)
         if (abs(wn_new - wn_old) > 0.0005 or abs(u_lam - u_old) > 0.00005):
             changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn))
-    absent = []
-    dlv_keys = sorted(float(rec[DLV_WN[0]:DLV_WN[1]]) for rec in records
-                      if len(rec) >= DLV_WIDTH and rec.strip())
-    for key, wn_new, u_wn in lines:
-        k = bisect.bisect_left(dlv_keys, key)
-        near = min((abs(dlv_keys[m] - key) for m in (k - 1, k)
-                    if 0 <= m < len(dlv_keys)), default=1e9)
-        if near > DLV_MATCH:
-            absent.append((key, wn_new, u_wn))
+    absent = [lines[i] for i in range(len(lines)) if i not in matched]
     report = {'n_rows': len(records), 'changed': changed,
               'unmatched': unmatched, 'absent': absent}
     return out, report
+
+
+def _nearest_line(table, wn):
+    """The index into the line list of the entry of ``table`` - sorted
+    ``(wavenumber, index)`` pairs - nearest ``wn`` within ``DLV_MATCH``, or
+    None."""
+    k = bisect.bisect_left(table, (wn, -1))
+    best = None
+    for m in (k - 1, k, k + 1):
+        if 0 <= m < len(table) and abs(table[m][0] - wn) <= DLV_MATCH:
+            if best is None or abs(table[m][0] - wn) < abs(table[best][0]
+                                                           - wn):
+                best = m
+    return None if best is None else table[best][1]
+
+
+def apply_registry(lines, path, log):
+    """The line list with the uncertainties of inflated_unc_lines.txt laid
+    over it, as classify_lines.py lays them: a line the registry names takes
+    the registry's value where that is the larger, and the registry never
+    narrows a line.
+
+    Without this, every row rewritten here would get back the line list's own
+    uncertainty, and an uncertainty widened in IDEN2 and entered in the
+    registry would be narrowed again on the screen while the fit goes on
+    using the wide one.  The registry is read by hfs_kappa.read_inflated and
+    matched by ``wn_key`` at the precision each entry was written with; an
+    entry that names no line, or more than one, stops the run, as it stops
+    classify_lines.py.  A missing file is an empty registry.
+    """
+    if not path:
+        log('  no inflated_unc registry is configured')
+        return lines
+    name = os.path.basename(path)
+    try:
+        registry = hfs_kappa.read_inflated(path)
+        if not registry:
+            log('  %s: no entries' % name)
+            return lines
+        unknown = registry.check([k for k, _wn, _u in lines], name)
+    except ValueError as exc:
+        raise SyncError('%s cannot be applied: %s.  Nothing has been written.'
+                        % (name, exc))
+    if unknown:
+        raise SyncError('%s: no observed line has the wn_key %s.  Nothing '
+                        'has been written.' % (name, ', '.join(unknown)))
+    out, n_up, n_kept = [], 0, 0
+    for key, wn, u in lines:
+        u_set = registry.lookup(key)
+        if u_set is not None:
+            if u_set > u:
+                u, n_up = u_set, n_up + 1
+            else:
+                n_kept += 1
+        out.append((key, wn, u))
+    log('  %s: %d uncertainties widened to the registry value%s'
+        % (name, n_up, '' if not n_kept else
+           '; %d lines keep their larger listed value' % n_kept))
+    return out
 
 
 def dlv_rows_by_wavenumber(records):
@@ -955,9 +1017,9 @@ def report_dlv(rep, log):
         for row, wn in rep['unmatched'][:20]:
             log(f"    row {row:5d}  {wn:12.3f}")
     if rep['absent']:
-        log(f"  {len(rep['absent'])} lines of the list have no row here.  A "
-            f"row cannot be added without renumbering the file, which every "
-            f"assignment in trans.dat refers to, so they are only listed:")
+        log(f"  {len(rep['absent'])} lines of the list have no row here.  "
+            f"This program adds no rows; a line can be inserted in IDEN2, "
+            f"which gives it the next free line number:")
         for key, wn, _u in rep['absent'][:20]:
             log(f"    {wn:12.3f}" + ('' if abs(key - wn) < 5e-4
                                      else f"  (was {key:.3f})"))
@@ -1225,7 +1287,9 @@ def main(argv=None):
     wanted = {}
     if not args.no_lines:
         log()
-        lines = read_line_list(config.load(args.config), log)
+        cfg = config.load(args.config)
+        lines = apply_registry(read_line_list(cfg, log),
+                               getattr(cfg, 'inflated_unc', ''), log)
         dlv_records, dlv_endings = IDEN.read_records(dlv_path)
         dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log)
         report_dlv(dlv_rep, log)

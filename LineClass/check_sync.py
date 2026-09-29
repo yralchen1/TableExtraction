@@ -96,19 +96,25 @@ WHAT IT CHECKS
     every row should be carrying.  This is the file the eye reads a
     measurement off - the wavenumber a transition is looked for near, and the
     uncertainty that says how far from the prediction a line may stand and
-    still be the line - and nothing in IDEN2 writes it, so a set seeded by
-    copying another set's IDEN2 directory keeps that set's wavenumbers and
-    uncertainties until sync_IDEN2.py is run.  A row that instead matches the
-    set's wn_key column, the wavenumber that never moves, is named as what it
-    is: a row the wavelength calibration correction has never been applied to.
-    The uncertainty there is a wavelength uncertainty in angstroms, stated to
-    four decimals, and it is converted with the row's own wavelength before
-    being compared.  The file's own arithmetic is checked first: one row
-    number per row in the order the rows are in, and one wavenumber per line,
-    because trans.dat names every observed line by its row number.
-11. IDEN2/trans.dat against IDEN2/dlv.dat: every identification carries both
-    the wavenumber of its line and the number of its row, IDEN2 reads the row
-    number, and the two must be the same line.
+    still be the line - and IDEN2 rewrites only what is edited on its screen,
+    so a set seeded by copying another set's IDEN2 directory keeps that set's
+    wavenumbers and uncertainties until sync_IDEN2.py is run.  A row that
+    instead matches the set's wn_key column, the wavenumber that never moves,
+    is named as what it is: a row the wavelength calibration correction has
+    never been applied to.  The uncertainty there is a wavelength uncertainty
+    in angstroms, stated to four decimals, and it is converted with the row's
+    own wavelength before being compared with the uncertainty the pipeline
+    uses: the line list's own, or the value inflated_unc_lines.txt sets for
+    the line where that is larger.  The file's own arithmetic is checked
+    first: one line number per row and one wavenumber per line, because
+    trans.dat names every observed line by its line number.  The line numbers
+    need not follow the order of the rows: a line inserted in IDEN2 takes the
+    next free number and stands in its place by wavenumber.
+11. IDEN2/trans.dat against IDEN2/dlv.dat: every identification names its
+    line by the line number, and dlv.dat must have that line.  An
+    identification also carries a wavenumber, but IDEN2 ignores it, and so
+    does this script: the wavenumber of an identified line - here, and in
+    check 9 - is the one on the dlv.dat row its line number names.
 12. Stability.  unstable_candidates.csv - the assignments classify_lines.py
     withdrew because they oscillate - and line_decisions.csv, whose verdicts
     the classification must obey exactly.
@@ -191,6 +197,7 @@ import numpy as np
 import pandas as pd
 
 import config
+import hfs_kappa
 import output_files
 import swap_line_assignments_IDEN as IDEN
 import sync_IDEN2
@@ -211,6 +218,7 @@ REVISIONS = 'revised_level_energies.csv'
 UNSTABLE = 'unstable_candidates.csv'
 POSITIONS = 'level_positions.csv'
 LINES_XLSX = 'Pr3_lines.xlsx'
+INFLATED = 'inflated_unc_lines.txt'
 NAME_IDEN2 = 'IDEN2'
 NAME_CONFIG = 'lineclass_config.toml'
 
@@ -519,7 +527,7 @@ class Context(object):
         if iden is not None:
             self.iden_row = dict(iden.row_of)
             self.assigned, _ = read_iden_assignments(
-                iden.enlev, iden.trans, iden.id_of_row)
+                iden.enlev, iden.trans, iden.id_of_row, iden.wn_of_line)
             for owner, partner in iden.trans.row_of:
                 a = iden.id_of_row.get(owner)
                 b = iden.id_of_row.get(partner)
@@ -776,25 +784,32 @@ def check_double_acceptance(rows, rep, list_n):
     return bad
 
 
-def read_iden_assignments(enlev, trans, id_of_row):
+def read_iden_assignments(enlev, trans, id_of_row, wn_of_line=None):
     """{(low_id, upp_id) sorted: wavenumber} for every identified transition
     of trans.dat, and the rows whose levels are not in the map.
 
     A trans.dat transition row carries, after its predicted wavenumber, the
-    observed line it has been identified with: its wavenumber, the
-    observed-minus-predicted, and the row number of the line in the observed
-    list.  A row number of zero means the transition has not been identified.
+    observed line it has been identified with: a wavenumber, the
+    observed-minus-predicted, and the line number of the line in dlv.dat.  A
+    line number of zero means the transition has not been identified.  IDEN2
+    reads only the line number, so the wavenumber is taken from dlv.dat,
+    ``wn_of_line`` ({line number: wavenumber}); the one in trans.dat is used
+    only for a line number dlv.dat has not got, or when there is no dlv.dat.
     """
+    wn_of_line = wn_of_line or {}
     found, unmapped = {}, []
     for (owner, partner), k in trans.row_of.items():
         obs = IDEN.assignment(trans.records[k])
         if not IDEN.has_line(obs):
             continue
+        wn = wn_of_line.get(IDEN.obs_row(obs))
+        if wn is None:
+            wn = IDEN.obs_wavenumber(obs)
         if owner not in id_of_row or partner not in id_of_row:
-            unmapped.append((owner, partner, IDEN.obs_wavenumber(obs)))
+            unmapped.append((owner, partner, wn))
             continue
         pair = tuple(sorted((id_of_row[owner], id_of_row[partner])))
-        found[pair] = IDEN.obs_wavenumber(obs)
+        found[pair] = wn
     return found, unmapped
 
 
@@ -1342,6 +1357,16 @@ class Iden2(object):
         self.row_of = row_of
         self.id_of_row = {n: lid for lid, n in row_of.items()}
         self.dlv = dlv
+        # {line number: wavenumber} - the wavenumber an identification in
+        # trans.dat stands for.  A malformed row is left out here and
+        # reported by check_dlv.
+        self.wn_of_line = {}
+        for rec in dlv or []:
+            try:
+                self.wn_of_line[int(rec[_span(sync_IDEN2.DLV_ROW)])] = \
+                    float(rec[_span(sync_IDEN2.DLV_WN)])
+            except ValueError:
+                continue
 
 
 def load_iden2(iden2_dir, rep):
@@ -1379,7 +1404,7 @@ def check_iden2(iden, cls, ctx, levels, rep, drift, gross, list_n):
     _iden_internal(iden.enlev, iden.trans, rep, list_n)
     _iden_vs_fit(iden.enlev, iden.row_of, levels, rep, drift, gross, list_n)
     _iden_vs_classification(iden.enlev, iden.trans, iden.id_of_row, cls, ctx,
-                            rep, list_n)
+                            rep, list_n, iden.wn_of_line)
 
 
 def _iden_internal(enlev, trans, rep, list_n):
@@ -1504,13 +1529,14 @@ def _already(n):
 
 
 def _iden_vs_classification(enlev, trans, id_of_row, cls, ctx, rep,
-                            list_n):
+                            list_n, wn_of_line=None):
     """Which transitions IDEN2 shows as identified, against which the
     classification accepts.  This is the check the rest of the script exists
     to make."""
     if cls is None:
         return
-    found, unmapped = read_iden_assignments(enlev, trans, id_of_row)
+    found, unmapped = read_iden_assignments(enlev, trans, id_of_row,
+                                            wn_of_line)
     accepted = {}
     for pair, recs in classified_rows(classified(cls)).items():
         for wn, acc in recs:
@@ -1567,7 +1593,13 @@ def _iden_vs_classification(enlev, trans, id_of_row, cls, ctx, rep,
 # 10-11. IDEN2/dlv.dat
 # ---------------------------------------------------------------------------
 class DlvRow(object):
-    """One row of dlv.dat: an observed line as IDEN2 holds it."""
+    """One row of dlv.dat: an observed line as IDEN2 holds it.
+
+    ``index`` is the row's place in the file, counted from 0; ``row`` is the
+    line number in columns 61-66, which is how trans.dat names the line.  The
+    two agree in a file as it was first built and part company as soon as a
+    line is inserted in IDEN2.
+    """
 
     def __init__(self, index, record):
         self.index = index
@@ -1598,11 +1630,11 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
 
     This is the file the eye reads a measurement off: the wavenumber it is
     looking for a transition near, and the uncertainty that says how far from
-    the prediction a line may be and still be the line.  Nothing in IDEN2
-    writes it and no earlier check touches it, so a set seeded by copying
-    another set's IDEN2 directory keeps the other set's wavenumbers - which is
-    silent, because every screen goes on working and the numbers on it are of
-    the right size.
+    the prediction a line may be and still be the line.  IDEN2 rewrites only
+    what is edited on its screen and no earlier check touches it, so a set
+    seeded by copying another set's IDEN2 directory keeps the other set's
+    wavenumbers - which is silent, because every screen goes on working and
+    the numbers on it are of the right size.
     """
     if iden is None or iden.dlv is None:
         return
@@ -1623,12 +1655,17 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
 
 
 def _dlv_internal(records, rep, list_n):
-    """The file's own arithmetic: fixed width, one row number per row in the
-    order the rows are in, and one wavenumber per line.
+    """The file's own arithmetic: fixed width, one line number per row, and
+    one wavenumber per line.
 
-    The row number is how every assignment in trans.dat names its line, so a
-    row number that is not its own position, or two rows carrying one
-    wavenumber, makes an assignment mean something other than what it says.
+    The line number, in columns 61-66, is how every assignment in trans.dat
+    names its line, so two rows carrying one line number, or two rows
+    carrying one wavenumber, make an assignment mean something other than
+    what it says.  The line numbers need not follow the order of the rows.
+    The file is first built with each row numbered by its place, but a line
+    inserted in IDEN2 later - one the line list has and dlv.dat was built
+    without - takes the next free number and is placed among the others by
+    its wavenumber, and every row keeps the number it had.
     """
     rows, malformed = [], []
     for i, rec in enumerate(records):
@@ -1648,22 +1685,30 @@ def _dlv_internal(records, rep, list_n):
                   '%d records of dlv.dat are not of the fixed 66-character '
                   'form the file is read by' % len(malformed), malformed)
         return rows
-    misnumbered = ['record %d carries row number %d' % (r.index + 1, r.row)
-                   for i, r in enumerate(rows) if r.row != i + 1]
-    if misnumbered:
+    records_of = {}
+    for r in rows:
+        records_of.setdefault(r.row, []).append(r)
+    shared = ['line %d is on records %s' % (n, ', '.join(
+                  '%d (%.3f)' % (r.index + 1, r.wn) for r in rs))
+              for n, rs in sorted(records_of.items()) if len(rs) > 1]
+    bad = ['record %d carries line number %d' % (r.index + 1, r.row)
+           for r in rows if r.row < 1]
+    if shared or bad:
         rep.error('IDEN2/dlv.dat',
-                  '%d rows of dlv.dat are not numbered by their position, and '
+                  '%d line numbers of dlv.dat are not one line each, and '
                   'every assignment in trans.dat names its line by that '
-                  'number' % len(misnumbered), misnumbered)
-        rep.act(10, 'Restore dlv.dat: its row numbers no longer match its '
-                    'rows, so no assignment in trans.dat can be trusted to '
-                    'name the line it means.')
+                  'number' % (len(shared) + len(bad)), shared + bad)
+        rep.act(10, 'Restore dlv.dat: two rows carry one line number, so no '
+                    'assignment in trans.dat that names it can be trusted to '
+                    'mean the line it means.')
         return rows
+    # A line inserted in IDEN2 carries a larger number than the row after it.
+    inserted = [a for a, b in zip(rows, rows[1:]) if b.row < a.row]
     seen, repeated = {}, []
     for r in rows:
         key = round(r.wn, 3)
         if key in seen:
-            repeated.append('rows %d and %d both carry %.3f'
+            repeated.append('lines %d and %d both carry %.3f'
                             % (seen[key], r.row, r.wn))
         seen[key] = r.row
     if repeated:
@@ -1678,9 +1723,13 @@ def _dlv_internal(records, rep, list_n):
                  'stand above a larger wavenumber. IDEN2 lists the lines in '
                  'the order the file is in' % out_of_order)
     if not (repeated or out_of_order):
-        rep.ok('IDEN2/dlv.dat', 'dlv.dat holds %d rows, numbered by their '
-                                'position, one wavenumber each, in decreasing '
-                                'order' % len(rows))
+        rep.ok('IDEN2/dlv.dat', 'dlv.dat holds %d rows, one line number and '
+                                'one wavenumber each, in decreasing order%s'
+               % (len(rows), '; %d of them inserted in IDEN2 under a later '
+                             'line number' % len(inserted) if inserted
+                  else ''),
+               ['line %d at record %d (%.3f)' % (r.row, r.index + 1, r.wn)
+                for r in inserted])
     return rows
 
 
@@ -1695,6 +1744,14 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     ``wn_key`` column - the wavenumber that never moves, which is the scale
     dlv.dat was built on - is a row the correction has never been applied to,
     and that is reported as what it is rather than as an unknown line.
+
+    The uncertainty a row should carry is the one the pipeline classifies and
+    fits the line on: the line list's own, raised to the value
+    inflated_unc_lines.txt sets for the line where that is larger - the rule
+    classify_lines.py applies.  An uncertainty widened in IDEN2 is therefore
+    in step once it is entered in the registry, and one widened in IDEN2 and
+    never entered is reported on its own, since the cure for it is the
+    registry and not sync_IDEN2.py, which writes the pipeline's value.
     """
     try:
         lines = sync_IDEN2.read_line_list(cfg, lambda *a: None)
@@ -1703,55 +1760,82 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
         return
     key_name = cfg.lines.columns.get('wn_key') or cfg.lines.columns['wn']
     wn_name = cfg.lines.columns['wn']
-    want = sorted((wn, u) for _key, wn, u in lines)
+    registry = _dlv_registry(cfg, [key for key, _wn, _u in lines], rep)
+    want = sorted((wn, u, key) for key, wn, u in lines)
     want_wn = [t[0] for t in want]
     keyed = sorted((key, wn) for key, wn, _u in lines)
     keyed_wn = [t[0] for t in keyed]
 
-    stale, unknown, bad_u = [], [], []
+    stale, unknown, narrow, wide = [], [], [], []
     drifted = 0
     worst = 0.0
+    n_registry = 0
     matched = set()
     for r in rows:
         k = _nearest(want_wn, r.wn, dlv_tol)
         if k is None:
             j = _nearest(keyed_wn, r.wn, dlv_tol)
             if j is not None and key_name != wn_name:
-                stale.append('row %6d  %12.3f -> %12.3f  (%+.3f)'
+                stale.append('line %6d  %12.3f -> %12.3f  (%+.3f)'
                              % (r.row, r.wn, keyed[j][1],
                                 keyed[j][1] - r.wn))
             else:
-                unknown.append('row %6d  %12.3f' % (r.row, r.wn))
+                unknown.append('line %6d  %12.3f' % (r.row, r.wn))
             continue
         matched.add(k)
         if abs(want_wn[k] - r.wn) > 0.0005:
             drifted += 1
             worst = max(worst, abs(want_wn[k] - r.wn))
-        u_want = want[k][1]
+        if registry is None:
+            continue
+        u_list, key = want[k][1], want[k][2]
+        u_set = registry.lookup(key)
+        u_want = u_list if u_set is None else max(u_list, u_set)
+        if u_set is not None and u_set > u_list:
+            n_registry += 1
         quantum = 0.00005 * r.wn / r.lam
-        if abs(r.u_wn - u_want) > quantum + DLV_U_REL * u_want:
-            bad_u.append('row %6d  %12.3f  dlv %9.4f  list %9.4f  cm-1'
-                         % (r.row, r.wn, r.u_wn, u_want))
-    absent = ['%12.3f  u %9.4f  cm-1' % want[k] for k in range(len(want))
+        if abs(r.u_wn - u_want) <= quantum + DLV_U_REL * u_want:
+            continue
+        item = ('line %6d  %12.3f  dlv %9.4f  pipeline %9.4f  cm-1  (list '
+                '%.4f%s)' % (r.row, r.wn, r.u_wn, u_want, u_list,
+                             '' if u_set is None
+                             else ', %s %.4f' % (INFLATED, u_set)))
+        (wide if r.u_wn > u_want else narrow).append(item)
+    absent = ['%12.3f  u %9.4f  cm-1' % want[k][:2] for k in range(len(want))
               if k not in matched]
 
-    head = 'row           wavenumber'
+    head = 'line          wavenumber'
     if stale:
         rep.error('IDEN2/dlv.dat',
                   '%d rows of dlv.dat are still on the uncorrected %s scale: '
                   'IDEN2 is showing wavenumbers the set no longer uses'
                   % (len(stale), key_name),
-                  stale, head='row      dlv.dat now      %s' % wn_name)
+                  stale, head='line     dlv.dat now      %s' % wn_name)
         rep.act(65, 'Run sync_IDEN2.py in this set: dlv.dat holds the '
                     'wavenumbers of another set, so every window drawn around '
                     'a prediction is drawn in the wrong place.')
-    if bad_u:
+    if narrow:
         rep.error('IDEN2/dlv.dat',
-                  '%d uncertainties in dlv.dat differ from the line list by '
-                  'more than its printing precision; IDEN2 judges every '
-                  'identification by this number' % len(bad_u), bad_u)
-        rep.act(65, 'Run sync_IDEN2.py in this set: the uncertainties on the '
-                    'screen are not the ones the fit is weighted by.')
+                  '%d uncertainties in dlv.dat are narrower than the ones the '
+                  'pipeline classifies and fits on, by more than their '
+                  'printing precision; IDEN2 judges every identification by '
+                  'this number' % len(narrow), narrow)
+        rep.act(65, 'Run sync_IDEN2.py in this set: it writes the '
+                    'pipeline\'s uncertainty - the line list\'s, or the '
+                    'value in %s where that is larger - into dlv.dat.'
+                    % INFLATED)
+    if wide:
+        rep.error('IDEN2/dlv.dat',
+                  '%d uncertainties in dlv.dat are wider than the ones the '
+                  'pipeline classifies and fits on, by more than their '
+                  'printing precision: widened in IDEN2 and not entered in '
+                  '%s, or left behind when the line list narrowed them'
+                  % (len(wide), INFLATED), wide)
+        rep.act(65, 'Enter in %s each wider uncertainty in dlv.dat that was '
+                    'set on purpose, so that classify_lines.py and LOPT use '
+                    'it too.  Do not run sync_IDEN2.py on the others until '
+                    'that is done: it would narrow every one of them to the '
+                    'pipeline\'s value.' % INFLATED)
     if unknown:
         rep.warn('IDEN2/dlv.dat',
                  '%d rows of dlv.dat match no line of %s within %.4f cm^-1'
@@ -1760,16 +1844,49 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     if absent:
         rep.warn('IDEN2/dlv.dat',
                  '%d lines of %s have no row in dlv.dat, so they cannot be '
-                 'identified on the screen; a row cannot be added without '
-                 'renumbering the file that every assignment refers to'
+                 'identified on the screen until they are inserted in IDEN2, '
+                 'where each takes the next free line number'
                  % (len(absent), os.path.basename(cfg.lines_file)),
                  absent, head='  wavenumber  uncertainty')
-    if not (stale or bad_u):
+    if not (stale or narrow or wide):
+        if registry is None:
+            said = 'the %s' % wn_name
+        else:
+            said = 'the %s and the uncertainty the pipeline uses' % wn_name
         rep.ok('IDEN2/dlv.dat',
-               'all %d matched rows of dlv.dat carry the %s and the '
-               'uncertainty of the line list (%d of them differ in the last '
-               'printed digit, by up to %.4f cm^-1)'
-               % (len(matched), wn_name, drifted, worst))
+               'all %d matched rows of dlv.dat carry %s (%d of them differ '
+               'in the last printed digit, by up to %.4f cm^-1)%s'
+               % (len(matched), said, drifted, worst,
+                  '; %d of the uncertainties are the wider values of %s'
+                  % (n_registry, INFLATED) if n_registry else ''))
+
+
+def _dlv_registry(cfg, wn_keys, rep):
+    """The registry of hand-set uncertainties the set's configuration names,
+    checked against the line list's ``wn_keys``.
+
+    An empty registry if the configuration names none or the file is absent.
+    None if it cannot be used - an entry too short to tell two lines apart,
+    or one line entered twice with two values - in which case the pipeline
+    refuses it as well and the uncertainties are not compared.
+    """
+    path = getattr(cfg, 'inflated_unc', '') or ''
+    if not path or not os.path.exists(path):
+        return hfs_kappa.Registry()
+    try:
+        registry = hfs_kappa.read_inflated(path)
+        unused = registry.check(wn_keys, os.path.basename(path))
+    except ValueError as exc:
+        rep.error('IDEN2/dlv.dat', '%s cannot be applied, so the '
+                                   'uncertainties of dlv.dat are not compared:'
+                                   ' %s' % (INFLATED, exc))
+        return None
+    if unused:
+        rep.warn('IDEN2/dlv.dat',
+                 '%d entries of %s name no line of %s'
+                 % (len(unused), INFLATED, os.path.basename(cfg.lines_file)),
+                 unused)
+    return registry
 
 
 def _nearest(values, wn, tol):
@@ -1787,43 +1904,30 @@ def _nearest(values, wn, tol):
 def _dlv_vs_trans(rows, trans, rep, list_n):
     """Every identification in trans.dat against the row of dlv.dat it names.
 
-    An assignment carries both the wavenumber of the observed line and the
-    number of its row.  IDEN2 reads the row number and shows what stands
-    there, so a wavenumber that no longer agrees with it means the assignment
-    is read as one line and reported as another.
+    An identification names its observed line by the line number in columns
+    61-66 of dlv.dat, and IDEN2 shows the row that carries it.  The
+    wavenumber an identification also carries is ignored, by IDEN2 and here:
+    the line number is the identification.
     """
-    wn_of = {r.row: r.wn for r in rows}
-    missing, moved = [], []
+    have = set(r.row for r in rows)
+    missing = []
     n = 0
     for (owner, partner), k in trans.row_of.items():
         obs = IDEN.assignment(trans.records[k])
         if not IDEN.has_line(obs):
             continue
         n += 1
-        row, wn = IDEN.obs_row(obs), IDEN.obs_wavenumber(obs)
-        if row not in wn_of:
-            missing.append('levels %d - %d at %.3f name row %d'
-                           % (partner, owner, wn, row))
-        elif abs(wn_of[row] - wn) > 0.0005:
-            moved.append('levels %d - %d  row %6d  trans.dat %12.3f  '
-                         'dlv.dat %12.3f'
-                         % (partner, owner, row, wn, wn_of[row]))
+        row = IDEN.obs_row(obs)
+        if row not in have:
+            missing.append('levels %d - %d at %.3f name line %d'
+                           % (partner, owner, IDEN.obs_wavenumber(obs), row))
     if missing:
         rep.error('IDEN2/dlv.dat',
-                  '%d identifications in trans.dat name a row that dlv.dat '
-                  'has not got' % len(missing), missing)
-    if moved:
-        rep.error('IDEN2/dlv.dat',
-                  '%d identifications in trans.dat carry a wavenumber that is '
-                  'not the one on the dlv.dat row they name' % len(moved),
-                  moved)
-        rep.act(65, 'Run sync_IDEN2.py in this set: the identifications and '
-                    'the observed lines were last written on different '
-                    'wavenumbers.')
-    if not (missing or moved):
-        rep.ok('IDEN2/dlv.dat', 'all %d identifications in trans.dat carry '
-                                'the wavenumber of the dlv.dat row they name'
-               % n)
+                  '%d identifications in trans.dat name a line number that '
+                  'dlv.dat has not got' % len(missing), missing)
+    else:
+        rep.ok('IDEN2/dlv.dat', 'all %d identifications in trans.dat name a '
+                                'line that dlv.dat has' % n)
 
 
 # ---------------------------------------------------------------------------

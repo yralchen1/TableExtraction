@@ -590,6 +590,63 @@ def test_a_dlv_row_with_no_line_is_left_alone_and_reported():
     assert [round(a[0], 3) for a in rep['absent']] == [31000.000]
 
 
+def test_a_dlv_row_already_on_the_corrected_scale_is_still_its_line():
+    """After the first sync a corrected set's dlv.dat carries own_corr, which
+    differs from wn_key by the calibration correction; the second sync must
+    still find the row and refresh it."""
+    old = dlv_record(62, 20000.100, 4999.9750, 'c', 0.0070, 7)
+    lines = [(20000.000, 20000.100, 0.2), (20000.100, 20000.300, 0.1)]
+    new, rep = sync.rewrite_dlv([old], lines, lambda *a: None)
+    # the row carries the first line's current wavenumber, and the second
+    # line's key: the current wavenumber is what it is
+    assert float(new[0][sync.DLV_WN[0]:sync.DLV_WN[1]]) == 20000.100
+    assert abs(float(new[0][sync.DLV_UNC[0]:sync.DLV_UNC[1]]) - 0.0500) < 5e-5
+    assert not rep['unmatched']
+    assert rep['absent'] == [(20000.100, 20000.300, 0.1)]
+
+
+def test_a_row_inserted_in_iden2_under_a_later_line_number_is_matched():
+    rows = [dlv_record(62, 30000.000, 3333.3333, 'c', 0.0010, 1),
+            dlv_record(62, 25000.000, 4000.0000, 'c', 0.0010, 3),
+            dlv_record(62, 20000.000, 5000.0000, 'c', 0.0010, 2)]
+    lines = [(20000.0, 20000.0, 0.02), (25000.0, 25000.0, 0.02),
+             (30000.0, 30000.0, 0.02)]
+    new, rep = sync.rewrite_dlv(rows, lines, lambda *a: None)
+    assert not rep['unmatched'] and not rep['absent']
+    assert [r[sync.DLV_ROW[0]:] for r in new] == \
+        [r[sync.DLV_ROW[0]:] for r in rows]
+
+
+REGISTRY = ('wn_key\tunc_wn\tdate\treason\n'
+            '20000.1\t0.3\t\twidened in IDEN2\n'
+            '30000.0\t0.01\t\tnarrower than the list\n')
+
+
+def test_the_registry_widens_a_line_and_never_narrows_one(tmp_path):
+    path = tmp_path / 'inflated_unc_lines.txt'
+    path.write_text(REGISTRY)
+    lines = [(20000.1004, 20000.2, 0.05), (25000.0, 25000.1, 0.05),
+             (30000.0, 30000.1, 0.05)]
+    got = sync.apply_registry(lines, str(path), lambda *a: None)
+    assert got == [(20000.1004, 20000.2, 0.3), (25000.0, 25000.1, 0.05),
+                   (30000.0, 30000.1, 0.05)]
+
+
+def test_a_registry_entry_naming_no_line_stops_the_run(tmp_path):
+    path = tmp_path / 'inflated_unc_lines.txt'
+    path.write_text(REGISTRY)
+    with pytest.raises(sync.SyncError, match='30000.0'):
+        sync.apply_registry([(20000.1004, 20000.2, 0.05)], str(path),
+                            lambda *a: None)
+
+
+def test_no_registry_changes_nothing(tmp_path):
+    lines = [(20000.1, 20000.2, 0.05)]
+    assert sync.apply_registry(lines, '', lambda *a: None) == lines
+    assert sync.apply_registry(lines, str(tmp_path / 'none.txt'),
+                               lambda *a: None) == lines
+
+
 def test_the_line_list_collapses_repeated_rows_of_one_line(tmp_path):
     """A blend named once per component is one row of dlv.dat."""
     path = tmp_path / 'lines.xlsx'

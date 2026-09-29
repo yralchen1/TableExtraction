@@ -184,27 +184,115 @@ def stated_uncertainty(char, era, wn):
     return ang * 1e-8 * wn * wn
 
 
-def read_inflated(path=None):
-    """`{wavenumber rounded to 4 decimals: uncertainty in cm^-1}`.
+#: the most decimals a registry key is matched on.  A key written with more
+#: - the full-precision wn_key - is filed under this many.
+KEY_DECIMALS = 4
 
-    The registry of lines whose uncertainty the user has fixed by hand.  Such
-    a line has been looked at individually - it does not fit the smooth trend
-    of its block, but its classification stands - so neither the class model
-    nor the outlier filter is allowed to touch it.  A missing file is an empty
-    registry, which is the state the project starts from.
+
+class Registry(dict):
+    """`read_inflated`'s result: `{key: uncertainty in cm^-1}`.
+
+    A key is the entry's wavenumber as it was written, with as many decimals
+    as it was written with, up to `KEY_DECIMALS`: `'53657.5706'`,
+    `'53657.57'`, `'97588.5'`.  The early entries were copied from LOPT's
+    files, which quote two or three decimals; the later ones are the line's
+    full-precision wn_key, filed under four.
+
+    An entry names a line when the line's wn_key, rounded to the entry's own
+    number of decimals, is the entry: `'53657.57'` names the line whose
+    wn_key is 53657.57057.  Every lookup goes through `key_of` or `lookup`
+    with the full-precision wn_key, never a rounded copy of it, so that no
+    number is rounded twice.  Indexing the dict with `'%.4f' % wn_key` finds
+    only the four-decimal entries.
+    """
+
+    def keys_of(self, wn):
+        """Every key that names the line whose wn_key is `wn`, most precise
+        first.  More than one means the line was entered twice."""
+        return [k for k in ('%.*f' % (d, wn)
+                            for d in range(KEY_DECIMALS, -1, -1))
+                if k in self]
+
+    def key_of(self, wn):
+        """The most precise key naming the line whose wn_key is `wn`, or
+        `None` if the registry does not list it."""
+        keys = self.keys_of(wn)
+        return keys[0] if keys else None
+
+    def lookup(self, wn):
+        """The uncertainty entered for the line whose wn_key is `wn`, or
+        `None`."""
+        key = self.key_of(wn)
+        return None if key is None else self[key]
+
+    def match(self, wn_keys):
+        """Match the entries to the lines of `wn_keys`.
+
+        Returns `(lines_of, unknown)`: `{key: [the wn_keys it names]}` for the
+        entries that name at least one line, and the keys that name none.  A
+        key naming more than one line was written with too few decimals to
+        tell them apart; the caller decides whether that is an error.
+        """
+        lines_of = collections.defaultdict(list)
+        for wn in sorted(set(wn_keys)):
+            for key in self.keys_of(wn):
+                lines_of[key].append(wn)
+        unknown = [k for k in self if k not in lines_of]
+        return dict(lines_of), sorted(unknown, key=float)
+
+    def check(self, wn_keys, source=''):
+        """Raise if an entry names two lines of `wn_keys`, or one line is
+        entered twice with two different uncertainties.  Returns the keys
+        that name none of them, for the caller to report or refuse."""
+        lines_of, unknown = self.match(wn_keys)
+        where = source or INFLATED
+        wide = ['%s (%s)' % (k, ', '.join('%.4f' % w for w in v))
+                for k, v in sorted(lines_of.items(), key=lambda kv: float(kv[0]))
+                if len(v) > 1]
+        if wide:
+            raise ValueError(
+                '%s: an entry names more than one line; write it with the '
+                'full-precision wn_key: %s' % (where, '; '.join(wide)))
+        twice = []
+        for wn in sorted({w for v in lines_of.values() for w in v}):
+            keys = self.keys_of(wn)
+            if len({self[k] for k in keys}) > 1:
+                twice.append('%.4f (%s)' % (wn, ', '.join(
+                    '%s = %s' % (k, self[k]) for k in keys)))
+        if twice:
+            raise ValueError(
+                '%s: a line is entered twice with different uncertainties: %s'
+                % (where, '; '.join(twice)))
+        return unknown
+
+
+def registry_key(text):
+    """The key an entry written as `text` is filed under (see `Registry`)."""
+    decimals = len(text.partition('.')[2])
+    return '%.*f' % (min(decimals, KEY_DECIMALS), float(text))
+
+
+def read_inflated(path=None):
+    """The registry of hand-set line uncertainties, as a `Registry`.
+
+    The registry lists the lines whose uncertainty the user has fixed by hand.
+    Such a line has been looked at individually - it does not fit the smooth
+    trend of its block, but its classification stands - so neither the class
+    model nor the outlier filter is allowed to touch it.  A missing file is an
+    empty registry, which is the state the project starts from.
 
     The wavenumber is the `wn_key` column: Sugar's observed value, never a
-    calibrated one, so one registry serves every set.  The key is
-    `'%.4f' % wn_key`, the precision the wavenumbers are quoted to
-    everywhere else in the project; matching floats exactly would depend on
-    how many digits the file that wrote them happened to carry.
+    calibrated one, so one registry serves every set.  It may be written with
+    any number of decimals; an entry is matched to a line at the precision it
+    was written with (see `Registry`).  Two rows filed under the same key must
+    agree.
 
     A file without a `wn_key` column is an error, not an empty registry:
     silently dropping every hand-set uncertainty is the one outcome that
     must not happen.
     """
     path = path or os.path.join(HERE, INFLATED)
-    out = {}
+    out = Registry()
     if not os.path.exists(path):
         return out
     with open(path, encoding='utf-8', newline='') as fh:
@@ -217,22 +305,35 @@ def read_inflated(path=None):
             unc = (row.get('unc_wn') or '').strip()
             if not wn or wn.startswith('#') or not unc:
                 continue
-            out['%.4f' % float(wn)] = float(unc)
+            key = registry_key(wn)
+            if key in out and out[key] != float(unc):
+                raise ValueError('%s: %s is entered twice, with %s and %s'
+                                 % (path, key, out[key], unc))
+            out[key] = float(unc)
     return out
 
 
 def inflated_key(wn):
-    """The key `read_inflated` files a wavenumber under.
+    """The key a new entry for the line whose wn_key is `wn` is written
+    under: four decimals.
 
     `wn` must be Sugar's observed wavenumber (the line's wn_key), not a
-    calibrated one; `line_key` gives it for a `Line`.
+    calibrated one.
     """
-    return '%.4f' % wn
+    return '%.*f' % (KEY_DECIMALS, wn)
 
 
-def line_key(ln):
-    """The registry key of a `Line`: its wn_key, or its wn if it has none."""
-    return inflated_key(ln.wn if ln.key is None else ln.key)
+def line_wn_key(ln):
+    """The wn_key of a `Line`, or its wn if it has none."""
+    return ln.wn if ln.key is None else ln.key
+
+
+def held_uncertainties(lines):
+    """The registry's uncertainty for each of `lines`, `None` where it holds
+    none; raises on an entry that names two of them."""
+    fixed = read_inflated()
+    fixed.check([line_wn_key(ln) for ln in lines])
+    return [fixed.lookup(line_wn_key(ln)) for ln in lines]
 
 
 def read_A_constants(path=None):
@@ -521,8 +622,7 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
     them.  Registry lines keep their own value here as well.
     """
     ucls = uncertainty_classes(lines) if ucls is None else ucls
-    fixed = read_inflated()
-    held = [fixed.get(line_key(ln)) for ln in lines]
+    held = held_uncertainties(lines)
     span = collections.defaultdict(list)
     for i, ln in enumerate(lines):
         span[ucls[i]].append(ln.wn)
@@ -583,8 +683,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     it does not belong to would widen every other line of that class.
     """
     ucls = uncertainty_classes(lines)
-    fixed = read_inflated()
-    held = [fixed.get(line_key(ln)) for ln in lines]
+    held = held_uncertainties(lines)
     sigma = [held[i] if held[i] is not None
              else stated_uncertainty(ln.char, ln.era, ln.wn)
              for i, ln in enumerate(lines)]

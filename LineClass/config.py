@@ -66,7 +66,7 @@ _ENUMS = {
 _OPTIONAL = {'inherit',
              'files.level_overrides', 'files.line_decisions',
              'files.new_levels', 'files.icalc_extra',
-             'files.discarded_levels',
+             'files.discarded_levels', 'files.inflated_unc',
              'decisions', 'decisions.max_forced_offset'}
 
 _SCHEMA = {
@@ -74,7 +74,8 @@ _SCHEMA = {
     'files': {'levels': str, 'lines': str, 'icalc': str,
               'output': str, 'output_csv': str, 'level_overrides': str,
               'line_decisions': str, 'new_levels': str,
-              'icalc_extra': str, 'discarded_levels': str},
+              'icalc_extra': str, 'discarded_levels': str,
+              'inflated_unc': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -157,6 +158,7 @@ class Config:
     new_levels: str           # csv of levels found since the level list, '' if none
     icalc_extra: str          # workbook of their calculated transitions, '' if none
     discarded_levels: str     # csv of levels whose position was given up, '' if none
+    inflated_unc: str         # tab-delimited registry of hand-set line uncertainties, '' if none
     wn_min: float             # lower end of the observed range, cm^-1
     wn_max: float             # upper end of the observed range, cm^-1
     levels: Layout
@@ -259,6 +261,8 @@ def load(path: str = None) -> Config:
                      if raw['files'].get('icalc_extra') else ''),
         discarded_levels=(_p('discarded_levels')
                           if raw['files'].get('discarded_levels') else ''),
+        inflated_unc=(_p('inflated_unc')
+                      if raw['files'].get('inflated_unc') else ''),
         wn_min=raw['range']['wn_min'],
         wn_max=raw['range']['wn_max'],
         levels=Layout(**raw['levels']['layout']),

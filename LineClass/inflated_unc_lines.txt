@@ -28,7 +28,7 @@ wn_key	unc_wn	date	reason
 95437.08	0.5	9/25/2026	blend
 54434.39	0.4	9/25/2026	"outlier in IDEN2/LOPT, retained."
 97471.11	0.5	9/25/2026	blend
-97636.21	0.4	9/25/2026	"outlier in IDEN2/LOPT, retained."
+97636.21	0.5	9/25/2026	"outlier in IDEN2/LOPT, retained."
 93035.8028	0.5	9/25/2026	blend
 97191.0897	0.5	9/25/2026	blend
 12609.2196	0.039748105	9/25/2026	"outlier in IDEN2/LOPT, retained."
@@ -36,7 +36,7 @@ wn_key	unc_wn	date	reason
 91530.77	0.5	9/25/2026	blend
 91210.32	0.5	9/25/2026	blend
 79029.7	0.5	9/25/2026	blend
-100444.8406	0.5	9/25/2026	blend
+100444.8853	0.5	9/25/2026	blend
 94127.21	0.5	9/25/2026	blend
 94678.03	0.5	9/26/2026	blend
 12046.213	0.03	9/26/2026	blend
@@ -85,3 +85,57 @@ wn_key	unc_wn	date	reason
 57952.4325	0.5	9/27/2026	"outlier in IDEN2/LOPT, blend, OK with inflated unc"
 68213.5741	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 56993.5991	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+43594.5694	0.18	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+37577.0988	0.3	9/27/2026	hfs of f26s
+24719.2296	0.3	9/27/2026	hfs of f26s
+25555.9702	0.3	9/27/2026	hfs of f26s
+22372.6908	0.3	9/27/2026	hfs of f26s
+59346.0167	0.3	9/27/2026	hfs of f26s
+39960.6491	0.3	9/27/2026	hfs of f26s
+36193.2901	0.3	9/27/2026	hfs of f26s
+50210.3292	0.3	9/27/2026	hfs of f26s
+32572.7602	0.5	9/27/2026	hfs of f26s
+29056.1776	0.3	9/27/2026	hfs of f26s
+39768.8314	0.2	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+44690.3295	0.2	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+37374.7104	0.18	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+42564.3613	0.25	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+34861.8898	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+36219.3018	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+40266.5397	0.15	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+45334.941	0.23	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+43043.3695	0.18	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+33520.0809	0.23	9/28/2026	blend
+38038.6285	0.115	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+36875.8689	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+44931.6803	0.1	9/28/2026	blend
+40169.1908	0.13	9/28/2026	blend
+33207.6503	0.5	9/28/2026	blend
+32105.4086	0.35	9/28/2026	blend
+35980.6308	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+24866.9222	0.17	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+36887.6208	0.5	9/28/2026	hfs of f26s
+30260.0502	0.5	9/28/2026	hfs of f26s
+26937.8332	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+33818.0984	0.1	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+59111.2243	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+96710.6875	1	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+56516.3974	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+67195.1827	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+44840.8392	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+51766.8259	0.4	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+31636.6609	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+31177.3707	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+55805.502	0.5	9/28/2026	hfs of fds
+49399.839	0.5	9/28/2026	hfs of fds
+53957.0443	0.3	9/28/2026	hfs of fds
+40402.9389	0.14	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+36468.7598	0.14	9/28/2026	blend
+35327.7691	0.5	9/28/2026	hfs of f26s
+39719.0502	0.5	9/28/2026	hfs of f26s
+55224.9751	0.5	9/28/2026	hfs of fds
+94414.7050	0.5	9/28/2026	blend
+45604.9993	0.15	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+40048.5715	0.1	9/28/2026	blend
+39870.8909	0.082	9/28/2026	blend
+33602.5509	0.4	9/28/2026	hfs of fds

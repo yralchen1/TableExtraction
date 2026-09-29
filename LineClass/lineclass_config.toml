@@ -71,6 +71,20 @@ new_levels = "new_levels.txt"
 # reasoned, and reversible by deleting its row here.  Written by
 # discard_level.py.  Comment the line out to run on every level as found.
 discarded_levels = "discarded_levels.csv"
+# Lines whose wavenumber uncertainty has been set by hand (tab-delimited,
+# columns wn_key, unc_wn, date, reason).  A line listed here has been looked
+# at individually - it sits off the smooth trend of its block, or it carries
+# an unresolved hyperfine structure - and its classification stands with the
+# uncertainty given there in place of the one in the line list, unless the
+# list's own is already wider (the registry only ever widens).  It is keyed
+# on wn_key, Sugar's own wavenumber, matched within 0.01 cm^-1 as the ledger
+# is, so one registry serves every set.
+# classify_lines.py reads the line's uncertainty from here before any
+# candidate is matched, so the Ritz windows, the grades and the level
+# optimization all use the same value that LOPT is given (it reaches LOPT as
+# unc_wn_obs of line_classifications.csv).  A missing file is an empty
+# registry.  Comment the line out to run on the line list's own values.
+inflated_unc = "inflated_unc_lines.txt"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions

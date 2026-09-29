@@ -58,7 +58,7 @@ land:
 * ``line_decisions.csv`` - an ``accept`` or ``reject`` row, so that the next
   classification run keeps the verdict;
 * ``inflated_unc_lines.txt`` - the widened uncertainty, when one is given,
-  under the four-decimal key ``hfs_kappa.read_inflated`` matches on;
+  under the line's wn_key to four decimals;
 * ``LOPT_input_lines.txt`` of the set - the flag, the weight and the
   uncertainty of every record of the observed line.  All three are properties
   of the line as a whole, so all of its records are rewritten together: the
@@ -864,22 +864,25 @@ def append_ledger(path, wanted, log):
 def append_inflated(path, wanted, log):
     """Add the widened uncertainties, in the registry's own tab-delimited form.
 
-    The wavenumber is written to four decimals, which is the key
-    ``hfs_kappa.read_inflated`` files the registry under: a full-precision
-    value would be a row nothing ever matched.
+    The wavenumber is written to four decimals, the precision
+    ``hfs_kappa.inflated_key`` gives.  A line the registry already lists -
+    under any precision, an older entry of two or three decimals included -
+    is left as it stands.
     """
-    seen = set(hfs_kappa.read_inflated(path))
+    registry = hfs_kappa.read_inflated(path)
     today = datetime.date.today().strftime('%m/%d/%Y').lstrip('0').replace(
         '/0', '/')
     added = []
     with io.open(path, 'a', encoding='utf-8', newline='') as fh:
         for wn_key, unc, reason in wanted:
             key = hfs_kappa.inflated_key(float(wn_key))
-            if key in seen:
-                log('  %s is already in the registry; left as it stands' % key)
+            there = registry.key_of(float(wn_key))
+            if there is not None:
+                log('  %s is already in the registry%s; left as it stands'
+                    % (key, '' if there == key else ' as ' + there))
                 continue
             fh.write('%s\t%s\t%s\t%s\n' % (key, unc, today, reason))
-            seen.add(key)
+            registry[key] = float(unc)
             added.append((key, unc))
     log('  %s: %d rows added' % (os.path.basename(path), len(added)))
     return added

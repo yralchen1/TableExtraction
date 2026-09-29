@@ -65,20 +65,28 @@ class FakeLayout(object):
 class FakeConfig(object):
     """Only what read_line_list asks of a configuration."""
 
-    def __init__(self, lines_file, columns):
+    def __init__(self, lines_file, columns, inflated_unc=''):
         self.lines_file = lines_file
         self.lines = FakeLayout(columns)
+        self.inflated_unc = inflated_unc
 
 
-def line_list(tmp_path, own, own_corr, unc, corrected=True):
-    """A miniature line workbook and the configuration that names it."""
+def line_list(tmp_path, own, own_corr, unc, corrected=True, registry=None):
+    """A miniature line workbook and the configuration that names it.
+
+    ``registry`` is the text of an inflated_unc_lines.txt to go with it."""
     path = tmp_path / 'lines.xlsx'
     pd.DataFrame({'own': own, 'own_corr': own_corr,
                   'unc_own_corr': unc}).to_excel(path, index=False)
     columns = {'wn': 'own_corr', 'u_wn': 'unc_own_corr'}
     if corrected:
         columns['wn_key'] = 'own'
-    return FakeConfig(str(path), columns)
+    inflated = ''
+    if registry is not None:
+        inflated = str(tmp_path / 'inflated_unc_lines.txt')
+        with open(inflated, 'w', encoding='utf-8', newline='\n') as fh:
+            fh.write(registry)
+    return FakeConfig(str(path), columns, inflated)
 
 
 # ---------------------------------------------------------------------------
@@ -93,14 +101,30 @@ def test_a_well_formed_file_passes():
     assert severities(rep) == [check_sync.OK]
 
 
-def test_a_row_number_that_is_not_its_position_is_an_error():
+def test_a_line_inserted_in_iden2_under_a_later_number_passes():
+    """IDEN2 gives an inserted line the next free number and places it by
+    wavenumber, so the line numbers stop following the rows."""
+    rep = check_sync.Report()
+    rows = check_sync._dlv_internal(
+        [dlv_record(31635.240, 3160.1170, 0.0074, 1),
+         dlv_record(31604.528, 3163.1880, 0.0183, 4),
+         dlv_record(31597.667, 3163.8749, 0.0082, 2),
+         dlv_record(31564.068, 3167.2429, 0.0082, 3)], rep, 12)
+    assert [r.row for r in rows] == [1, 4, 2, 3]
+    assert severities(rep) == [check_sync.OK]
+    assert '1 of them inserted' in ' '.join(messages(rep, check_sync.OK))
+    assert items(rep, check_sync.OK) == ['line 4 at record 2 (31604.528)']
+
+
+def test_two_rows_carrying_one_line_number_are_an_error():
     """Every assignment in trans.dat names its line by this number."""
     rep = check_sync.Report()
     check_sync._dlv_internal([dlv_record(20000.100, 4999.9750, 0.05, 1),
-                              dlv_record(10000.200, 9999.7500, 0.10, 7)],
+                              dlv_record(10000.200, 9999.7500, 0.10, 1)],
                              rep, 12)
     assert check_sync.ERROR in severities(rep)
-    assert 'row number 7' in ' '.join(items(rep, check_sync.ERROR))
+    assert 'line 1 is on records 1 (20000.100), 2 (10000.200)' \
+        in items(rep, check_sync.ERROR)
 
 
 def test_two_rows_carrying_one_wavenumber_are_an_error():
@@ -133,9 +157,9 @@ def test_a_record_of_the_wrong_width_is_an_error():
 # Against the set's own line list
 # ---------------------------------------------------------------------------
 def compare(tmp_path, records, own, own_corr, unc, corrected=True,
-            tol=check_sync.DEF_DLV_TOL):
+            tol=check_sync.DEF_DLV_TOL, registry=None):
     rows = check_sync._dlv_internal(records, check_sync.Report(), 12)
-    cfg = line_list(tmp_path, own, own_corr, unc, corrected)
+    cfg = line_list(tmp_path, own, own_corr, unc, corrected, registry)
     rep = check_sync.Report()
     check_sync._dlv_vs_lines(rows, cfg, rep, tol, 12)
     return rep
@@ -198,8 +222,74 @@ def test_an_uncertainty_out_of_step_is_an_error(tmp_path):
     rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.0500, 1)],
                   [20000.000], [20000.000], [0.4])
     assert check_sync.ERROR in severities(rep)
+    assert 'narrower' in ' '.join(messages(rep, check_sync.ERROR))
     listed = ' '.join(items(rep, check_sync.ERROR))
     assert '0.2000' in listed and '0.4000' in listed
+
+
+REGISTRY = 'wn_key\tunc_wn\tdate\treason\n'
+
+
+def test_an_uncertainty_widened_in_iden2_and_registered_passes(tmp_path):
+    """0.4 cm^-1 at 20000 cm^-1 and 5000 A is 0.1 A; the registry names the
+    line by its wn_key, here with two decimals as the early entries were."""
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.1000, 1)],
+                  [20000.1049], [20000.000], [0.2],
+                  registry=REGISTRY + '20000.10\t0.4\t\twidened\n')
+    assert severities(rep) == [check_sync.OK]
+    assert '1 of the uncertainties are the wider values' \
+        in ' '.join(messages(rep, check_sync.OK))
+
+
+def test_the_registry_never_narrows_a_line(tmp_path):
+    """The rule classify_lines.py applies: a registry value smaller than the
+    line list's own leaves the line list's."""
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.0500, 1)],
+                  [20000.100], [20000.000], [0.2],
+                  registry=REGISTRY + '20000.1000\t0.1\t\told\n')
+    assert severities(rep) == [check_sync.OK]
+
+
+def test_an_uncertainty_widened_in_iden2_only_is_its_own_error(tmp_path):
+    """The cure is the registry, and sync_IDEN2.py would undo the widening."""
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.1000, 1)],
+                  [20000.100], [20000.000], [0.2], registry=REGISTRY)
+    assert check_sync.ERROR in severities(rep)
+    said = ' '.join(messages(rep, check_sync.ERROR))
+    assert 'wider' in said and 'inflated_unc_lines.txt' in said
+    assert 'narrower' not in said
+    assert any('inflated_unc_lines.txt' in text for _p, text in rep.actions)
+
+
+def test_a_registered_line_narrower_in_iden2_is_listed_with_the_value(
+        tmp_path):
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.0500, 1)],
+                  [20000.100], [20000.000], [0.2],
+                  registry=REGISTRY + '20000.1000\t0.4\t\twidened\n')
+    assert 'narrower' in ' '.join(messages(rep, check_sync.ERROR))
+    listed = ' '.join(items(rep, check_sync.ERROR))
+    assert 'pipeline    0.4000' in listed
+    assert 'inflated_unc_lines.txt 0.4000' in listed
+
+
+def test_a_registry_entry_naming_no_line_is_a_warning(tmp_path):
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.0500, 1)],
+                  [20000.100], [20000.000], [0.2],
+                  registry=REGISTRY + '30000.5\t0.4\t\tgone\n')
+    assert check_sync.ERROR not in severities(rep)
+    assert items(rep, check_sync.WARN) == ['30000.5']
+
+
+def test_a_registry_that_cannot_be_applied_stops_the_comparison(tmp_path):
+    """An entry too short to tell two lines apart: the pipeline refuses it,
+    so no uncertainty can be said to be the pipeline's."""
+    rep = compare(tmp_path, [dlv_record(20000.000, 5000.0000, 0.0500, 1),
+                             dlv_record(19999.990, 5000.0025, 0.0500, 2)],
+                  [20000.100, 20000.090], [20000.000, 19999.990], [0.4, 0.4],
+                  registry=REGISTRY + '20000.1\t0.5\t\tshort\n')
+    said = ' '.join(messages(rep, check_sync.ERROR))
+    assert 'cannot be applied' in said and 'more than one line' in said
+    assert 'narrower' not in said and 'wider' not in said
 
 
 def test_the_last_digit_of_the_angstrom_field_is_not_an_error(tmp_path):
@@ -242,20 +332,31 @@ def test_an_identification_naming_a_row_that_is_not_there_is_an_error():
     trans = FakeTrans([(4, 3, sync.make_assignment(62, 20000.000, 0.0, 77))])
     check_sync._dlv_vs_trans(rows, trans, rep, 12)
     assert check_sync.ERROR in severities(rep)
-    assert 'name row 77' in ' '.join(items(rep, check_sync.ERROR))
+    assert 'name line 77' in ' '.join(items(rep, check_sync.ERROR))
 
 
-def test_an_identification_on_another_wavenumber_than_its_row_is_an_error():
-    """IDEN2 reads the row number, so the assignment is read as one line and
-    reported as another."""
+def test_the_wavenumber_an_identification_carries_is_ignored():
+    """IDEN2 reads only the line number; the wavenumber beside it in
+    trans.dat means nothing."""
     rep = check_sync.Report()
     rows = check_sync._dlv_internal(
         [dlv_record(20000.000, 5000.0000, 0.0500, 1)], check_sync.Report(), 12)
     trans = FakeTrans([(4, 3, sync.make_assignment(62, 20000.100, 0.0, 1))])
     check_sync._dlv_vs_trans(rows, trans, rep, 12)
-    assert check_sync.ERROR in severities(rep)
-    listed = ' '.join(items(rep, check_sync.ERROR))
-    assert '20000.100' in listed and '20000.000' in listed
+    assert severities(rep) == [check_sync.OK]
+
+
+def test_an_identified_line_has_the_wavenumber_of_its_dlv_row():
+    """Check 9 compares the classification with the line the line number
+    names, not with the wavenumber trans.dat happens to carry."""
+    trans = FakeTrans([(4, 3, sync.make_assignment(62, 20000.100, 0.0, 1)),
+                       (4, 2, sync.make_assignment(62, 30000.000, 0.0, 9))])
+    id_of_row = {2: 'B', 3: 'C', 4: 'D'}
+    found, _ = check_sync.read_iden_assignments(None, trans, id_of_row,
+                                                {1: 20000.000})
+    assert found[('C', 'D')] == 20000.000
+    # a line number dlv.dat has not got falls back on trans.dat's value
+    assert found[('B', 'D')] == 30000.000
 
 
 def test_identifications_that_agree_pass():
@@ -273,7 +374,7 @@ def test_identifications_that_agree_pass():
 # The real files
 # ---------------------------------------------------------------------------
 @real_file
-def test_the_real_dlv_is_numbered_by_its_rows():
+def test_the_real_dlv_has_one_row_per_line_number():
     records, _ends = IDEN.read_records(os.path.join(REAL_IDEN2, 'dlv.dat'))
     rep = check_sync.Report()
     rows = check_sync._dlv_internal(records, rep, 12)

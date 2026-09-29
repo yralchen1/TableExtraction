@@ -29,6 +29,7 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import config
 import gA_imputation
+import hfs_kappa
 import output_files
 from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 
@@ -78,7 +79,7 @@ def apply_config(cfg, policy: str = None) -> None:
     """
     global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
-    global DISCARDED_LEVELS
+    global DISCARDED_LEVELS, INFLATED_UNC
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
@@ -91,6 +92,7 @@ def apply_config(cfg, policy: str = None) -> None:
     NEW_LEVELS = cfg.new_levels
     ICALC_EXTRA = cfg.icalc_extra
     DISCARDED_LEVELS = cfg.discarded_levels
+    INFLATED_UNC = cfg.inflated_unc
     WN_MIN = cfg.wn_min
     WN_MAX = cfg.wn_max
     MAX_FORCED_OFFSET = cfg.max_forced_offset
@@ -886,6 +888,65 @@ def read_line_decisions(path: str) -> dict:
                                  f"assignment {key[1]}-{key[2]} at {key[0]}")
             dmap[key] = (decision, (rec.get('reason') or '').strip())
     return dmap
+
+
+def apply_inflated_uncertainties(observed_lines: list, path: str) -> int:
+    """Give the lines of the registry `path` the uncertainty set there by hand.
+
+    `path` is inflated_unc_lines.txt (columns wn_key, unc_wn, date, reason),
+    read by hfs_kappa.read_inflated: the lines whose uncertainty the analyst
+    has fixed individually, because they sit off the trend of their block or
+    carry a hyperfine structure the line list's value does not allow for.
+    The line's `wn_uncertainty` becomes the value there, so that the Ritz
+    windows, the grades, the weights of the level optimization and the
+    unc_wn_obs column that make_LOPT_input.py hands to LOPT all use the one
+    value LOPT is fitted with.  Without this a line accepted with a widened
+    uncertainty in IDEN2 or LOPT is judged here on its old, narrow one and
+    can be thrown out again.
+
+    The registry only ever widens.  Its values were set against the
+    corrected set's model uncertainties, which are smaller than the
+    uncertainties Sugar stated; laid over the baseline's line list, some of
+    them would narrow a line below its own quoted value, which is not what
+    an inflation was entered to do.  Such a line keeps the list's value.
+
+    A line is found by its immutable name, `wn_key`, so one registry serves
+    every set.  An entry is matched at the precision it was written with,
+    as every other reader of the registry matches it (hfs_kappa.Registry):
+    '53657.57', copied from a LOPT file before the line list carried wn_key,
+    names the line whose wn_key rounds to 53657.57.  An entry that names no
+    observed line raises, for the reason attach_line_decisions() does: a
+    mistyped wavenumber - or a corrected one, which is not a line's name -
+    must not pass as a hand-set uncertainty that was applied.  So does an
+    entry too short to tell two lines apart, and a line entered twice with
+    different values.  A missing file is an empty registry.
+
+    Returns the number of lines whose uncertainty was changed.
+    """
+    fixed = hfs_kappa.read_inflated(path)
+    if not fixed:
+        if not os.path.exists(path):
+            print(f"  No inflated-uncertainty registry: {path} does not exist.")
+        return 0
+    unknown = fixed.check([l.wn_key for l in observed_lines],
+                          os.path.basename(path))
+    if unknown:
+        raise ValueError(f"{os.path.basename(path)}: no observed line has "
+                         f"the wn_key " + ', '.join(unknown) + " cm^-1")
+    n_up = n_kept = 0
+    for line in observed_lines:
+        unc = fixed.lookup(line.wn_key)
+        if unc is None:
+            continue
+        if unc > line.wn_uncertainty:
+            line.wn_uncertainty = unc
+            n_up += 1
+        else:
+            n_kept += 1
+    print(f"  Read {len(fixed)} hand-set uncertainties from "
+          f"{os.path.basename(path)}: {n_up} line(s) widened, {n_kept} "
+          f"already at least as wide in the line list.")
+    return n_up
 
 
 def attach_line_decisions(observed_lines: list, path: str) -> dict:
@@ -4357,6 +4418,12 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
                                          drop_legacy=(wn_shift != 0.0))
     retag_legacy_identifications(observed_lines, levels_dict,
                                  calc_trans_index)
+
+    # The uncertainties set by hand.  Unlike the verdicts below they are laid
+    # over calibration runs too: they describe the measurement, which a
+    # chance-coincidence shift or a decoy planting is meant to leave as it is.
+    if INFLATED_UNC:
+        apply_inflated_uncertainties(observed_lines, INFLATED_UNC)
 
     # The manual verdicts.  A calibration run (a chance-coincidence shift or a
     # decoy planting) measures what the ALGORITHM does with an input it should

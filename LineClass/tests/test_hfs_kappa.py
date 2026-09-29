@@ -258,7 +258,7 @@ def test_a_registry_line_keeps_its_own_uncertainty(fitted):
         pytest.skip('the registry is empty')
     seen = 0
     for i, ln in enumerate(lines):
-        want = fixed.get(hfs_kappa.line_key(ln))
+        want = fixed.lookup(hfs_kappa.line_wn_key(ln))
         if want is None:
             continue
         seen += 1

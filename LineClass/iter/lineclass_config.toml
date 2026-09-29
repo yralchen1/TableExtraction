@@ -4,11 +4,12 @@
 # ../lineclass_config.toml first and this file is laid on top of it, table by
 # table.  The baseline's file names are resolved against the baseline's own
 # directory before the merge, so the level workbook, the calculated
-# transitions and - the point of the whole arrangement - the four files kept
+# transitions and - the point of the whole arrangement - the five files kept
 # by hand go on being the project's single copies:
 #
 #   revised_level_energies.csv   line_decisions.csv
 #   new_levels.txt               discarded_levels.csv
+#   inflated_unc_lines.txt
 #
 # A verdict is about the physics of an assignment, not about the scale the
 # line was last measured on, so it rules on every set at once.  What makes
