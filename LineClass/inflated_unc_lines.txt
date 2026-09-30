@@ -134,8 +134,25 @@ wn_key	unc_wn	date	reason
 35327.7691	0.5	9/28/2026	hfs of f26s
 39719.0502	0.5	9/28/2026	hfs of f26s
 55224.9751	0.5	9/28/2026	hfs of fds
-94414.7050	0.5	9/28/2026	blend
+94414.705	0.5	9/28/2026	blend
 45604.9993	0.15	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 40048.5715	0.1	9/28/2026	blend
 39870.8909	0.082	9/28/2026	blend
 33602.5509	0.4	9/28/2026	hfs of fds
+59829.1143	0.5	9/30/2026	hfs of f26s
+33722.4702	0.3	9/30/2026	hfs of f26s
+28508.8216	0.3	9/30/2026	hfs of f26s
+44134.0401	0.4	9/30/2026	hfs of f26s
+27443.3325	0.3	9/30/2026	hfs of f26s
+33934.5817	0.3	9/30/2026	hfs of f26s
+51071.138	0.4	9/30/2026	hfs of f26s
+31478.9216	0.3	9/30/2026	hfs of f26s
+33044.2299	0.3	9/30/2026	hfs of f26s
+36647.5418	0.4	9/30/2026	hfs of f26s
+38425.7687	0.3	9/30/2026	hfs of f26s
+34406.941	0.2	9/30/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+61680.8807	0.4	9/30/2026	hfs of f26s
+36914.5611	0.5	9/30/2026	hfs of f26s
+30126.3092	0.5	9/30/2026	hfs of f26s
+31664.7593	0.12	9/30/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+38052.9185	0.12	9/30/2026	"outlier in IDEN2/LOPT, OK with inflated unc"

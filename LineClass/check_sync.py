@@ -264,7 +264,11 @@ DEF_WN_TOL = 0.05
 # printed twice.  Both carry three decimals and the roundings are made from
 # different intermediate values, so a difference of one in the last digit is
 # printing and nothing else; a wavelength calibration correction is tens of
-# times larger than that.
+# times larger than that.  An air row is allowed more where its wavelength's
+# last printed digit is worth more (see _dlv_allowance), because IDEN2
+# rebuilds the wavenumbers of the air rows from their wavelengths.  A row
+# further off than this but within sync_IDEN2.DLV_MATCH is still its line,
+# and is reported as having drifted from it.
 DEF_DLV_TOL = 0.0015
 
 # dlv.dat states the uncertainty of a line as a wavelength uncertainty in
@@ -1630,8 +1634,9 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
 
     This is the file the eye reads a measurement off: the wavenumber it is
     looking for a transition near, and the uncertainty that says how far from
-    the prediction a line may be and still be the line.  IDEN2 rewrites only
-    what is edited on its screen and no earlier check touches it, so a set
+    the prediction a line may be and still be the line.  IDEN2 rewrites it
+    when a line is edited on its screen, rebuilding every air row's
+    wavenumber from its wavelength, and no earlier check touches it, so a set
     seeded by copying another set's IDEN2 directory keeps the other set's
     wavenumbers - which is silent, because every screen goes on working and
     the numbers on it are of the right size.
@@ -1642,6 +1647,7 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
     if not rows:
         return
     _dlv_vs_trans(rows, iden.trans, rep, list_n)
+    _dlv_dispersion(iden.dlv, rep)
     if not os.path.exists(cfg_path):
         rep.warn('IDEN2/dlv.dat', '%s does not exist; dlv.dat is not checked '
                                   'against the line list' % cfg_path)
@@ -1733,6 +1739,50 @@ def _dlv_internal(records, rep, list_n):
     return rows
 
 
+def _dlv_dispersion(records, rep):
+    """Every row's wavelength against its wavenumber.
+
+    IDEN2 treats the wavelength as the measurement: when it saves dlv.dat it
+    rebuilds the wavenumber of every air row from the row's wavelength.  A
+    row whose two numbers disagree - which is what the rescaling of the old
+    sync_IDEN2.py left behind - therefore has its wavenumber moved the next
+    time any line is edited on IDEN2's screen, with nothing on the screen to
+    say so.
+    """
+    bad, n = sync_IDEN2.dispersion_disagreements(records)
+    if not n:
+        return
+    if bad:
+        rep.warn('IDEN2/dlv.dat',
+                 '%d rows of dlv.dat carry a wavelength that is not the '
+                 'standard one for their wavenumber; IDEN2 will move their '
+                 'wavenumbers to match the wavelengths the next time it saves '
+                 'the file' % len(bad),
+                 ['line %6d  %12.3f  %11.4f A, should be %11.4f A'
+                  % b for b in bad],
+                 head='line          wavenumber   wavelength')
+        rep.act(66, 'Run sync_IDEN2.py in this set: it writes every '
+                    "wavelength from the line list's wavenumber.")
+    else:
+        rep.ok('IDEN2/dlv.dat', 'the wavelength of each of the %d rows of '
+                                'dlv.dat is the standard one for its '
+                                'wavenumber' % n)
+
+
+def _dlv_allowance(r, dlv_tol):
+    """How far row ``r`` of dlv.dat may stand from its line's wavenumber and
+    still be that wavenumber printed.
+
+    ``dlv_tol``, or for an air row the rounding of both printed fields, if
+    that is more: the wavenumber to 0.0005 cm^-1, and the wavelength IDEN2
+    rebuilds it from to 0.00005 A, which is ``0.00005 * wn / lambda`` cm^-1
+    and reaches 0.0013 cm^-1 near 2000 A.
+    """
+    if r.wn > sync_IDEN2.VACUUM_ABOVE:
+        return dlv_tol
+    return max(dlv_tol, 0.0005 + 0.00005 * r.wn / r.lam + 1e-6)
+
+
 def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     """Every wavenumber and every uncertainty in dlv.dat against the line list
     the set is classified and fitted on.
@@ -1744,6 +1794,12 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     ``wn_key`` column - the wavenumber that never moves, which is the scale
     dlv.dat was built on - is a row the correction has never been applied to,
     and that is reported as what it is rather than as an unknown line.
+
+    Both joins accept a row within ``sync_IDEN2.DLV_MATCH`` of its line, the
+    tolerance sync_IDEN2.py matches on.  A row further from its line than
+    printing accounts for (``_dlv_allowance``) has drifted: it is still that
+    line, and sync_IDEN2.py puts it back, so it is reported as drifted and
+    not as a line of unknown origin.
 
     The uncertainty a row should carry is the one the pipeline classifies and
     fits the line on: the line list's own, raised to the value
@@ -1766,15 +1822,21 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     keyed = sorted((key, wn) for key, wn, _u in lines)
     keyed_wn = [t[0] for t in keyed]
 
-    stale, unknown, narrow, wide = [], [], [], []
+    stale, unknown, narrow, wide, moved = [], [], [], [], []
     drifted = 0
-    worst = 0.0
+    worst = worst_moved = 0.0
     n_registry = 0
     matched = set()
+    join = max(dlv_tol, sync_IDEN2.DLV_MATCH)
     for r in rows:
-        k = _nearest(want_wn, r.wn, dlv_tol)
+        allow = _dlv_allowance(r, dlv_tol)
+        k = _nearest(want_wn, r.wn, join)
+        if k is not None and abs(want_wn[k] - r.wn) > allow:
+            j = _nearest(keyed_wn, r.wn, allow)
+            if j is not None and key_name != wn_name:
+                k = None            # it is the key of a line, exactly
         if k is None:
-            j = _nearest(keyed_wn, r.wn, dlv_tol)
+            j = _nearest(keyed_wn, r.wn, join)
             if j is not None and key_name != wn_name:
                 stale.append('line %6d  %12.3f -> %12.3f  (%+.3f)'
                              % (r.row, r.wn, keyed[j][1],
@@ -1783,7 +1845,11 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
                 unknown.append('line %6d  %12.3f' % (r.row, r.wn))
             continue
         matched.add(k)
-        if abs(want_wn[k] - r.wn) > 0.0005:
+        if abs(want_wn[k] - r.wn) > allow:
+            worst_moved = max(worst_moved, abs(want_wn[k] - r.wn))
+            moved.append('line %6d  %12.3f  %12.4f  (%+.4f)'
+                         % (r.row, r.wn, want_wn[k], r.wn - want_wn[k]))
+        elif abs(want_wn[k] - r.wn) > 0.0005:
             drifted += 1
             worst = max(worst, abs(want_wn[k] - r.wn))
         if registry is None:
@@ -1836,10 +1902,20 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
                     'it too.  Do not run sync_IDEN2.py on the others until '
                     'that is done: it would narrow every one of them to the '
                     'pipeline\'s value.' % INFLATED)
+    if moved:
+        rep.warn('IDEN2/dlv.dat',
+                 "%d rows of dlv.dat have drifted from their line's %s by "
+                 'more than printing accounts for (up to %.4f cm^-1): each is '
+                 'still its line, but IDEN2 shows it slightly off'
+                 % (len(moved), wn_name, worst_moved),
+                 moved, head='line     dlv.dat now      %s' % wn_name)
+        rep.act(66, 'Run sync_IDEN2.py in this set: it writes the line '
+                    "list's wavenumber, and a wavelength consistent with it, "
+                    'back into every drifted row of dlv.dat.')
     if unknown:
         rep.warn('IDEN2/dlv.dat',
                  '%d rows of dlv.dat match no line of %s within %.4f cm^-1'
-                 % (len(unknown), os.path.basename(cfg.lines_file), dlv_tol),
+                 % (len(unknown), os.path.basename(cfg.lines_file), join),
                  unknown, head=head)
     if absent:
         rep.warn('IDEN2/dlv.dat',
@@ -1848,7 +1924,7 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
                  'where each takes the next free line number'
                  % (len(absent), os.path.basename(cfg.lines_file)),
                  absent, head='  wavenumber  uncertainty')
-    if not (stale or narrow or wide):
+    if not (stale or narrow or wide or moved):
         if registry is None:
             said = 'the %s' % wn_name
         else:
@@ -1979,6 +2055,15 @@ def check_stability(paths, cls, ctx, rep, list_n):
     # set's wn_obs is the corrected one, so the join is on its wn_key.
     state = classified_rows(classified(cls), 'wn_key' if 'wn_key'
                             in cls.columns else 'wn_obs')
+    # The lines on which the ledger orders each pair accepted.  A rejection
+    # with an accept of the same pair on another line is how an assignment is
+    # moved; the transition settling there is the ruling obeyed, not a
+    # transition the ledger says nothing about.
+    ruled = {}
+    for low, upp, wn, d in zip(dec['low_id'], dec['upp_id'], dec['wn_key'],
+                               dec['decision']):
+        if str(d).strip().lower() == 'accept':
+            ruled.setdefault(pair_key(low, upp), []).append(float(wn))
     unapplied, unknown, elsewhere = [], [], []
     notes = {}
     for _, r in dec.iterrows():
@@ -1996,11 +2081,15 @@ def check_stability(paths, cls, ctx, rep, list_n):
             if want:
                 unknown.append((key, wn))
                 notes[(key, wn)] = 'the ledger orders it accepted'
-            elif any(a for _w, a in state.get(key, [])):
-                w = [x for x, a in state[key] if a][0]
-                elsewhere.append((key, w))
-                notes[(key, w)] = ('rejected on %.3f as ordered, now accepted '
-                                   'on this line' % wn)
+            else:
+                unruled = [x for x, a in state.get(key, []) if a
+                           and not any(abs(x - y) <= DECISIONS_WN_MATCH
+                                       for y in ruled.get(key, []))]
+                if unruled:
+                    w = unruled[0]
+                    elsewhere.append((key, w))
+                    notes[(key, w)] = ('rejected on %.3f as ordered, now '
+                                       'accepted on this line' % wn)
             continue
         got_wn, got = here[0]
         if got != want:

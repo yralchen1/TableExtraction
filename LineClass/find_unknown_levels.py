@@ -6,6 +6,7 @@ Run from inside LineClass/:
     python find_unknown_levels.py                 # the whole promising list
     python find_unknown_levels.py --min-n-prom 8  # a shorter, safer list
     python find_unknown_levels.py --idx 742 913   # just these two rows
+    python find_unknown_levels.py --set iter      # searched in the iter set
 
 
 1.  What this does
@@ -116,6 +117,7 @@ import pandas as pd
 
 import cowan_gA
 import output_files
+from swap_paths import working_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENLEV = os.path.join(HERE, 'IDEN2', 'enlev.dat')
@@ -373,10 +375,12 @@ def shortest(path):
 
 def parse_args(argv):
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    p.add_argument('--in', dest='src', default=IN_CSV,
-                   help='the ranked list to walk (default %(default)s)')
-    p.add_argument('--out', default=OUT_CSV,
-                   help='where the table goes (default %(default)s)')
+    p.add_argument('--in', dest='src', default=None,
+                   help="the ranked list to walk (default %s, or the set's "
+                        'own copy if it has one)' % os.path.basename(IN_CSV))
+    p.add_argument('--out', default=None,
+                   help='where the table goes (default %s, in the set with '
+                        '--set)' % os.path.basename(OUT_CSV))
     p.add_argument('--min-n-prom', '--min_n_prom', dest='min_n_prom',
                    type=int, default=MIN_N_PROM, metavar='N',
                    help='stop at the first level with fewer than N promising '
@@ -409,9 +413,18 @@ def parse_args(argv):
                         '--out, work the Note column out again and write it '
                         'back.  For trying another --dup-tol on a run that '
                         'took ten minutes')
-    p.add_argument('--log', default=LOGFILE,
+    p.add_argument('--log', default=None,
                    help='where the full output of every search is kept '
-                        '(default %(default)s); "-" keeps none')
+                        '(default %s, in the set with --set); "-" keeps none'
+                        % os.path.basename(LOGFILE))
+    p.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
+                   help='the working set to search in (iter, final): every '
+                        'search is level_positions.py --set DIR, the notes '
+                        "are worked out against the set's IDEN2, and the "
+                        'table and the log are written into the set.  The '
+                        "ranked list is the project directory's "
+                        'unfound_levels.csv unless the set holds its own '
+                        '(default: the baseline)')
     p.add_argument('--pass-through', nargs=argparse.REMAINDER, default=[],
                    metavar='ARG',
                    help='everything after this is handed to '
@@ -497,15 +510,55 @@ def write(tab, path):
     for name in ('E_calc', 'W', 'E_found', 'ln_R', 'dE_o_c', 'look', 'z',
                  'free_gain', 'top_share'):
         if name in tab.columns:
-            tab[name] = tab[name].round(3)
+            # to_numeric first: a column every search left blank is a column
+            # of None, which has no round - the table of a walk in which every
+            # search failed is the one that most needs writing
+            tab[name] = pd.to_numeric(tab[name]).round(3)
     # newline='' keeps the file LF-only on Windows, as every text file of this
     # repository is.
     with open(path, 'w', newline='') as fh:
         tab.to_csv(fh, index=False, lineterminator='\n')
 
 
+def use_set(args):
+    """Resolve the files of the run, for the baseline or for --set DIR.
+
+    Returns the arguments every search is to be given ahead of
+    --pass-through.  With --set the searches run on the set (its line list,
+    classification table, LOPT output and IDEN2 - see level_positions.use_set)
+    and so must the notes and the Cowan level numbers here, which read
+    IDEN2/enlev.dat and IDEN2/IDEN_level_ids.txt.  The table and the log
+    describe the set and are written into it.  The ranked list is taken from
+    the set only if the set has one of its own: unfound_levels.py is run in the
+    project directory, and an IDEN2 row numbers the same calculated level in
+    every set, so its list serves them all.
+    """
+    global ENLEV, ID_MAP
+    if not args.set_dir:
+        args.src = args.src or IN_CSV
+        args.out = args.out or OUT_CSV
+        args.log = args.log or LOGFILE
+        return []
+    set_dir = os.path.abspath(args.set_dir)
+    if not os.path.isdir(set_dir):
+        raise SystemExit('find_unknown_levels.py: --set %s is not a directory'
+                         % args.set_dir)
+    iden2 = working_path('IDEN2', cwd=set_dir)
+    ENLEV = os.path.join(iden2, 'enlev.dat')
+    ID_MAP = os.path.join(iden2, 'IDEN_level_ids.txt')
+    args.src = args.src or working_path(os.path.basename(IN_CSV), cwd=set_dir)
+    args.out = args.out or os.path.join(set_dir, os.path.basename(OUT_CSV))
+    args.log = args.log or os.path.join(set_dir, os.path.basename(LOGFILE))
+    print('working set: %s' % set_dir)
+    for name, path in (('ranked list', args.src), ('IDEN2', iden2),
+                       ('table', args.out), ('log', args.log)):
+        print('  %-12s %s' % (name, path))
+    return ['--set', set_dir]
+
+
 def main(argv=None):
     args = parse_args(argv)
+    set_args = use_set(args)
     output_files.require_writable(
         [args.out] + ([] if args.notes_only or args.log == '-' else [args.log]),
         'output file')
@@ -543,7 +596,7 @@ def main(argv=None):
     try:
         for n, (_, lev) in enumerate(todo.iterrows(), 1):
             idx = int(lev['idx'])
-            code, text = run_search(idx, args.pass_through)
+            code, text = run_search(idx, set_args + args.pass_through)
             block = block_of(text, idx)
             if log_fh is not None:
                 log_fh.write('%s\nIDEN2 row %d   exit %d\n%s\n%s\n'
@@ -594,8 +647,9 @@ def main(argv=None):
         # to run them without losing the rest of the table.
         print('%d search%s failed - run again with'
               % (len(bad), '' if len(bad) == 1 else 'es'))
-        print('    python find_unknown_levels.py --merge --idx %s'
-              % ' '.join(str(int(tab.loc[i, 'idx'])) for i in bad))
+        print('    python find_unknown_levels.py%s --merge --idx %s'
+              % (' --set %s' % args.set_dir if args.set_dir else '',
+                 ' '.join(str(int(tab.loc[i, 'idx'])) for i in bad)))
     print('wrote %s' % shortest(args.out))
     if args.log != '-':
         print('every search in full is in %s' % shortest(args.log))

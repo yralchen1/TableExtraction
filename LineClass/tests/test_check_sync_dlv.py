@@ -4,9 +4,11 @@ Run from the LineClass directory:  python -m pytest tests -q
 
 `dlv.dat` is IDEN2's copy of the observed line list: one fixed-width row per
 measured line, carrying its wavenumber, its standard wavelength and - as a
-wavelength uncertainty in angstroms - how well it is known.  Nothing in IDEN2
-writes it, so it is the one file that can sit on another set's wavenumbers
-while every screen goes on looking right, and these tests are about saying so.
+wavelength uncertainty in angstroms - how well it is known.  IDEN2 rewrites it
+only when a line is edited on its screen, and then rebuilds each air row's
+wavenumber from its wavelength, so it is the one file that can sit on another
+set's wavenumbers, or drift off its own, while every screen goes on looking
+right, and these tests are about saying so.
 
 Most of them build a handful of rows in memory and read the findings out of a
 Report.  The ones marked `real_file` open the project's own IDEN2 directory and
@@ -213,6 +215,45 @@ def test_a_last_digit_difference_is_counted_and_not_listed(tmp_path):
     assert severities(rep) == [check_sync.OK]
     assert '1 of them differ in the last printed digit' \
         in ' '.join(messages(rep, check_sync.OK))
+
+
+def test_a_drifted_row_is_its_line_and_is_not_unknown(tmp_path):
+    """The case of 2026-09-30: IDEN2 had rebuilt the wavenumbers from
+    wavelengths the old sync had nudged, and 53 rows stood 0.0015 to 0.0017
+    from their lines.  Each is still its line, and is reported as drifted."""
+    rep = compare(tmp_path, [dlv_record(29710.207, 3364.8841, 0.0011, 5026)],
+                  [29710.2085], [29710.2085], [0.01])
+    said = ' '.join(messages(rep, check_sync.WARN))
+    assert 'drifted' in said and 'match no line' not in said
+    assert 'no row in dlv.dat' not in said
+    assert '29710.2085' in ' '.join(items(rep, check_sync.WARN))
+    assert any('sync_IDEN2.py' in text for _p, text in rep.actions)
+    assert check_sync.OK not in severities(rep)
+
+
+def test_the_last_digit_of_an_air_wavelength_near_2000_a_is_printing(
+        tmp_path):
+    """0.00005 A at 2001 A is 0.00125 cm^-1, and IDEN2 rebuilds the
+    wavenumber from that wavelength, so 0.0016 there is still printing."""
+    wn = 49961.4424
+    rep = compare(tmp_path, [dlv_record(49961.444, 2000.8953, 0.0041, 1)],
+                  [wn], [wn], [0.1])
+    assert severities(rep) == [check_sync.OK]
+
+
+def test_a_wavelength_not_standard_for_its_wavenumber_is_a_warning():
+    """IDEN2 would move the wavenumber to the wavelength at its next save."""
+    rep = check_sync.Report()
+    w = 29710.209
+    check_sync._dlv_dispersion(
+        [dlv_record(w, sync.wavelength_of(w), 0.0011, 1),
+         dlv_record(20000.000, 5000.0000, 0.05, 2)], rep)
+    assert severities(rep) == [check_sync.WARN]
+    assert 'line      2' in ' '.join(items(rep, check_sync.WARN))
+    rep = check_sync.Report()
+    check_sync._dlv_dispersion(
+        [dlv_record(w, sync.wavelength_of(w), 0.0011, 1)], rep)
+    assert severities(rep) == [check_sync.OK]
 
 
 def test_an_uncertainty_out_of_step_is_an_error(tmp_path):

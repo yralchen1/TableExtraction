@@ -206,9 +206,11 @@ MIN_CFG_LEVELS = 3
 BACKUP_SUFFIX = '.presync'
 # dlv.dat, one row per observed line, fixed columns.  The uncertainty is a
 # WAVELENGTH uncertainty in angstroms - which is how numset.dat states it too -
-# and the wavelength is the standard one, vacuum below 2000 A and air above, so
-# it is not 1e8 divided by the wavenumber and cannot be rebuilt from it without
-# a dispersion formula.  It is rescaled instead; see rewrite_dlv.
+# and the wavelength is the standard one, vacuum below 2000 A and air above.
+# IDEN2 treats the wavelength as the measurement: when it saves the file it
+# recomputes every row's wavenumber from the row's wavelength, so the two must
+# agree under IDEN2's dispersion formula or the wavenumbers move.  See
+# wavelength_of and rewrite_dlv.
 DLV_INTENS = (0, 5)
 DLV_WN = (5, 19)
 DLV_LAMBDA = (19, 33)
@@ -217,11 +219,22 @@ DLV_ROW = (60, 66)
 DLV_WIDTH = 66
 # A row of dlv.dat and a row of the line list are the same observed line when
 # their wavenumbers agree to this much.  dlv.dat carries three decimals and the
-# line list carries more, so the difference is rounding plus whatever the line
-# list's corrected wavenumber has moved by since dlv.dat was last written; in
-# the corrected set that is up to 0.0015, while the nearest other line is
-# never closer than 0.3.  check_sync.py joins the two files on the same value.
-DLV_MATCH = 0.0015
+# line list carries more, so the difference is rounding plus whatever the row
+# has drifted by since dlv.dat was last written.  Drift of up to 0.002 has
+# been seen: an earlier version of rewrite_dlv rescaled the wavelength from
+# its own rounded value, and IDEN2 then rebuilt the wavenumbers from the
+# wavelengths.  Two distinct lines of the corrected list are never closer
+# than 0.1, so 0.01 still cannot pick the wrong line.  check_sync.py joins
+# the two files on the same value.
+DLV_MATCH = 0.01
+# Wavelengths shorter than 2000 A (wavenumbers above 50000 cm^-1) are vacuum
+# wavelengths in dlv.dat; the rest are wavelengths in standard air.
+VACUUM_ABOVE = 50000.0
+# How many rows of dlv.dat may disagree with wavelength_of before the formula
+# is taken not to be the file's own.  A file written by IDEN2 disagrees on
+# none; one last written by the old rescaling rewrite_dlv on a few hundred of
+# four thousand.
+DISPERSION_MAX_BAD = 0.5
 # The intensity code is round(10*ln(Icalc)); an Icalc of zero or less has no
 # logarithm, and a transition of exactly zero wavenumber none either.
 MIN_INTENSITY = 1e-300
@@ -381,6 +394,76 @@ def intensity_model(icalc_path, log):
 # ---------------------------------------------------------------------------
 # The new numbers
 # ---------------------------------------------------------------------------
+def air_index(wn):
+    """The refractive index of standard air at vacuum wavenumber ``wn``
+    (cm^-1): Peck and Reeder, J. Opt. Soc. Am. 62, 958 (1972).
+
+    This is the formula IDEN2 converts with.  Every one of the 4046 air rows
+    of the corrected set's dlv.dat, as IDEN2 saved it on 2026-09-30, carries
+    the wavenumber this formula gives for its wavelength, to the printed
+    precision; Edlen's 1966 formula misses one of them.
+    """
+    s2 = (wn * 1e-4) ** 2
+    return 1.0 + 1e-8 * (8060.51 + 2480990.0 / (132.274 - s2)
+                         + 17455.7 / (39.32957 - s2))
+
+
+def wavelength_of(wn):
+    """The wavelength in angstroms that dlv.dat shows for wavenumber ``wn``:
+    in vacuum above ``VACUUM_ABOVE``, in standard air below."""
+    if wn > VACUUM_ABOVE:
+        return 1e8 / wn
+    return 1e8 / (wn * air_index(wn))
+
+
+def dispersion_disagreements(records):
+    """The rows of dlv.dat whose wavelength is not the one ``wavelength_of``
+    gives for their wavenumber, to the precision both are printed with, as
+    ``(row, wn, wavelength, wavelength from wn)``, and the number of rows
+    looked at.
+
+    The wavenumber is printed to 0.001 cm^-1, which is ``0.0005 * lambda /
+    wn`` in wavelength, and the wavelength to 0.0001 A; a difference within
+    those two roundings is printing.  IDEN2 rebuilds each wavenumber from its
+    wavelength when it saves the file, so a row listed here is one whose
+    wavenumber moves the next time a line is edited on IDEN2's screen.
+    """
+    bad, n = [], 0
+    for rec in records:
+        if len(rec) < DLV_WIDTH or not rec.strip():
+            continue
+        wn = float(rec[DLV_WN[0]:DLV_WN[1]])
+        lam = float(rec[DLV_LAMBDA[0]:DLV_LAMBDA[1]])
+        n += 1
+        want = wavelength_of(wn)
+        if abs(lam - want) > 0.0005 * lam / wn + 0.00006:
+            bad.append((int(rec[DLV_ROW[0]:DLV_ROW[1]]), wn, lam, want))
+    return bad, n
+
+
+def check_dispersion(records):
+    """Stop, writing nothing, if ``wavelength_of`` is not the dispersion
+    formula ``records`` were written with.
+
+    rewrite_dlv computes every wavelength it writes with that formula, and
+    IDEN2 computes the wavenumbers back from those wavelengths with its own.
+    Were the two formulas different, every row would move at IDEN2's next
+    save, so the formula is tested against the file before it is used on it.
+    Returns what ``dispersion_disagreements`` found.
+    """
+    bad, n = dispersion_disagreements(records)
+    if n and len(bad) > DISPERSION_MAX_BAD * n:
+        worst = max(bad, key=lambda b: abs(b[2] - b[3]))
+        raise SyncError(
+            '%d of the %d rows of dlv.dat carry a wavelength that is not the '
+            'one the Peck-Reeder formula gives for their wavenumber (row %d: '
+            '%.3f cm^-1 is %.4f A in the file, %.4f A by the formula), so the '
+            'formula is not the one this dlv.dat was written with and cannot '
+            'be used to rewrite it' % (len(bad), n, worst[0], worst[1],
+                                       worst[2], worst[3]))
+    return bad, n
+
+
 def rewrite_dlv(records, lines, log):
     """``dlv.dat`` on the set's own wavenumbers, and a report of the change.
 
@@ -389,18 +472,17 @@ def rewrite_dlv(records, lines, log):
     nothing may be inserted, removed or reordered here.  What is rewritten is
     the wavenumber, the wavelength and the uncertainty.
 
-    The wavelength is the standard one - vacuum in the ultraviolet, air above
-    2000 A - so it is not a function of the wavenumber alone, and the
-    dispersion formula the file was built with is not recorded anywhere.  It
-    is therefore rescaled rather than recomputed,
-
-        lambda_new = lambda_old * wn_old / wn_new ,
-
-    which leaves the refractive index the row already implies exactly where it
-    is: the corrections are a few hundredths of a wavenumber in ten thousand,
-    and the index changes by nothing measurable over that.  The uncertainty is
-    converted to the wavelength scale the file states it on by
-    ``u_lambda = u_wn * lambda / wn``.
+    The wavelength is computed from the line list's wavenumber by
+    ``wavelength_of`` - vacuum in the ultraviolet, standard air above 2000 A,
+    the conversion IDEN2 itself makes - and never from the wavelength already
+    in the row.  Each field is therefore a function of the line list alone,
+    so a second run writes exactly what the first did, and when IDEN2 later
+    rebuilds each wavenumber from its wavelength it gets the line list's value
+    back.  (The rescaling ``lambda * wn_old / wn_new`` this replaced took
+    ``wn_old`` rounded to three decimals, so it moved the wavelength of an
+    unmoved line at every run, and IDEN2 carried those moves into the
+    wavenumbers.)  The uncertainty is converted to the wavelength scale the
+    file states it on by ``u_lambda = u_wn * lambda / wn``.
 
     A row is the line whose current wavenumber it carries - a set already
     brought up to date - or else the line whose ``wn_key`` it carries - a
@@ -411,6 +493,9 @@ def rewrite_dlv(records, lines, log):
 
     A row whose wavenumber matches no line of the list either way is left as
     it stands and reported; so is a line of the list that has no row here.
+    A row whose three fields already read what would be written is left
+    byte for byte as it is.  ``changed`` lists every row rewritten, as
+    ``(row, wn_old, wn_new, u_old, u_lam, u_wn, lam_old, lam_new)``.
     """
     by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
     by_key = sorted((k, i) for i, (k, _wn, _u) in enumerate(lines))
@@ -432,14 +517,15 @@ def rewrite_dlv(records, lines, log):
             continue
         matched.add(best)
         _key, wn_new, u_wn = lines[best]
-        lam_new = lam_old * wn_old / wn_new
+        lam_new = wavelength_of(wn_new)
         u_lam = u_wn * lam_new / wn_new
-        rec = IDEN.put(rec, DLV_WN, '%14.3f' % wn_new)
-        rec = IDEN.put(rec, DLV_LAMBDA, '%14.4f' % lam_new)
-        rec = IDEN.put(rec, DLV_UNC, '%13.4f' % u_lam)
-        out.append(rec)
-        if (abs(wn_new - wn_old) > 0.0005 or abs(u_lam - u_old) > 0.00005):
-            changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn))
+        new = IDEN.put(rec, DLV_WN, '%14.3f' % wn_new)
+        new = IDEN.put(new, DLV_LAMBDA, '%14.4f' % lam_new)
+        new = IDEN.put(new, DLV_UNC, '%13.4f' % u_lam)
+        out.append(new)
+        if new != rec:
+            changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn,
+                            lam_old, lam_new))
     absent = [lines[i] for i in range(len(lines)) if i not in matched]
     report = {'n_rows': len(records), 'changed': changed,
               'unmatched': unmatched, 'absent': absent}
@@ -999,17 +1085,30 @@ def report_dlv(rep, log):
     """What the rewrite of ``dlv.dat`` changed."""
     changed = rep['changed']
     log(f"dlv.dat: {rep['n_rows']} rows, {len(changed)} rewritten")
+    bad = rep.get('dispersion')
+    if bad:
+        log(f"  {len(bad)} rows carried a wavelength that is not the "
+            f"standard one for their wavenumber (by up to "
+            f"{max(abs(b[2] - b[3]) for b in bad):.4f} A); each is written "
+            f"from the line list's wavenumber")
     if changed:
-        dwn = np.array([new - old for _r, old, new, _uo, _un, _u in changed])
-        moved = np.abs(dwn[dwn != 0])
+        dwn = np.array([c[2] - round(c[1], 3) for c in changed])
+        moved = np.abs(dwn[np.abs(dwn) >= 0.0005])
         if len(moved):
             log(f"  {len(moved)} wavenumbers move, by up to "
                 f"{moved.max():.3f} cm^-1 (median {np.median(moved):.4f})")
+        n_lam = sum(1 for c in changed
+                    if abs(c[2] - c[1]) < 0.0005 and abs(c[7] - c[6]) >= 5e-5)
+        if n_lam:
+            log(f"  {n_lam} wavelengths are rewritten under an unmoved "
+                f"wavenumber")
         big = sorted(changed, key=lambda c: -abs(c[2] - c[1]))[:10]
         log(f"  {'row':>5} {'was':>12} {'now':>12} {'move':>8} "
+            f"{'A was':>11} {'A now':>11} "
             f"{'u_A was':>9} {'u_A now':>9} {'u_cm-1':>9}")
-        for row, old, new, u_old, u_new, u_wn in big:
+        for row, old, new, u_old, u_new, u_wn, l_old, l_new in big:
             log(f"  {row:5d} {old:12.3f} {new:12.3f} {new - old:+8.3f} "
+                f"{l_old:11.4f} {l_new:11.4f} "
                 f"{u_old:9.4f} {u_new:9.4f} {u_wn:9.4f}")
     if rep['unmatched']:
         log(f"  {len(rep['unmatched'])} rows match no line of the list and "
@@ -1291,7 +1390,9 @@ def main(argv=None):
         lines = apply_registry(read_line_list(cfg, log),
                                getattr(cfg, 'inflated_unc', ''), log)
         dlv_records, dlv_endings = IDEN.read_records(dlv_path)
+        dispersion, _n = check_dispersion(dlv_records)
         dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log)
+        dlv_rep['dispersion'] = dispersion
         report_dlv(dlv_rep, log)
         lopt_lines = read_lopt_transitions(args.lopt_lines)
         log()

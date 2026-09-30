@@ -569,10 +569,9 @@ def test_dlv_gets_the_new_wavenumber_and_the_uncertainty_in_angstroms():
     got = new[0]
     assert float(got[sync.DLV_WN[0]:sync.DLV_WN[1]]) == 20000.000
     assert abs(float(got[sync.DLV_UNC[0]:sync.DLV_UNC[1]]) - 0.0500) < 5e-5
-    # the wavelength is rescaled, which keeps the refractive index the row
-    # already implies: 4999.9750 * 20000.100 / 20000.000
-    assert abs(float(got[sync.DLV_LAMBDA[0]:sync.DLV_LAMBDA[1]])
-               - 4999.9750 * 20000.100 / 20000.000) < 5e-5
+    # the wavelength is the standard air wavelength of the new wavenumber,
+    # whatever the row carried before
+    assert float(got[sync.DLV_LAMBDA[0]:sync.DLV_LAMBDA[1]]) ==         round(sync.wavelength_of(20000.000), 4)
     # the row number, the intensity and the character are untouched
     assert got[:sync.DLV_WN[0]] == old[:sync.DLV_WN[0]]
     assert got[sync.DLV_LAMBDA[1]:sync.DLV_UNC[0]] == \
@@ -615,6 +614,75 @@ def test_a_row_inserted_in_iden2_under_a_later_line_number_is_matched():
     assert not rep['unmatched'] and not rep['absent']
     assert [r[sync.DLV_ROW[0]:] for r in new] == \
         [r[sync.DLV_ROW[0]:] for r in rows]
+
+
+def test_the_standard_wavelength_is_vacuum_above_50000_and_air_below():
+    """Peck and Reeder: n - 1 = 2.79e-4 at 20000 cm^-1 (5000 A), so the air
+    wavelength is 1.3944 A shorter than the vacuum one; a row at 62500
+    cm^-1 carries its vacuum wavelength 1600 A."""
+    assert sync.wavelength_of(62500.0) == 1600.0
+    assert abs(sync.air_index(20000.0) - 1.000279) < 1e-6
+    assert abs(1e8 / 20000.0 - sync.wavelength_of(20000.0) - 1.3944) < 1e-4
+    # row 6578 of the corrected set's dlv.dat as IDEN2 saved it on
+    # 2026-09-30, its wavenumber rebuilt from its wavelength
+    row = dlv_record(54, 11618.419, 8604.6590, '', 0.0138, 6578)
+    assert sync.dispersion_disagreements([row]) == ([], 1)
+
+
+def test_the_dlv_rewrite_changes_nothing_the_second_time():
+    """The wavelength is a function of the line list's wavenumber alone, so
+    a sync run on its own output writes exactly the same bytes.  The old
+    rescaling moved 8604.6586 A to 8604.6590 and then 8604.6594 on an
+    unmoved line, because it rescaled by a wavenumber rounded to 0.001."""
+    lines = [(11618.4205, 11618.4205, 0.02), (29710.2085, 29710.2085, 0.01),
+             (61680.8807, 61680.8807, 0.4)]
+    rows = [dlv_record(62, 61680.881, 1621.2458, 'c', 0.0105, 1),
+            dlv_record(62, 29710.209, 3364.8839, 'c', 0.0011, 2),
+            dlv_record(62, 11618.421, 8604.6586, 'c', 0.0148, 3)]
+    once, _rep = sync.rewrite_dlv(rows, lines, lambda *a: None)
+    twice, rep = sync.rewrite_dlv(once, lines, lambda *a: None)
+    assert twice == once and rep['changed'] == []
+
+
+def test_every_rewritten_row_has_its_wavenumbers_wavelength():
+    """IDEN2 rebuilds each air row's wavenumber from its wavelength when it
+    saves the file, so a row written here must give back its own wavenumber
+    to printing precision."""
+    lines = [(w, w, 0.01) for w in (61680.8807, 49997.2141, 29710.2085,
+                                   11618.4205)]
+    rows = [dlv_record(62, w + 0.0017, 1e8 / w, 'c', 0.001, i + 1)
+            for i, (_k, w, _u) in enumerate(lines)]
+    out, _rep = sync.rewrite_dlv(rows, lines, lambda *a: None)
+    assert sync.dispersion_disagreements(out) == ([], 4)
+    for rec, (_k, w, _u) in zip(out, lines):
+        lam = float(rec[sync.DLV_LAMBDA[0]:sync.DLV_LAMBDA[1]])
+        wn = 1e8 / lam
+        if w <= sync.VACUUM_ABOVE:
+            for _ in range(8):
+                wn = 1e8 / (lam * sync.air_index(wn))
+        assert abs(wn - w) <= 0.00005 * wn / lam + 1e-9
+
+
+def test_a_row_drifted_by_0_0017_is_still_its_line_and_is_put_back():
+    """The case check_sync.py found on 2026-09-30: 53 rows 0.0015 to 0.0017
+    from their line, too far for the old match of 0.0015."""
+    old = dlv_record(62, 29710.207, 3364.8841, 'c', 0.0011, 5026)
+    new, rep = sync.rewrite_dlv([old], [(29710.2085, 29710.2085, 0.01)],
+                                lambda *a: None)
+    assert not rep['unmatched'] and not rep['absent']
+    assert float(new[0][sync.DLV_WN[0]:sync.DLV_WN[1]]) == 29710.209
+
+
+def test_a_file_on_another_dispersion_formula_stops_the_sync():
+    """If most rows disagree with the formula, the formula is not the one
+    the file was written with, and nothing is rewritten with it."""
+    rows = [dlv_record(62, w, 1e8 / w, 'c', 0.001, i + 1)
+            for i, w in enumerate((30000.0, 25000.0, 20000.0))]
+    with pytest.raises(sync.SyncError):
+        sync.check_dispersion(rows)
+    good = [dlv_record(62, w, sync.wavelength_of(w), 'c', 0.001, i + 1)
+            for i, w in enumerate((30000.0, 25000.0, 20000.0))]
+    assert sync.check_dispersion(good + rows[:1])[0][0][0] == 1
 
 
 REGISTRY = ('wn_key\tunc_wn\tdate\treason\n'

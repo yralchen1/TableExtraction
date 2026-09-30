@@ -6,3 +6,6 @@ removed_on,removed_for,removed_because,wn_key,low_id,upp_id,decision,date,reason
 9/18/2026,059003.000572,not marked in IDEN2,69035.793,059003.000197,059003.000572,reject,9/13/2026,IDEN2/LOPT: too small Icalc to explain Iobs.
 9/18/2026,059003.000572,not marked in IDEN2,17725.5608,059003.000459,059003.000572,reject,9/18/2026,"Was accepted on 9/52026 (manual with IDEN2; acceptabe Ritz mismatch after LOPT), but the level has been moved since then."
 9/18/2026,059003.000649,not marked in IDEN2,67599.533,059003.000202,059003.000649,accept,9/18/2026,IDEN2/LOPT
+9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,38701.8602,059003.000038,059003.000642,accept,9/17/2026,IDEN2/LOPT
+9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,25757.3299,059003.000642,059003.000273,accept,9/17/2026,IDEN2/LOPT
+9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,30511.6182,059003.000642,059003.000288,accept,9/17/2026,IDEN2/LOPT

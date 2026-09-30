@@ -31,7 +31,11 @@ from dataclasses import dataclass
 #: corrected one in `iter/`, the merged one in `final/` - can be selected for
 #: every program at once:
 #:
-#:     LINECLASS_CONFIG=iter/lineclass_config.toml python level_positions.py
+#:     LINECLASS_CONFIG=iter/lineclass_config.toml python unfound_levels.py
+#:
+#: It selects only what the configuration names.  A program that also reads
+#: IDEN2 or the LOPT output takes `--set DIR` instead (check_sync.py,
+#: sync_IDEN2.py, level_positions.py, find_unknown_levels.py).
 #:
 #: A per-program `--config` cannot do that job.  `classify_lines.py` loads the
 #: configuration when it is imported, and a dozen other programs import it, so

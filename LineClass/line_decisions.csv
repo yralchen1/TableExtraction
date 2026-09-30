@@ -125,7 +125,6 @@ wn_key,low_id,upp_id,decision,date,reason
 41473.79906049907,059003.000199,059003.000327,accept,9/5/2026,"Equal predicted intens, Ritz cg improves; wide char supports blend"
 41094.49080623562,059003.000203,059003.000330,reject,9/5/2026,Taken by other transition with better intensity and Ritz match
 91572.405,059003.000039,059003.000330,reject,9/5/2026,Taken by stronger transition with better Ritz match
-38052.91849266707,059003.000230,059003.000336,reject,9/5/2026,manual with IDEN2; may include the ID in pub line list as masked but exclude from LOPT
 91330.20364856097,059003.000105,059003.000384,reject,9/5/2026,Taken by other transition with better intensity and Ritz match
 11890.16746003981,059003.000318,059003.000463,reject,9/5/2026,Taken by stronger transition with better Ritz match
 83162.62841792723,059003.000133,059003.000468,reject,9/5/2026,manual with IDEN2; may include the ID in pub line list as masked but exclude from LOPT
@@ -282,7 +281,6 @@ wn_key,low_id,upp_id,decision,date,reason
 98546.421,059003.000075,059003.000487,accept,9/11/2026,Blend improves cg Ritz
 18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT
 94406.411,059003.000166,059003.000422,accept,9/11/2026,Blend is compatible with cl  char; cg is compatible with Ritz.
-30126.309,059003.000141,059003.000210,reject,9/11/2026,IDEN2: looks wrong
 37051,059003.000127,059003.000224,reject,9/11/2026,IDEN2: looks wrong
 32573.929,059003.000145,059003.000234,reject,9/11/2026,IDEN2: looks wrong; weak component; pulls cg in wrong direction.
 32573.929,059003.000150,059003.000244,reject,9/22/2026,the accept of 9/11/2026 is withdrawn: Sugar's wavelength-calibration curve does not account for it: still 5.5 sigma from Ritz with the curve removed
@@ -348,10 +346,23 @@ wn_key,low_id,upp_id,decision,date,reason
 103462.798,059003.000063,059003.000494,reject,9/16/2026,not part of the move: this level was moved to 121673.2800 cm^-1 and this assignment was not carried over
 45840.4,059003.000155,059003.000293,accept,9/17/2026,IDEN2/LOPT
 49474.362,059003.000112,059003.000273,accept,9/17/2026,IDEN2/LOPT
-38701.8602,059003.000038,059003.000642,accept,9/17/2026,IDEN2/LOPT
-25757.3299,059003.000642,059003.000273,accept,9/17/2026,IDEN2/LOPT
 37286.3506,059003.000642,059003.000453,reject,9/17/2026,"Too weak, too far, pulls in wrong direction."
-30511.6182,059003.000642,059003.000288,accept,9/17/2026,IDEN2/LOPT
+29724.6026,059003.000642,059003.000444,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+30088.5807,059003.000642,059003.000287,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+33372.1081,059003.000642,059003.000294,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+21847.197,059003.000642,059003.000260,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+31243.9493,059003.000642,059003.000290,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+35150.3212,059003.000642,059003.000449,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+28658.9908,059003.000642,059003.000280,accept,9/29/2026,F=3 hfs component of 000642 (IDEN2 1093); level placed at F=3
+29726.1177,059003.000642,059003.000444,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+30090.1394,059003.000642,059003.000287,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+33373.5622,059003.000642,059003.000294,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+21848.733,059003.000642,059003.000260,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+32840.1314,059003.000642,059003.000293,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+30511.6182,059003.000642,059003.000288,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+34757.5489,059003.000642,059003.000447,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+25757.3299,059003.000642,059003.000273,reject,9/29/2026,F=2 hfs component of 000642 (IDEN2 1093); level placed at F=3
+38701.8602,059003.000038,059003.000642,reject,9/29/2026,"At the F=2 position of 000642 (IDEN2 1093); level placed at F=3, whose line (38703.39) is not observed"
 76591.791,059003.000168,059003.000473,reject,9/17/2026,Icalc too weak to be worth mentioning
 51107.187,059003.000540,059003.000645,accept,9/17/2026,IDEN2/LOPT
 49654.974,059003.000089,059003.000645,accept,9/17/2026,IDEN2/LOPT
@@ -366,7 +377,6 @@ wn_key,low_id,upp_id,decision,date,reason
 11088.018,059003.000315,059003.000458,accept,9/18/2026,IDEN2/LOPT
 10893.339,059003.000316,059003.000458,accept,9/18/2026,IDEN2/LOPT
 65681.916,059003.000212,059003.000649,reject,9/18/2026,not part of the move: this level was moved to 129498.1000 cm^-1 and this assignment was not carried over
-33506.1086,059003.000149,059003.000653,accept,9/18/2026,IDEN2/LOPT
 39908.8389,059003.000179,059003.000654,accept,9/18/2026,IDEN2/LOPT
 37804.6004,059003.000184,059003.000654,accept,9/18/2026,IDEN2/LOPT
 59178.601,059003.000225,059003.000569,reject,9/18/2026,Too far from Ritz
@@ -585,3 +595,25 @@ wn_key,low_id,upp_id,decision,date,reason
 23462.9364,059003.000380,059003.000619,accept,9/28/2026,IDEN2/LOPT
 22266.6429,059003.000624,059003.000619,accept,9/28/2026,IDEN2/LOPT
 92156.3917,059003.000104,059003.000624,accept,9/28/2026,IDEN2/LOPT
+59829.1143,059003.000141,059003.000310,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+33722.4702,059003.000190,059003.000643,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+28508.8216,059003.000190,059003.000444,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+44134.0401,059003.000190,059003.000659,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+27443.3325,059003.000190,059003.000280,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+33934.5817,059003.000190,059003.000449,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+51071.138,059003.000140,059003.000447,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+31478.9216,059003.000140,059003.000217,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+33044.2299,059003.000183,059003.000283,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+36647.5418,059003.000183,059003.000293,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+38425.7687,059003.000183,059003.000298,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+34406.941,059003.000257,059003.000336,accept,9/30/2026,IDEN2/LOPT; unc inflated
+30126.3092,059003.000141,059003.000210,accept,9/30/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+31664.7593,059003.000158,059003.000435,accept,9/30/2026,IDEN2/LOPT; unc inflated
+22561.9597,059003.000388,059003.000617,accept,9/30/2026,IDEN2/LOPT
+38052.9185,059003.000230,059003.000336,accept,9/30/2026,IDEN2/LOPT; unc inflated
+36647.5418,059003.000139,059003.000252,reject,9/30/2026,IDEN2/LOPT
+33044.2299,059003.000189,059003.000297,reject,9/30/2026,IDEN2/LOPT
+31766.6600,059003.000160,059003.000255,reject,9/30/2026,Negligibly small Icalc and BF
+33417.3499,059003.000149,059003.000248,reject,9/30/2026,Worsens cg; opposite shift to hfs calculation
+33506.1086,059003.000149,059003.000653,reject,9/30/2026,Too small Icalc; opposite shift to hfs calculation
+34042.6488,059003.000187,059003.000298,reject,9/30/2026,Too small Icalc; opposite shift to hfs calculation

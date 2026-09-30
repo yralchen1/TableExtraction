@@ -18,7 +18,7 @@ level_id	E	J	parity	iden2_row	cowan_lid	comment
 059003.000639	131776.416	9/2	e	497	2218	Found with level_positions --unknown 497.
 059003.000640	116327.491	5/2	o	741	295	Found with level_positions --unknown 741.
 059003.000641	83426.173	1/2	o	949	174	Found with level_positions --unknown 949.
-059003.000642	49652.299	1/2	e	1093	1966	Found with level_positions --unknown 1093.
+059003.000642	49653.882	1/2	e	1093	1966	Found with level_positions --unknown 1093. Moved 9/29/2026 from the F=2 hfs sublevel (49652.299) to F=3, 1.53 above (A=+0.505, I=5/2, J=1/2); c.g. = E(F=3) - 0.631. F=3 lines accepted and F=2 lines rejected in line_decisions.csv.
 059003.000643	84592.042	1/2	o	940	183	Found with level_positions --unknown 940.
 059003.000644	97740.312	5/2	o	900	223	Found with level_positions --unknown 900.
 059003.000645	72705.851	1/2	o	996	128	Found with level_positions --unknown 996.

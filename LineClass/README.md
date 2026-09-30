@@ -2748,20 +2748,39 @@ the configuration is already chosen before any of them parses an argument. The l
 all of them is therefore an environment variable, read by `config.DEFAULT_PATH`:
 
 ```
-LINECLASS_CONFIG=iter/lineclass_config.toml python level_positions.py --scan
 LINECLASS_CONFIG=iter/lineclass_config.toml python unfound_levels.py --detail
 ```
 
-`check_sync.py` is the exception at the other end: it reads no configuration at all, because most
-of what it checks — the LOPT files, `IDEN2/`, `sync_report.txt` — is not in one. It takes
-`--set DIR` instead, which resolves each of its file names in that directory first and in the
-project directory otherwise (`swap_paths.working_path`). That fallback is exactly the arrangement
-the sets are meant to have: the set's own classification table and LOPT files are found in the
-set, and the shared ledger and level overrides in the project, with no list of which is which.
+The variable selects only what the configuration names: the line list, the classification table,
+the level workbook. A program that also reads `IDEN2/`, the LOPT output or a report of its own
+needs more than that, and takes `--set DIR` instead. `--set` resolves each file name in that
+directory first and in the project directory otherwise (`swap_paths.working_path`). That fallback
+is exactly the arrangement the sets are meant to have: the set's own classification table, LOPT
+files and IDEN2 are found in the set, and the shared ledger and level overrides in the project,
+with no list of which is which. What such a program writes describes the set and is written into
+it.
 
 ```
 python check_sync.py --set iter
+python sync_IDEN2.py --set iter
+python level_positions.py --set iter --audit     # writes iter/level_positions.csv
+python find_unknown_levels.py --set iter         # writes iter/found_levels.csv
 ```
+
+`check_sync.py` reads no configuration at all, because most of what it checks — the LOPT files,
+`IDEN2/`, `sync_report.txt` — is not in one. `level_positions.py --set` loads the set's
+configuration itself, and in addition reads the set's `IDEN2/enlev.dat` and
+`IDEN_level_ids.txt` and its `LOPT_output_levels.txt`. It reads `level_hfs_widths.csv` from the
+set if the set has its own copy, and `--fit-hfs` writes one there. Do not use
+`LINECLASS_CONFIG` with `level_positions.py`: that run reads the baseline's IDEN2 and LOPT
+levels, and its report overwrites the baseline's `level_positions.csv`.
+
+`find_unknown_levels.py --set` passes the set on to every `level_positions.py --unknown` search,
+and works out its Note column against the set's IDEN2. It walks the project directory's
+`unfound_levels.csv` unless the set holds its own copy. That list can be shared because an IDEN2
+row names the same calculated level in every set. Its searches free the lines of the levels the
+set's own `level_positions.csv` marks as questionable, so `level_positions.py --set iter --scan`
+or `--audit` has to have been run first.
 
 ### The two ways into the corrected set
 
@@ -4818,7 +4837,11 @@ transition assigned in IDEN2 that the classification has withdrawn — has no to
 all and is reported item by item. A fourth, `--dlv-tol` (0.0015 cm⁻¹), is a printing
 tolerance as well: `dlv.dat` and the line list both carry three decimals, rounded from
 different intermediate values, so one in the last digit is printing and nothing else, while
-a wavelength calibration correction is tens of times larger.
+a wavelength calibration correction is tens of times larger. An air row is allowed more
+where its wavelength's last printed digit is worth more, since IDEN2 rebuilds the wavenumber
+from it: 0.0005 + 0.00005 · wn / λ cm⁻¹, which reaches 0.0018 near 2000 Å. A row further
+from its line than that, but within the 0.01 cm⁻¹ `sync_IDEN2.py` matches on, is reported
+as *drifted*: it is still its line, and `sync_IDEN2.py` puts it back.
 
 **Why the level pair is the key and the wavenumber is not.** Two files are compared
 transition by transition, matched first on the pair of levels and then, within that pair, on
@@ -4848,7 +4871,7 @@ The twelve checks, in the order they are made:
 | 7 | `IDEN2/trans.dat` against `IDEN2/enlev.dat` | trans.dat carries a copy of every partner energy, found flag and predicted wavenumber, and IDEN2 rewrites them together; a copy that no longer follows means every wavenumber trans.dat shows is stale |
 | 8 | `IDEN2/enlev.dat` against `LOPT_output_levels.txt`, joined through `IDEN2/IDEN_level_ids.txt` | the energy of every level, and the membership of the two lists both ways: levels starred in enlev.dat with no entry in the map, levels of the fit not marked found |
 | 9 | `IDEN2/trans.dat` against the accepted classifications | **the check the rest exists to make**: a transition IDEN2 shows as identified but the classification has withdrawn looks, on the screen, exactly like one that is still accepted |
-| 10 | `IDEN2/dlv.dat` against the set's own line list | the wavenumber and the uncertainty of every observed line. This is the file the eye reads a measurement off, nothing in IDEN2 writes it, and a set seeded by copying another set's `IDEN2` directory keeps that set's numbers until `sync_IDEN2.py` is run; a row that matches the set's `wn_key` column instead of its `wn` column is named as what it is, a row the calibration correction has never been applied to. The file's own arithmetic is checked first — one row number per row in the order the rows are in, and one wavenumber per line — because `trans.dat` names every observed line by its row number |
+| 10 | `IDEN2/dlv.dat` against the set's own line list | the wavenumber and the uncertainty of every observed line. This is the file the eye reads a measurement off. IDEN2 rewrites it whenever a line is edited on its screen (an uncertainty, an inserted line), and then recomputes every air row's wavenumber from the row's wavelength (Peck–Reeder standard air); so each row's wavelength is also checked against its wavenumber, and a row whose wavenumber has drifted from its line is reported as drifted rather than as unknown; a set seeded by copying another set's `IDEN2` directory keeps that set's numbers until `sync_IDEN2.py` is run; a row that matches the set's `wn_key` column instead of its `wn` column is named as what it is, a row the calibration correction has never been applied to. The file's own arithmetic is checked first — one row number per row in the order the rows are in, and one wavenumber per line — because `trans.dat` names every observed line by its row number |
 | 11 | `IDEN2/trans.dat` against `IDEN2/dlv.dat` | every identification carries both the wavenumber of its line and the number of its row; IDEN2 reads the row number, so if the two disagree the assignment is read as one line and reported as another |
 | 12 | `unstable_candidates.csv` and `line_decisions.csv` | stability rather than staleness — see below |
 
@@ -4973,6 +4996,34 @@ up. It rewrites both of them from the current fit and the current calculated int
 * **`IDEN2/trans.dat`** — every row is rewritten with the partner's new energy, the new
   predicted wavenumber (the difference of the two energies exactly as `enlev.dat` writes
   them) and a new intensity code.
+* **`IDEN2/dlv.dat`** — every observed line gets the set's own wavenumber and the
+  uncertainty the pipeline uses (the line list's, or the value in `inflated_unc_lines.txt`
+  where that is larger). The wavelength is computed from that wavenumber: the vacuum
+  wavelength `1e8/wn` above 50000 cm⁻¹, and below it the wavelength in standard air by the
+  Peck–Reeder (1972) refractive index, which is the conversion IDEN2 itself makes. The
+  uncertainty is converted to ångström with `u_λ = u_wn · λ / wn`. No row is added, removed
+  or renumbered, because `trans.dat` names each line by its row number. A row is matched
+  to its line when the two wavenumbers agree to 0.01 cm⁻¹; two distinct lines of the
+  corrected list are never closer than 0.1 cm⁻¹.
+
+**IDEN2 treats the wavelength in `dlv.dat` as the measurement.** When it saves the file
+(after an uncertainty is edited or a line is inserted on its screen) it rebuilds the
+wavenumber of every air row from that row's wavelength. So the wavelength and the wavenumber
+of a row must agree under IDEN2's formula, or the wavenumber moves at the next save. Up to
+2026-09-30, `sync_IDEN2.py` did not compute the wavelength from the wavenumber; it rescaled
+the wavelength already in the row, `λ_new = λ_old · wn_old / wn_new`. Because `wn_old` is
+printed to only three decimals, that ratio differed slightly from 1 even for a line that had
+not moved, so every run nudged some wavelengths, always the same way (row 6578: 8604.6586,
+then 8604.6590, then 8604.6594 Å). IDEN2 then carried those nudges into the wavenumbers.
+After one sync and one save, 53 rows of the corrected set stood 0.0015–0.0017 cm⁻¹ from
+their lines, beyond the 0.0015 cm⁻¹ the two scripts then matched on, so `check_sync.py`
+reported them as lines it did not know and `sync_IDEN2.py` could no longer repair them.
+Now each field is computed from the line list alone, so a second run changes nothing. The
+program stops without writing anything if more than half of the rows of `dlv.dat` disagree
+with the Peck–Reeder conversion, because then that formula is not the file's own. The last
+printed digit of an air wavelength (0.00005 Å) is worth up to 0.0013 cm⁻¹ near 2000 Å, so
+an IDEN2 save still moves some wavenumbers by that much. Those moves do not accumulate:
+the next sync writes the line list's value back.
 
 **The uncertainty column holds two different quantities.** On a found level it is the
 uncertainty of a measurement: how well the fit knows where the level is, a few thousandths

@@ -7,6 +7,7 @@ Run from inside LineClass/:
     python level_positions.py --detail 059003.000271
     python level_positions.py --scan                # + the alternate-position scan
     python level_positions.py --audit               # + what to do about them
+    python level_positions.py --set iter --audit    # the same, on the iter set
 
 
 1.  The quantity
@@ -843,6 +844,8 @@ import level_interchange as li                # noqa: E402
 import cowan_gA                               # noqa: E402
 import level_shifts as ls                     # noqa: E402
 import lopt_lines                             # noqa: E402
+import config                                 # noqa: E402
+from swap_paths import working_path           # noqa: E402
 
 
 # --- constants --------------------------------------------------------------
@@ -901,8 +904,13 @@ CHAR_DWN = {         # cm^-1, the WAVENUMBER-constant excess of a character:
                      # reading of the plate (see section 4)
     ('1974', 'w'): 0.0251,     # wide (312 lines)
 }
+# The files of a working set.  These are the baseline's; --set rebinds all
+# four (and the classification table, through the set's configuration) to the
+# set's own copies before anything is read, so every reader below looks them
+# up here at call time rather than taking them as default arguments.
 HFS_FILE = os.path.join(HERE, 'level_hfs_widths.csv')
 LEVEL_IDS = os.path.join(HERE, 'IDEN2', 'IDEN_level_ids.txt')
+ENLEV = li.ENLEV
 HFS_APPLY = 0.02     # cm^-1: a fitted width below this is noise of the fit
                      # and is not applied to any line
 HFS_MARK = 0.08      # cm^-1: above this the level is reported as having a
@@ -1064,13 +1072,14 @@ def running(values, k, fn):
     return getattr(s, fn)().ffill().bfill().to_numpy()
 
 
-def read_partner_uncertainties(path=LOPT_LEVELS_FILE):
+def read_partner_uncertainties(path=None):
     """{level_id: D1}, the partner-energy uncertainty of LOPT's level output.
 
     D1 is what a Ritz wavenumber inherits from the partner level, 0.002 to
     0.03 cm^-1 here.  Returns {} if the file is absent, in which case the
     partner contributes nothing to sigma_t and the report says so.
     """
+    path = path or LOPT_LEVELS_FILE
     if not os.path.exists(path):
         return {}
     d = pd.read_csv(path, sep='\t', dtype={'Designation': str})
@@ -1262,7 +1271,7 @@ def width_for(cfg, widths, wide):
     return wide
 
 
-def read_hfs_widths(path=HFS_FILE, log=None):
+def read_hfs_widths(path=None, log=None):
     """The hyperfine width applied to each level, from level_hfs_widths.csv.
 
     The file's w_applied column already holds the rule of section 4: a level
@@ -1272,6 +1281,7 @@ def read_hfs_widths(path=HFS_FILE, log=None):
     zero.  Files written before that column existed are read the old way, so
     an old level_hfs_widths.csv still works.
     """
+    path = path or HFS_FILE
     if not os.path.exists(path):
         if log:
             log(f"  no {os.path.basename(path)}: no hyperfine widths applied")
@@ -1320,7 +1330,7 @@ def read_level_configs(levels, log=None, enlev=None, ids=None):
     broken and wants a human, not a silent fallback width.
     """
     try:
-        en = li.read_enlev(enlev or li.ENLEV)
+        en = li.read_enlev(enlev or ENLEV)
         cfg_of_row = dict(zip(en['idx'].astype(int), en['cfg']))
     except Exception as exc:                      # no IDEN2 files, say
         if log:
@@ -1785,9 +1795,10 @@ def unknown_transition_background(ctx, log=print):
         return None
     quiet = (lambda *a, **k: None)
     try:
-        en, trans, mapping = uf.read_theory(log=quiet)
+        en, trans, mapping = uf.read_theory(ENLEV, LEVEL_IDS, log=quiet)
         per_cfg, whole = uf.windows(en, log=quiet)
-        e_meas = uf.measured_energies(en, e_final=ctx.e_final, log=quiet)
+        e_meas = uf.measured_energies(en, ids=LEVEL_IDS, e_final=ctx.e_final,
+                                      log=quiet)
         t = uf.unfound_transitions(en, trans, mapping, e_meas, log=quiet)
         t = uf.attach_windows(t, en, per_cfg, whole)
         t = uf.observation_probabilities(t, ctx)
@@ -2698,9 +2709,10 @@ def detail_energy(ctx, level_id, at, alt_drop=ALT_DROP):
         return e_adopted, 'the adopted position'
     if str(at).strip().lower() != 'alt':
         return float(at), 'the energy asked for'
-    en = li.read_enlev()
+    en = li.read_enlev(ENLEV)
     win = li.configuration_windows(en)
-    lv, _ = li.attach_identities(ctx.per, en, win, row_of_id=li.id_rows())
+    lv, _ = li.attach_identities(ctx.per, en, win,
+                                 row_of_id=li.id_rows(LEVEL_IDS))
     e_calc = dict(zip(lv['level_id'], lv['E_calc']))
     w_of = dict(zip(lv['level_id'], lv['W']))
     r = scan_level(ctx, level_id, e_adopted, e_calc.get(level_id, np.nan),
@@ -2737,7 +2749,7 @@ def print_detail(ctx, level_id, at=None, show_all=False,
     """
     e, how = detail_energy(ctx, level_id, at, alt_drop)
     v, tab = ln_ratio(ctx, level_id, np.array([e]), detail=True)
-    ident = iden2_identities(ctx.per, li.read_enlev())
+    ident = iden2_identities(ctx.per, li.read_enlev(ENLEV))
     own = ident.get(str(level_id))
     print(f"\nlevel {level_id} at E = {e:.4f} cm^-1 - {how}")
     if own:
@@ -3587,11 +3599,12 @@ def unfound_theory(ctx, log=print):
     """
     import cowan_gA
     import unfound_levels as uf
-    en, trans, mapping = uf.read_theory(log=log)
-    e_meas = uf.measured_energies(en, e_final=ctx.e_final, log=log)
+    en, trans, mapping = uf.read_theory(ENLEV, LEVEL_IDS, log=log)
+    e_meas = uf.measured_energies(en, ids=LEVEL_IDS, e_final=ctx.e_final,
+                                  log=log)
     per_cfg, whole = uf.windows(en, log=log)
     return en, trans, mapping, e_meas, per_cfg, whole, cowan_gA.read_id_map(
-        uf.IDS)
+        LEVEL_IDS)
 
 
 def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
@@ -4620,11 +4633,75 @@ def parse_args(argv):
                    help='re-fit one hyperfine width per level on the 1974 '
                         'lines of the run, write level_hfs_widths.csv and '
                         'stop; nothing else is scanned')
+    p.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
+                   help='the working set to run on (iter, final): its own '
+                        'configuration, and through it its own line list and '
+                        'classification table, its LOPT level output and its '
+                        'IDEN2.  A file the set does not hold is taken from '
+                        'the project directory.  --out, --firm and the file '
+                        '--fit-hfs writes go into the set (default: the '
+                        'baseline, in the project directory)')
     return p.parse_args(argv)
+
+
+def use_set(args, log=print):
+    """Point the run at the working set named by --set.
+
+    A working set (`iter/`, `final/`) is a directory holding its own copies of
+    the files an optimization produces - its configuration, which names its
+    corrected line list and its own classification table, its LOPT output and
+    its IDEN2 - and nothing else: a file it does not hold is the project
+    directory's, which is how the hand-kept files stay single copies
+    (swap_paths.working_path).  Everything this run reads that differs between
+    the sets is rebound here, before the first file is opened:
+
+      * the configuration, re-applied to classify_lines, so that the line list
+        (lopt_lines.read_observed_lines), the classification table
+        (level_shifts.read_run) and the level workbook are the set's;
+      * IDEN2/enlev.dat and IDEN2/IDEN_level_ids.txt, for the calculated
+        energies, the configurations and the IDEN2 rows of --unknown;
+      * LOPT_output_levels.txt, for the partner uncertainties D1;
+      * level_hfs_widths.csv, read from the set if it has its own copy.
+
+    What the run writes describes the set, so it is written into the set:
+    --out (and so the report --drop-all-questionable reads back), the
+    registry of --firm, and the width file of --fit-hfs.  A path given as
+    absolute is left where it is.
+    """
+    global HFS_FILE, LEVEL_IDS, ENLEV, LOPT_LEVELS_FILE
+    set_dir = os.path.abspath(args.set_dir)
+    if not os.path.isdir(set_dir):
+        raise SystemExit(f"level_positions.py: --set {args.set_dir} is not a "
+                         f"directory")
+    cfg_path = working_path('lineclass_config.toml', cwd=set_dir)
+    cl.apply_config(config.load(cfg_path))
+    iden2 = working_path('IDEN2', cwd=set_dir)
+    ENLEV = os.path.join(iden2, 'enlev.dat')
+    LEVEL_IDS = os.path.join(iden2, 'IDEN_level_ids.txt')
+    LOPT_LEVELS_FILE = working_path('LOPT_output_levels.txt', cwd=set_dir)
+    hfs = os.path.basename(HFS_FILE)
+    HFS_FILE = (os.path.join(set_dir, hfs) if args.fit_hfs
+                else working_path(hfs, cwd=set_dir))
+    if not os.path.isabs(args.out):
+        args.out = os.path.join(set_dir, args.out)
+    if args.firm and not os.path.isabs(args.firm):
+        args.firm = os.path.join(set_dir, args.firm)
+    log(f"working set: {set_dir}")
+    for name, path in (('configuration', cfg_path),
+                       ('line list', cl.LINES_FILE),
+                       ('classification table', cl.OUTPUT_CSV),
+                       ('LOPT level output', LOPT_LEVELS_FILE),
+                       ('IDEN2', iden2),
+                       ('hyperfine widths', HFS_FILE),
+                       ('report', args.out)):
+        log(f"  {name:<22} {path}")
+    return set_dir
 
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.set_dir:
+        use_set(args)
     if args.drop_questionable and not args.unknown:
         raise SystemExit('--drop-all-questionable only has a meaning with '
                          '--unknown: it frees the lines of the questionable '
@@ -4715,10 +4792,10 @@ def main(argv=None):
     tab = report_table(ctx, ids)
 
     if args.scan or args.audit:
-        en = li.read_enlev()
+        en = li.read_enlev(ENLEV)
         win = li.configuration_windows(en)
         lv, unmatched = li.attach_identities(ctx.per, en, win,
-                                             row_of_id=li.id_rows())
+                                             row_of_id=li.id_rows(LEVEL_IDS))
         e_calc = dict(zip(lv['level_id'], lv['E_calc']))
         w_of = dict(zip(lv['level_id'], lv['W']))
         registry = read_firm(args.firm)
