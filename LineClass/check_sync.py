@@ -197,6 +197,7 @@ import numpy as np
 import pandas as pd
 
 import config
+import hfs_correction
 import hfs_kappa
 import output_files
 import swap_line_assignments_IDEN as IDEN
@@ -680,7 +681,14 @@ def read_lopt_input(path):
     The fields cannot be found by splitting on blanks: an intensity of 128400
     fills its column and runs into the next one, so a whitespace split silently
     merges two fields on exactly the brightest lines.
+
+    The wavenumber is the measured one.  A file written with the hyperfine
+    correction on ([hfs] apply) gives LOPT each line moved into the head
+    frame, and LOPT_hfs_shifts.txt beside it says by how much, so the value
+    the classification table and dlv.dat hold is taken back from there.
     """
+    shifts = hfs_correction.read_shifts(path)
+
     def cut(rec, name):
         first, last = IN_FIELDS[name]
         return rec[first - 1:last]
@@ -698,7 +706,8 @@ def read_lopt_input(path):
                 continue
             weight = cut(rec, 'weight').strip()
             try:
-                value = (float(wn), cut(rec, 'flags').strip(),
+                value = (hfs_correction.measured(low, upp, float(wn), shifts),
+                         cut(rec, 'flags').strip(),
                          float(weight) if weight else 0.0)
             except ValueError:
                 continue
@@ -706,8 +715,15 @@ def read_lopt_input(path):
     return out
 
 
-def read_lopt_output_lines(path):
-    """LOPT_output_lines.txt as {pair: (wavenumber, weight, E_low, E_upp)}."""
+def read_lopt_output_lines(path, wn_tol=DEF_WN_TOL):
+    """LOPT_output_lines.txt as {pair: (wavenumber, weight, E_low, E_upp)}.
+
+    The wavenumber is the measured one, as read_lopt_input() gives it: LOPT
+    prints what it was given, which with the hyperfine correction on is the
+    line in the head frame, rounded to the precision of its uncertainty;
+    `wn_tol` is how far that rounding may take it.
+    """
+    shifts = hfs_correction.read_shifts(path)
     out = {}
     with open(path, 'r', encoding='latin-1', newline='') as fh:
         rd = csv.reader(fh, delimiter='\t')
@@ -724,8 +740,11 @@ def read_lopt_output_lines(path):
             low, upp = r[ix['L1']].strip(), r[ix['L2']].strip()
             if not low or not upp:
                 continue
+            wn = _num(r[ix['wn_o']])
+            if shifts and wn == wn:
+                wn = hfs_correction.measured(low, upp, wn, shifts, wn_tol)
             out.setdefault(pair_key(low, upp), []).append(
-                (_num(r[ix['wn_o']]), _num(r[ix['Weight']]),
+                (wn, _num(r[ix['Weight']]),
                  _num(r[ix['E1']]), _num(r[ix['E2']])))
     return out
 
@@ -1262,7 +1281,7 @@ def check_lopt_chain(cls, paths, ctx, rep, wn_tol):
 
     lopt_out = None
     if out and os.path.exists(out):
-        lopt_out = read_lopt_output_lines(out)
+        lopt_out = read_lopt_output_lines(out, wn_tol)
         if lopt_in is not None:
             matched, missing, extra = align(lopt_in, lopt_out, wn_tol)
             if missing or extra:

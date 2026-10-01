@@ -655,6 +655,10 @@ def parse_args(argv=None):
                    help='skip check_sync.py and sync_IDEN2.py.  The discarded '
                         'level then keeps the uncertainty it had in enlev.dat '
                         'instead of its configuration\'s search window')
+    p.add_argument('--unlock', action='store_true',
+                   help='write a locked set (one whose own '
+                        'lineclass_config.toml says locked = true, as the '
+                        'baseline\'s does)')
     args = p.parse_args(argv)
     if not args.level_id and args.iden2_row is None:
         p.error('name the level, either as an identifier or with --iden2-row')
@@ -725,6 +729,8 @@ def undo_from_ledger(args, log):
 def main(argv=None):
     args = parse_args(argv)
     log = Log()
+    INL.require_unlocked(WRITABLE + [BACKUP_DIR], 'discard_level.py',
+                         args.unlock, shared=(OVERRIDES, REMOVED, DISCARDED))
     try:
         if args.undo:
             saved = {p: os.path.join(BACKUP_DIR, os.path.basename(p))

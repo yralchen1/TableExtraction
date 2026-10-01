@@ -95,6 +95,26 @@ reports the correction as dEcent; k(n) measures the spread of the components
 about that centroid, which LOPT has thus already removed, and adding it would
 charge the same effect twice.  --no-hfs turns the hyperfine term off.
 
+The hyperfine correction.  With `apply = true` in the `[hfs]` section of the
+set's configuration (the `lineclass_config.toml` beside the classification
+table, or the project's), the levels are fitted in the head frame of
+hfs_correction.py: every observed line with an accepted classification is
+written at wn_obs + hfs_shift, the column classify_lines.py computed with the
+same switch on, (1 - kappa) * sum BF_i * D_i over the line's accepted
+transitions, and its uncertainty u_hfs_shift is added to the line's in
+quadrature.  All records of one observed line take the same shift, so that
+LOPT still sees the components of a blend at one wavenumber.  The hyperfine
+width of a level whose hyperfine structure the correction accounts for (a
+determined A constant, or resolved sublevels) is no longer added, nor any
+width on a line Sugar flagged, which sits on the head-frame Ritz value; a
+level without a determined A keeps its width (Work_on_hfs_plan.md, D13).
+What was added to each record is written to LOPT_hfs_shifts.txt beside the
+transitions file, so that sync_IDEN2.py and check_sync.py, which find the
+observed line of a LOPT record by its wavenumber, can take the measured value
+back.  A table written with the switch in the other position stops the run:
+a correction applied to one file and not the other would fit a mixture of
+frames.
+
 The rows are written in order of decreasing wavenumber, as in the sample.
 
 Usage
@@ -115,8 +135,12 @@ The working set
 
 import argparse
 import csv
+import math
 import os
 
+import config
+import hfs_correction
+import hfs_kappa
 import output_files
 from swap_paths import working_path
 
@@ -129,6 +153,9 @@ DEF_CLASSIFICATIONS = 'line_classifications.csv'
 DEF_SAMPLE_PAR = 'Pr3_line_class13.par'
 DEF_SAMPLE_FIXLEV = 'Pr3_line_class5_fixlev.txt'
 DEF_HFS_WIDTHS = 'level_hfs_widths.csv'
+DEF_CONFIG = 'lineclass_config.toml'
+# The columns classify_lines.py writes with [hfs] apply on.
+HFS_COLUMNS = ('kappa', 'hfs_D', 'hfs_shift', 'u_hfs_shift')
 
 # The admission rule for a fitted hyperfine width, as in level_positions.py:
 # a width below HFS_APPLY changes no sigma measurably and is consistent with
@@ -203,12 +230,18 @@ def read_classifications(path):
     """Return the classified rows of the classification table.
 
     A row is classified when it names both an upper and a lower level;
-    the unclassified observed lines carry no transition and are dropped.
+    the unclassified observed lines carry no transition and are dropped.  So
+    is the row of a resolved hfs companion (grade hfs, hfs_correction.py):
+    it names its transition, but the transition's energy difference is
+    measured by the main line, and the companion lies a rung of the pattern
+    away from it.
     """
     with open(path, newline='', encoding='utf-8-sig') as fh:
         rows = [r for r in csv.DictReader(fh)
                 if (r.get('low_id') or '').strip()
-                and (r.get('upp_id') or '').strip()]
+                and (r.get('upp_id') or '').strip()
+                and (r.get('grade') or '').strip()
+                != hfs_correction.COMPANION_GRADE]
     if not rows:
         raise SystemExit(f'{path}: no classified lines found')
     return rows
@@ -396,7 +429,30 @@ def blend_weights(rows):
     return {id(r): c / total for r, c in zip(rows, calc)}
 
 
-def write_lines_file(rows, path, w_hfs=None):
+def hfs_line_shifts(rows):
+    """`{wn_obs: (hfs_shift, u_hfs_shift, kappa)}`, one entry per observed
+    line, from the columns classify_lines.py writes with [hfs] apply on.
+
+    The shift belongs to the line and is written on each of its rows; rows
+    of one line that disagree say the table has been edited by hand, and
+    stop the run rather than have one of them chosen.
+    """
+    out = {}
+    for r in rows:
+        rec = (float(r['hfs_shift'] or 0.0), float(r['u_hfs_shift'] or 0.0),
+               float(r['kappa']))
+        was = out.setdefault(r['wn_obs'], rec)
+        if was != rec:
+            raise SystemExit(
+                f'the rows of the observed line {r["wn_obs"]} cm-1 carry '
+                f'different hfs_shift, u_hfs_shift or kappa values '
+                f'({was} and {rec}); they are one line\'s, so the table has '
+                f'been changed since classify_lines.py wrote it')
+    return out
+
+
+def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
+                     hfs_stats=None):
     """Write the LOPT transitions file.
 
     Returns (written, accepted, flagged, widened, dropped).  `w_hfs` is
@@ -404,8 +460,18 @@ def write_lines_file(rows, path, w_hfs=None):
     added to its quoted uncertainty in quadrature.  `widened` counts the
     records that got one, `dropped` the repeated records of a transition that
     is already written.
+
+    `hfs`, an hfs_correction.Model, turns the hyperfine correction on (see
+    the module docstring): each record is written at wn_obs + hfs_shift of
+    its line, with u_hfs_shift added in quadrature, and the width of a level
+    the correction accounts for is left out.  Every record whose wavenumber
+    is changed is appended to `shifts_out` as (low_id, upp_id, wn_obs as
+    the table gives it, the wavenumber written, shift, its uncertainty),
+    and `hfs_stats['widths_left_out']` counts the records that lost a
+    level width to it.
     """
     w_hfs = w_hfs or {}
+    line_shift = hfs_line_shifts(rows) if hfs is not None else {}
     # A transition is one energy difference, however many observed lines have
     # been assigned to it.  The repeats go before anything else is computed,
     # so that a record which is not written cannot weigh on one that is.
@@ -425,9 +491,28 @@ def write_lines_file(rows, path, w_hfs=None):
     per_row = {}
     all_rows = {}
     for r in rows:
-        per_row[id(r)] = total_unc(float(r['unc_wn_obs']),
-                                   r['low_id'].strip(), r['upp_id'].strip(),
-                                   w_hfs)
+        low, upp = r['low_id'].strip(), r['upp_id'].strip()
+        widths = w_hfs
+        if hfs is not None and w_hfs:
+            # The widths the correction replaces (D13): none at all on a
+            # line Sugar flagged, which sits on the head-frame Ritz value
+            # (its blends' other components included), nor on the main line
+            # of resolved companions, which does too, and none for a level
+            # whose hyperfine structure is computed.
+            flagged = (hfs_kappa.kappa_class(
+                (r.get('char') or '').strip()) == 'flag'
+                or hfs.is_head_line(float(r.get('wn_key') or r['wn_obs'])))
+            widths = {lid: w for lid, w in w_hfs.items()
+                      if lid in (low, upp) and not flagged
+                      and not hfs.is_corrected(lid)}
+            if hfs_stats is not None and len(widths) < sum(
+                    1 for lid in (low, upp) if lid in w_hfs):
+                hfs_stats['widths_left_out'] = (
+                    hfs_stats.get('widths_left_out', 0) + 1)
+        unc = total_unc(float(r['unc_wn_obs']), low, upp, widths)
+        if hfs is not None:
+            unc = math.hypot(unc, line_shift[r['wn_obs']][1])
+        per_row[id(r)] = unc
         all_rows.setdefault(r['wn_obs'], []).append(r)
     shared = {}
     for key, group in all_rows.items():
@@ -441,6 +526,14 @@ def write_lines_file(rows, path, w_hfs=None):
     n_widened = 0
     for r in rows:
         wn = float(r['wn_obs'])
+        if hfs is not None:
+            shift, u_shift = line_shift[r['wn_obs']][:2]
+            if shift:
+                wn = float('%.3f' % (wn + shift))
+                if shifts_out is not None:
+                    shifts_out.append((r['low_id'].strip(),
+                                       r['upp_id'].strip(), r['wn_obs'],
+                                       wn, shift, u_shift))
         quoted = float(r['unc_wn_obs'])
         unc = shared.get(r['wn_obs'], per_row[id(r)])
         if unc > quoted:
@@ -469,6 +562,32 @@ def write_lines_file(rows, path, w_hfs=None):
             fh.write(text + EOL_LINES)
     return (len(records), n_accepted_rows,
             len(records) - n_accepted_rows, n_widened, len(dropped))
+
+
+def hfs_model(cfg_path, rows, source):
+    """The hfs_correction.Model if the configuration at `cfg_path` switches
+    the hyperfine correction on, else None.
+
+    The classification table must have been written with the switch in the
+    same position: its hfs columns are what the correction adds, and a
+    table without them has had its candidates judged against the plain Ritz
+    values, one with them against the corrected ones.
+    """
+    settings = config.load(cfg_path).hfs
+    has = all(c in rows[0] for c in HFS_COLUMNS)
+    if settings.apply and not has:
+        raise SystemExit(
+            f'make_LOPT_input.py: {cfg_path} switches the hyperfine '
+            f'correction on ([hfs] apply = true), but {source} was written '
+            f'with it off - it has no hfs_shift column.  Run '
+            f'classify_lines.py on this set again first.')
+    if has and not settings.apply:
+        raise SystemExit(
+            f'make_LOPT_input.py: {source} was written with the hyperfine '
+            f'correction on, but {cfg_path} has it off ([hfs] apply = '
+            f'false).  Run classify_lines.py on this set again, or turn the '
+            f'switch back on.')
+    return hfs_correction.Model(settings) if settings.apply else None
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +666,10 @@ def parse_args(argv=None):
                         'added to each line uncertainty in quadrature')
     p.add_argument('--no-hfs', action='store_true',
                    help='do not add the hyperfine widths to the uncertainties')
+    p.add_argument('--config', default=DEF_CONFIG,
+                   help='the configuration whose [hfs] section says whether '
+                        'the hyperfine correction is applied; a bare name is '
+                        "looked for beside the classification table first")
     p.add_argument('--lines-out', default=DEF_LINES_OUT,
                    help='transitions file to write')
     p.add_argument('--fixlev-out', default=DEF_FIXLEV_OUT,
@@ -565,6 +688,10 @@ def parse_args(argv=None):
     p.add_argument('--outdir', default='',
                    help='directory for the three written files '
                         '(default: alongside the classification table)')
+    p.add_argument('--unlock', action='store_true',
+                   help='write a locked set (one whose own '
+                        'lineclass_config.toml says locked = true, as the '
+                        'baseline\'s does)')
     return p.parse_args(argv)
 
 
@@ -606,6 +733,8 @@ def main(argv=None):
     sample_fixlev = in_src(args.sample_fixlev)
     sample_par = in_src(args.sample_par)
     hfs_widths = in_src(args.hfs_widths)
+    cfg_path = in_src(args.config)
+    shifts_file = hfs_correction.shifts_path(lines_out)
     for what, path in (('sample fixed levels', sample_fixlev),
                        ('sample parameter file', sample_par)):
         if not os.path.exists(path):
@@ -615,9 +744,13 @@ def main(argv=None):
     # LOPT's input files are tab-delimited text, and an analyst who has one
     # of them open in Excel would otherwise learn of it only after the whole
     # classification had been re-read and re-written.
-    output_files.require_writable([lines_out, fixlev_out, par_out])
+    config.require_unlocked([lines_out, fixlev_out, par_out, shifts_file],
+                            'make_LOPT_input.py', args.unlock)
+    output_files.require_writable([lines_out, fixlev_out, par_out,
+                                   shifts_file])
 
     rows = read_classifications(args.classifications)
+    hfs = hfs_model(cfg_path, rows, args.classifications)
     if args.corrections:
         shifted, largest, unknown = apply_corrections(
             rows, read_corrections(args.corrections))
@@ -628,8 +761,19 @@ def main(argv=None):
                   f"file and keep Sugar's wavenumber and uncertainty; "
                   f'the first is {unknown[0]:.4f}')
     w_hfs = {} if args.no_hfs else read_hfs_widths(hfs_widths)
+    shifts, hfs_stats = [], {}
     written, accepted, flagged, widened, dropped = write_lines_file(
-        rows, lines_out, w_hfs)
+        rows, lines_out, w_hfs, hfs=hfs, shifts_out=shifts,
+        hfs_stats=hfs_stats)
+    # The record of the shifts describes the transitions file just written,
+    # so one left from an earlier run with the correction on is removed
+    # when the correction is off: it would describe a file that is gone.
+    if hfs is not None:
+        hfs_correction.write_shifts(shifts_file, shifts)
+    elif os.path.exists(shifts_file):
+        os.remove(shifts_file)
+        print(f'{shifts_file}: removed; it described a transitions file '
+              f'written with the hyperfine correction on')
     write_fixlev_file(sample_fixlev, fixlev_out)
     # The parameter file must name the input files as LOPT will look for
     # them; LOPT resolves them next to itself, so bare names are written.
@@ -638,6 +782,7 @@ def main(argv=None):
                    args.levels_output, args.lines_output)
 
     print(f'classifications: {args.classifications}')
+    print(f'configuration: {cfg_path}')
     print(f'sample fixed levels: {sample_fixlev}')
     print(f'sample parameter file: {sample_par}')
     print(f'{lines_out}: {written} transitions '
@@ -648,11 +793,28 @@ def main(argv=None):
     if w_hfs:
         print(f'  hyperfine widths from {hfs_widths}: {len(w_hfs)} levels '
               f'carry one; {widened} transitions had their uncertainty '
-              f'widened by it')
+              f'widened by it'
+              + (' or by the uncertainty of the hyperfine correction'
+                 if hfs is not None else ''))
+        if hfs is not None:
+            print(f"  {hfs_stats.get('widths_left_out', 0)} transitions "
+                  f'lost a level width that the hyperfine correction '
+                  f'replaces (a determined A, or a flagged line)')
     elif args.no_hfs:
         print('  no hyperfine widths applied (--no-hfs)')
     else:
         print(f'  no hyperfine widths applied: {hfs_widths} does not exist')
+    if hfs is not None:
+        lines = {}
+        for low, upp, wn_obs, _, d, u in shifts:
+            lines[wn_obs] = (d, u)
+        big = sorted((abs(d) for d, _ in lines.values()), reverse=True)
+        print(f'  hyperfine correction on ([hfs] apply): {len(lines)} '
+              f'observed lines ({len(shifts)} records) moved into the head '
+              f'frame' + (f', largest |shift| {big[0]:.4f} cm-1, '
+                          f'{sum(1 for b in big if b > 0.1)} above 0.1'
+                          if big else ''))
+        print(f'  {shifts_file}: what was added to each record')
     print(f'{fixlev_out}: copied from {sample_fixlev}')
     print(f'{par_out}: copied from {sample_par} with new file names')
     return 0

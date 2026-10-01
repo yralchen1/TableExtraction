@@ -47,8 +47,11 @@ one changes the input the next one is computed from.
    promising transitions; its table `found_levels.csv` is the worklist.
 
 3. **The hyperfine-structure (hfs) work.** Planned in full in
-   [`Work_on_hfs_plan.md`](Work_on_hfs_plan.md); it is not started, and it must
-   not start before items 1 and 2 are closed.
+   [`Work_on_hfs_plan.md`](Work_on_hfs_plan.md). Steps 0-3b are done; the
+   correction itself (Step 5, the head frame) is in `classify_lines.py` and
+   `make_LOPT_input.py` since 2026-09-30, switched off in every set until it
+   is turned on (see "The hyperfine correction: the head frame"). The rest of
+   this item is the plan as first written.
 
    Pr III lines are hyperfine patterns, not single lines. Sugar flagged 296 of
    the 1974 lines `*r` or `*v` for a visibly displaced strongest component, but
@@ -86,10 +89,11 @@ one changes the input the next one is computed from.
      re-derived per character per era once it is removed, and the per-group
      systematic uncertainty that LOPT carries as a function of wavelength.
 
-   The working hypothesis on the measurement convention is that Sugar measured
-   the **centre of gravity** of every line except those he flagged, supported
-   by his own statement for Pr IV; it may have to be revised per line or per
-   era if the Pr III data say otherwise.
+   The first working hypothesis on the measurement convention was that Sugar
+   measured the **centre of gravity** of every line except those he flagged.
+   Step 3 refused it: the unflagged lines of 1974 sit at kappa = 0.944 of the
+   way to the strongest component, those of 1969 at 0.633 and the complex
+   ones at 0.20.
 
    Every external datum used must be cited to a checkable source, collected in
    section 9 of the plan.
@@ -2714,8 +2718,8 @@ Sugar's own workbook with `own` and `unc_own` untouched and two columns added,
 
 **`wn_key` is the name of an observed line, and it never changes.** The files kept by hand are
 not copied per set: there is one `line_decisions.csv`, one `new_levels.txt`, one
-`revised_level_energies.csv`, one `discarded_levels.csv` and one `inflated_unc_lines.txt`, and
-they rule on all three sets. They have to, because a verdict on an assignment is a statement
+`revised_level_energies.csv`, one `discarded_levels.csv`, one `inflated_unc_lines.txt` and one
+`hfs_satellites.txt`, and they rule on all three sets. They have to, because a verdict on an assignment is a statement
 about the physics and not about the scale the line was last measured on; two copies of a ledger
 are two answers to the same question, with nothing to say which is the work.
 
@@ -2739,6 +2743,34 @@ baseline as well — where that line still sits too far out, and now weighs on t
 baseline's chi-square per degree of freedom rises accordingly. That is the honest statement: the
 uncalibrated scale fits worse, and the identification is right regardless of which scale it was
 established on.
+
+### A set can be locked
+
+The baseline has been frozen since 2026-09-30, and the work goes on in `iter/`. So that a run
+made by habit, without `--set` or `--config`, cannot overwrite the files the baseline's LOPT
+fit and IDEN2 were last brought into step with, its configuration says so at the top:
+
+```toml
+locked = true
+```
+
+With that, `classify_lines.py`, `make_LOPT_input.py` and `sync_IDEN2.py` stop before doing any
+work if they would write a file of that set: its classification table, its LOPT files, its
+IDEN2. Each names the set and the files. `insert_new_level.py`, `move_level.py` and
+`discard_level.py` refuse a run on it (`--undo` included) before they start, instead of
+failing halfway along their chain. `--unlock` on any of them writes the locked set anyway.
+The three level tools pass it on to the programs they run through the environment variable
+`LINECLASS_UNLOCK=1`.
+
+**The lock belongs to the file that says it.** It is not inherited: `iter/lineclass_config.toml`
+reads the baseline's file and is not locked by it. **It is checked on the files written, not
+on the configuration read.** A file belongs to the nearest directory above it that holds a
+`lineclass_config.toml`, so `IDEN2/enlev.dat` is the baseline's and `iter/IDEN2/enlev.dat` is
+iter's. A set that has no IDEN2 of its own, and so falls back on the project's, therefore cannot
+write the baseline's IDEN2 either. The hand-kept files (`line_decisions.csv`, `new_levels.txt`,
+`revised_level_energies.csv`, `discarded_levels.csv`, and the rest) lie in the baseline's
+directory but are shared by every set, and they stay writable. `check_sync.py` writes only its
+report and does not ask. `config.require_unlocked` does the checking.
 
 ### Choosing the set from the command line
 
@@ -2904,6 +2936,144 @@ python review_mismatches.py --set iter --free-lines         # the lines still on
 python review_mismatches.py --set iter --apply --dry-run    # what the worksheet would do
 python review_mismatches.py --set iter --apply              # do it
 ```
+
+## The hyperfine correction: the head frame (`[hfs] apply`)
+
+<sup>141</sup>Pr has nuclear spin I = 5/2, so every level of angular momentum J is a group of
+hyperfine sublevels, and every line a pattern of components. The outermost sublevel,
+F = I + J, lies S = I·A·J from the level's center of gravity, A being the level's
+magnetic-dipole hyperfine constant; the strongest component of a line joins the two
+F = I + J sublevels and lies D = S(upper) − S(lower) from the line's center of gravity.
+Sugar tabulated that strongest component where he resolved the pattern (the lines he
+flagged `*r` or `*v`), and a point between it and the center of gravity where he did not;
+`hfs_kappa.py` measured where, as the convention factor κ of each class of line
+(`Work_on_hfs_plan.md`, Step 3).
+
+The pipeline works in the **head frame**: its level energies, LOPT's and IDEN2's are the
+F = I + J sublevels, E_head = E_cg + S. A line of class κ was then measured (1 − κ)·D below
+the head-frame Ritz wavenumber:
+
+| class | κ | where the line sits |
+|---|---|---|
+| `flag` (`*r`, `*v`) | 1 | on the Ritz value |
+| `plain_1974` (unflagged, below 47500 cm⁻¹) | 0.944 ± 0.014 | 0.056·D below it |
+| `plain_1969` (unflagged, above) | 0.633 ± 0.035 | 0.367·D below it |
+| `c` | 0.20 ± 0.12 | 0.80·D below it |
+
+With `apply = true` in the `[hfs]` section of a set's configuration:
+
+- **`classify_lines.py`** compares a line with each candidate transition i at
+  Ritz_i − (1 − κ)·D_i, and fits the level energies to the measured wavenumber plus
+  (1 − κ)·D_i. The classification table gains four columns: `kappa`, `hfs_D` (of the row's
+  transition), `hfs_shift` = (1 − κ)·Σ BF_i·D_i over the line's accepted transitions (the same
+  on every row of the line; 0 for a line with nothing accepted) and its uncertainty
+  `u_hfs_shift`. `dif_wn_O-C` is the residual against the corrected prediction.
+  A **flagged blend** is the exception to one κ per line: the flag describes the pattern of
+  one transition, taken to be the strongest (largest BF), which takes κ = 1, and the other
+  components take the plain κ of the line's era. The shift is then Σ BF_i·(1 − κ_i)·D_i and
+  `kappa` is the BF-weighted mean Σ BF_i·κ_i. While classifying, every candidate of a
+  flagged line is still compared with its Ritz value (κ = 1), since which component is the
+  strongest is known only once the classification has converged.
+- **`make_LOPT_input.py`** writes every record of a line at `wn_obs + hfs_shift` (one
+  wavenumber per line, so that LOPT's centroid model still sees the components of a blend
+  together), and adds `u_hfs_shift` to its uncertainty in quadrature. What it added to each
+  record is written to **`LOPT_hfs_shifts.txt`** beside `LOPT_input_lines.txt`
+  (`low_id, upp_id, wn_obs, wn_lopt, hfs_shift, u_hfs_shift`).
+- **`sync_IDEN2.py`** and **`check_sync.py`** find the observed line of a LOPT record by its
+  wavenumber, and take the measured one back from that file. IDEN2 itself needs nothing:
+  `enlev.dat` gets the head-frame energies LOPT fits, and `dlv.dat` keeps the lines as
+  measured.
+
+An unidentified line is not shifted - it cannot be, since D belongs to a transition - and
+nothing is fitted to it. The centers of gravity, E_cg = E_head − I·A·J, are computed once at
+the end, for the published level list; that is the only place the absolute A values enter.
+
+**The A constants** are `A_hfs_levels.csv` (`files.hfs_A_levels`). A level whose A is
+*determined* there (calculated by Reader and Sugar, from its composition, or from its flag
+intervals) carries S = I·A·J with the uncertainty I·J·u_A. One listed as *not determined*
+(41 levels of 4f5d<sup>2</sup> and 4f<sup>3</sup>) carries S = 0 and the unknown A as the
+uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
+resolved_levels` counts S = 0 because each of its lines ends on one sublevel. There are two,
+both J = 1/2 levels of 4f<sup>2</sup>6s standing at their F = 3 sublevels: `059003.000642`
+(IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A level whose lines show a resolved
+second hyperfine component does not belong in this list. Along that series both levels
+change F together, so the listed line is the strongest component of the whole pattern.
+That is a property of the line, as Sugar's `*r`/`*v` flags are, not of the level.
+
+**Resolved companions** are that property written down. `hfs_satellites.txt`
+(`files.hfs_satellites`, kept by hand, tab-delimited) lists each weaker line of the line list
+that lies a rung of its transition's pattern away from a classified line: the companion's
+`wn_key`, the `main_wn_key` of the line it belongs to, the transition (`low_id`, `upp_id`), the
+`rung` k (the companion joins F_low − k and F_upp − k), a date and a reason; a row starting
+with `#` is a comment. The companion is written into the classification as that transition's
+hfs component, grade `hfs`, never accepted: it is not a second measurement of the energy
+difference, so `make_LOPT_input.py` leaves it out, IDEN2 does not show it as assigned, and no
+other candidate is sought for it. This holds with the switch off too. With the switch on, the
+named transition of the main line takes κ = 1, like a flagged line; in a blend the other
+components keep the κ they would have without it. A companion that also carries a published
+identification or an accepted ledger row stops the run, since it cannot be both. The file
+holds eight companions of seven main lines, found on 2026-09-30 beside the lines of IDEN2 rows
+1138, 1131, 1118 and 1091; the one of row 1129 is a comment row, because its satellite may be
+rung 2 with rung 1 blended into the main line.
+
+**What the correction replaces.** A level with a determined A no longer carries its
+hyperfine width from `level_hfs_widths.csv` into LOPT's uncertainty, and a flagged line, or
+the main line of resolved companions, carries none; a level without a determined A keeps its
+width. A line widened by a row of `inflated_unc_lines.txt` whose reason says hfs gets the line
+list's own uncertainty back at the end of the classification run when every accepted
+transition of it touches only levels with a determined A, or when it is flagged or the main
+line of resolved companions. The registry file is not changed.
+
+**Consistency.** With the switch off nothing changes: no column is added, and the table
+and the LOPT input are byte-identical to what the code wrote before, except for the rows of
+the resolved companions, which `hfs_satellites.txt` classifies whatever the switch says
+(comment the file out of the configuration to run without it). `make_LOPT_input.py`
+reads the switch from the configuration beside the classification table and stops if the
+table was written under the other setting; with the switch off it removes a
+`LOPT_hfs_shifts.txt` left from an earlier run.
+
+**To use it**, turn it on in a set's own configuration and run that set's chain. Never turn it
+on in the baseline's: every set that inherits the baseline would have it on too, `iter/`
+included. The switch makes no files of its own; a run writes where its set's configuration
+says. Turned on in `iter/`, it would rewrite iter's table, LOPT files and IDEN2 in the head
+frame. Assignment work in iter would then stop: `insert_new_level.py` refuses such a set, and
+`level_positions.py` and `review_mismatches.py` would show the wrong residuals. The hfs work
+therefore goes in a set of its own beside `iter/`, for example `iter_hfs/`, with a copy of
+`iter/IDEN2/` and this configuration:
+
+```toml
+inherit = "../iter/lineclass_config.toml"
+
+[files]
+# Without these two the set would inherit iter's table and overwrite it.
+output     = "line_classifications.xlsx"
+output_csv = "line_classifications.csv"
+
+[hfs]
+apply = true
+```
+
+It reads iter's corrected line list (inherited, resolved against `iter/`) and the shared
+hand-kept files, and writes everything else in `iter_hfs/`:
+
+```
+python classify_lines.py --config iter_hfs/lineclass_config.toml
+python make_LOPT_input.py --classifications iter_hfs/line_classifications.csv
+cd iter_hfs && lopt.bat LOPT.par && cd ..
+python check_sync.py --set iter_hfs
+python sync_IDEN2.py --set iter_hfs
+```
+
+`make_LOPT_input.py` writes `LOPT.par`, `LOPT_input_lines.txt`, `LOPT_fixlev.txt` and
+`LOPT_hfs_shifts.txt` beside the table. Its IDEN2 is a copy taken at one moment, so assignments
+made in `iter/` afterwards reach it only through the shared ledger and `new_levels.txt` and a
+fresh copy of `iter/IDEN2/`.
+
+**Not yet hfs-aware**: `insert_new_level.py`, `move_level.py` and `discard_level.py` edit
+`LOPT_input_lines.txt` record by record without the shift file, and
+`level_positions.py` and `review_mismatches.py` compute their residuals as wn_obs − Ritz
+from the table. Do not use the first three on a set with the switch on;
+`insert_new_level.py` refuses to run on one.
 
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
@@ -5386,7 +5556,27 @@ python insert_new_level.py --iden2-row 742 --yes --rebuild \
     --reject 39785.512/000243="Too weak to contribute to blend" \
     --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
 python insert_new_level.py --iden2-row 742 --yes --force   # do it again although it has been done
+python insert_new_level.py --set iter --iden2-row 658       # the same, in the calibrated set
 ```
+
+**`--set iter`** puts the whole sequence on a working set: its own `IDEN2/`, its own LOPT
+files (`lopt.bat LOPT.par` runs in `iter/`), and its own configuration, which names its
+corrected line list and its own classification table. The programs of the chain are told the
+set as each already takes it — `classify_lines.py --config iter/lineclass_config.toml`,
+`make_LOPT_input.py --classifications iter/line_classifications.csv`, `check_sync.py --set
+iter`, `sync_IDEN2.py --set iter`. `new_levels.txt` and `line_decisions.csv` stay the
+project's single copies, shared by every set. The backups, the log and `LOPT_snapshot.json`
+go into the set, so `--undo` needs the same `--set`. A set without its own
+`lineclass_config.toml`, `IDEN2/` or `LOPT.par`, or whose configuration puts the
+classification table outside it, is refused: completing it from the project directory would
+write the baseline. Every wavenumber shown or given — the candidate table, `--reject`,
+`--accept` — is the set's corrected one, as its IDEN2 shows it. The exception is the ledger:
+its rows name a line by `wn_key`, Sugar's own wavenumber, so the rows the run writes are keyed
+on the line's `wn_key` and the rows already there are found through it (`LineNames`). The
+calibration moves lines by up to 0.66 cm⁻¹, and a row keyed on the corrected value would
+name no line. On the baseline the two are the same number. One consequence of sharing:
+the energy step E writes back into `new_levels.txt` is the set's fitted value, and a baseline
+run would start the level from there too.
 
 The first form writes nothing: it prints the proposal table and stops. What it
 does with `--yes`, in order:
@@ -5920,6 +6110,7 @@ Relative paths are taken relative to the directory holding the configuration fil
 | `[missing_gA]`              | `policy` (`"impute"` or `"none"`) and the settings of the imputation recipe          |
 | `[intensity_model]`         | `C` and `kT` of `Icalc = C·gA·exp(−Eup/kT)/rwn`, plus the tolerance of the re-fit check |
 | `[decisions]`               | `max_forced_offset`: how far, in cm⁻¹, the Ritz wavenumber of a pair the decision ledger accepts may sit from the line it is accepted on before the run stops — the stale-row guard (5.0; optional, one row at a time exempted with `offset-ok` in its reason) |
+| `[hfs]`                     | the head-frame hyperfine correction: `apply` (off in the baseline), `resolved_levels`, and `[hfs.kappa]`, `[kappa, u_kappa]` per class of line; the A constants are `files.hfs_A_levels`, the resolved companions `files.hfs_satellites`. See "The hyperfine correction: the head frame" |
 
 The remaining tunables are decisions about the *method* rather than the data, and stay as
 module constants and function defaults in `classify_lines.py`:
@@ -5952,6 +6143,8 @@ LineClass/
 ├── classify_lines.py             # Full pipeline: read → generate → match → grade → resolve → weed → optimize → output
 │                                 #   (+ decoy-level support for the validation suite)
 ├── models.py                     # Dataclasses: EnergyLevel, SpectralLine, Transition, UNASSIGNED
+├── hfs_correction.py             # The head-frame hyperfine correction ([hfs] apply): S = I*A*J,
+│                                 #   kappa per class, a line's shift, LOPT_hfs_shifts.txt
 ├── decoy_mc.py                   # Validation: decoy (shadow-level) runs → false-confirmation rates in situ
 ├── level_shifts.py               # Validation: calibrations, criterion grids, pattern scores, p_spur; --detail mode
 ├── level_interchange.py          # Validation: are two levels of one parity and J wearing each

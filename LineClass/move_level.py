@@ -702,6 +702,10 @@ def parse_args(argv=None):
                         'file back')
     p.add_argument('--no-sync', action='store_true',
                    help='skip check_sync.py and sync_IDEN2.py')
+    p.add_argument('--unlock', action='store_true',
+                   help='write a locked set (one whose own '
+                        'lineclass_config.toml says locked = true, as the '
+                        'baseline\'s does)')
     args = p.parse_args(argv)
     if args.iden2_only:
         args.propose = False
@@ -722,6 +726,8 @@ def main(argv=None):
     rejects = INL.parse_reject(args.reject)
     accepts = INL.parse_accept(args.accept)
     log = Log()
+    INL.require_unlocked(WRITABLE + [BACKUP_DIR], 'move_level.py',
+                         args.unlock, shared=(OVERRIDES, REMOVED))
     if args.undo:
         saved = {p: os.path.join(BACKUP_DIR, os.path.basename(p))
                  for p in WRITABLE

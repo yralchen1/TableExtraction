@@ -21,6 +21,10 @@ class EnergyLevel:
     intens_to_factor: float = 0.0          # same, for transitions TO this level (lower)
     u_intens_to_factor: float = 0.0
     u_energy: float = 0.0                  # estimated uncertainty of the adopted energy (cm^-1); 0.0 = not yet estimated
+    hfs_S: float = 0.0                     # I*A*J, the offset of the F = I+J sublevel from the center of
+                                           #     gravity (cm^-1); 0.0 unless [hfs] apply is on
+                                           #     (see hfs_correction.py)
+    u_hfs_S: float = 0.0                   # its uncertainty (cm^-1)
     from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
     to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
     u_contrib: Dict[tuple, tuple] = field(default_factory=dict)
@@ -53,6 +57,30 @@ class SpectralLine:
     # ('accept'|'reject', reason), read from the decision ledger by
     # classify_lines.attach_line_decisions().  Empty unless the ledger names
     # this line.
+    hfs_factor: float = 0.0
+    # 1 - kappa, the fraction of a transition's hyperfine displacement D by
+    # which this line was measured below the head-frame Ritz wavenumber;
+    # kappa is the measurement convention of the line's class (flag, era,
+    # character).  0.0 unless [hfs] apply is on, and then 0.0 for a line
+    # Sugar flagged, which sits on the Ritz value (see hfs_correction.py).
+    hfs_u_kappa: float = 0.0
+    # the uncertainty of kappa.
+    hfs_head_pairs: frozenset = frozenset()
+    # The (lower_id, upper_id) pairs whose resolved hfs companions the
+    # registry files.hfs_satellites lists: for those this line is the
+    # strongest component of the pattern and sits on the head-frame Ritz
+    # value, kappa = 1, whatever its class (hfs_correction.py).  Set by
+    # classify_lines.attach_hfs_satellites().
+    hfs_companion: Optional[tuple] = None
+    # (main line, lower level, upper level, rung) if the registry names this
+    # line as a resolved hfs companion of that transition on the main line:
+    # it is classified as that, never accepted, and no candidate is sought
+    # for it.  None for every other line.
+    unc_before_hfs_allowance: float = 0.0
+    # The line list's own uncertainty, kept when a registry row tagged hfs
+    # (inflated_unc_lines.txt) widened it and [hfs] apply is on, so that the
+    # widening can be withdrawn once the correction accounts for the line's
+    # hfs (classify_lines.release_hfs_allowances).  0.0 = not widened so.
     legacy_keys: Optional[set] = None
     # The (lower_id, upper_id) pairs this line holds a published
     # identification for, as classify_lines.retag_legacy_identifications()
@@ -91,6 +119,44 @@ class Transition:
         if self.lower_level and self.upper_level:
             return self.upper_level.energy - self.lower_level.energy
         return 0.0
+
+    @property
+    def hfs_D(self) -> float:
+        """D = S(upper) - S(lower): how far the strongest hyperfine component
+        lies from the center of gravity of the line (cm^-1)."""
+        if self.lower_level and self.upper_level:
+            return self.upper_level.hfs_S - self.lower_level.hfs_S
+        return 0.0
+
+    def hfs_offset(self, line: Optional['SpectralLine'] = None) -> float:
+        """How far below the Ritz wavenumber `line` (default: the line this
+        transition is assigned to) is expected to have been measured, if it
+        is this transition: (1 - kappa) * D.  0.0 with [hfs] apply off, and
+        0.0 for a transition whose resolved companions the registry of
+        files.hfs_satellites lists on this line."""
+        line = self.assigned_to if line is None else line
+        if line is None or not line.hfs_factor:
+            return 0.0
+        if line.hfs_head_pairs and (self.lower_level.level_id,
+                                    self.upper_level.level_id) \
+                in line.hfs_head_pairs:
+            return 0.0
+        return line.hfs_factor * self.hfs_D
+
+    def predicted_for(self, line: Optional['SpectralLine'] = None) -> float:
+        """The wavenumber at which `line` (default: the line this transition
+        is assigned to) would have been measured if it is this transition:
+        the Ritz wavenumber in the head frame, less (1 - kappa) * D.  With
+        [hfs] apply off it is the Ritz wavenumber itself."""
+        return self.calculated_wavenumber - self.hfs_offset(line)
+
+    @property
+    def observed_head(self) -> float:
+        """The observed wavenumber of the line this transition is assigned
+        to, carried into the head frame for this transition: the measured
+        value plus (1 - kappa) * D.  It is what the level energies are fitted
+        to.  With [hfs] apply off it is the measured value itself."""
+        return self.assigned_to.wavenumber + self.hfs_offset()
 
 # Special instance for rejected classifications
 UNASSIGNED = Transition(notes1='R')

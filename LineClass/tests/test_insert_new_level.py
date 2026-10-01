@@ -18,7 +18,11 @@ do, and the two behaviours that make it safe to run at all:
   * an observed line that gains a second component has ALL its unflagged
     weights divided again, the flagged ones left at zero, and the records the
     run did not touch come out of the file byte for byte as they went in;
-  * the backups put every file back exactly as it was.
+  * the backups put every file back exactly as it was;
+  * with --set the run reads and writes the working set's own IDEN2, LOPT
+    files and classification table, the shared hand-kept files stay the
+    project's, the chain is told the set, and the ledger rows are keyed on
+    the line's wn_key rather than on the set's corrected wavenumber.
 """
 import io
 import math
@@ -1206,3 +1210,162 @@ def test_one_line_more_or_one_less_is_not_a_repetition():
 
 def test_a_level_with_no_line_in_the_fit_has_not_been_inserted():
     assert not INL.nothing_to_do(LEVEL, [], [])
+
+
+# ---------------------------------------------------------------------------
+# Working sets (--set)
+# ---------------------------------------------------------------------------
+# use_set rebinds these; each test puts them back.
+SET_GLOBALS = ('SET_DIR', 'SET_NAME', 'SET_CONFIG', 'WRITABLE', 'LOPT_FILES',
+               'IDEN2_DIR', 'ENLEV', 'TRANS', 'GLUELEV', 'ID_MAP', 'DLV',
+               'NEW_LEVELS', 'LINE_DECISIONS', 'CLASSIFICATIONS',
+               'CLASSIFICATIONS_XLSX', 'LOPT_PAR', 'LOPT_INPUT', 'LOPT_LINES',
+               'LOPT_LEVELS', 'LOPT_FIXLEV', 'SYNC_REPORT', 'LOPT_SNAPSHOT',
+               'LOGFILE', 'BACKUP_DIR')
+OWN_TABLE = ('[files]\noutput = "line_classifications.xlsx"\n'
+             'output_csv = "line_classifications.csv"\n')
+
+
+def _same(a, b):
+    return os.path.normcase(os.path.abspath(a)) \
+        == os.path.normcase(os.path.abspath(b))
+
+
+@pytest.fixture
+def a_set(tmp_path, monkeypatch):
+    """A working set: its own configuration, laid on the baseline's as
+    iter/lineclass_config.toml is, its own IDEN2 and LOPT.par."""
+    for name in SET_GLOBALS:
+        monkeypatch.setattr(INL, name, getattr(INL, name))
+    d = tmp_path / 'iterx'
+    (d / 'IDEN2').mkdir(parents=True)
+    (d / 'LOPT.par').write_text('LOPT_input_lines.txt\n')
+    base = os.path.join(ROOT, 'lineclass_config.toml').replace('\\', '/')
+    (d / 'lineclass_config.toml').write_text(
+        'inherit = "%s"\n\n%s' % (base, OWN_TABLE))
+    return d
+
+
+def test_a_set_takes_its_own_files_and_shares_the_hand_kept_ones(a_set):
+    said = []
+    INL.use_set(str(a_set), said.append)
+    d = str(a_set)
+    for path, name in ((INL.TRANS, 'IDEN2/trans.dat'),
+                       (INL.ENLEV, 'IDEN2/enlev.dat'),
+                       (INL.ID_MAP, 'IDEN2/IDEN_level_ids.txt'),
+                       (INL.DLV, 'IDEN2/dlv.dat'),
+                       (INL.LOPT_PAR, 'LOPT.par'),
+                       (INL.LOPT_INPUT, 'LOPT_input_lines.txt'),
+                       (INL.LOPT_LEVELS, 'LOPT_output_levels.txt'),
+                       (INL.SYNC_REPORT, 'sync_report.txt'),
+                       (INL.CLASSIFICATIONS, 'line_classifications.csv'),
+                       (INL.BACKUP_DIR, 'insert_new_level_backup'),
+                       (INL.LOGFILE, 'insert_new_level.log'),
+                       (INL.LOPT_SNAPSHOT, 'LOPT_snapshot.json')):
+        assert _same(path, os.path.join(d, name)), (path, name)
+    # the hand-kept files are the project's single copies
+    assert _same(INL.NEW_LEVELS, os.path.join(ROOT, 'new_levels.txt'))
+    assert _same(INL.LINE_DECISIONS, os.path.join(ROOT, 'line_decisions.csv'))
+    # and they are the only files outside the set that the run can write
+    outside = [p for p in INL.WRITABLE if not INL._inside(p, d)]
+    assert sorted(os.path.basename(p) for p in outside) \
+        == ['line_decisions.csv', 'new_levels.txt']
+    assert set(INL.LOPT_FILES) <= set(INL.WRITABLE)
+    assert said[0] == 'working set: %s' % os.path.abspath(d)
+
+
+@pytest.mark.parametrize('gone', ['IDEN2', 'LOPT.par',
+                                  'lineclass_config.toml'])
+def test_a_set_without_a_file_of_its_own_is_refused(a_set, gone):
+    import shutil
+    target = a_set / gone
+    if target.is_dir():
+        shutil.rmtree(target)
+    else:
+        target.unlink()
+    with pytest.raises(SystemExit, match='has no %s of its own' % gone):
+        INL.use_set(str(a_set), lambda s: None)
+    assert INL.SET_DIR is None          # nothing was rebound
+
+
+def test_a_set_whose_table_is_outside_it_is_refused(a_set):
+    """Without its own output the set would inherit the baseline's table."""
+    cfg = a_set / 'lineclass_config.toml'
+    cfg.write_text(cfg.read_text().replace(OWN_TABLE, ''))
+    with pytest.raises(SystemExit, match='outside the set'):
+        INL.use_set(str(a_set), lambda s: None)
+
+
+def test_the_chain_is_told_which_set(a_set):
+    for program in ('classify_lines.py', 'make_LOPT_input.py',
+                    'check_sync.py', 'sync_IDEN2.py'):
+        assert INL.chain_command(program) == [sys.executable, program]
+    assert INL.set_option() == ''
+    INL.use_set(str(a_set), lambda s: None)
+    d = os.path.abspath(str(a_set))
+    assert INL.chain_command('classify_lines.py')[2:] \
+        == ['--config', INL.SET_CONFIG]
+    assert _same(INL.SET_CONFIG, os.path.join(d, 'lineclass_config.toml'))
+    assert INL.chain_command('make_LOPT_input.py')[2:] \
+        == ['--classifications', INL.CLASSIFICATIONS]
+    assert INL.chain_command('check_sync.py')[2:] == ['--set', d]
+    assert INL.chain_command('sync_IDEN2.py')[2:] == ['--set', d]
+    assert INL.set_option() == ' --set %s' % str(a_set)
+
+
+def test_lopt_runs_where_its_parameter_file_is(a_set, monkeypatch):
+    seen = []
+
+    def fake(cmd, log, cwd=None):
+        seen.append(cwd)
+        return 0, 'RSS/degrees_of_freedom = 1.10 (10 degrees_of_freedom)'
+    monkeypatch.setattr(INL, 'run', fake)
+    INL.run_lopt(lambda s: None)
+    INL.use_set(str(a_set), lambda s: None)
+    INL.run_lopt(lambda s: None)
+    assert _same(seen[0], ROOT) and _same(seen[1], str(a_set))
+
+
+def _named(wn, key):
+    return SpectralLine(wn, 0.01, 1.0, '', wn_key=key)
+
+
+def test_the_ledger_knows_a_line_by_its_wn_key(tmp_path):
+    """In a set the line's wavenumber is the corrected one and the ledger's
+    the original: 59485.815 was measured there and has moved by +0.416."""
+    names = INL.LineNames([_named(59486.2311, 59485.8150),
+                           _named(30000.1, 30000.1)])
+    assert names.key(59486.23114) == 59485.8150
+    assert names.observed(59485.815) == 59486.2311
+    assert names.observed(59485.82) == 59486.2311    # written to 2 decimals
+    assert names.observed(59485.9) is None
+    with pytest.raises(INL.Abort, match='no line'):
+        names.key(12345.0)
+    with pytest.raises(INL.Abort, match='two lines'):
+        INL.LineNames([_named(1.0001, 1.0), _named(1.0004, 2.0)]).key(1.0)
+    ledger = tmp_path / 'line_decisions.csv'
+    ledger.write_text('wn_key,low_id,upp_id,decision,date,reason\n'
+                      '59485.815,A,B,accept,,\n'
+                      '11111.111,A,C,reject,,\n')
+    assert INL.read_ledger_keys(str(ledger), names) \
+        == {(59486.231, 'A', 'B'), (11111.111, 'A', 'C')}
+    assert INL.read_ledger_keys(str(ledger)) \
+        == {(59485.815, 'A', 'B'), (11111.111, 'A', 'C')}
+
+
+def test_an_adopted_row_is_written_under_the_lines_wn_key():
+    names = INL.LineNames([_named(59485.815, 59485.4)])
+    rows, _left = INL.adoption_rows(_adopted(), {_KEY: True}, set(), set(),
+                                    set(), set(), _ID_ROWS, '9/30/2026',
+                                    names)
+    (key, row, _still), = rows
+    assert key == _KEY          # the run's own bookkeeping: the set's wn
+    assert row['wn_key'] == '59485.4000'
+
+
+def test_a_set_with_the_hfs_frame_on_is_refused(a_set):
+    cfg = a_set / 'lineclass_config.toml'
+    INL.refuse_hfs_frame(str(cfg))          # off, as inherited
+    cfg.write_text(cfg.read_text() + '\n[hfs]\napply = true\n')
+    with pytest.raises(SystemExit, match='head frame'):
+        INL.refuse_hfs_frame(str(cfg))

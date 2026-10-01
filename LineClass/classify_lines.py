@@ -29,6 +29,7 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import config
 import gA_imputation
+import hfs_correction
 import hfs_kappa
 import output_files
 from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
@@ -54,6 +55,7 @@ LINES_FILE = ''     # workbook of the observed lines
 ICALC_FILE = ''     # workbook of the calculated transitions
 OUTPUT_FILE = ''    # output workbook
 OUTPUT_CSV = ''     # the same table as csv
+UNLOCK = False      # --unlock: write a locked set (config.require_unlocked)
 LEVEL_OVERRIDES = ''  # csv of revised adopted energies, '' if none
 WN_MIN = 0.0        # wavenumber range for possible transitions (cm^-1)
 WN_MAX = 0.0
@@ -65,6 +67,9 @@ DISCARDED = set()        # levels whose position was given up; see
                          #   drop_discarded_levels()
 LEVEL_REVISIONS = {}     # level_id -> (energy before, energy after, comment), from
                          #   the revised-energies file; see apply_energy_overrides()
+HFS = None               # the hfs_correction.Model in force, None with [hfs] apply off
+HFS_MAX_D = 0.0          # cm^-1; the largest |D| any transition can have, set by apply_hfs_model()
+HFS_SATELLITES = ''      # the registry of resolved hfs companions; see attach_hfs_satellites()
 MAX_FORCED_OFFSET = 5.0  # cm^-1; how far a ledger-accepted pair's Ritz wavenumber
                          #   may sit from its own line; see check_forced_decisions()
 OFFSET_OK = 'offset-ok'  # written in a ledger row's reason column, exempts that one
@@ -81,6 +86,7 @@ def apply_config(cfg, policy: str = None) -> None:
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
     global DISCARDED_LEVELS, INFLATED_UNC
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
+    global HFS, HFS_MAX_D, HFS_SATELLITES
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
     LINES_FILE = cfg.lines_file
@@ -101,9 +107,208 @@ def apply_config(cfg, policy: str = None) -> None:
         raise config.ConfigError(
             f"missing_gA.policy = {MISSING_POLICY!r}; expected 'none' or 'impute'")
     _IMPUTED = None     # recalibrate on demand, against the new configuration
+    HFS = hfs_correction.Model(cfg.hfs) if cfg.hfs.apply else None
+    HFS_MAX_D = 0.0
+    HFS_SATELLITES = cfg.hfs.satellites
 
 
 apply_config(config.load())
+
+
+# ---------------------------------------------------------------------------
+# The head-frame hyperfine correction ([hfs] apply; see hfs_correction.py)
+# ---------------------------------------------------------------------------
+def apply_hfs_model(levels_dict: dict, observed_lines: list) -> None:
+    """Give every level its S = I*A*J and every line its 1 - kappa.
+
+    With these in place, Transition.predicted_for() compares a line with the
+    Ritz wavenumber less (1 - kappa)*D, and Transition.observed_head carries
+    the measured wavenumber into the head frame for the level optimization;
+    both are the plain values while [hfs] apply is off, which leaves every
+    S and every factor at 0.  A decoy level takes the S of the level it is a
+    copy of, so that the false-positive calibration sees the model the real
+    levels see.
+    """
+    global HFS_MAX_D
+    if HFS is None:
+        return
+    for lev in levels_dict.values():
+        lid = lev.level_id
+        if lev.is_decoy and lid.startswith(DECOY_PREFIX):
+            lid = lid[len(DECOY_PREFIX):]
+        rec = HFS.levels.get(lid)
+        if rec is not None and not lev.is_decoy and abs(rec[0] - lev.J_val) > 1e-6:
+            raise ValueError(
+                f"{os.path.basename(CFG.hfs.A_levels)} gives {lid} J = "
+                f"{rec[0]:g}, the level list J = {lev.J_str}; the table of A "
+                f"constants is out of date")
+        lev.hfs_S, lev.u_hfs_S = HFS.S(lid)
+    by_class = {}
+    for line in observed_lines:
+        kappa, u_kappa = HFS.kappa_of(line.line_character, line.wn_key)
+        line.hfs_factor = 1.0 - kappa
+        line.hfs_u_kappa = u_kappa
+        by_class[kappa] = by_class.get(kappa, 0) + 1
+    HFS_MAX_D = 2.0 * max((abs(lev.hfs_S) for lev in levels_dict.values()),
+                          default=0.0)
+    n_S = sum(1 for lev in levels_dict.values()
+              if lev.hfs_S and not lev.is_decoy)
+    print(f"  Hyperfine correction on ([hfs] apply): {n_S} levels carry an "
+          f"S = I*A*J (largest |D| {HFS_MAX_D:.3f} cm^-1); lines by kappa: "
+          + ', '.join(f"{k:g}: {n}" for k, n in sorted(by_class.items())))
+
+
+def hfs_accounted(line) -> bool:
+    """True if the correction accounts for the hyperfine structure of `line`
+    as it is now classified: it has accepted transitions, and either it sits
+    on the head-frame Ritz value (kappa = 1: flagged, or the main line of
+    resolved companions) or every level they touch has a determined A or
+    resolved sublevels (hfs_correction.Model.is_corrected)."""
+    acc = [t for t in line.assigned_transitions
+           if t is not UNASSIGNED and t.accepted == 1]
+    if not acc:
+        return False
+    if not line.hfs_factor or line.hfs_head_pairs:
+        return True
+    return all(HFS.is_corrected(lev.level_id)
+               for t in acc for lev in (t.lower_level, t.upper_level))
+
+
+def release_hfs_allowances(observed_lines: list) -> int:
+    """Withdraw the hfs allowances of the registry where the correction
+    accounts for the line (Work_on_hfs_plan.md, D13).
+
+    A row of inflated_unc_lines.txt whose reason says hfs widened a line
+    because its hyperfine displacement could not be computed.  Once the
+    classification has converged, a line whose accepted transitions the
+    correction fully accounts for (hfs_accounted) gets the line list's own
+    uncertainty back, which is the one written to the table and so the one
+    LOPT is given.  A line touching a level without a determined A keeps
+    the allowance.  The registry itself is not touched.
+
+    The classification was made with the wider value, which can only have
+    let a candidate in, never kept one out, so nothing it decided is undone.
+    Returns the number of lines given their own uncertainty back.
+    """
+    if HFS is None:
+        return 0
+    n = kept = 0
+    for line in observed_lines:
+        if not line.unc_before_hfs_allowance:
+            continue
+        if hfs_accounted(line):
+            line.wn_uncertainty = line.unc_before_hfs_allowance
+            n += 1
+        else:
+            kept += 1
+    if n or kept:
+        print(f"  Registry rows tagged hfs: {n} line(s) given their own "
+              f"uncertainty back, the correction accounting for their "
+              f"hyperfine structure; {kept} keep the allowance.")
+    return n
+
+
+def hfs_line_shift(line, weights: dict) -> tuple:
+    """(hfs_shift, u_hfs_shift, kappa) of `line`, cm^-1: (1 - kappa) *
+    sum BF_i*D_i over its accepted transitions, BF being the share of the
+    line each carries (calc_weights), with the uncertainty and the kappa that
+    hfs_correction.combine gives; in a flagged blend only the strongest
+    component takes the flag's kappa, and a transition whose resolved
+    companions the registry lists on this line takes kappa = 1
+    (Model.component_kappas).  (0, 0, the line's kappa) for a line with no
+    accepted transition.
+
+    The classification itself compares every candidate of a flagged line
+    with its Ritz value (kappa = 1): which component is the strongest is only
+    known once it has converged."""
+    acc = [t for t in line.assigned_transitions
+           if t is not UNASSIGNED and t.accepted == 1]
+    if not acc:
+        return 0.0, 0.0, HFS.kappa_of(line.line_character, line.wn_key)[0]
+    bfs = [math.sqrt(weights[id(t)]) * line.wn_uncertainty for t in acc]
+    heads = [(t.lower_level.level_id, t.upper_level.level_id)
+             in line.hfs_head_pairs for t in acc]
+    kappas = HFS.component_kappas(line.line_character, line.wn_key, bfs,
+                                  heads)
+    return hfs_correction.combine(
+        [(bf, kappa, u_kappa, t.hfs_D,
+          math.hypot(t.upper_level.u_hfs_S, t.lower_level.u_hfs_S))
+         for t, bf, (kappa, u_kappa) in zip(acc, bfs, kappas)])
+
+
+def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
+                          path: str) -> int:
+    """Mark the lines of the registry of resolved hfs companions `path`
+    (files.hfs_satellites; see hfs_correction.py).
+
+    A companion line gets `hfs_companion` = (its main line, the transition's
+    two levels, the rung): it is written as that transition's hfs component,
+    grade hfs, never accepted, and match_and_grade seeks no candidate for
+    it.  The main line gets the transition in `hfs_head_pairs`, which puts
+    that candidate on the head-frame Ritz value (kappa = 1) with [hfs] apply
+    on.
+
+    Raises if an entry names no observed line or two of them, names a level
+    that is not in the run, or names as a companion a line that holds a
+    published identification or an accepted row of the decision ledger:
+    the line cannot be both, and which it is is the analyst's to settle.
+    Returns the number of companions marked.
+    """
+    sats = hfs_correction.read_satellites(path)
+    name = os.path.basename(path)
+    if not sats:
+        if not os.path.exists(path):
+            print(f"  No registry of resolved hfs companions: {path} does "
+                  f"not exist.")
+        return 0
+    sats.check([l.wn_key for l in observed_lines], name)
+    for row in sats.rows:
+        for lid in (row.low_id, row.upp_id):
+            if lid not in levels_dict:
+                raise ValueError(
+                    f"{name}: the companion {row.key} names the level {lid}, "
+                    f"which is not in this run's level list (discarded, or "
+                    f"mistyped)")
+    mains = {}
+    for line in observed_lines:
+        pairs = sats.head_pairs(line.wn_key)
+        if pairs:
+            line.hfs_head_pairs = frozenset(pairs)
+            for pair in pairs:
+                mains[pair] = mains.get(pair, []) + [line]
+    n = 0
+    for line in observed_lines:
+        row = sats.companion(line.wn_key)
+        if row is None:
+            continue
+        main = [m for m in mains[(row.low_id, row.upp_id)]
+                if (row.low_id, row.upp_id) in sats.head_pairs(m.wn_key)
+                and _names(row.main_key, m.wn_key)]
+        held = [f"{t.lower_level.level_id} - {t.upper_level.level_id}"
+                for t in line.original_assignments]
+        held += [f"{low} - {upp}" for (low, upp), (verdict, _)
+                 in line.decisions.items() if verdict == 'accept']
+        if held:
+            raise ValueError(
+                f"{name}: the companion {row.key} is identified as "
+                f"{', '.join(held)} (line list or decision ledger); a line "
+                f"is either a resolved hfs companion or an identification "
+                f"of its own - withdraw one of the two")
+        line.hfs_companion = (main[0], levels_dict[row.low_id],
+                              levels_dict[row.upp_id], row.rung)
+        n += 1
+    print(f"  Read {n} resolved hfs companion(s) from {name}, of "
+          f"{sum(len(p) for p in (l.hfs_head_pairs for l in observed_lines))} "
+          f"transition(s) on {sum(1 for l in observed_lines if l.hfs_head_pairs)} "
+          f"main line(s).")
+    return n
+
+
+def _names(key: str, wn: float) -> bool:
+    """True if the registry key `key`, written with however many decimals,
+    names the line whose wn_key is `wn` (hfs_kappa.Registry)."""
+    decimals = len(key.partition('.')[2])
+    return '%.*f' % (decimals, wn) == key
 
 
 # ---------------------------------------------------------------------------
@@ -933,12 +1138,19 @@ def apply_inflated_uncertainties(observed_lines: list, path: str) -> int:
     if unknown:
         raise ValueError(f"{os.path.basename(path)}: no observed line has "
                          f"the wn_key " + ', '.join(unknown) + " cm^-1")
+    # With the hyperfine correction on, an allowance made for hfs may be
+    # withdrawn at the end of the run (release_hfs_allowances), so the line
+    # list's own value is kept for the lines it widens.
+    hfs_keys = (hfs_correction.hfs_registry_keys(path) if HFS is not None
+                else set())
     n_up = n_kept = 0
     for line in observed_lines:
         unc = fixed.lookup(line.wn_key)
         if unc is None:
             continue
         if unc > line.wn_uncertainty:
+            if fixed.key_of(line.wn_key) in hfs_keys:
+                line.unc_before_hfs_allowance = line.wn_uncertainty
             line.wn_uncertainty = unc
             n_up += 1
         else:
@@ -1892,7 +2104,7 @@ def assign_grades(line: SpectralLine, transitions: list):
     ln5 = math.log(5)
 
     for tr in transitions:
-        wn_diff_abs = abs(line.wavenumber - tr.calculated_wavenumber)
+        wn_diff_abs = abs(line.wavenumber - tr.predicted_for(line))
         # Tier (Wavenumber Agreement)
         if wn_diff_abs <= 2.0 * line.wn_uncertainty:
             tier = '2'
@@ -1990,7 +2202,16 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
         # if (line_idx + 1) % 1000 == 0:
         #     print(f"  Processing line {line_idx + 1}/{len(observed_lines)}...")
 
+        # A resolved hfs companion is its transition's and nothing else's
+        # (attach_hfs_satellites), so no candidate is sought for it.
+        if obs_line.hfs_companion is not None:
+            continue
+
         search_tolerance = 5.5 * math.sqrt(obs_line.wn_uncertainty ** 2 + 2 * max_u_energy ** 2)
+        # The candidates are sorted by their Ritz wavenumbers, and a line is
+        # compared with Ritz - (1 - kappa)*D (hfs_correction.py), so the
+        # window reaches as far as the largest such offset.
+        search_tolerance += obs_line.hfs_factor * HFS_MAX_D
         wn_lo = obs_line.wavenumber - search_tolerance
         wn_hi = obs_line.wavenumber + search_tolerance
 
@@ -1999,7 +2220,7 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
 
         matches = []
         for t in all_possible_transitions[idx_lo:idx_hi]:
-            wn_diff_abs = abs(obs_line.wavenumber - t.calculated_wavenumber)
+            wn_diff_abs = abs(obs_line.wavenumber - t.predicted_for(obs_line))
             u_lower = t.lower_level.u_energy if t.lower_level else 0.0
             u_upper = t.upper_level.u_energy if t.upper_level else 0.0
             tolerance = 5.5 * math.sqrt(obs_line.wn_uncertainty ** 2 + u_lower ** 2 + u_upper ** 2)
@@ -2049,7 +2270,7 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
                 key = (m.lower_level.level_id, m.upper_level.level_id)
                 if key not in transition_assignments:
                     transition_assignments[key] = []
-                transition_assignments[key].append((m, obs_line, abs(obs_line.wavenumber - m.calculated_wavenumber)))
+                transition_assignments[key].append((m, obs_line, abs(obs_line.wavenumber - m.predicted_for(obs_line))))
 
     if verbose:
         print(f"  Matching complete.")
@@ -2208,6 +2429,23 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
     for obs_line in observed_lines:
         n_accepted_line = sum(1 for t in obs_line.assigned_transitions
                               if t is not UNASSIGNED and t.accepted == 1)
+        # The hyperfine correction, with [hfs] apply on: four more columns,
+        # written only then so that a table made with it off is unchanged.
+        #   kappa        the measurement convention of the line's class; of a
+        #                flagged blend, the BF-weighted mean of its components'
+        #   hfs_D        D = S(upper) - S(lower) of the row's transition
+        #   hfs_shift    what make_LOPT_input.py adds to wn_obs:
+        #                sum BF_i * (1 - kappa_i) * D_i over the accepted rows,
+        #                the same on every row of the line
+        #   u_hfs_shift  its uncertainty
+        # The row of a resolved hfs companion (hfs_correction.py) names its
+        # transition with the grade hfs, is never accepted, and carries its
+        # offset from the Ritz value in dif_wn_O-C.
+        hfs_cols = {}
+        if HFS is not None:
+            shift, u_shift, kappa = hfs_line_shift(obs_line, weights)
+            hfs_cols = {'kappa': kappa, 'hfs_D': np.nan, 'hfs_shift': shift,
+                        'u_hfs_shift': u_shift}
         unassigned_row = {
             'wn_obs': obs_line.wavenumber,
             'wn_key': obs_line.wn_key,
@@ -2233,9 +2471,28 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'low_E': np.nan,
             'upp_E': np.nan,
             'rwn': np.nan,
-            'BF': np.nan
+            'BF': np.nan,
+            **hfs_cols
         }
-        if not obs_line.assigned_transitions:
+        if obs_line.hfs_companion is not None:
+            main, low, upp, rung = obs_line.hfs_companion
+            rwn = upp.energy - low.energy
+            output_rows.append({
+                **unassigned_row,
+                'low_id': low.level_id,
+                'upp_id': upp.level_id,
+                'dif_wn_O-C': obs_line.wavenumber - rwn,
+                'grade': hfs_correction.COMPANION_GRADE,
+                'notes2': f"hfs companion, rung {rung}, of the line "
+                          f"{main.wn_key:.4f}",
+                'accepted': 0,
+                'low_E': low.energy,
+                'upp_E': upp.energy,
+                'rwn': rwn,
+                'BF': 0.0,
+                **({'hfs_D': upp.hfs_S - low.hfs_S} if hfs_cols else {})
+            })
+        elif not obs_line.assigned_transitions:
             output_rows.append(unassigned_row)
         else:
             for tr in obs_line.assigned_transitions:
@@ -2243,8 +2500,9 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     output_rows.append(unassigned_row)
                     continue
 
-                calc_wn = tr.calculated_wavenumber
-                wn_diff = obs_line.wavenumber - calc_wn
+                # O-C against the wavenumber the line is predicted at, which
+                # is the Ritz value less (1 - kappa)*D with [hfs] apply on
+                wn_diff = obs_line.wavenumber - tr.predicted_for(obs_line)
                 u_own = obs_line.wn_uncertainty
                 # Output the branching fraction (BF) of this component, NOT the LOPT input
                 # weight. The LOPT weight is BF**2 (the factor by which LOPT multiplies its
@@ -2277,7 +2535,8 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'low_E': tr.lower_level.energy if tr.lower_level else np.nan,
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
                     'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan,
-                    'BF': bf
+                    'BF': bf,
+                    **({**hfs_cols, 'hfs_D': tr.hfs_D} if hfs_cols else {})
                 })
 
     df = pd.DataFrame(output_rows)
@@ -2566,13 +2825,13 @@ def _level_energy_determinations(lev) -> tuple:
         if t.accepted != 1:
             continue
         keys.append(trans_key(t))
-        values.append(t.lower_level.energy + t.assigned_to.wavenumber)
+        values.append(t.lower_level.energy + t.observed_head)
         uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.lower_level.u_energy ** 2))
     for t in lev.to_transitions:  # lev is the lower level of t
         if t.accepted != 1:
             continue
         keys.append(trans_key(t))
-        values.append(t.upper_level.energy - t.assigned_to.wavenumber)
+        values.append(t.upper_level.energy - t.observed_head)
         uncertainties.append(math.sqrt(t.assigned_to.wn_uncertainty ** 2 + t.upper_level.u_energy ** 2))
     return keys, values, uncertainties
 
@@ -3095,7 +3354,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
     line.assigned_transitions.sort(key=lambda t: (
         t.calc_intensity is None,
         -(t.calc_intensity or 0),
-        abs(line.wavenumber - t.calculated_wavenumber) / line.wn_uncertainty
+        abs(line.wavenumber - t.predicted_for(line)) / line.wn_uncertainty
     ))
 
     # --- tiny local helpers (behavior-preserving) ---
@@ -3122,7 +3381,7 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         u_lower = u_energy_excluding(candidate.lower_level, candidate)
         u_upper = u_energy_excluding(candidate.upper_level, candidate)
         combined_sigma = math.sqrt(line.wn_uncertainty ** 2 + u_lower ** 2 + u_upper ** 2)
-        return abs(line.wavenumber - candidate.calculated_wavenumber) / combined_sigma
+        return abs(line.wavenumber - candidate.predicted_for(line)) / combined_sigma
 
     def _u_sys(candidate: Transition):
         # NOTE: preserve truthiness semantics (0.0 behaves as missing intensity)
@@ -3147,10 +3406,10 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         any_none = _any_i_none(group)
         i_cum_group = _i_cum(group)
         if not any_none and i_cum_group > 0:
-            return sum(t.calculated_wavenumber * t.calc_intensity for t in group) / i_cum_group
+            return sum(t.predicted_for(line) * t.calc_intensity for t in group) / i_cum_group
         else:
             # Fallback to unweighted average if any I_calc is missing
-            return sum(t.calculated_wavenumber for t in group) / len(group)
+            return sum(t.predicted_for(line) for t in group) / len(group)
 
     def _effective_spread_combined(group: list[Transition],
                                    obs_wn_unc: float,
@@ -3202,14 +3461,14 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
         if not any_none and sum_i > 0:
             # noinspection PyUnresolvedReferences
             eff_spread = sum(
-                t.calc_intensity * abs(t.calculated_wavenumber - cog)
+                t.calc_intensity * abs(t.predicted_for(line) - cog)
                 for t in group
             ) / sum_i
         else:
             # If no theoretical intensities, apply twice greater effective spread to avoid
             # insufficiently grounded decisions
-            max_wn = max(t.calculated_wavenumber for t in group)
-            min_wn = min(t.calculated_wavenumber for t in group)
+            max_wn = max(t.predicted_for(line) for t in group)
+            min_wn = min(t.predicted_for(line) for t in group)
             eff_spread = max_wn - min_wn
 
         # --- normalize ---
@@ -3729,11 +3988,11 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                 any_i_none = _any_i_none(accepted_already + [trans])
                 # Calculate initial CoG
                 if not any_i_none and i_cum > 0:
-                    current_cog_wn = sum(t.calculated_wavenumber * t.calc_intensity for t in accepted_already) / i_cum
+                    current_cog_wn = sum(t.predicted_for(line) * t.calc_intensity for t in accepted_already) / i_cum
                 else:
                     # Fallback to unweighted average if any I_calc is missing
                     current_cog_wn = np.mean(
-                        [t.calculated_wavenumber for t in accepted_already]) if accepted_already else None
+                        [t.predicted_for(line) for t in accepted_already]) if accepted_already else None
                 current_cog_sigma = abs(
                     line.wavenumber - current_cog_wn) / line.wn_uncertainty if current_cog_wn else 999.0
 
@@ -3764,10 +4023,10 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
 
                 if not test_any_none and i_total_theory > 0:
                     # Calculated cog wn as weighted mean (calc intensities as weights)
-                    test_cog_wn = sum(t.calculated_wavenumber * t.calc_intensity for t in current_group)/i_total_theory
+                    test_cog_wn = sum(t.predicted_for(line) * t.calc_intensity for t in current_group)/i_total_theory
                 else:
                     # Calculated cog wn as unweighted mean
-                    test_cog_wn = np.mean([t.calculated_wavenumber for t in current_group])
+                    test_cog_wn = np.mean([t.predicted_for(line) for t in current_group])
 
                 test_cog_sigma = abs(line.wavenumber - test_cog_wn) / line.wn_uncertainty
 
@@ -4149,7 +4408,7 @@ def optimize_levels(levels_list: list, levels_history: list, weights: dict, verb
     for t in trans:
         w = weight_of(t)
         if w <= 0: continue
-        y = t.assigned_to.wavenumber
+        y = t.observed_head        # the measured value, in the head frame
         ju = col.get(id(t.upper_level))
         jl = col.get(id(t.lower_level))
         if ju is None: y -= energy[id(t.upper_level)]     # move to the rhs
@@ -4226,8 +4485,8 @@ def _implied_energy(t, level_id: str) -> float:
     is added to it or subtracted from it.
     """
     if t.upper_level.level_id == level_id:
-        return t.lower_level.energy + t.assigned_to.wavenumber
-    return t.upper_level.energy - t.assigned_to.wavenumber
+        return t.lower_level.energy + t.observed_head
+    return t.upper_level.energy - t.observed_head
 
 
 def _pull_on_level(level, weights: dict, limit: int = 8) -> list:
@@ -4319,7 +4578,7 @@ def check_double_acceptances(observed_lines: list, input_energies: dict,
         out.append(f"\n    {low}-{upp}  accepted on {len(trans)} lines:")
         for t in sorted(trans, key=lambda x: x.assigned_to.wavenumber):
             line = t.assigned_to
-            o_c = line.wavenumber - t.calculated_wavenumber
+            o_c = line.wavenumber - t.predicted_for(line)
             origin = ('ledger: ' + t.manual) if t.manual else (
                 'published' if t.new == 0 else 'new')
             out.append(f"        {line.wavenumber:12.4f}  "
@@ -4399,6 +4658,7 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     # An output file open in Excel is locked against writing.  It is found
     # here, before the work, rather than by the write at the end of it.
     if write_files:
+        config.require_unlocked(output_paths(), 'classify_lines.py', UNLOCK)
         output_files.require_writable(output_paths())
 
     # Step 1: Read energy levels
@@ -4418,6 +4678,7 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
                                          drop_legacy=(wn_shift != 0.0))
     retag_legacy_identifications(observed_lines, levels_dict,
                                  calc_trans_index)
+    apply_hfs_model(levels_dict, observed_lines)
 
     # The uncertainties set by hand.  Unlike the verdicts below they are laid
     # over calibration runs too: they describe the measurement, which a
@@ -4432,6 +4693,10 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     decisions = {}
     if LINE_DECISIONS and wn_shift == 0.0 and decoy_shift == 0.0:
         decisions = attach_line_decisions(observed_lines, LINE_DECISIONS)
+    # The resolved hfs companions are identifications made by hand as well,
+    # and are left out of the calibration runs for the same reason.
+    if HFS_SATELLITES and wn_shift == 0.0 and decoy_shift == 0.0:
+        attach_hfs_satellites(observed_lines, levels_dict, HFS_SATELLITES)
 
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)
@@ -4472,6 +4737,11 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         print(f"Warning: Step 5 iterations did not converge.")
     levels_history.append([(lev.level_id, lev.energy) for lev in levels_list])
 
+    # The hfs allowances of the registry that the correction has replaced.
+    # The weights carry the line's uncertainty, so they are worked out again.
+    if release_hfs_allowances(observed_lines):
+        weights = calc_weights(observed_lines)
+
     # One transition cannot belong to two observed lines.  A run that ends
     # with such a pair is wrong wherever that pair appears, so it stops here,
     # before anything is written; a calibration run only reports it (see
@@ -4511,7 +4781,13 @@ def cli(argv=None) -> None:
                          'a predicted intensity, "impute" gives it the intensity '
                          'implied by a gA just below the printing cutoff '
                          '(default: missing_gA.policy in the configuration)')
+    ap.add_argument('--unlock', action='store_true',
+                    help='write a locked set (one whose own '
+                         'lineclass_config.toml says locked = true, as the '
+                         'baseline\'s does)')
     args = ap.parse_args(argv)
+    global UNLOCK
+    UNLOCK = args.unlock
     apply_config(config.load(args.config), policy=args.missing_gA)
     try:
         main(max_cycles=args.max_cycles)

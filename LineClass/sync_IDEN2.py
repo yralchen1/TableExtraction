@@ -189,6 +189,7 @@ import pandas as pd
 import config
 import cowan_gA
 import gA_imputation
+import hfs_correction
 import hfs_kappa
 import level_interchange
 import output_files
@@ -274,7 +275,14 @@ def read_lopt_transitions(path):
     optimization.  A transition can have more than one record - the hyperfine
     components of one observed line are written separately - so it counts as
     accepted if any of its records is not flagged.
+
+    ``wn`` is the measured wavenumber, the one ``dlv.dat`` holds.  A file
+    written with the hyperfine correction on ([hfs] apply) gives LOPT the
+    line moved into the head frame, and the record of what was added,
+    ``LOPT_hfs_shifts.txt`` beside it, gives the measured value back
+    (hfs_correction.measured).
     """
+    shifts = hfs_correction.read_shifts(path)
     out = {}
     with io.open(path, encoding='latin-1', newline='') as fh:
         for rec in fh:
@@ -285,6 +293,7 @@ def read_lopt_transitions(path):
             low = text[FIELD_LOW[0]:FIELD_LOW[1]].strip()
             upp = text[FIELD_UPP[0]:FIELD_UPP[1]].strip()
             accepted = 'P' not in text[FIELD_FLAGS[0]:FIELD_FLAGS[1]]
+            wn = hfs_correction.measured(low, upp, wn, shifts)
             was = out.get((low, upp))
             if was is None or (accepted and not was[0]):
                 out[(low, upp)] = (accepted, wn)
@@ -1212,6 +1221,10 @@ def parse_args(argv):
                    help='report what would change and write nothing')
     p.add_argument('--report', metavar='PATH',
                    help='write the report to this file as well as the screen')
+    p.add_argument('--unlock', action='store_true',
+                   help='write a locked set (one whose own '
+                        'lineclass_config.toml says locked = true, as the '
+                        'baseline\'s does)')
     return p.parse_args(argv)
 
 
@@ -1258,6 +1271,9 @@ def main(argv=None):
         if not os.path.exists(path):
             raise SystemExit('%s does not exist' % path)
     if not args.dry_run:
+        # The IDEN2 found for a set without one of its own is the project's,
+        # so this is also what stops a set from writing the baseline's.
+        config.require_unlocked(written, 'sync_IDEN2.py', args.unlock)
         output_files.require_writable(written, 'IDEN2 file')
     if args.report:
         output_files.require_writable([args.report], 'report file')

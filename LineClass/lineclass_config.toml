@@ -7,6 +7,16 @@
 #
 # Relative paths are interpreted relative to the directory holding this file.
 
+# The baseline is frozen (2026-09-30): the work goes on in iter/.  With this
+# on, classify_lines.py, make_LOPT_input.py and sync_IDEN2.py refuse to write
+# any file of this directory's set - its classification table, its LOPT
+# files, its IDEN2 - and insert_new_level.py, move_level.py and
+# discard_level.py refuse a run on it, unless given --unlock.  A lock is not
+# inherited: iter/lineclass_config.toml reads this file and is not locked by
+# it.  The hand-kept files here (line_decisions.csv, new_levels.txt, ...) are
+# shared by every set and stay writable.  See config.require_unlocked.
+locked = true
+
 [files]
 levels     = "../TableExtraction/Pr3_lev_Wyart_1999.xlsm"  # adopted energy levels
 lines      = "Pr3_lines.xlsx"                              # observed spectral lines
@@ -85,6 +95,23 @@ discarded_levels = "discarded_levels.csv"
 # unc_wn_obs of line_classifications.csv).  A missing file is an empty
 # registry.  Comment the line out to run on the line list's own values.
 inflated_unc = "inflated_unc_lines.txt"
+# The magnetic-dipole hyperfine constants A of the levels (columns level_id,
+# cfg, J, A_cm-1, u_A, source, n_flagged), read only when [hfs] apply is on;
+# see that section below.
+hfs_A_levels = "A_hfs_levels.csv"
+# Resolved hyperfine companions (tab-delimited, columns wn_key, main_wn_key,
+# low_id, upp_id, rung, date, reason; a row starting with # is a comment).
+# A companion is a weaker line of the line list a few tenths of a cm^-1 from
+# a classified one, at the offset of the next rung of that transition's
+# hyperfine pattern (F_low - k -> F_upp - k): both lines are the one
+# transition.  Kept by hand, keyed on wn_key like the ledger.  The companion
+# is written as that transition's hfs component (grade hfs), never accepted,
+# so it stays out of LOPT and IDEN2, and no other candidate is sought for
+# it; this holds with [hfs] apply off too.  With apply on, the main line's
+# named transition takes kappa = 1, as a flagged line's does.  Read only by
+# the real classification, not by the calibration runs.  See
+# hfs_correction.py.  Comment the line out to run without it.
+hfs_satellites = "hfs_satellites.txt"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions
@@ -266,3 +293,46 @@ verify_tolerance = 0.01
 # far out is exempted by writing offset-ok anywhere in its reason column,
 # rather than by raising the limit for every row.
 max_forced_offset = 5.0
+
+[hfs]
+# The head-frame hyperfine correction (Work_on_hfs_plan.md, Step 5, agreed
+# 2026-09-29).  141Pr has nuclear spin I = 5/2, so a level of angular momentum
+# J is split into sublevels, and every line into a pattern of components.
+# Write S = I*A*J for the distance of a level's outermost sublevel, F = I+J,
+# from the level's center of gravity, and D = S(upper) - S(lower) for the
+# distance of a line's strongest component from the line's center of
+# gravity.  The level energies of the pipeline, of LOPT and of IDEN2 are the
+# F = I+J sublevels ("the head frame"), which is what Sugar's strongest
+# components measure.  A line whose pattern Sugar did not resolve was
+# measured (1 - kappa)*D below the head-frame Ritz wavenumber, kappa being
+# the measurement convention of its class.  With apply = true:
+#   classify_lines.py    predicts each candidate transition i of a line at
+#                        Ritz_i - (1 - kappa)*D_i, and writes the line's
+#                        correction hfs_shift = (1 - kappa)*sum BF_i*D_i
+#                        (in a flagged blend only the strongest component
+#                        takes the flag's kappa, the others the plain one);
+#   make_LOPT_input.py   adds hfs_shift to the wavenumber it gives LOPT, and
+#                        its uncertainty in quadrature to the line's.
+# IDEN2 is not changed: enlev.dat holds the head-frame energies, dlv.dat the
+# lines as measured.  The centers of gravity, E_cg = E - I*A*J, are computed
+# once at the end.  Off here, in the baseline; a set turns it on in its own
+# configuration file.  Nothing changes when it is off.
+apply = false
+# Levels whose sublevels are resolved, so that each of their lines ends on
+# one sublevel and their own A counts as 0 in D.  Two J = 1/2 levels of
+# 4f2.6s, each standing at its F = 3 sublevel: 059003.000642 (IDEN2 row
+# 1093, the F = 2 lines rejected) and 059003.000190 (IDEN2 row 1089).
+resolved_levels = ["059003.000642", "059003.000190"]
+
+[hfs.kappa]
+# [kappa, its uncertainty] per class, from hfs_kappa.py (Step 3, 2026-09-21),
+# fitted jointly with the plate calibration and therefore unchanged (D12).
+#   flag        Sugar's *r and *v lines, whose pattern he saw; measured at
+#               the strongest component (Step 2), the anchor of the others
+#   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974
+#   plain_1969  unflagged lines above it, measured in 1969
+#   c           lines Sugar marked complex
+flag       = [1.0, 0.0]
+plain_1974 = [0.944, 0.014]
+plain_1969 = [0.633, 0.035]
+c          = [0.20, 0.12]

@@ -170,6 +170,36 @@ I. **sync_IDEN2.py.**  Only when H is clean: it brings ``IDEN2/enlev.dat`` and
 
 J. **The report**, on screen and in ``insert_new_level.log``.
 
+WORKING SETS (``--set``)
+========================
+Without ``--set`` the run is on the baseline, whose files are the ones in
+the project directory.  ``--set iter`` puts it on the calibrated set instead:
+its own IDEN2 (``iter/IDEN2``), its own LOPT files, run by ``lopt.bat`` in
+``iter/``, its own configuration and so its corrected line list and its own
+classification table.  The programs of the chain are told the set the way
+each already takes it::
+
+    classify_lines.py   --config iter/lineclass_config.toml
+    make_LOPT_input.py  --classifications iter/line_classifications.csv
+    check_sync.py       --set iter
+    sync_IDEN2.py       --set iter
+
+The files kept by hand - ``new_levels.txt``, ``line_decisions.csv`` - are the
+project's single copies in every set, taken from the set's configuration,
+which inherits them.  The backups, the log and the LOPT snapshot go into the
+set, so ``--undo`` needs the same ``--set``.  A set without its own
+``lineclass_config.toml``, ``IDEN2`` or ``LOPT.par`` is refused rather than
+completed from the project directory: that would write the baseline's files.
+
+EVERY WAVENUMBER THE RUN SHOWS AND TAKES IS THE SET'S: the candidate table,
+``--reject`` and ``--accept`` are in the corrected wavenumbers the set works
+on, which are also what its IDEN2 shows.  Only the ledger is different.  A row
+of ``line_decisions.csv`` names its line by ``wn_key``, Sugar's own
+wavenumber, so that one ledger serves every set, and the calibration moves
+lines by up to 0.66 cm^-1; the rows this run writes are therefore keyed on the
+line's ``wn_key``, and the rows already there are found by it.  On the
+baseline the two are the same number.
+
 USAGE
 =====
 ::
@@ -181,6 +211,7 @@ USAGE
         --reject 91856.116="May add to pub line list as masked" \\
         --reject 39785.512/000243="Too weak to contribute to blend" \\
         --accept 95033.381 --accept 93276.982 --accept 90917.831="better CoG"
+    python insert_new_level.py --set iter --iden2-row 658
 
 The first form writes nothing: it prints the proposal table and stops.
 ``--dry-run`` is the opposite kind of rehearsal - it runs the whole sequence
@@ -205,6 +236,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import config
 import cowan_gA
 import make_LOPT_input
 import output_files
@@ -236,12 +268,28 @@ LOPT_SNAPSHOT = os.path.join(HERE, 'LOPT_snapshot.json')
 LOGFILE = os.path.join(HERE, 'insert_new_level.log')
 BACKUP_DIR = os.path.join(HERE, 'insert_new_level_backup')
 
-# Every file the run can write.  The preflight tests all of them before any
-# work is done, and each is copied into the run directory so that an abort can
-# put it back.
-WRITABLE = [NEW_LEVELS, LINE_DECISIONS, CLASSIFICATIONS, CLASSIFICATIONS_XLSX,
+
+def writable_files() -> list:
+    """Every file the run can write, as the names above stand now.
+
+    The preflight tests all of them before any work is done, and each is
+    copied into the run directory so that an abort can put it back.  use_set
+    calls this again once it has pointed the names at a working set.
+    """
+    return [NEW_LEVELS, LINE_DECISIONS, CLASSIFICATIONS, CLASSIFICATIONS_XLSX,
             LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV, LOPT_PAR,
             SYNC_REPORT, LOGFILE, TRANS, ENLEV, GLUELEV, ID_MAP]
+
+
+WRITABLE = writable_files()
+
+# The working set the run is on (use_set): None for the baseline, whose files
+# are the ones named above.  SET_NAME is the directory as it was given on the
+# command line, for the commands the report tells the analyst to run next.
+UNLOCK = False      # --unlock, passed on to the chain through the environment
+SET_DIR = None
+SET_NAME = None
+SET_CONFIG = None
 
 # ---------------------------------------------------------------------------
 # The rules the proposals obey
@@ -416,6 +464,167 @@ def restore(saved: dict, log) -> None:
     for path, dest in saved.items():
         shutil.copy2(dest, path)
     log('   every file was put back as it was (%d file(s))' % len(saved))
+
+
+# ---------------------------------------------------------------------------
+# The working set (--set)
+# ---------------------------------------------------------------------------
+# What a working set has to hold of its own.  Completing a missing one from
+# the project directory, as swap_paths.working_path does for a file that is
+# only read, would make this run write the baseline's copy.
+SET_OWN = ('lineclass_config.toml', 'IDEN2', 'LOPT.par')
+
+
+def _inside(path: str, folder: str) -> bool:
+    """Is `path` in `folder` (at any depth)?"""
+    path = os.path.normcase(os.path.abspath(path))
+    folder = os.path.normcase(os.path.abspath(folder))
+    try:
+        return os.path.commonpath([path, folder]) == folder
+    except ValueError:              # different drives
+        return False
+
+
+def use_set(set_dir: str, log=print) -> str:
+    """Point the run at the working set in `set_dir` (``iter``, ``final``).
+
+    A working set is a directory holding its own configuration, its own IDEN2
+    and its own LOPT files; the files kept by hand are the project's single
+    copies, which the set's configuration names by inheriting them.  So the
+    two kinds are found differently:
+
+      * IDEN2/, LOPT.par, the four LOPT files and sync_report.txt are the
+        set's own, and a set that has no IDEN2/ or LOPT.par of its own is
+        refused: a run that fell back to the project directory's would write
+        the baseline, which is what --set is there to prevent;
+      * the classification table, new_levels.txt and line_decisions.csv are
+        the ones the set's configuration names - the very files
+        classify_lines.py --config reads and writes - and the table has to be
+        in the set, for the same reason.
+
+    The run's own files - the backups, the log, the LOPT snapshot - go into
+    the set, so that --undo in one set can never put back another's.  The
+    in-process reading of the levels and the lines (classify_lines) is pointed
+    at the set's configuration in _run.  Returns the set's absolute path.
+    """
+    global SET_DIR, SET_NAME, SET_CONFIG, WRITABLE, LOPT_FILES
+    global IDEN2_DIR, ENLEV, TRANS, GLUELEV, ID_MAP, DLV
+    global NEW_LEVELS, LINE_DECISIONS, CLASSIFICATIONS, CLASSIFICATIONS_XLSX
+    global LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV
+    global SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR
+    here = os.path.abspath(set_dir)
+    if not os.path.isdir(here):
+        raise SystemExit('insert_new_level.py: --set %s is not a directory'
+                         % set_dir)
+    missing = [name for name in SET_OWN
+               if not os.path.exists(os.path.join(here, name))]
+    if missing:
+        raise SystemExit('insert_new_level.py: the set %s has no %s of its '
+                         'own; the project directory\'s would be written '
+                         'instead' % (set_dir, ', '.join(missing)))
+    cfg_path = os.path.join(here, 'lineclass_config.toml')
+    cfg = config.load(cfg_path)
+    for what, path in (('classification table', cfg.output_csv),
+                       ('classification workbook', cfg.output_file)):
+        if not _inside(path, here):
+            raise SystemExit('insert_new_level.py: %s names a %s outside the '
+                             'set (%s); a run of the set would overwrite '
+                             'another set\'s' % (cfg_path, what, path))
+    for what, path in (('new_levels', cfg.new_levels),
+                       ('line_decisions', cfg.line_decisions)):
+        if not path:
+            raise SystemExit('insert_new_level.py: %s names no files.%s'
+                             % (cfg_path, what))
+
+    SET_DIR, SET_NAME, SET_CONFIG = here, set_dir, cfg_path
+    IDEN2_DIR = os.path.join(here, 'IDEN2')
+    ENLEV = os.path.join(IDEN2_DIR, 'enlev.dat')
+    TRANS = os.path.join(IDEN2_DIR, 'trans.dat')
+    GLUELEV = os.path.join(IDEN2_DIR, 'gluelev.dat')
+    ID_MAP = os.path.join(IDEN2_DIR, 'IDEN_level_ids.txt')
+    DLV = os.path.join(IDEN2_DIR, 'dlv.dat')
+    NEW_LEVELS = cfg.new_levels
+    LINE_DECISIONS = cfg.line_decisions
+    CLASSIFICATIONS = cfg.output_csv
+    CLASSIFICATIONS_XLSX = cfg.output_file
+    (LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV, SYNC_REPORT,
+     LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR) = (
+        os.path.join(here, os.path.basename(p))
+        for p in (LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV,
+                  SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR))
+    WRITABLE = writable_files()
+    LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES]
+
+    log('working set: %s' % here)
+    for what, path in (('configuration', cfg_path),
+                       ('line list', cfg.lines_file),
+                       ('classification table', CLASSIFICATIONS),
+                       ('IDEN2', IDEN2_DIR),
+                       ('LOPT parameter file', LOPT_PAR),
+                       ('new levels', NEW_LEVELS),
+                       ('ledger', LINE_DECISIONS),
+                       ('backups', BACKUP_DIR)):
+        log('  %-22s %s' % (what, path))
+    log('')
+    return here
+
+
+def refuse_hfs_frame(cfg_path: str) -> None:
+    """Stop if the run's configuration has the head-frame hfs model on.
+
+    With ``[hfs] apply`` on, make_LOPT_input.py writes the LOPT input in the
+    head frame - each line moved by its hfs shift, recorded in
+    LOPT_hfs_shifts.txt - and this tool, which adds its records one by one
+    with the measured wavenumber, would put them in the wrong frame beside the
+    others (README, "Not yet hfs-aware").
+    """
+    if config.load(cfg_path).hfs.apply:
+        raise SystemExit('insert_new_level.py: %s has [hfs] apply on, and '
+                         'this tool does not write the LOPT input in the head '
+                         'frame yet' % cfg_path)
+
+
+def require_unlocked(paths, program: str, unlock: bool, shared=()) -> None:
+    """Stop a run on a locked set (config.require_unlocked) before it writes.
+
+    The hand-kept files - new_levels.txt and the ledger here, the overrides,
+    the removed rows and the discarded levels in move_level.py and
+    discard_level.py (`shared`) - are left out: they are the project's single
+    copies, shared by every set, and lie in the baseline's directory whatever
+    set the run is on.  With `unlock` the programs of the chain are told so
+    through the environment (run).
+    """
+    global UNLOCK
+    keep = {os.path.normcase(os.path.abspath(p))
+            for p in (NEW_LEVELS, LINE_DECISIONS) + tuple(shared)}
+    config.require_unlocked(
+        [p for p in paths if os.path.normcase(os.path.abspath(p)) not in keep],
+        program, unlock)
+    UNLOCK = unlock
+
+
+def set_option() -> str:
+    """`` --set DIR`` for a command the report prints, or ``''``."""
+    return ' --set %s' % SET_NAME if SET_DIR else ''
+
+
+def chain_command(program: str) -> list:
+    """The command that runs one program of the chain on the run's set.
+
+    On the baseline it is the bare program.  In a set each program is told
+    which one in the way it already takes it: classify_lines.py by the set's
+    configuration, make_LOPT_input.py by the set's classification table
+    (it writes beside it, and reads the configuration there), check_sync.py
+    and sync_IDEN2.py by ``--set``.
+    """
+    cmd = [sys.executable, program]
+    if SET_DIR is None:
+        return cmd
+    extra = {'classify_lines.py': ['--config', SET_CONFIG],
+             'make_LOPT_input.py': ['--classifications', CLASSIFICATIONS],
+             'check_sync.py': ['--set', SET_DIR],
+             'sync_IDEN2.py': ['--set', SET_DIR]}
+    return cmd + extra[program]
 
 
 # ---------------------------------------------------------------------------
@@ -981,18 +1190,28 @@ def nothing_to_do(level_id: str, accepted, rows) -> bool:
 # ---------------------------------------------------------------------------
 # E. LOPT, and the Ritz check
 # ---------------------------------------------------------------------------
-def run(cmd, log, cwd=HERE):
+def run(cmd, log, cwd=None):
     """Run one program of the chain, echoing its last lines.
 
     Returns ``(status, output)``: the whole of what the program wrote is
     handed back, because some of what matters - LOPT's residual sum of
     squares among it - is printed long before the program's last line and
     would otherwise fall off the end of the echo.
+
+    The programs run in the project directory (`cwd` None), where they live.
+    In a working set LINECLASS_CONFIG names the set's configuration as well,
+    so that a program that reads it only through classify_lines' import sees
+    the set's and not the baseline's.
     """
+    cwd = cwd or HERE
     log('   $ ' + ' '.join(cmd))
     env = dict(os.environ)
     parent = os.path.dirname(HERE)
     env['PYTHONPATH'] = parent + os.pathsep + env.get('PYTHONPATH', '')
+    if SET_CONFIG:
+        env['LINECLASS_CONFIG'] = SET_CONFIG
+    if UNLOCK:
+        env[config.UNLOCK_ENV] = '1'
     proc = subprocess.run(cmd, cwd=cwd, env=env, shell=False,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, errors='replace')
@@ -1038,9 +1257,11 @@ def run_lopt(log):
     # interpreter rather than started directly.  lopt.bat is the Perl v5 build
     # of LOPT; the Java jar under F:/J/LOPT has no centroid blend model and
     # renames its outputs, and must never be used here.
+    # It runs where its parameter file is, since the file names the others
+    # without a directory: the project directory, or the working set.
     cmd = (['cmd', '/c', 'lopt.bat', os.path.basename(LOPT_PAR)]
            if os.name == 'nt' else ['lopt.bat', os.path.basename(LOPT_PAR)])
-    status, out = run(cmd, log)
+    status, out = run(cmd, log, cwd=os.path.dirname(os.path.abspath(LOPT_PAR)))
     if status != 0:
         raise Abort('lopt.bat returned %d' % status)
     rss, dof = lopt_rss(out)
@@ -1325,19 +1546,81 @@ def refresh_level_energy(level_id: str, log) -> None:
 # ---------------------------------------------------------------------------
 # F. The ledger
 # ---------------------------------------------------------------------------
-def read_ledger_keys(path: str) -> set:
+class LineNames(object):
+    """The two names of an observed line: its wavenumber in the set the run
+    is on, and ``wn_key``, the one the ledger knows it by.
+
+    ``wn_key`` is Sugar's own wavenumber, which the calibration of a working
+    set leaves alone (``[lines.layout.columns] wn_key``), so that one
+    ``line_decisions.csv`` serves every set; the set's wavenumber is the
+    corrected one, up to 0.66 cm^-1 away.  Everything else this run compares
+    - the classification table, the LOPT input, IDEN2 - is in the set's
+    wavenumbers, so a ledger row is translated at the ledger and nowhere else.
+    On the baseline the two names are the same number.
+
+    `lines` are classify_lines' SpectralLine objects of the run.
+    """
+
+    TOL = 0.01                      # as classify_lines matches a ledger row
+
+    def __init__(self, lines):
+        self._key_of = {}
+        for l in lines:
+            k = round(l.wavenumber, 3)
+            if k in self._key_of and self._key_of[k] != l.wn_key:
+                self._key_of[k] = None          # two lines, one name
+            else:
+                self._key_of[k] = l.wn_key
+        pairs = sorted((l.wn_key, l.wavenumber) for l in lines)
+        self._keys = [k for k, _w in pairs]
+        self._obs = [w for _k, w in pairs]
+
+    def key(self, wn: float) -> float:
+        """``wn_key`` of the line at the set's wavenumber `wn`."""
+        k = self._key_of.get(round(wn, 3), False)
+        if k is False:
+            raise Abort('%.4f cm^-1 is no line of the line list, and it has '
+                        'no wn_key to write into the ledger' % wn)
+        if k is None:
+            raise Abort('two lines of the line list are at %.3f cm^-1; the '
+                        'ledger row for it cannot say which' % wn)
+        return k
+
+    def observed(self, wn_key: float):
+        """The set's wavenumber of the line a ledger row names, or ``None``
+        if it names none (within TOL, the nearest)."""
+        j = bisect.bisect_left(self._keys, wn_key)
+        best = None
+        for m in (j - 1, j):
+            if 0 <= m < len(self._keys) \
+                    and abs(self._keys[m] - wn_key) <= self.TOL \
+                    and (best is None or abs(self._keys[m] - wn_key)
+                         < abs(self._keys[best] - wn_key)):
+                best = m
+        return None if best is None else self._obs[best]
+
+
+def read_ledger_keys(path: str, names: LineNames = None) -> set:
     """The ``(wn, low, upp)`` the ledger already rules on, wavenumber rounded
-    to three decimals so that a row written to fewer digits still matches."""
+    to three decimals so that a row written to fewer digits still matches.
+
+    With `names` the wavenumber is the set's wavenumber of the line the row
+    names (LineNames), which is what the classification table is keyed on; a
+    row that names no line keeps its own.
+    """
     keys = set()
     if not os.path.exists(path):
         return keys
     with io.open(path, encoding='utf-8-sig', newline='') as fh:
         for rec in csv.DictReader(fh):
             try:
-                wn = round(float(rec['wn_key']), 3)
+                wn = float(rec['wn_key'])
             except (KeyError, TypeError, ValueError):
                 continue
-            keys.add((wn, (rec.get('low_id') or '').strip(),
+            if names is not None:
+                obs = names.observed(wn)
+                wn = wn if obs is None else obs
+            keys.add((round(wn, 3), (rec.get('low_id') or '').strip(),
                       (rec.get('upp_id') or '').strip()))
     return keys
 
@@ -1459,7 +1742,7 @@ def standing(kwn, low: str, upp: str, touched_wn, in_fit, on_screen,
 
 def adoption_rows(adopted: dict, verdicts: dict, have: set, written: set,
                   on_screen: set, touched_wn: set, id_rows: dict,
-                  today: str) -> tuple:
+                  today: str, names: LineNames = None) -> tuple:
     """The ledger rows the adopted assignments need now, and the ones left be.
 
     Returns ``(rows, left)``.  ``rows`` is a list of
@@ -1483,6 +1766,9 @@ def adoption_rows(adopted: dict, verdicts: dict, have: set, written: set,
     alternative is an assignment marked in IDEN2 and weighted in the fit that
     the classification denies, which is what check_sync.py reports as an
     error.
+
+    The row is keyed on the line's ``wn_key`` when `names` is given
+    (LineNames); everything else here is in the set's wavenumbers.
     """
     rows, left = [], []
     for key in sorted(adopted):
@@ -1495,7 +1781,8 @@ def adoption_rows(adopted: dict, verdicts: dict, have: set, written: set,
                 and (round(kwn, 2), seen) in on_screen):
             left.append((kwn, low, upp))
             continue
-        rows.append((key, {'wn_key': '%.4f' % kwn, 'low_id': low,
+        rows.append((key, {'wn_key': '%.4f' % (names.key(kwn) if names
+                                               else kwn), 'low_id': low,
                            'upp_id': upp, 'decision': 'accept',
                            'date': today, 'reason': reason}, still))
     return rows, left
@@ -1592,10 +1879,10 @@ def line_dossier(wn, rows, before, level_id, log) -> None:
 class Target(tuple):
     """One ``--reject``/``--accept`` argument: which assignment it names.
 
-    ``wn`` IS THE OBSERVED WAVENUMBER OF THE LINE as ``Pr3_lines.xlsx`` gives
-    it and as the candidate table prints it in the ``obs wn`` column - never
-    the Ritz wavenumber of the transition, which differs from it by the
-    residual and will match nothing.
+    ``wn`` IS THE OBSERVED WAVENUMBER OF THE LINE as the candidate table
+    prints it in the ``obs wn`` column - in a working set, the set's corrected
+    one - never the Ritz wavenumber of the transition, which differs from it
+    by the residual and will match nothing.
 
     ``partner`` is the identifier of the level at the other end of the
     transition, or ``''`` for "every transition of this level on that line".
@@ -1762,6 +2049,19 @@ def parse_args(argv=None):
                         'changed; implies --yes')
     p.add_argument('--no-sync', action='store_true',
                    help='skip check_sync.py and sync_IDEN2.py')
+    p.add_argument('--set', metavar='DIR', default=None, dest='set_dir',
+                   help='the working set to run on (iter, final): its own '
+                        'IDEN2, LOPT files, configuration and so line list '
+                        'and classification table; the ledger and '
+                        'new_levels.txt are the project\'s, shared by every '
+                        'set, and ledger rows are keyed on the line\'s '
+                        'wn_key.  Backups and the log go into the set, so '
+                        '--undo needs it too (default: the baseline, in the '
+                        'project directory)')
+    p.add_argument('--unlock', action='store_true',
+                   help='write a locked set (one whose own '
+                        'lineclass_config.toml says locked = true, as the '
+                        'baseline\'s does)')
     args = p.parse_args(argv)
     if args.dry_run:
         args.yes = True          # a rehearsal has to get past the proposals
@@ -1778,6 +2078,11 @@ def main(argv=None):
     rejects = parse_reject(args.reject)
     accepts = parse_accept(args.accept)
     log = Log()
+    if args.set_dir:
+        use_set(args.set_dir, log)
+    refuse_hfs_frame(SET_CONFIG or config.DEFAULT_PATH)
+    require_unlocked(WRITABLE + [BACKUP_DIR], 'insert_new_level.py',
+                     args.unlock)
     if args.undo:
         saved = {p: os.path.join(BACKUP_DIR, os.path.basename(p))
                  for p in WRITABLE
@@ -1791,7 +2096,8 @@ def main(argv=None):
     today = datetime.date.today().strftime('%-m/%-d/%Y'
                                            if os.name != 'nt'
                                            else '%#m/%#d/%Y')
-    log('insert_new_level.py - IDEN2 row %d' % args.iden2_row)
+    log('insert_new_level.py - IDEN2 row %d%s'
+        % (args.iden2_row, ' of the set %s' % SET_DIR if SET_DIR else ''))
     log('')
 
     saved = preflight(WRITABLE, log)
@@ -1805,8 +2111,8 @@ def main(argv=None):
             log('--dry-run: putting every file back')
             restore(saved, log)
         else:
-            log('   what this run wrote is left in place; %s --undo puts it '
-                'back' % os.path.basename(__file__))
+            log('   what this run wrote is left in place; %s%s --undo puts '
+                'it back' % (os.path.basename(__file__), set_option()))
         return 2
     except Abort as exc:
         log('')
@@ -1827,6 +2133,11 @@ def main(argv=None):
 
 def _run(args, rejects, accepts, saved, log, today):
     import classify_lines as CL
+    if SET_CONFIG:
+        # classify_lines chose its configuration when it was imported; the
+        # levels, the calculated transitions and the lines read below have to
+        # be the set's.
+        CL.apply_config(config.load(SET_CONFIG))
 
     index = args.iden2_row
     log('')
@@ -1908,6 +2219,12 @@ def _run(args, rejects, accepts, saved, log, today):
         write_new_levels(NEW_LEVELS, fields, rows + [new_row])
     if map_row_needed and args.yes:
         add_id_map_row(ID_MAP, level_id, index)
+    # From here on the level has its row whether or not the file has been
+    # written yet.  Step G marks the level's lines in trans.dat through
+    # id_rows, and without this a level new to the map was "a level with no
+    # IDEN2 row" there, and none of its lines was marked.
+    id_rows[level_id] = index
+    by_row[index] = level_id
 
     log('')
     log('C. the lines')
@@ -1920,6 +2237,7 @@ def _run(args, rejects, accepts, saved, log, today):
             iden2_row=index, cowan_lid=cowan_lid)
     calc_index = CL.read_transitions(levels_dict)
     lines = CL.read_observed_lines(levels_dict, calc_index)
+    names = LineNames(lines)
 
     trans = IDEN.Trans(TRANS)
     marked = marked_assignments(trans, index)
@@ -2229,10 +2547,10 @@ def _run(args, rejects, accepts, saved, log, today):
     settled = False
     for attempt in range(1, 4):
         log('   round %d' % attempt)
-        if run([sys.executable, 'classify_lines.py'], log)[0] != 0:
+        if run(chain_command('classify_lines.py'), log)[0] != 0:
             raise Abort('classify_lines.py failed')
         verdicts = classification_verdicts(CLASSIFICATIONS)
-        have = read_ledger_keys(LINE_DECISIONS)
+        have = read_ledger_keys(LINE_DECISIONS, names)
         fresh = []
         for c in accepted:
             key = (round(c.wn, 3), c.low_id, c.upp_id)
@@ -2240,7 +2558,8 @@ def _run(args, rejects, accepts, saved, log, today):
                 continue
             why = ('classify_lines did not propose it' if key not in verdicts
                    else 'classify_lines rejected it')
-            fresh.append({'wn_key': '%.4f' % c.wn, 'low_id': c.low_id,
+            fresh.append({'wn_key': '%.4f' % c.line.wn_key,
+                          'low_id': c.low_id,
                           'upp_id': c.upp_id, 'decision': 'accept',
                           'date': today, 'reason': REASON_ACCEPT})
             written.add(key)
@@ -2259,7 +2578,8 @@ def _run(args, rejects, accepts, saved, log, today):
                 log('     --accept %.3f matches no assignment on that line '
                     'that this run may adopt' % spec.wn)
         rows, left = adoption_rows(adopted, verdicts, have, written,
-                                   on_screen, touched_wn, id_rows, today)
+                                   on_screen, touched_wn, id_rows, today,
+                                   names)
         for kwn, low, upp in left:
             if (round(kwn, 3), low, upp) in noted:
                 continue
@@ -2281,7 +2601,8 @@ def _run(args, rejects, accepts, saved, log, today):
                     key = (round(c.wn, 3), c.low_id, c.upp_id)
                     if key in have or key in written:
                         continue
-                    fresh.append({'wn_key': '%.4f' % c.wn, 'low_id': c.low_id,
+                    fresh.append({'wn_key': '%.4f' % c.line.wn_key,
+                                  'low_id': c.low_id,
                                   'upp_id': c.upp_id, 'decision': 'reject',
                                   'date': today, 'reason': reason})
                     written.add(key)
@@ -2297,7 +2618,7 @@ def _run(args, rejects, accepts, saved, log, today):
                 'say')
 
         if args.rebuild:
-            if run([sys.executable, 'make_LOPT_input.py'], log)[0] != 0:
+            if run(chain_command('make_LOPT_input.py'), log)[0] != 0:
                 raise Abort('make_LOPT_input.py failed')
             rss_r, _dof = call_LOPT(log, force=args.force)
             if rss_before is not None and rss_r is not None:
@@ -2461,8 +2782,8 @@ def _run(args, rejects, accepts, saved, log, today):
             'the rest with --reject, and it will write them and go on to '
             'check_sync.py and sync_IDEN2.py itself:')
         log('')
-        log('     python %s --iden2-row %d --rebuild --yes%s'
-            % (os.path.basename(__file__), index,
+        log('     python %s%s --iden2-row %d --rebuild --yes%s'
+            % (os.path.basename(__file__), set_option(), index,
                ''.join(' --accept %.3f' % wn
                        for wn in sorted({round(u[0], 3) for u in unchecked}))))
         log('')
@@ -2478,7 +2799,7 @@ def _run(args, rejects, accepts, saved, log, today):
     else:
         log('')
         log('H. check_sync.py')
-        status, _out = run([sys.executable, 'check_sync.py'], log)
+        status, _out = run(chain_command('check_sync.py'), log)
         if status > 1:
             log('   the ERROR findings of %s:' % os.path.basename(SYNC_REPORT))
             for rec in io.open(SYNC_REPORT, encoding='utf-8',
@@ -2509,7 +2830,7 @@ def _run(args, rejects, accepts, saved, log, today):
 
         log('')
         log('I. sync_IDEN2.py')
-        if run([sys.executable, 'sync_IDEN2.py'], log)[0] != 0:
+        if run(chain_command('sync_IDEN2.py'), log)[0] != 0:
             raise Abort('sync_IDEN2.py failed')
 
     # --- J. the report ------------------------------------------------------
