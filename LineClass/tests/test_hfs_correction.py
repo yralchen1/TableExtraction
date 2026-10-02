@@ -34,6 +34,7 @@ import check_sync                          # noqa: E402
 import classify_lines as cl                # noqa: E402
 import config                              # noqa: E402
 import hfs_correction as H                 # noqa: E402
+import hfs_patterns                        # noqa: E402
 import make_LOPT_input as M                # noqa: E402
 import sync_IDEN2 as sync                  # noqa: E402
 from models import EnergyLevel, SpectralLine, Transition   # noqa: E402
@@ -118,6 +119,9 @@ def test_the_groups_of_levels(model):
     assert model.S(RESOLVED) == (0.0, 0.0)
     assert [model.is_corrected(x) for x in (LOW, UNDET, ABSENT, RESOLVED)] \
         == [True, False, False, True]
+    assert [model.is_undetermined(x)
+            for x in (LOW, UNDET, ABSENT, RESOLVED)] \
+        == [False, True, False, False]
 
 
 def test_the_classes_of_kappa(model):
@@ -286,11 +290,12 @@ def test_the_shift_written_for_a_line(monkeypatch, model):
 # The LOPT input
 # ---------------------------------------------------------------------------
 def row(wn, low, upp, shift, kappa, accepted=1, calc=1.0, unc='0.100',
-        u_shift='0.0300', char=''):
+        u_shift='0.0300', char='', u_undet='0', allowance='0'):
     return {'wn_obs': wn, 'unc_wn_obs': unc, 'obs_intens': 100.0,
             'char': char, 'low_id': low, 'upp_id': upp, 'accepted': accepted,
             'calc_intens': calc, 'kappa': kappa, 'hfs_D': '0.5',
-            'hfs_shift': shift, 'u_hfs_shift': u_shift}
+            'hfs_shift': shift, 'u_hfs_shift': u_shift,
+            'u_hfs_undet': u_undet, 'hfs_allowance': allowance}
 
 
 def read_back(path):
@@ -337,6 +342,56 @@ def test_widths_the_correction_replaces(tmp_path, model):
     assert stats['widths_left_out'] == 2
 
 
+def test_a_level_without_A_is_counted_once(tmp_path, model):
+    w_hfs = {LOW: 0.2, UNDET: 0.3, ABSENT: 0.4}
+    rows = [
+        # the width (0.3) is larger than the unknown A (0.2): the width
+        row('60000.0000', LOW, UNDET, '0.0', '0.633', u_shift='0.25',
+            u_undet='0.2'),
+        # the unknown A (0.45) is larger: u_hfs_shift as it is
+        row('50000.0000', UPP, UNDET, '0.0', '0.20', u_shift='0.5',
+            u_undet='0.45', char='c'),
+        # a registry allowance stands for both; ABSENT keeps its width
+        row('40000.0000', UNDET, ABSENT, '0.0', '0.633', unc='0.500',
+            u_shift='0.2', u_undet='0.2', allowance='1')]
+    stats = {}
+    path = str(tmp_path / 'lines.txt')
+    M.write_lines_file(rows, path, w_hfs, hfs=model, hfs_stats=stats)
+    unc = {g['wavenumber']: g['uncertainty'] for g in read_back(path)}
+    assert unc['60000.000'] == '%.3f' % math.sqrt(0.1 ** 2 + 0.15 ** 2
+                                                  + 0.3 ** 2)
+    assert unc['50000.000'] == '%.3f' % math.hypot(0.1, 0.5)
+    assert unc['40000.000'] == '%.3f' % math.hypot(0.5, 0.4)
+    assert (stats['undet_counted_once'], stats['undet_by_allowance']) \
+        == (2, 1)
+
+
+def test_the_columns_for_a_level_without_A(monkeypatch, model):
+    switched_on(monkeypatch, model)
+    lo = level(LOW, 0.0, S=model.S(LOW)[0])
+    up = level(UPP, 0.0, S=model.S(UPP)[0])
+    un = level(UNDET, 0.0)
+    for lev in (lo, up, un):
+        lev.u_hfs_S = model.S(lev.level_id)[1]
+        lev.hfs_undetermined = model.is_undetermined(lev.level_id)
+    line = SpectralLine(30000.0, 0.3, 1.0, 'c', wn_key=30000.0,
+                        hfs_factor=0.8,
+                        unc_before_hfs_allowance=0.02)
+    known = SpectralLine(31000.0, 0.3, 1.0, 'c', wn_key=31000.0,
+                         hfs_factor=0.8,
+                         unc_before_hfs_allowance=0.02)
+    w = {}
+    w[id(accepted(line, lo, un, w))] = 1.0 / 0.09
+    w[id(accepted(known, lo, up, w))] = 1.0 / 0.09
+    # the part owed to UNDET is (1 - kappa) * I*J*u_A of it, nothing else
+    assert cl.hfs_undetermined_part(line, w) == pytest.approx(
+        0.8 * 2.5 * 4.5 * 0.05)
+    assert cl.hfs_undetermined_part(known, w) == 0.0
+    # the allowance stays on the line touching UNDET, and only there
+    assert cl.release_hfs_allowances([line, known]) == 1
+    assert [cl.hfs_allowance_kept(x) for x in (line, known)] == [True, False]
+
+
 def test_the_record_of_shifts_round_trips(tmp_path):
     lopt = tmp_path / 'LOPT_input_lines.txt'
     H.write_shifts(H.shifts_path(str(lopt)),
@@ -357,7 +412,12 @@ def test_a_table_written_under_the_other_setting_is_refused(tmp_path):
     off = write_config(tmp_path, '', 'off.toml')
     plain = [{'wn_obs': '1', 'low_id': LOW, 'upp_id': UPP}]
     corrected = [dict(plain[0], kappa='1', hfs_D='0', hfs_shift='0',
-                      u_hfs_shift='0')]
+                      u_hfs_shift='0', u_hfs_undet='0', hfs_allowance='0')]
+    # a table written before the levels without A had their columns
+    before = [dict(plain[0], kappa='1', hfs_D='0', hfs_shift='0',
+                   u_hfs_shift='0')]
+    with pytest.raises(SystemExit, match='counted twice'):
+        M.hfs_model(on, before, 'table')
     with pytest.raises(SystemExit, match='written\\s+with it off'):
         M.hfs_model(on, plain, 'table')
     with pytest.raises(SystemExit, match='has it off'):
@@ -563,6 +623,177 @@ def test_the_lopt_input_leaves_a_companion_out(tmp_path):
         '29000.0,29000.0,,,,\n', encoding='utf-8', newline='\n')
     rows = M.read_classifications(str(path))
     assert [r['wn_obs'] for r in rows] == ['30000.0']
+
+
+# --- blended companions (column blend) ----------------------------------------
+BLEND_HEADER = ('wn_key\tmain_wn_key\tlow_id\tupp_id\trung\tblend\tdate\t'
+                'reason\n')
+
+
+def blended(tmp_path, *rows):
+    path = tmp_path / 'blend.txt'
+    path.write_text(BLEND_HEADER + ''.join('\t'.join(r) + '\n' for r in rows),
+                    encoding='utf-8', newline='\n')
+    return str(path)
+
+
+def test_the_registry_reads_the_blend_column(tmp_path):
+    path = blended(tmp_path,
+                   ('30000.4376', '29999.9876', LOW, UPP, '1', '1', '', ''),
+                   ('30000.8', '29999.9876', LOW, UPP, '2', '', '', ''),
+                   ('30000.9', '29999.9876', LOW, UPP, '3', '0', '', ''))
+    sats = H.read_satellites(path)
+    assert [r.blend for r in sats.rows] == [True, False, False]
+    # a file without the column has no blended companion
+    plain = satellites(tmp_path, ('30000.4', '30000.1', LOW, UPP, '1', '',
+                                  ''))
+    assert not H.read_satellites(plain).rows[0].blend
+    bad = blended(tmp_path, ('30000.4', '30000.1', LOW, UPP, '1', 'yes', '',
+                             ''))
+    with pytest.raises(ValueError, match='blend'):
+        H.read_satellites(bad)
+
+
+def test_the_share_of_a_rung():
+    for J1, J2 in ((3.5, 4.5), (4.5, 4.5), (4.5, 3.5), (1.5, 0.5)):
+        comps = hfs_patterns.components(J1, 0.0, J2, 0.0)
+        total = sum(c[1] for c in comps)
+        for k in range(H.hfs_patterns.ladder_length(J1, J2) + 1):
+            f1, f2 = H.I_SPIN + J1 - k, H.I_SPIN + J2 - k
+            want = sum(s for _, s, a, b in comps if (a, b) == (f1, f2))
+            assert H.rung_share(J1, J2, k) == pytest.approx(want / total)
+    # the strongest component of 7/2 - 9/2 carries a quarter of the line, its
+    # first rung 0.197; past the ladder there is nothing
+    assert H.rung_share(3.5, 4.5, 0) == pytest.approx(0.25, abs=5e-4)
+    assert H.rung_share(3.5, 4.5, 1) == pytest.approx(0.197, abs=5e-4)
+    assert H.rung_share(1.5, 0.5, 2) == 0.0
+
+
+def blend_lines_and_levels():
+    levels = {x: EnergyLevel(level_id=x, energy=E, parity='e', J_str=j,
+                             J_val=float(eval(j)))
+              for x, E, j in ((LOW, 1000.0, '7/2'), (UPP, 31000.0, '9/2'),
+                              (ABSENT, 1000.45, '7/2'))}
+    main = SpectralLine(30000.0, 0.02, 100.0, '', wn_key=29999.9876)
+    comp = SpectralLine(30000.45, 0.02, 60.0, '', wn_key=30000.4376)
+    return levels, main, comp
+
+
+def test_a_blended_companion_keeps_its_own_identification(tmp_path,
+                                                          monkeypatch):
+    monkeypatch.setattr(cl, 'HFS', None)
+    levels, main, comp = blend_lines_and_levels()
+    path = blended(tmp_path, ('30000.4376', '29999.9876', LOW, UPP, '1', '1',
+                              '', ''))
+    # Sugar's identification of the companion, and a ledger accept: both
+    # stand beside the hfs component
+    own = Transition(lower_level=levels[ABSENT], upper_level=levels[UPP],
+                     assigned_to=comp)
+    comp.original_assignments.append(own)
+    comp.decisions[(ABSENT, UPP)] = ('accept', 'by hand')
+    assert cl.attach_hfs_satellites([main, comp], levels, path) == 1
+    assert main.hfs_head_pairs == {(LOW, UPP)}
+    assert comp.hfs_companion is None
+    assert comp.hfs_blend_companion == (main, levels[LOW], levels[UPP], 1)
+
+    # the classification: the main transition on the main line, and the
+    # companion's own accepted on it
+    t_main = Transition(lower_level=levels[LOW], upper_level=levels[UPP],
+                        assigned_to=main, accepted=1, calc_intensity=400.0,
+                        grade='2A')
+    main.assigned_transitions.append(t_main)
+    t_own = Transition(lower_level=levels[ABSENT], upper_level=levels[UPP],
+                       assigned_to=comp, accepted=1, calc_intensity=20.0,
+                       grade='2B')
+    comp.assigned_transitions.append(t_own)
+    rung_i = 400.0 * H.rung_share(3.5, 4.5, 1)
+    assert cl.hfs_rung_intensity(comp) == pytest.approx(rung_i)
+    share = 20.0 / (20.0 + rung_i)
+    w = cl.calc_weights([main, comp])
+    assert w[id(t_main)] == pytest.approx(1.0 / 0.02 ** 2)
+    assert w[id(t_own)] == pytest.approx(share ** 2 / 0.02 ** 2)
+
+    # the table: the companion's own row, and the component beside it
+    df = cl.build_output([main, comp], w)
+    rows = df[df.wn_obs == 30000.45].set_index('grade')
+    assert set(rows.index) == {'2B', H.COMPANION_GRADE}
+    assert rows.loc['2B', 'BF'] == pytest.approx(share)
+    assert rows.loc['2B', 'accepted'] == 1
+    hfs_row = rows.loc[H.COMPANION_GRADE]
+    assert (hfs_row.low_id, hfs_row.upp_id, hfs_row.accepted) \
+        == (LOW, UPP, 0)
+    assert hfs_row.calc_intens == pytest.approx(rung_i)
+    assert hfs_row.BF == pytest.approx(1.0 - share)
+    assert hfs_row.notes2.endswith("blended with the line's own")
+
+
+def test_a_blended_companion_without_a_transition_of_its_own(tmp_path,
+                                                             monkeypatch):
+    monkeypatch.setattr(cl, 'HFS', None)
+    levels, main, comp = blend_lines_and_levels()
+    path = blended(tmp_path, ('30000.4376', '29999.9876', LOW, UPP, '1', '1',
+                              '', ''))
+    cl.attach_hfs_satellites([main, comp], levels, path)
+    df = cl.build_output([main, comp], {})
+    rows = df[df.wn_obs == 30000.45]
+    # one row, the component's: no empty row for the line beside it
+    assert list(rows.grade) == [H.COMPANION_GRADE]
+    assert rows.iloc[0].BF == 0.0
+
+
+def test_the_shift_of_a_blended_companion_ignores_the_component(
+        monkeypatch, model):
+    switched_on(monkeypatch, model)
+    lo = level(LOW, 0.0, S=model.S(LOW)[0])
+    up = level(UPP, 0.0, S=model.S(UPP)[0])
+    line = SpectralLine(30000.0, 0.2, 1.0, '', hfs_factor=0.056,
+                        hfs_u_kappa=0.014, wn_key=30000.0,
+                        hfs_blend_companion=(None, lo, up, 1))
+    w = {}
+    t = accepted(line, lo, up, w)
+    w[id(t)] = 0.4 ** 2 / 0.2 ** 2          # the component took 0.6
+    shift, _, _ = cl.hfs_line_shift(line, w)
+    assert shift == pytest.approx(0.056 * t.hfs_D)
+
+
+def test_the_lopt_input_widens_a_blended_companion(tmp_path):
+    path = tmp_path / 'lc.csv'
+    path.write_text(
+        'wn_obs,wn_key,low_id,upp_id,grade,accepted,calc_intens\n'
+        f'30000.45,30000.4376,{LOW},{UPP},hfs,0,60.0\n'
+        f'30000.45,30000.4376,{ABSENT},{UPP},2B,1,20.0\n'
+        f'30000.0,29999.9876,{LOW},{UPP},2A,1,400.0\n'
+        f'29000.0,29000.0,{LOW},{ABSENT},hfs,0,\n',
+        encoding='utf-8', newline='\n')
+    comps = M.read_hfs_components(str(path))
+    assert comps == {'30000.4376': 60.0}      # a pure companion has none
+    rows = [dict(row('30000.45', ABSENT, UPP, '0', '0.944', calc=20.0),
+                 wn_key='30000.4376'),
+            dict(row('30000.0', LOW, UPP, '0', '0.944', calc=400.0),
+                 wn_key='29999.9876')]
+    out = str(tmp_path / 'lines.txt')
+    M.write_lines_file(rows, out, components=comps)
+    got = {g['wavenumber']: g for g in read_back(out)}
+    # the line's own transition keeps weight 1, LOPT normalizing it anyway,
+    # and its uncertainty is divided by its share, 20 / (20 + 60)
+    assert float(got['30000.450']['weight']) == 1.0
+    assert got['30000.450']['uncertainty'] == '0.400'
+    assert got['30000.000']['uncertainty'] == '0.100'
+    assert M.accepted_share(rows[:1], 0.0) == 1.0
+
+
+def test_review_mismatches_leaves_a_companion_out_of_the_pairs(tmp_path):
+    import review_mismatches as rm
+    path = tmp_path / 'lc.csv'
+    # the companion lies below its main line, so it comes after it
+    path.write_text(
+        'wn_obs,wn_key,low_id,upp_id,grade,accepted,calc_intens\n'
+        f'30000.0,29999.9876,{LOW},{UPP},2A,1,400.0\n'
+        f'29999.55,29999.5376,{LOW},{UPP},hfs,0,60.0\n',
+        encoding='utf-8', newline='\n')
+    _, by_line, by_pair = rm.read_classifications(str(path))
+    assert by_pair[(LOW, UPP)]['wn_obs'] == '30000.0'
+    assert len(by_line['29999.5376']) == 1
 
 
 def test_the_main_line_gives_up_its_widths(tmp_path):

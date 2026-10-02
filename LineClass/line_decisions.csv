@@ -281,9 +281,6 @@ wn_key,low_id,upp_id,decision,date,reason
 98546.421,059003.000075,059003.000487,accept,9/11/2026,Blend improves cg Ritz
 18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT
 94406.411,059003.000166,059003.000422,accept,9/11/2026,Blend is compatible with cl  char; cg is compatible with Ritz.
-37051,059003.000127,059003.000224,reject,9/11/2026,IDEN2: looks wrong
-32573.929,059003.000145,059003.000234,reject,9/11/2026,IDEN2: looks wrong; weak component; pulls cg in wrong direction.
-32573.929,059003.000150,059003.000244,reject,9/22/2026,the accept of 9/11/2026 is withdrawn: Sugar's wavelength-calibration curve does not account for it: still 5.5 sigma from Ritz with the curve removed
 37863.349,059003.000248,059003.000343,reject,9/11/2026,Too small predicted intensity to contribute to blend.
 17195.128,059003.000322,059003.000487,accept,9/11/2026,IDEN2
 39917.569,059003.000127,059003.000248,reject,9/12/2026,hfs analysys rejects it.
@@ -342,7 +339,7 @@ wn_key,low_id,upp_id,decision,date,reason
 86532.508,059003.000141,059003.000635,accept,9/16/2026,IDEN2/LOPT
 34581.859,059003.000161,059003.000266,reject,9/16/2026,LOPT: pulls in wrong direction
 39903.869,059003.000236,059003.000346,accept,9/16/2026,IDEN2/LOPT
-93276.982,059003.000148,059003.000418,accept,9/16/2026,IDEN2/LOPT
+93276.982,059003.000148,059003.000418,reject,10/2/2026,IDEN2: on the wrong side of 000148 hfs
 103462.798,059003.000063,059003.000494,reject,9/16/2026,not part of the move: this level was moved to 121673.2800 cm^-1 and this assignment was not carried over
 45840.4,059003.000155,059003.000293,accept,9/17/2026,IDEN2/LOPT
 49474.362,059003.000112,059003.000273,accept,9/17/2026,IDEN2/LOPT
@@ -539,7 +536,7 @@ wn_key,low_id,upp_id,decision,date,reason
 22372.6908,059003.000150,059003.000195,accept,9/27/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
 39960.6491,059003.000150,059003.000277,accept,9/27/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
 36193.2901,059003.000150,059003.000265,accept,9/27/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
-32572.7602,059003.000150,059003.000244,accept,9/27/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+,,,,,
 39768.8314,059003.000168,059003.000283,accept,9/27/2026,IDEN2/LOPT; unc inflated
 44690.3295,059003.000143,059003.000283,accept,9/27/2026,IDEN2/LOPT; unc inflated
 38824.5787,059003.000173,059003.000282,accept,9/27/2026,IDEN2/LOPT: cg improves with blend; char w supports blend
@@ -583,7 +580,7 @@ wn_key,low_id,upp_id,decision,date,reason
 94081.2304,059003.000055,059003.000671,accept,9/28/2026,IDEN2/LOPT; unc inflated
 16286.454,059003.000472,059003.000639,accept,9/28/2026,IDEN2/LOPT; cg acceptable
 23063.179,059003.000366,059003.000602,accept,9/28/2026,IDEN2/LOPT; cg acceptable
-32572.7602,059003.000145,059003.000234,accept,9/28/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
+32573.929,059003.000145,059003.000234,accept,9/28/2026,IDEN2/LOPT; hfs of f26s
 69993.5626,059003.000182,059003.000384,reject,9/28/2026,"IDEN2/LOPT after wavelength correction: too far from Ritz, too small Icalc"
 33602.5509,059003.000448,059003.000675,accept,9/28/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
 33602.5509,059003.000191,059003.000665,accept,9/28/2026,IDEN2/LOPT; unc inflated (hfs of f26s)
@@ -630,3 +627,29 @@ wn_key,low_id,upp_id,decision,date,reason
 37628.0806,059003.000246,059003.000548,accept,10/1/2026,IDEN2/LOPT
 27509.0171,059003.000310,059003.000684,accept,10/1/2026,IDEN2/LOPT
 40015.2007,059003.000161,059003.000281,reject,10/1/2026,Weak blend component; pulls cg in wrong direction; contradicts hfs trend
+35972.5687,059003.000127,059003.000218,accept,10/1/2026,IDEN2/LOPT; unc inflated
+37050.9996,059003.000127,059003.000224,accept,10/1/2026,IDEN2/LOPT; unc inflated
+53197.5415,059003.000127,059003.000445,reject,10/1/2026,Weak blend component; pulls cg in wrong direction; too far from Ritz after hfs correction
+89999.5139,059003.000127,059003.000488,reject,10/1/2026,On the wrong side from hfs structure of 000127; 000488 is 4f2.5f with small hfs
+32572.7602,059003.000150,059003.000244,accept,10/1/2026,IDEN2/LOPT; hfs of f26s
+22800.4271,059003.000386,059003.000613,accept,10/2/2026,IDEN2/LOPT
+22513.2563,059003.000388,059003.000613,reject,10/2/2026,IDEN2/LOPT
+68521.0798,059003.000206,059003.000420,accept,10/2/2026,IDEN2/LOPT
+68521.0798,059003.000067,059003.000303,accept,10/2/2026,IDEN2/LOPT
+25657.6628,059003.000312,059003.000684,accept,10/2/2026,IDEN2/LOPT
+27260.1627,059003.000307,059003.000655,accept,10/2/2026,IDEN2/LOPT; unc inflated (hfs of fds?)
+53958.1579,059003.000156,059003.000307,accept,10/2/2026,IDEN2/LOPT
+53134.0885,059003.000215,059003.000667,reject,10/2/2026,"IDEN2/LOPT: weak, too far, pulls in wrong direction"
+51932.4296,059003.000182,059003.000644,accept,10/2/2026,IDEN2/LOPT
+23082.919,059003.000182,059003.000653,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
+22524.4601,059003.000182,059003.000433,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
+22524.4601,059003.000182,059003.000243,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
+26569.0193,059003.000155,059003.000207,reject,10/2/2026,"IDEN2/LOPT: line reassigned to 000165-000221, unc inflated - this is unresolved hfs of 000165"
+43105.9493,059003.000080,059003.000216,accept,10/2/2026,IDEN2/LOPT; unc inflated
+58102.308,059003.000054,059003.000436,reject,10/2/2026,"IDEN2/LOPT: too small Icalc, too far from Ritz"
+35730.2509,059003.000148,059003.000258,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
+37509.3400,059003.000125,059003.000222,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1052, 0.71 below the head-frame Ritz value; needs A(000222) = +0.076, undetermined in the table and +0.073 +- 0.019 in the pattern fit; Icalc 8525 against Iobs 2631; unc inflated"
+57611.7558,059003.000125,059003.000676,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-932, 0.67 below the head-frame Ritz value; needs A(000676) = +0.049, not known; Icalc 5739 against Iobs 1404; unc inflated"
+36579.6410,059003.000125,059003.000220,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1056, 0.14 +- 0.10 from the predicted center; Icalc 2823 against Iobs 1339; unc inflated"
+36579.6410,059003.000250,059003.000341,reject,10/2/2026,"IDEN2/LOPT: Icalc 47 against Iobs 1339; the line is the center of gravity of 1156-1056, and 000341 keeps 7 lines"
+35193.6584,059003.000125,059003.000210,accept,10/2/2026,"IDEN2/LOPT: unresolved pattern of 1156-1067 measured halfway between the head and the center of gravity, 0.28 below the head-frame Ritz value (center of gravity 0.57 below); Icalc 9067 against Iobs 2871; unc inflated"

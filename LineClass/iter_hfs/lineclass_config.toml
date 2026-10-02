@@ -1,0 +1,33 @@
+# The hfs working set: iter/ with the head-frame hyperfine correction on
+# (README, "Hyperfine structure"; hfs_correction.py).
+#
+# Everything not written here is iter's, and through iter the baseline's:
+# `inherit` reads ../iter/lineclass_config.toml first and this file is laid
+# on top of it, table by table.  So this set reads iter's corrected line list
+# (resolved against iter/) and the project's single copies of the hand-kept
+# files, and a verdict written in the ledger rules here as it does in iter.
+#
+# The correction is kept out of iter/ itself because the assignment work runs
+# there: insert_new_level.py refuses a set with the correction on, and
+# level_positions.py and review_mismatches.py compute their residuals without
+# it.
+#
+# IDEN2/ here is a copy of iter/IDEN2/ taken on 2026-10-01.  A level assigned
+# in iter/ afterwards reaches this set's table and LOPT fit through the shared
+# ledger and new_levels.txt, but reaches this IDEN2 only with a fresh copy.
+inherit = "../iter/lineclass_config.toml"
+
+[files]
+# This set's own table.  Without these two it would inherit iter's and
+# overwrite it; classify_lines.py stops a run that would
+# (config.require_own_output).
+output     = "line_classifications.xlsx"
+output_csv = "line_classifications.csv"
+
+[hfs]
+# kappa, resolved_levels and files.hfs_A_levels are the baseline's.
+apply = true
+# IDEN2 here shows every line the fit uses as LOPT is given it, once
+# sync_IDEN2.py has been run (lineclass_config.toml, [hfs]).  Set "measured"
+# and sync again before a line search or a satellite judgment.
+iden2_display = "lopt"

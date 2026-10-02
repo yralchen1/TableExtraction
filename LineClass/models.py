@@ -25,6 +25,8 @@ class EnergyLevel:
                                            #     gravity (cm^-1); 0.0 unless [hfs] apply is on
                                            #     (see hfs_correction.py)
     u_hfs_S: float = 0.0                   # its uncertainty (cm^-1)
+    hfs_undetermined: bool = False         # listed in the table of A constants without a usable
+                                           #     A: u_hfs_S is the unknown A, S is 0
     from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
     to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
     u_contrib: Dict[tuple, tuple] = field(default_factory=dict)
@@ -76,6 +78,11 @@ class SpectralLine:
     # line as a resolved hfs companion of that transition on the main line:
     # it is classified as that, never accepted, and no candidate is sought
     # for it.  None for every other line.
+    hfs_blend_companion: Optional[tuple] = None
+    # The same tuple if the registry names this line as a companion blended
+    # with transitions of its own (column blend): it is classified as any
+    # other line, and the hfs component takes its share of the line's
+    # calculated intensity (classify_lines.calc_weights).  None otherwise.
     unc_before_hfs_allowance: float = 0.0
     # The line list's own uncertainty, kept when a registry row tagged hfs
     # (inflated_unc_lines.txt) widened it and [hfs] apply is on, so that the

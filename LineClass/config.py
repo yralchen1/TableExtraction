@@ -77,6 +77,7 @@ class _StrList:
 _ENUMS = {
     'missing_gA.policy': ('none', 'impute'),
     'missing_gA.u_ln_estimator': ('rms', 'mean', 'median'),
+    'hfs.iden2_display': ('measured', 'lopt'),
 }
 
 #: The four classes of the hfs convention model, each given as
@@ -91,7 +92,7 @@ _OPTIONAL = {'inherit', 'locked',
              'files.discarded_levels', 'files.inflated_unc',
              'files.hfs_A_levels', 'files.hfs_satellites',
              'decisions', 'decisions.max_forced_offset',
-             'hfs', 'hfs.resolved_levels'}
+             'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
 
 _SCHEMA = {
     'inherit': str,
@@ -111,7 +112,7 @@ _SCHEMA = {
                    'self_consistent': bool, 'fit_range_decades': _FloatPair},
     'intensity_model': {'C': float, 'kT': float, 'verify_tolerance': float},
     'decisions': {'max_forced_offset': float},
-    'hfs': {'apply': bool, 'resolved_levels': _StrList,
+    'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES}},
 }
 
@@ -189,13 +190,17 @@ class HfsSettings:
     sublevels are resolved and whose own A therefore counts as zero in a
     line's displacement.  `satellites` is the registry of resolved hfs
     companions (files.hfs_satellites, '' if none), which is read whether
-    `apply` is on or not.  hfs_correction.py says what each of them means.
+    `apply` is on or not.  `iden2_display` says where sync_IDEN2.py puts the
+    lines LOPT uses in IDEN2's dlv.dat: 'measured' (the default) or 'lopt',
+    at the wavenumber and uncertainty LOPT is given, which needs `apply`.
+    hfs_correction.py says what each of them means.
     """
     apply: bool = False
     A_levels: str = ''
     satellites: str = ''
     kappa: tuple = ()           # ((class, (kappa, u_kappa)), ...)
     resolved_levels: tuple = ()
+    iden2_display: str = 'measured'
 
     def kappa_of(self, cls: str) -> tuple:
         """(kappa, u_kappa) of the class `cls`."""
@@ -316,11 +321,18 @@ def load(path: str = None) -> Config:
         if h['apply'] and not a_levels:
             raise ConfigError("[hfs] apply = true needs files.hfs_A_levels, "
                               "the table of hyperfine A constants")
+        display = h.get('iden2_display', 'measured')
+        if display == 'lopt' and not h['apply']:
+            raise ConfigError("[hfs] iden2_display = 'lopt' needs apply = "
+                              "true: with the correction off LOPT is given "
+                              "the measured lines, so there is nothing else "
+                              "to show")
         hfs = HfsSettings(
             apply=h['apply'], A_levels=a_levels, satellites=satellites,
             kappa=tuple((k, tuple(h['kappa'][k]))
                         for k in HFS_KAPPA_CLASSES),
-            resolved_levels=tuple(h.get('resolved_levels', ())))
+            resolved_levels=tuple(h.get('resolved_levels', ())),
+            iden2_display=display)
 
     return Config(
         path=path,
@@ -453,4 +465,36 @@ def require_unlocked(paths, program: str, unlock: bool = False) -> list:
         lines += [f'    {f}' for f in files]
     lines += ['Run it on a working set instead, or pass --unlock to write '
               'this one anyway.', '']
+    raise SystemExit('\n'.join(lines))
+
+
+def require_own_output(config_path: str, paths, program: str) -> None:
+    """Stop the run if any of `paths` belongs to another set than the
+    configuration `config_path` does.
+
+    A set's configuration inherits its parent's [files] table resolved
+    against the parent's directory, so a set that does not name its own
+    output inherits its parent's table and would overwrite it: an iter_hfs/
+    without `output` and `output_csv` would rewrite iter's table in the head
+    frame.  The lock does not catch that, since iter/ is not locked.  A file
+    belongs to the set of the nearest directory above it that holds a
+    lineclass_config.toml (set_of); the configuration file to the set of its
+    own directory, or the nearest above it.  There is no override: a table
+    meant for another set is written by that set's configuration.
+    """
+    def key(d):
+        return None if d is None else os.path.normcase(d)
+
+    own = set_of(config_path)
+    stray = [os.path.abspath(f) for f in paths if key(set_of(f)) != key(own)]
+    if not stray:
+        return
+    lines = ['', f'{program}: this configuration would write another set\'s '
+             'files.', f'  configuration: {os.path.abspath(config_path)}',
+             f'  its set:       {own}']
+    for f in stray:
+        lines.append(f'    {f}   (belongs to {set_of(f)})')
+    lines += ['Name this set\'s own files in its [files] table, e.g.',
+              '  output     = "line_classifications.xlsx"',
+              '  output_csv = "line_classifications.csv"', '']
     raise SystemExit('\n'.join(lines))

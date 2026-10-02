@@ -1,10 +1,18 @@
-wn_key	main_wn_key	low_id	upp_id	rung	date	reason
-20972.0992	20971.7476	059003.000040	059003.000141	1	9/30/2026	IDEN2 1138; +0.352 cm-1, 2/3 of the main line's intensity; rung 1 if A(000040) = +0.022
-34140.3907	34139.9601	059003.000148	059003.000253	1	9/30/2026	IDEN2 1131; +0.431 cm-1, 3/4; rung 1 if A(000253) = +0.039
-25787.7794	25787.2879	059003.000161	059003.000215	1	9/30/2026	IDEN2 1118; +0.492 cm-1, 3/3; rung 1 predicted +0.461
-24110.7219	24110.2400	059003.000161	059003.000205	1	9/30/2026	IDEN2 1118; +0.482 cm-1, 4/8; rung 1 predicted +0.481
-24111.1521	24110.2400	059003.000161	059003.000205	2	9/30/2026	IDEN2 1118; +0.912 cm-1, 3/8; rung 2 predicted +0.890
-24087.7004	24087.2889	059003.000161	059003.000204	1	9/30/2026	IDEN2 1118; +0.412 cm-1, 3/6; rung 1 if A(000204) = +0.035
-23792.9207	23792.4971	059003.000161	059003.000203	1	9/30/2026	IDEN2 1118; +0.424 cm-1, 1/1; rung 1 predicted +0.452
-22545.9883	22545.6519	059003.000124	059003.000188	1	9/30/2026	IDEN2 1091; +0.336 cm-1, 1/1; rung 1 if A(000124) = +0.024
-#32742.2186	32742.9015	059003.000150	059003.000247	1	9/30/2026	IDEN2 1129; -0.683 cm-1, 8/8; rung 1 only if A(000247) = +0.069, three times the composition estimate +0.025, with which it is rung 2 and rung 1 falls into the main line; left out until settled
+wn_key	main_wn_key	low_id	upp_id	rung	blend	date	reason
+20972.0992	20971.7476	059003.000040	059003.000141	1		9/30/2026	IDEN2 1138; +0.352 cm-1, 2/3 of the main line's intensity; rung 1 if A(000040) = +0.022
+34140.3907	34139.9601	059003.000148	059003.000253	1		9/30/2026	IDEN2 1131; +0.431 cm-1, 3/4; rung 1 if A(000253) = +0.039
+25787.7794	25787.2879	059003.000161	059003.000215	1		9/30/2026	IDEN2 1118; +0.492 cm-1, 3/3; rung 1 predicted +0.461
+24110.7219	24110.2400	059003.000161	059003.000205	1		9/30/2026	IDEN2 1118; +0.482 cm-1, 4/8; rung 1 predicted +0.481
+24111.1521	24110.2400	059003.000161	059003.000205	2		9/30/2026	IDEN2 1118; +0.912 cm-1, 3/8; rung 2 predicted +0.890
+24087.7004	24087.2889	059003.000161	059003.000204	1		9/30/2026	IDEN2 1118; +0.412 cm-1, 3/6; rung 1 if A(000204) = +0.035
+23792.9207	23792.4971	059003.000161	059003.000203	1		9/30/2026	IDEN2 1118; +0.424 cm-1, 1/1; rung 1 predicted +0.452
+22545.9883	22545.6519	059003.000124	059003.000188	1		9/30/2026	IDEN2 1091; +0.336 cm-1, 1/1; rung 1 if A(000124) = +0.024
+#32742.2186	32742.9015	059003.000150	059003.000247	1		9/30/2026	IDEN2 1129; -0.683 cm-1, 8/8; rung 1 only if A(000247) = +0.069, three times the composition estimate +0.025, with which it is rung 2 and rung 1 falls into the main line; left out until settled
+57127.7778	57126.9929	059003.000127	059003.000676	1		10/1/2026	IDEN2 1154-932; +0.785 cm-1, 5/5; rung 1 if A(000676) = -0.018 (+0.679 with A = 0); rung 2 would need A(000676) = +0.043 and a -0.46 companion of 50210.339, not seen; was Sugar's 000264-000419, Ic 2.4
+21872.7340	21872.0023	059003.000182	059003.000238	1		10/2/2026	IDEN2 1098-1035; +0.732 cm-1 (rung 1 predicted +0.644), intensity 0.86 of the main line (predicted 0.73); rung 1 if A(000238) = +0.003 (composition +0.017 +- 0.008)
+22685.9497	22685.2332	059003.000182	059003.000245	1		10/2/2026	IDEN2 1098-1030; +0.716 cm-1 (rung 1 predicted +0.602), intensity 1.00 of the main line (predicted 0.73); rung 1 if A(000245) = +0.005 (composition +0.024 +- 0.006)
+17019.5411	17018.9475	059003.000191	059003.000433	1		10/2/2026	IDEN2 1088-1031; +0.594 cm-1 (rung 1 predicted +0.524), intensity 0.62 of the main line's share (predicted 0.55); rung 1 if A(000433) = +0.012 (composition +0.026 +- 0.006); the main line also carries 1088-1028, whose rung 1 falls here too
+27350.8376	27351.4799	059003.000192	059003.000444	1		10/2/2026	IDEN2 1087-964; -0.642 cm-1 (rung 1 predicted -0.686), intensity 0.37 of the main line (predicted 0.35); rung 1 if A(000444) = +0.073 (composition +0.087 +- 0.034); the 3-3 component (-0.424) is likely blended in, char d
+54967.4317	54966.4344	059003.000139	059003.000454	1		10/2/2026	IDEN2 1141-926; +0.997 cm-1 (rung 1 predicted +0.630 with A(000454) = 0), intensity 1.42 of the main line's share (predicted 0.85); rung 1 if A(000454) = -0.046 (absent from the table; J = 11/2, f5d6s); with kappa = 1 the main line O-C goes from -0.37 to +0.12
+23083.6428	23082.9190	059003.000182	059003.000653	1	1	10/2/2026	IDEN2 1098-1014; +0.724 cm-1 (rung 1 predicted +0.748 with A(000653) = 0, absent from the table), intensity 0.60 of the main line (predicted 0.61); rung 1 if A(000653) = +0.006 (J = 3/2, f5d2); blended with 755-276 (000384-000619), one of 000619's three lines
+24671.3726	24670.6422	059003.000182	059003.000631	1	1	10/2/2026	IDEN2 1098-1007; +0.730 cm-1 (rung 1 predicted +0.748 with A(000631) = 0, absent from the table), intensity 1.00 of the main line (predicted 0.61); rung 1 if A(000631) = +0.004 (J = 3/2); blended with Sugar's 1119-1071 (000162-000207)

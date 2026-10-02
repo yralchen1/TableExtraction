@@ -126,6 +126,19 @@ rung k, the companion joining F_low - k and F_upp - k.  It rules in two ways:
   era, if the line is also flagged).  The main line gives up its level
   widths in make_LOPT_input.py as a flagged line does.
 
+A companion may be blended with a transition of its own: the weaker part of
+a line Sugar identified, or one the classification accepts (column `blend` =
+1, 2026-10-02).  Such a line is classified as any other, published and
+ledger identifications included, and its hfs component is written beside
+them as an extra row, grade hfs, never accepted.  The component takes its
+share of the line's calculated intensity - the main transition's, times the
+fraction of the pattern's strength in that rung (`rung_share`) - so the
+line's other transitions carry only the rest of the BF: in the
+classification's weights, and in LOPT's as an uncertainty divided by that
+rest (make_LOPT_input.accepted_share).  Their hfs shift is that of
+the line without the component: it does not move them.  The main line takes
+kappa = 1 as above.
+
 WHAT A CORRECTED LINE NO LONGER NEEDS (plan, D13)
 =================================================
 The corrections replace two allowances that were made for hfs before it could
@@ -137,7 +150,14 @@ be computed, and counting both would count it twice:
   longer carries the extra uncertainty of an `inflated_unc_lines.txt` row
   tagged hfs (`classify_lines.py`).
 
-A level without a determined A keeps both.
+A level without a determined A keeps both, but an *undetermined* level's
+unknown hfs is then carried once (2026-10-01).  Its u_S = I*J*u_A already
+enters u_hfs_shift, so `classify_lines.py` writes the part of u_hfs_shift owed
+to such levels as `u_hfs_undet`, and `make_LOPT_input.py` adds the larger of
+that part and the levels' widths, not both.  A line that keeps a registry
+allowance tagged hfs (`hfs_allowance` = 1) adds neither: the hand-set value is
+the allowance for the hfs of those levels.  An absent level keeps its width in
+every case, since it has no u_S to stand in for it.
 """
 import collections
 import csv
@@ -146,6 +166,7 @@ import os
 import re
 
 import hfs_kappa
+import hfs_patterns
 
 #: nuclear spin of 141Pr.
 I_SPIN = hfs_kappa.I_SPIN
@@ -171,7 +192,7 @@ COMPANION_GRADE = 'hfs'
 
 #: the columns of the registry of resolved companions (files.hfs_satellites).
 SATELLITE_COLUMNS = ('wn_key', 'main_wn_key', 'low_id', 'upp_id', 'rung',
-                     'date', 'reason')
+                     'blend', 'date', 'reason')
 
 
 def is_determined(source):
@@ -219,6 +240,14 @@ class Model(object):
             return True
         rec = self.levels.get(level_id)
         return rec is not None and rec[3]
+
+    def is_undetermined(self, level_id):
+        """True if the level is listed without a usable A: its S is 0 and
+        its u_S the unknown A (see the module docstring's three groups)."""
+        if level_id in self.resolved:
+            return False
+        rec = self.levels.get(level_id)
+        return rec is not None and not rec[3]
 
     # --- lines --------------------------------------------------------------
     def kappa_of(self, char, wn_key):
@@ -338,7 +367,19 @@ def hfs_registry_keys(path):
 
 # --- the registry of resolved companions -------------------------------------
 Satellite = collections.namedtuple(
-    'Satellite', 'key main_key low_id upp_id rung reason')
+    'Satellite', 'key main_key low_id upp_id rung blend reason')
+
+
+def rung_share(J_low, J_upp, k):
+    """The fraction of a line's strength in the k-th rung of its pattern
+    (F_low = I + J_low - k -> F_upp = I + J_upp - k; k = 0 is the strongest
+    component), 0 beyond the ladder.  It depends on the two J alone."""
+    comps = hfs_patterns.components(J_low, 0.0, J_upp, 0.0)
+    total = sum(s for _, s, _, _ in comps)
+    f1, f2 = I_SPIN + J_low - k, I_SPIN + J_upp - k
+    part = sum(s for _, s, a, b in comps
+               if abs(a - f1) < 1e-9 and abs(b - f2) < 1e-9)
+    return part / total if total else 0.0
 
 
 class Satellites(object):
@@ -399,11 +440,13 @@ def read_satellites(path):
     `Satellites`; see the module docstring.
 
     Tab-delimited, with the columns of SATELLITE_COLUMNS; a row whose
-    wn_key starts with '#' is a comment.  A missing file, or none named, is
-    an empty registry; a row that cannot mean what it says - a line that is
+    wn_key starts with '#' is a comment.  `blend` is 1 for a companion
+    blended with a transition of its own, empty or 0 otherwise; a file
+    without the column has none.  A missing file, or none named, is an
+    empty registry; a row that cannot mean what it says - a line that is
     its own companion, a companion entered twice, a line entered both as a
-    companion and as a main line, a rung that is not a positive integer -
-    raises.
+    companion and as a main line, a rung that is not a positive integer, a
+    blend that is not 0 or 1 - raises.
     """
     if not path or not os.path.exists(path):
         return Satellites()
@@ -429,9 +472,14 @@ def read_satellites(path):
                 raise ValueError('%s: the row of %s needs main_wn_key, '
                                  'low_id, upp_id and a rung of 1 or more'
                                  % (name, wn))
+            blend = (rec.get('blend') or '').strip()
+            if blend not in ('', '0', '1'):
+                raise ValueError('%s: the row of %s has blend = %r; it is 1 '
+                                 'for a blended companion, empty or 0 '
+                                 'otherwise' % (name, wn, blend))
             rows.append(Satellite(hfs_kappa.registry_key(wn),
                                   hfs_kappa.registry_key(main), low, upp,
-                                  int(rung),
+                                  int(rung), blend == '1',
                                   (rec.get('reason') or '').strip()))
     seen, mains = set(), {r.main_key for r in rows}
     for r in rows:

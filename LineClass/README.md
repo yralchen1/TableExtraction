@@ -2964,10 +2964,13 @@ With `apply = true` in the `[hfs]` section of a set's configuration:
 
 - **`classify_lines.py`** compares a line with each candidate transition i at
   Ritz_i − (1 − κ)·D_i, and fits the level energies to the measured wavenumber plus
-  (1 − κ)·D_i. The classification table gains four columns: `kappa`, `hfs_D` (of the row's
+  (1 − κ)·D_i. The classification table gains six columns: `kappa`, `hfs_D` (of the row's
   transition), `hfs_shift` = (1 − κ)·Σ BF_i·D_i over the line's accepted transitions (the same
-  on every row of the line; 0 for a line with nothing accepted) and its uncertainty
-  `u_hfs_shift`. `dif_wn_O-C` is the residual against the corrected prediction.
+  on every row of the line; 0 for a line with nothing accepted), its uncertainty
+  `u_hfs_shift`, the part of that uncertainty owed to levels whose A is not determined
+  (`u_hfs_undet`), and `hfs_allowance`, 1 if `unc_wn_obs` is a registry allowance for hfs
+  that the correction did not withdraw. `dif_wn_O-C` is the residual against the corrected
+  prediction.
   A **flagged blend** is the exception to one κ per line: the flag describes the pattern of
   one transition, taken to be the strongest (largest BF), which takes κ = 1, and the other
   components take the plain κ of the line's era. The shift is then Σ BF_i·(1 − κ_i)·D_i and
@@ -2980,9 +2983,9 @@ With `apply = true` in the `[hfs]` section of a set's configuration:
   record is written to **`LOPT_hfs_shifts.txt`** beside `LOPT_input_lines.txt`
   (`low_id, upp_id, wn_obs, wn_lopt, hfs_shift, u_hfs_shift`).
 - **`sync_IDEN2.py`** and **`check_sync.py`** find the observed line of a LOPT record by its
-  wavenumber, and take the measured one back from that file. IDEN2 itself needs nothing:
-  `enlev.dat` gets the head-frame energies LOPT fits, and `dlv.dat` keeps the lines as
-  measured.
+  wavenumber, and take the measured one back from that file. `enlev.dat` gets the
+  head-frame energies LOPT fits, and by default `dlv.dat` keeps the lines as measured (see
+  "What IDEN2 shows" below).
 
 An unidentified line is not shifted - it cannot be, since D belongs to a transition - and
 nothing is fitted to it. The centers of gravity, E_cg = E_head − I·A·J, are computed once at
@@ -3004,17 +3007,34 @@ That is a property of the line, as Sugar's `*r`/`*v` flags are, not of the level
 (`files.hfs_satellites`, kept by hand, tab-delimited) lists each weaker line of the line list
 that lies a rung of its transition's pattern away from a classified line: the companion's
 `wn_key`, the `main_wn_key` of the line it belongs to, the transition (`low_id`, `upp_id`), the
-`rung` k (the companion joins F_low − k and F_upp − k), a date and a reason; a row starting
-with `#` is a comment. The companion is written into the classification as that transition's
+`rung` k (the companion joins F_low − k and F_upp − k), `blend` (1 for a blended companion,
+see below; empty or 0 otherwise, and optional), a date and a reason; a row starting with `#`
+is a comment. The companion is written into the classification as that transition's
 hfs component, grade `hfs`, never accepted: it is not a second measurement of the energy
 difference, so `make_LOPT_input.py` leaves it out, IDEN2 does not show it as assigned, and no
 other candidate is sought for it. This holds with the switch off too. With the switch on, the
 named transition of the main line takes κ = 1, like a flagged line; in a blend the other
 components keep the κ they would have without it. A companion that also carries a published
-identification or an accepted ledger row stops the run, since it cannot be both. The file
-holds eight companions of seven main lines, found on 2026-09-30 beside the lines of IDEN2 rows
-1138, 1131, 1118 and 1091; the one of row 1129 is a comment row, because its satellite may be
-rung 2 with rung 1 blended into the main line.
+identification or an accepted ledger row stops the run, unless it is marked `blend` = 1.
+
+A **blended companion** (`blend` = 1, added 2026-10-02) is a companion that is also another
+transition: a line Sugar identified, or one the classification accepts. It is classified as
+any other line, published and ledger identifications included, and its hfs component is
+written beside its rows as one more row of grade `hfs`, never accepted. That row's
+`calc_intens` is the component's calculated intensity: the main transition's, times the
+fraction of the pattern's strength in that rung (`hfs_correction.rung_share`, which depends on
+the two J alone). The component keeps that share of the line, so the line's accepted
+transitions carry only the rest of the BF. `classify_lines.py` fits with those smaller BFs;
+LOPT normalizes the weights of one line itself, so `make_LOPT_input.py` (and
+`review_mismatches.py`) divide the line's uncertainty by the share that is left instead
+(`accepted_share`). The hfs shift of the line's own transitions is computed without the
+component, which does not move them. The main line takes κ = 1 as for any companion.
+
+The file holds 16 active companions (2 of them blended) and the comment row of 1129: eight of
+seven main lines found on 2026-09-30 beside the lines of IDEN2 rows 1138, 1131, 1118 and 1091,
+one of row 1154 on 2026-10-01, and seven of rows 1098, 1088, 1087 and 1141 on 2026-10-02. The
+row of 1129 is a comment because its satellite may be rung 2 with rung 1 blended into the main
+line.
 
 **What the correction replaces.** A level with a determined A no longer carries its
 hyperfine width from `level_hfs_widths.csv` into LOPT's uncertainty, and a flagged line, or
@@ -3023,6 +3043,13 @@ width. A line widened by a row of `inflated_unc_lines.txt` whose reason says hfs
 list's own uncertainty back at the end of the classification run when every accepted
 transition of it touches only levels with a determined A, or when it is flagged or the main
 line of resolved companions. The registry file is not changed.
+
+A level listed as *not determined* would otherwise count its hfs twice, once as its width
+and once as its unknown A inside `u_hfs_shift`. So `make_LOPT_input.py` adds the larger of
+`u_hfs_undet` and the level's width, not both. On a line that keeps a registry allowance for
+hfs (`hfs_allowance` = 1) it adds neither: the hand-set value stands for that level's hfs. A
+level absent from `A_hfs_levels.csv` always keeps its width, having no unknown A to stand in
+for it. A table written before these two columns existed is refused with the switch on.
 
 **Consistency.** With the switch off nothing changes: no column is added, and the table
 and the LOPT input are byte-identical to what the code wrote before, except for the rows of
@@ -3038,19 +3065,21 @@ included. The switch makes no files of its own; a run writes where its set's con
 says. Turned on in `iter/`, it would rewrite iter's table, LOPT files and IDEN2 in the head
 frame. Assignment work in iter would then stop: `insert_new_level.py` refuses such a set, and
 `level_positions.py` and `review_mismatches.py` would show the wrong residuals. The hfs work
-therefore goes in a set of its own beside `iter/`, for example `iter_hfs/`, with a copy of
-`iter/IDEN2/` and this configuration:
+therefore goes in a set of its own beside `iter/`: `iter_hfs/`, which holds a copy of
+`iter/IDEN2/` (taken on 2026-10-01) and this configuration:
 
 ```toml
 inherit = "../iter/lineclass_config.toml"
 
 [files]
-# Without these two the set would inherit iter's table and overwrite it.
+# Without these two the set would inherit iter's table and overwrite it;
+# classify_lines.py stops a run that would.
 output     = "line_classifications.xlsx"
 output_csv = "line_classifications.csv"
 
 [hfs]
 apply = true
+iden2_display = "lopt"
 ```
 
 It reads iter's corrected line list (inherited, resolved against `iter/`) and the shared
@@ -3068,6 +3097,52 @@ python sync_IDEN2.py --set iter_hfs
 `LOPT_hfs_shifts.txt` beside the table. Its IDEN2 is a copy taken at one moment, so assignments
 made in `iter/` afterwards reach it only through the shared ledger and `new_levels.txt` and a
 fresh copy of `iter/IDEN2/`.
+
+**A set writes only its own table.** Because a set inherits its parent's file names already
+resolved against the parent's directory, a set that does not name its own `output` and
+`output_csv` would write its parent's table. The lock does not catch that when the parent is
+`iter/`, which is not locked, so `classify_lines.py` also stops, before doing any work, a run
+whose table would belong to another set than its configuration does (a file belongs to the
+nearest directory above it that holds a `lineclass_config.toml`). There is no override: a
+table meant for another set is written with that set's configuration.
+`config.require_own_output` does the checking.
+
+**What IDEN2 shows (`[hfs] iden2_display`).** IDEN2 draws each line from `dlv.dat`
+against the Ritz wavenumber of the two levels in `enlev.dat`. With the correction on, those
+energies are head-frame energies, but LOPT fits each assigned line at `wn_obs + hfs_shift`.
+So a line LOPT fits well can look several σ off on IDEN2's screen. An example from iter_hfs
+on 2026-10-01 is 52919.206 (000148–000304, IDEN2 1131–925). Its shift is
+(1 − 0.633)·(−1.067) = −0.391, and IDEN2 shows it +0.490 from the Ritz value. LOPT is given
+52918.815 ± 0.130 and leaves an O−C of +0.099. The switch chooses which picture
+`sync_IDEN2.py` writes:
+
+- **`"measured"`** (the default): every line as measured, with the uncertainty the
+  pipeline uses.
+- **`"lopt"`** (needs `apply = true`): every line the fit uses is shown as LOPT is given it.
+  A line the fit uses has a record in `LOPT_input_lines.txt` that is not flagged `P`. It
+  takes that record's wavenumber and uncertainty, which include the shift, the shift's
+  uncertainty and any hfs width. IDEN2's departure from the prediction is then LOPT's O−C,
+  and `trans.dat`'s O−C column holds the same value. Lines the fit does not use stay as
+  measured: unidentified lines, lines whose every candidate is rejected, and registered
+  satellites. A value LOPT was given that is only the measured one printed to three
+  decimals keeps the measured value. The rows written away from the measured values are
+  listed in **`IDEN2/dlv_shown.txt`** (`line, wn_key, wn_obs, u_obs, wn_shown, u_shown`).
+  That file tells the next sync and `check_sync.py` which line each moved row is, and it
+  gives checks 9 and 11 the measured wavenumber of an identified line. The rows of
+  `dlv.dat` are kept in decreasing order of the wavenumber they show. A row that passes a
+  neighbor changes place and keeps its own line number, as a line inserted on IDEN2's
+  screen does. A sync in `"measured"` mode puts every row back and removes
+  `dlv_shown.txt`. If a moved row would print the same wavenumber as another row, the sync
+  stops without writing anything.
+
+A moved line is drawn moved in every transition's view, not only its own. Its spacing from
+an unmoved neighbor is then not the measured one: 52730.677 (shift −0.318) and the free
+52731.262 would appear 0.90 apart instead of 0.585. So line searches and hfs-satellite
+judgments are made in `"measured"`. `iter_hfs/` is set to `"lopt"`. `check_sync.py` checks
+`dlv.dat` against whichever picture the set asks for. A row still showing the other picture
+is reported as a warning naming `sync_IDEN2.py`. `review_mismatches.py` refuses an IDEN2
+whose `dlv_shown.txt` lists any rows, because it finds lines in `dlv.dat` by their measured
+wavenumber.
 
 **Not yet hfs-aware**: `insert_new_level.py`, `move_level.py` and `discard_level.py` edit
 `LOPT_input_lines.txt` record by record without the shift file, and
@@ -5174,7 +5249,10 @@ up. It rewrites both of them from the current fit and the current calculated int
   uncertainty is converted to ångström with `u_λ = u_wn · λ / wn`. No row is added, removed
   or renumbered, because `trans.dat` names each line by its row number. A row is matched
   to its line when the two wavenumbers agree to 0.01 cm⁻¹; two distinct lines of the
-  corrected list are never closer than 0.1 cm⁻¹.
+  corrected list are never closer than 0.1 cm⁻¹. In a set with `[hfs] iden2_display =
+  "lopt"`, every line the fit uses gets the wavenumber and uncertainty LOPT is given
+  instead, and those rows are listed in `IDEN2/dlv_shown.txt` (see "What IDEN2 shows"
+  under the hyperfine correction).
 
 **IDEN2 treats the wavelength in `dlv.dat` as the measurement.** When it saves the file
 (after an uncertainty is edited or a line is inserted on its screen) it rebuilds the

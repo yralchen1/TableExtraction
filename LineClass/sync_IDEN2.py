@@ -106,6 +106,25 @@ It rewrites both files from the current fit:
     is a WAVELENGTH uncertainty in angstroms, as ``numset.dat`` states it too,
     and it is converted.
 
+    A set with ``[hfs] iden2_display = 'lopt'`` in its configuration is shown
+    what LOPT sees instead.  Every line the fit uses - one with a record of
+    ``LOPT_input_lines.txt`` not flagged ``P`` - takes the wavenumber and the
+    uncertainty of that record: the measured line moved by its hyperfine
+    shift (hfs_correction.py), and its uncertainty with the shift's and any
+    hyperfine width added (make_LOPT_input.py).  IDEN2's departure from the
+    prediction is then LOPT's O-C.  Every other line - unidentified, every
+    candidate rejected, or a registered hfs satellite - stays where it was
+    measured.  A line moved this way is drawn moved in every transition's
+    view, and the spacing between it and an unmoved neighbor is not the
+    measured one, so line searches and satellite judgments are made with the
+    default, ``'measured'``.  The rows written away from the measured values
+    are listed in ``IDEN2/dlv_shown.txt``, which is how the next run, and
+    ``check_sync.py``, know which line a moved row is; a run in
+    ``'measured'`` mode puts them back and removes that file.  The rows of
+    ``dlv.dat`` are kept in decreasing order of the wavenumber they show,
+    each with its own line number, the way IDEN2 places a line inserted on
+    its screen.
+
  5. ``LOPT_input_lines.txt`` says which transitions the fit is given, and the
     identifications in ``trans.dat`` are made to match it: an accepted
     transition keeps or gets its line, a transition every record of which is
@@ -177,6 +196,7 @@ it exits, which would undo everything this program has done.
 
 import argparse
 import bisect
+import csv
 import io
 import math
 import os
@@ -228,6 +248,19 @@ DLV_WIDTH = 66
 # than 0.1, so 0.01 still cannot pick the wrong line.  check_sync.py joins
 # the two files on the same value.
 DLV_MATCH = 0.01
+# The record of the rows of dlv.dat that show a line away from its measured
+# wavenumber or uncertainty ([hfs] iden2_display = 'lopt'), kept beside it.
+SHOWN_FILE = 'dlv_shown.txt'
+SHOWN_COLUMNS = ('line', 'wn_key', 'wn_obs', 'u_obs', 'wn_shown', 'u_shown')
+DISPLAY_LOPT = 'lopt'
+# A record of LOPT_input_lines.txt stands for the observed line whose
+# wavenumber agrees with the measured one it gives back to this much: LOPT is
+# given three decimals and the line list carries four.
+LOPT_MATCH = 0.001
+# LOPT_input_lines.txt prints wavenumber and uncertainty to three decimals.  A
+# value that differs from the line list's own by no more than that rounding is
+# the line list's value printed, and the line list's is kept.
+LOPT_PRINT = 0.0005 + 1e-9
 # Wavelengths shorter than 2000 A (wavenumbers above 50000 cm^-1) are vacuum
 # wavelengths in dlv.dat; the rest are wavelengths in standard air.
 VACUUM_ABOVE = 50000.0
@@ -473,15 +506,15 @@ def check_dispersion(records):
     return bad, n
 
 
-def rewrite_dlv(records, lines, log):
+def rewrite_dlv(records, lines, log, shown=None, previous=None):
     """``dlv.dat`` on the set's own wavenumbers, and a report of the change.
 
-    Every row keeps its number, its place in the file, its intensity code and
-    its character: the row number is how ``trans.dat`` names the line, so
-    nothing may be inserted, removed or reordered here.  What is rewritten is
-    the wavenumber, the wavelength and the uncertainty.
+    Every row keeps its number, its intensity code and its character: the
+    row number is how ``trans.dat`` names the line, so nothing may be
+    inserted or removed here.  What is rewritten is the wavenumber, the
+    wavelength and the uncertainty.
 
-    The wavelength is computed from the line list's wavenumber by
+    The wavelength is computed from the wavenumber written by
     ``wavelength_of`` - vacuum in the ultraviolet, standard air above 2000 A,
     the conversion IDEN2 itself makes - and never from the wavelength already
     in the row.  Each field is therefore a function of the line list alone,
@@ -493,22 +526,39 @@ def rewrite_dlv(records, lines, log):
     wavenumbers.)  The uncertainty is converted to the wavelength scale the
     file states it on by ``u_lambda = u_wn * lambda / wn``.
 
-    A row is the line whose current wavenumber it carries - a set already
-    brought up to date - or else the line whose ``wn_key`` it carries - a
-    file as first built, on the scale that never moves.  Both are needed:
-    a corrected set's dlv.dat holds the corrected wavenumbers after its
-    first sync, and those differ from ``wn_key`` by the calibration
-    correction, far more than ``DLV_MATCH``.
+    ``shown``, a list parallel to ``lines``, is what to write for each line
+    when that is not the line list's own values - what LOPT is given, from
+    ``lopt_view``.  ``previous`` is the record ``read_shown`` returns of the
+    rows the last run wrote away from their measured values.
+
+    A row is the line its line number was written for by the last run, when
+    ``previous`` lists the number and the row still shows what was written
+    there; or else the line whose current wavenumber it carries - a set
+    already brought up to date; or the line whose shown value it carries; or
+    the line whose ``wn_key`` it carries - a file as first built, on the
+    scale that never moves.  The measured and key joins are both needed: a
+    corrected set's dlv.dat holds the corrected wavenumbers after its first
+    sync, and those differ from ``wn_key`` by the calibration correction, far
+    more than ``DLV_MATCH``.
 
     A row whose wavenumber matches no line of the list either way is left as
     it stands and reported; so is a line of the list that has no row here.
     A row whose three fields already read what would be written is left
-    byte for byte as it is.  ``changed`` lists every row rewritten, as
-    ``(row, wn_old, wn_new, u_old, u_lam, u_wn, lam_old, lam_new)``.
+    byte for byte as it is.  The rows are then put in decreasing order of the
+    wavenumber they show, which moves only a row whose shown wavenumber has
+    passed a neighbor's.  ``changed`` lists every row rewritten, as
+    ``(row, wn_old, wn_new, u_old, u_lam, u_wn, lam_old, lam_new)``;
+    ``shown`` every row written away from its line's measured values, as
+    ``(row, wn_key, wn_obs, u_obs, wn_shown, u_shown)``; ``order`` is the new
+    order of the records, as indices into ``records``.
     """
+    shown = lines if shown is None else shown
+    previous = previous or {}
     by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
     by_key = sorted((k, i) for i, (k, _wn, _u) in enumerate(lines))
-    out, changed, unmatched, matched = [], [], [], set()
+    by_shown = sorted((wn, i) for i, (_k, wn, _u) in enumerate(shown)
+                      if wn != lines[i][1])
+    out, changed, unmatched, matched, moved = [], [], [], set(), []
     for rec in records:
         if len(rec) < DLV_WIDTH or not rec.strip():
             out.append(rec)
@@ -517,7 +567,14 @@ def rewrite_dlv(records, lines, log):
         lam_old = float(rec[DLV_LAMBDA[0]:DLV_LAMBDA[1]])
         u_old = float(rec[DLV_UNC[0]:DLV_UNC[1]])
         row = int(rec[DLV_ROW[0]:DLV_ROW[1]])
-        best = _nearest_line(by_wn, wn_old)
+        best = None
+        was = previous.get(row)
+        if was is not None and abs(was[3] - wn_old) <= DLV_MATCH:
+            best = _nearest_line(by_key, was[0], LOPT_PRINT)
+        if best is None:
+            best = _nearest_line(by_wn, wn_old)
+        if best is None:
+            best = _nearest_line(by_shown, wn_old)
         if best is None:
             best = _nearest_line(by_key, wn_old)
         if best is None:
@@ -525,7 +582,10 @@ def rewrite_dlv(records, lines, log):
             out.append(rec)
             continue
         matched.add(best)
-        _key, wn_new, u_wn = lines[best]
+        key, wn_obs, u_obs = lines[best]
+        _key, wn_new, u_wn = shown[best]
+        if wn_new != wn_obs or u_wn != u_obs:
+            moved.append((row, key, wn_obs, u_obs, wn_new, u_wn))
         lam_new = wavelength_of(wn_new)
         u_lam = u_wn * lam_new / wn_new
         new = IDEN.put(rec, DLV_WN, '%14.3f' % wn_new)
@@ -536,19 +596,61 @@ def rewrite_dlv(records, lines, log):
             changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn,
                             lam_old, lam_new))
     absent = [lines[i] for i in range(len(lines)) if i not in matched]
+    order = _decreasing(out)
+    _require_distinct(out, moved)
     report = {'n_rows': len(records), 'changed': changed,
-              'unmatched': unmatched, 'absent': absent}
-    return out, report
+              'unmatched': unmatched, 'absent': absent, 'shown': moved,
+              'order': order,
+              'n_reordered': sum(1 for k, i in enumerate(order) if k != i)}
+    return [out[i] for i in order], report
 
 
-def _nearest_line(table, wn):
+def _decreasing(records):
+    """The order that puts the rows of ``records`` in decreasing order of
+    wavenumber, as indices into it; the order they are in already where they
+    keep it, and the identity when a record is not a row."""
+    keys = []
+    for i, rec in enumerate(records):
+        if len(rec) < DLV_WIDTH or not rec.strip():
+            return list(range(len(records)))
+        keys.append((-float(rec[DLV_WN[0]:DLV_WN[1]]), i))
+    return [i for _w, i in sorted(keys)]
+
+
+def _require_distinct(records, moved):
+    """Stop if a row written away from its measured wavenumber shows the
+    wavenumber of another row.  The pipeline names an observed line by its
+    wavenumber, and so does the way back from a LOPT record to its row
+    (dlv_rows_by_wavenumber), so two rows printing one value would hand an
+    identification to the wrong line."""
+    if not moved:
+        return
+    rows_of = {}
+    for rec in records:
+        if len(rec) < DLV_WIDTH or not rec.strip():
+            continue
+        rows_of.setdefault(rec[DLV_WN[0]:DLV_WN[1]].strip(), []).append(
+            int(rec[DLV_ROW[0]:DLV_ROW[1]]))
+    mine = {m[0] for m in moved}
+    clash = sorted((wn, rows) for wn, rows in rows_of.items()
+                   if len(rows) > 1 and mine.intersection(rows))
+    if clash:
+        raise SyncError(
+            '%d row(s) of dlv.dat moved to what LOPT is given would show the '
+            'wavenumber of another row: %s.  Nothing has been written; set '
+            "[hfs] iden2_display = 'measured' to sync this set."
+            % (len(clash), '; '.join('%s on lines %s' % (wn, ', '.join(
+                str(r) for r in rows)) for wn, rows in clash[:10])))
+
+
+def _nearest_line(table, wn, tol=DLV_MATCH):
     """The index into the line list of the entry of ``table`` - sorted
-    ``(wavenumber, index)`` pairs - nearest ``wn`` within ``DLV_MATCH``, or
+    ``(wavenumber, index)`` pairs - nearest ``wn`` within ``tol``, or
     None."""
     k = bisect.bisect_left(table, (wn, -1))
     best = None
     for m in (k - 1, k, k + 1):
-        if 0 <= m < len(table) and abs(table[m][0] - wn) <= DLV_MATCH:
+        if 0 <= m < len(table) and abs(table[m][0] - wn) <= tol:
             if best is None or abs(table[m][0] - wn) < abs(table[best][0]
                                                            - wn):
                 best = m
@@ -598,6 +700,130 @@ def apply_registry(lines, path, log):
         % (name, n_up, '' if not n_kept else
            '; %d lines keep their larger listed value' % n_kept))
     return out
+
+
+def read_lopt_used(path):
+    """``[(wn_obs, wn_lopt, u_lopt)]`` for every record of
+    ``LOPT_input_lines.txt`` the fit uses - one not flagged ``P`` - with
+    ``wn_obs`` the measured wavenumber it stands for, given back through
+    ``LOPT_hfs_shifts.txt`` (hfs_correction.measured)."""
+    shifts = hfs_correction.read_shifts(path)
+    out = []
+    with io.open(path, encoding='latin-1', newline='') as fh:
+        for rec in fh:
+            text = rec.rstrip('\r\n')
+            if not text.strip():
+                continue
+            if 'P' in text[FIELD_FLAGS[0]:FIELD_FLAGS[1]]:
+                continue
+            wn = float(text[FIELD_WN[0]:FIELD_WN[1]])
+            unc = float(text[FIELD_UNC[0]:FIELD_UNC[1]])
+            low = text[FIELD_LOW[0]:FIELD_LOW[1]].strip()
+            upp = text[FIELD_UPP[0]:FIELD_UPP[1]].strip()
+            out.append((hfs_correction.measured(low, upp, wn, shifts), wn,
+                        unc))
+    return out
+
+
+def lopt_view(lines, lopt_input, log):
+    """The line list as LOPT is given it: a list parallel to ``lines``, of
+    ``(wn_key, wn, u)``.
+
+    A line the fit uses - one with a record of ``LOPT_input_lines.txt`` not
+    flagged ``P`` - takes that record's wavenumber and uncertainty: the
+    measured wavenumber moved by the line's hyperfine shift, and the measured
+    uncertainty with the shift's uncertainty and any hyperfine width added in
+    quadrature (make_LOPT_input.py).  Every other line keeps its measured
+    values.  Where the record's value is the measured one printed to three
+    decimals (``LOPT_PRINT``), the measured one is kept, so that only a real
+    difference reaches the screen.
+
+    An observed line is one measurement and LOPT is given one wavenumber and
+    one uncertainty for it however many transitions share it; records of one
+    line that disagree stop the run.  A record that stands for no line of the
+    list is reported and changes nothing.
+    """
+    by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
+    view, unmatched, clash = {}, [], []
+    for wn_obs, wn_lopt, u_lopt in read_lopt_used(lopt_input):
+        i = _nearest_line(by_wn, wn_obs, LOPT_MATCH)
+        if i is None:
+            unmatched.append(wn_obs)
+            continue
+        if i in view and view[i] != (wn_lopt, u_lopt):
+            clash.append((lines[i][1], view[i], (wn_lopt, u_lopt)))
+        view[i] = (wn_lopt, u_lopt)
+    if clash:
+        raise SyncError(
+            '%d observed line(s) are given to LOPT with two wavenumbers or two '
+            'uncertainties, so there is no one value to show: %s.  Nothing '
+            'has been written.'
+            % (len(clash), ', '.join('%.4f' % c[0] for c in clash[:10])))
+    out, n_wn, n_u = [], 0, 0
+    for i, (key, wn, u) in enumerate(lines):
+        got = view.get(i)
+        if got is not None:
+            if abs(got[0] - wn) > LOPT_PRINT:
+                wn, n_wn = got[0], n_wn + 1
+            if abs(got[1] - u) > LOPT_PRINT:
+                u, n_u = got[1], n_u + 1
+        out.append((key, wn, u))
+    log("  [hfs] iden2_display = 'lopt': the %d lines the fit uses are shown "
+        "as LOPT is given them; %d of them away from the measured "
+        "wavenumber, %d with a larger uncertainty" % (len(view), n_wn, n_u))
+    if unmatched:
+        log('  %d records of %s stand for no line of the list and change '
+            'nothing: %s' % (len(unmatched), os.path.basename(lopt_input),
+                             ', '.join('%.4f' % w for w in unmatched[:10])))
+    return out
+
+
+def as_shown(lopt_lines, lines, shown):
+    """``lopt_lines`` (read_lopt_transitions) with each measured wavenumber
+    replaced by the one ``dlv.dat`` shows its line at, ``shown`` being
+    parallel to ``lines`` (lopt_view).  The way from a transition to its row
+    in ``dlv.dat`` is the wavenumber the row carries."""
+    by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
+    out = {}
+    for pair, (accepted, wn) in lopt_lines.items():
+        i = _nearest_line(by_wn, wn, LOPT_MATCH)
+        out[pair] = (accepted, wn if i is None else shown[i][1])
+    return out
+
+
+def shown_path(iden2_dir):
+    """Where the record of the rows shown away from their measured values
+    belongs: beside ``dlv.dat``."""
+    return os.path.join(iden2_dir, SHOWN_FILE)
+
+
+def read_shown(iden2_dir):
+    """``{line number: (wn_key, wn_obs, u_obs, wn_shown, u_shown)}`` from the
+    record beside ``dlv.dat``, or ``{}`` if there is none - a file every row
+    of which shows its line as measured."""
+    path = shown_path(iden2_dir)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding='utf-8', newline='') as fh:
+        rows = list(csv.DictReader(fh, delimiter='\t'))
+    for row in rows:
+        out[int(row['line'])] = tuple(float(row[c])
+                                      for c in SHOWN_COLUMNS[1:])
+    return out
+
+
+def write_shown(path, shown):
+    """Write the record: ``shown`` as rewrite_dlv reports it, ``(row,
+    wn_key, wn_obs, u_obs, wn_shown, u_shown)``.  ``wn_key`` and ``wn_obs``
+    are written in full, so that reading them back gives the line list's own
+    numbers."""
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        fh.write('\t'.join(SHOWN_COLUMNS) + '\n')
+        for row, key, wn, u, wn_s, u_s in sorted(shown,
+                                                 key=lambda r: -r[2]):
+            fh.write('%d\t%r\t%r\t%.4f\t%.3f\t%.4f\n'
+                     % (row, float(key), float(wn), u, wn_s, u_s))
 
 
 def dlv_rows_by_wavenumber(records):
@@ -1119,6 +1345,19 @@ def report_dlv(rep, log):
             log(f"  {row:5d} {old:12.3f} {new:12.3f} {new - old:+8.3f} "
                 f"{l_old:11.4f} {l_new:11.4f} "
                 f"{u_old:9.4f} {u_new:9.4f} {u_wn:9.4f}")
+    if rep['shown']:
+        far = sorted(rep['shown'], key=lambda m: -abs(m[4] - m[2]))
+        log(f"  {len(rep['shown'])} rows show what LOPT is given rather than "
+            f"the measurement; the largest moves:")
+        log(f"  {'row':>5} {'measured':>12} {'shown':>12} {'move':>8} "
+            f"{'u meas':>8} {'u shown':>8}")
+        for row, _key, wn, u, wn_s, u_s in far[:10]:
+            log(f"  {row:5d} {wn:12.4f} {wn_s:12.3f} {wn_s - wn:+8.3f} "
+                f"{u:8.4f} {u_s:8.4f}")
+    if rep['n_reordered']:
+        log(f"  {rep['n_reordered']} rows change place to keep the file in "
+            f"decreasing order of the wavenumber shown; each keeps its line "
+            f"number")
     if rep['unmatched']:
         log(f"  {len(rep['unmatched'])} rows match no line of the list and "
             f"are left exactly as they were:")
@@ -1262,11 +1501,12 @@ def main(argv=None):
     trans_path = os.path.join(args.iden2, 'trans.dat')
     dlv_path = os.path.join(args.iden2, 'dlv.dat')
     map_path = os.path.join(args.iden2, 'IDEN_level_ids.txt')
+    shown_file = shown_path(args.iden2)
     needed = [enlev_path, trans_path, map_path, args.lopt_levels, args.tp]
     written = [enlev_path, trans_path]
     if not args.no_lines:
         needed += [dlv_path, args.lopt_lines, args.config]
-        written.append(dlv_path)
+        written += [dlv_path, shown_file]
     for path in needed:
         if not os.path.exists(path):
             raise SystemExit('%s does not exist' % path)
@@ -1405,12 +1645,21 @@ def main(argv=None):
         cfg = config.load(args.config)
         lines = apply_registry(read_line_list(cfg, log),
                                getattr(cfg, 'inflated_unc', ''), log)
+        shown = None
+        if cfg.hfs.iden2_display == DISPLAY_LOPT:
+            shown = lopt_view(lines, args.lopt_lines, log)
+        else:
+            log("  [hfs] iden2_display = 'measured': every line is shown as "
+                "measured")
         dlv_records, dlv_endings = IDEN.read_records(dlv_path)
         dispersion, _n = check_dispersion(dlv_records)
-        dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log)
+        dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log, shown,
+                                           read_shown(args.iden2))
         dlv_rep['dispersion'] = dispersion
         report_dlv(dlv_rep, log)
         lopt_lines = read_lopt_transitions(args.lopt_lines)
+        if shown is not None:
+            lopt_lines = as_shown(lopt_lines, lines, shown)
         log()
         log('%s: %d records' % (args.lopt_lines, len(lopt_lines)))
         wanted, assign_rep = sync_assignments(
@@ -1476,6 +1725,16 @@ def main(argv=None):
             IDEN.write_records(dlv_path, dlv_records, dlv_endings)
             log(f"  {os.path.basename(dlv_path)} rewritten, "
                 f"{len(dlv_records)} rows")
+            if os.path.exists(shown_file):
+                backup(shown_file, args.backup_suffix, log)
+            if dlv_rep['shown']:
+                write_shown(shown_file, dlv_rep['shown'])
+                log(f"  {SHOWN_FILE} lists the {len(dlv_rep['shown'])} rows "
+                    f"shown as LOPT is given them")
+            elif os.path.exists(shown_file):
+                os.remove(shown_file)
+                log(f"  {SHOWN_FILE} removed: every row shows its line as "
+                    f"measured")
         for index, (E, unc, known) in energies.items():
             enlev.set_measurement(index, unc, E, known)
         IDEN.write_records(enlev_path, enlev.records, enlev.endings)

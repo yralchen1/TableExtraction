@@ -124,6 +124,7 @@ import math
 import os
 import sys
 
+import hfs_correction
 import hfs_kappa
 import make_LOPT_input
 import output_files
@@ -251,6 +252,10 @@ def read_classifications(path):
     ``wn_key`` column - the baseline is such a set - so where the column is
     missing the observed wavenumber is the name, which is what
     ``lineclass_config.toml`` says the default is.
+
+    The row of a resolved hfs companion (grade ``hfs``) names the transition
+    its main line is, so it stays out of the index by transition: it is in
+    ``by_line`` only.
     """
     with io.open(path, encoding='utf-8-sig', newline='') as fh:
         rows = [r for r in csv.DictReader(fh)
@@ -262,8 +267,17 @@ def read_classifications(path):
         if not (r.get('wn_key') or '').strip():
             r['wn_key'] = r['wn_obs']
         by_line[r['wn_key']].append(r)
-        by_pair[(r['low_id'], r['upp_id'])] = r
+        if not is_companion(r):
+            by_pair[(r['low_id'], r['upp_id'])] = r
     return rows, by_line, by_pair
+
+
+def is_companion(row):
+    """True for the row of a resolved hfs companion: it is the hfs
+    component of its main line's transition, which LOPT has under the main
+    line, and is never a record of its own."""
+    return ((row.get('grade') or '').strip()
+            == hfs_correction.COMPANION_GRADE)
 
 
 def read_level_energies(rows, levels_path):
@@ -936,6 +950,10 @@ def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
     for wn_obs, decided in sorted(lines.items(), key=lambda kv: -float(kv[0])):
         group = [r for r in by_line[by_pair[list(decided)[0]]['wn_key']]
                  if r['wn_obs'] == wn_obs]
+        # a blended companion's hfs component keeps its share of the line
+        other = sum(number(r['calc_intens'] or 0) for r in group
+                    if is_companion(r))
+        group = [r for r in group if not is_companion(r)]
         accepted = []
         for r in group:
             verdict = decided.get((r['low_id'], r['upp_id']))
@@ -954,6 +972,7 @@ def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
             shared = make_LOPT_input.blend_uncertainty(
                 [per_row[id(r)] for r in group],
                 [weights.get(id(r), 0.0) for r in group])
+        share = make_LOPT_input.accepted_share(accepted, other)
 
         for r in group:
             key = (r['low_id'], r['upp_id'])
@@ -962,7 +981,7 @@ def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
                 absent.append((key[0], key[1], 'no record in %s'
                                % os.path.basename(path)))
                 continue
-            unc = shared if shared is not None else per_row[id(r)]
+            unc = (shared if shared is not None else per_row[id(r)]) / share
             if id(r) in weights:
                 flag, weight = '', weights[id(r)]
             else:
@@ -1229,6 +1248,14 @@ def main(argv=None):
 
     try:
         paths = resolve(args.set)
+        # dlv.dat is read and written here by the measured wavenumber of
+        # each line, so a file showing lines where LOPT is given them
+        # ([hfs] iden2_display = 'lopt') would lose them.
+        if sync.read_shown(os.path.dirname(paths['dlv'])):
+            raise ReviewError(
+                '%s shows lines as LOPT is given them (%s lists them).  Set '
+                "[hfs] iden2_display = 'measured' and run sync_IDEN2.py in "
+                'the set first.' % (paths['dlv'], sync.SHOWN_FILE))
         worksheet = args.out or paths['worksheet']
         if args.apply:
             if not os.path.exists(worksheet):

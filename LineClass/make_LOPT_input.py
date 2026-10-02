@@ -21,10 +21,10 @@ This script reads line_classifications.csv and writes
 
 Rules applied to the transitions file
   * only rows that carry both a lower and an upper level identifier are
-    written (an unclassified observed line has no transition to optimise);
+    written (an unclassified observed line has no transition to optimize);
   * a row with accepted = 0 gets the flag "P" in the flags column.  "P"
     means "predicted": LOPT prints the line but gives it no weight, so the
-    rejected classifications do not influence the optimised levels, and its
+    rejected classifications do not influence the optimized levels, and its
     weight is written as 0.0000;
   * an observed line with a single accepted classification (n_accepted = 1)
     gets the weight 1.0000: the whole measured intensity belongs to it;
@@ -32,15 +32,19 @@ Rules applied to the transitions file
     its weight split between them in proportion to their calculated
     intensities (column calc_intens), because that is the best estimate of
     how much of the blend each component contributes.  The proportions are
-    normalised so that the components of one blend sum to 1.0000.
+    normalized so that the components of one blend sum to 1.0000;
+  * a line that is also the hfs component of another transition's pattern
+    (a blended companion, hfs_correction.py) gives that component its share
+    of the calculated intensity, and the uncertainty of its records is
+    divided by what is left (accepted_share).
 
-Why the weights of a blend are normalised here.  LOPT normalizes them
+Why the weights of a blend are normalized here.  LOPT normalizes them
 itself, so only their ratios matter; what normalizing buys is that every
 weight then fits the six characters of the weight column at four decimals,
 and the transitions file keeps exactly the column layout of the sample - no
 column position in the parameter file has to be touched.  Raw calc_intens
 values reach ~9e5 and would not fit.  The precision cost is nil for the
-present table: the smallest normalised weight is 0.0204, still three
+present table: the smallest normalized weight is 0.0204, still three
 significant figures, and no component rounds to 0.0000.  If a future table
 ever holds a blend so lopsided that a real component would round away, the
 script says so and stops rather than writing a silent zero.
@@ -71,7 +75,7 @@ which is a statement the measurement cannot make.  An observed line therefore
 gets one uncertainty for all of its records: the mean of the transitions'
 values weighted by the very weights LOPT is given, the calculated intensity
 fractions, so that the component which carries the line governs its width.
-Records flagged P take the same value although they are outside the fit, since
+Records flagged P take the same value, although they are outside the fit, since
 they describe the same measurement.  A line whose records are all flagged has
 no weights to average with, and takes the plain mean.
 
@@ -108,6 +112,12 @@ width of a level whose hyperfine structure the correction accounts for (a
 determined A constant, or resolved sublevels) is no longer added, nor any
 width on a line Sugar flagged, which sits on the head-frame Ritz value; a
 level without a determined A keeps its width (Work_on_hfs_plan.md, D13).
+A level listed with its A "not determined" is the exception (2026-10-01):
+its unknown A is already in u_hfs_shift, as the part u_hfs_undet, so the
+larger of that part and the level's width is added, not both; and on a line
+whose unc_wn_obs is a registry allowance for hfs the correction did not
+withdraw (hfs_allowance = 1) neither is, the allowance standing for both.
+The width of a level absent from the table of A constants is always added.
 What was added to each record is written to LOPT_hfs_shifts.txt beside the
 transitions file, so that sync_IDEN2.py and check_sync.py, which find the
 observed line of a LOPT record by its wavenumber, can take the measured value
@@ -156,6 +166,9 @@ DEF_HFS_WIDTHS = 'level_hfs_widths.csv'
 DEF_CONFIG = 'lineclass_config.toml'
 # The columns classify_lines.py writes with [hfs] apply on.
 HFS_COLUMNS = ('kappa', 'hfs_D', 'hfs_shift', 'u_hfs_shift')
+# And the two it has written with it since 2026-10-01, for the levels without
+# a determined A; a table without them is refused.
+HFS_UNDET_COLUMNS = ('u_hfs_undet', 'hfs_allowance')
 
 # The admission rule for a fitted hyperfine width, as in level_positions.py:
 # a width below HFS_APPLY changes no sigma measurably and is consistent with
@@ -245,6 +258,31 @@ def read_classifications(path):
     if not rows:
         raise SystemExit(f'{path}: no classified lines found')
     return rows
+
+
+def read_hfs_components(path):
+    """`{line: calculated intensity}` of the hfs components that blended
+    companions carry (hfs_correction.py): the calc_intens of the rows of
+    grade hfs, which classify_lines.py fills only for such a line.  The
+    component takes its share of the line from the line's accepted
+    classifications (accepted_share).  A line is named by `line_name`,
+    which --corrections does not change."""
+    out = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        for r in csv.DictReader(fh):
+            if ((r.get('grade') or '').strip()
+                    != hfs_correction.COMPANION_GRADE):
+                continue
+            i = float(r.get('calc_intens') or 0.0)
+            if i > 0:
+                out[line_name(r)] = out.get(line_name(r), 0.0) + i
+    return out
+
+
+def line_name(row):
+    """The name of a row's observed line: its wn_key, or its wn_obs in a
+    table without one."""
+    return (row.get('wn_key') or '').strip() or row['wn_obs']
 
 
 def read_corrections(path):
@@ -429,9 +467,26 @@ def blend_weights(rows):
     return {id(r): c / total for r, c in zip(rows, calc)}
 
 
+def accepted_share(rows, other):
+    """The share of one observed line that its accepted rows `rows` carry,
+    when a part of it of calculated intensity `other` is not given to LOPT:
+    the hfs component of a blended companion (read_hfs_components).  1 when
+    there is no such part, or the rows' own intensities say nothing.
+
+    LOPT normalizes the weights of one line's records itself, so the share
+    is passed to it as the uncertainty instead: divided by the share, it
+    gives the line the weight BF^2 / u^2 that classify_lines.py fits with.
+    """
+    calc = sum(max(float(r['calc_intens'] or 0.0), 0.0) for r in rows)
+    if calc <= 0 or other <= 0:
+        return 1.0
+    return calc / (calc + other)
+
+
 def hfs_line_shifts(rows):
-    """`{wn_obs: (hfs_shift, u_hfs_shift, kappa)}`, one entry per observed
-    line, from the columns classify_lines.py writes with [hfs] apply on.
+    """`{wn_obs: (hfs_shift, u_hfs_shift, kappa, u_hfs_undet,
+    hfs_allowance)}`, one entry per observed line, from the columns
+    classify_lines.py writes with [hfs] apply on.
 
     The shift belongs to the line and is written on each of its rows; rows
     of one line that disagree say the table has been edited by hand, and
@@ -440,19 +495,43 @@ def hfs_line_shifts(rows):
     out = {}
     for r in rows:
         rec = (float(r['hfs_shift'] or 0.0), float(r['u_hfs_shift'] or 0.0),
-               float(r['kappa']))
+               float(r['kappa']), float(r['u_hfs_undet'] or 0.0),
+               bool(float(r['hfs_allowance'] or 0)))
         was = out.setdefault(r['wn_obs'], rec)
         if was != rec:
             raise SystemExit(
                 f'the rows of the observed line {r["wn_obs"]} cm-1 carry '
-                f'different hfs_shift, u_hfs_shift or kappa values '
-                f'({was} and {rec}); they are one line\'s, so the table has '
-                f'been changed since classify_lines.py wrote it')
+                f'different hfs_shift, u_hfs_shift, kappa, u_hfs_undet or '
+                f'hfs_allowance values ({was} and {rec}); they are one '
+                f'line\'s, so the table has been changed since '
+                f'classify_lines.py wrote it')
     return out
 
 
+def hfs_line_unc(unc_obs, widths_absent, widths_undet, u_shift, u_undet,
+                 allowance):
+    """The uncertainty of one record with the hyperfine correction on.
+
+    `unc_obs` is the table's unc_wn_obs; `widths_absent` and `widths_undet`
+    the widths of the record's levels that are absent from the table of A
+    constants and listed there without a usable A; `u_shift` the line's
+    u_hfs_shift and `u_undet` the part of it owed to those undetermined
+    levels.  The rest of u_shift (the determined A, and kappa) is always
+    added.  An undetermined level's hfs is carried once: the larger of its
+    widths and u_undet, or neither when `allowance` says unc_obs is a
+    registry allowance for hfs, kept because such a level is touched.
+    """
+    u_known_sq = max(u_shift ** 2 - u_undet ** 2, 0.0)
+    if allowance:
+        undet_sq = 0.0
+    else:
+        undet_sq = max(sum(w * w for w in widths_undet), u_undet ** 2)
+    return math.sqrt(unc_obs ** 2 + sum(w * w for w in widths_absent)
+                     + u_known_sq + undet_sq)
+
+
 def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
-                     hfs_stats=None):
+                     hfs_stats=None, components=None):
     """Write the LOPT transitions file.
 
     Returns (written, accepted, flagged, widened, dropped).  `w_hfs` is
@@ -468,9 +547,16 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
     is changed is appended to `shifts_out` as (low_id, upp_id, wn_obs as
     the table gives it, the wavenumber written, shift, its uncertainty),
     and `hfs_stats['widths_left_out']` counts the records that lost a
-    level width to it.
+    level width to it.  The hfs of a level without a determined A is
+    carried once (hfs_line_unc); `hfs_stats['undet_counted_once']` counts
+    the records where a width and u_hfs_undet met, and
+    `hfs_stats['undet_by_allowance']` those where a registry allowance
+    stood for both.  `components` is read_hfs_components' result: the hfs
+    components of blended companions, whose share of the line widens the
+    uncertainty of its records (accepted_share).
     """
     w_hfs = w_hfs or {}
+    components = components or {}
     line_shift = hfs_line_shifts(rows) if hfs is not None else {}
     # A transition is one energy difference, however many observed lines have
     # been assigned to it.  The repeats go before anything else is computed,
@@ -483,8 +569,11 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
         if is_accepted(r):
             groups.setdefault(r['wn_obs'], []).append(r)
     weights = {}
-    for group in groups.values():
+    share = {}
+    for wn_obs, group in groups.items():
         weights.update(blend_weights(group))
+        share[wn_obs] = accepted_share(
+            group, components.get(line_name(group[0]), 0.0))
 
     # And they share its uncertainty, which the hyperfine term would otherwise
     # make differ from one component to the next.
@@ -492,27 +581,38 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
     all_rows = {}
     for r in rows:
         low, upp = r['low_id'].strip(), r['upp_id'].strip()
-        widths = w_hfs
-        if hfs is not None and w_hfs:
-            # The widths the correction replaces (D13): none at all on a
-            # line Sugar flagged, which sits on the head-frame Ritz value
-            # (its blends' other components included), nor on the main line
-            # of resolved companions, which does too, and none for a level
-            # whose hyperfine structure is computed.
-            flagged = (hfs_kappa.kappa_class(
-                (r.get('char') or '').strip()) == 'flag'
-                or hfs.is_head_line(float(r.get('wn_key') or r['wn_obs'])))
-            widths = {lid: w for lid, w in w_hfs.items()
-                      if lid in (low, upp) and not flagged
-                      and not hfs.is_corrected(lid)}
-            if hfs_stats is not None and len(widths) < sum(
-                    1 for lid in (low, upp) if lid in w_hfs):
-                hfs_stats['widths_left_out'] = (
-                    hfs_stats.get('widths_left_out', 0) + 1)
-        unc = total_unc(float(r['unc_wn_obs']), low, upp, widths)
-        if hfs is not None:
-            unc = math.hypot(unc, line_shift[r['wn_obs']][1])
-        per_row[id(r)] = unc
+        if hfs is None:
+            per_row[id(r)] = total_unc(float(r['unc_wn_obs']), low, upp,
+                                       w_hfs)
+            all_rows.setdefault(r['wn_obs'], []).append(r)
+            continue
+        # The widths the correction replaces (D13): none at all on a line
+        # Sugar flagged, which sits on the head-frame Ritz value (its blends'
+        # other components included), nor on the main line of resolved
+        # companions, which does too, and none for a level whose hyperfine
+        # structure is computed.
+        flagged = (hfs_kappa.kappa_class(
+            (r.get('char') or '').strip()) == 'flag'
+            or hfs.is_head_line(float(r.get('wn_key') or r['wn_obs'])))
+        widths = {lid: w_hfs[lid] for lid in (low, upp)
+                  if lid in w_hfs and not flagged
+                  and not hfs.is_corrected(lid)}
+        if hfs_stats is not None and len(widths) < sum(
+                1 for lid in (low, upp) if lid in w_hfs):
+            hfs_stats['widths_left_out'] = (
+                hfs_stats.get('widths_left_out', 0) + 1)
+        # An undetermined level's hfs is carried once (hfs_line_unc).
+        _, u_shift, _, u_undet, allowance = line_shift[r['wn_obs']]
+        w_undet = [w for lid, w in widths.items() if hfs.is_undetermined(lid)]
+        w_absent = [w for lid, w in widths.items()
+                    if not hfs.is_undetermined(lid)]
+        if hfs_stats is not None and (w_undet or u_undet):
+            stat = ('undet_by_allowance' if allowance else
+                    'undet_counted_once' if w_undet and u_undet else None)
+            if stat:
+                hfs_stats[stat] = hfs_stats.get(stat, 0) + 1
+        per_row[id(r)] = hfs_line_unc(float(r['unc_wn_obs']), w_absent,
+                                      w_undet, u_shift, u_undet, allowance)
         all_rows.setdefault(r['wn_obs'], []).append(r)
     shared = {}
     for key, group in all_rows.items():
@@ -535,7 +635,8 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
                                        r['upp_id'].strip(), r['wn_obs'],
                                        wn, shift, u_shift))
         quoted = float(r['unc_wn_obs'])
-        unc = shared.get(r['wn_obs'], per_row[id(r)])
+        unc = (shared.get(r['wn_obs'], per_row[id(r)])
+               / share.get(r['wn_obs'], 1.0))
         if unc > quoted:
             n_widened += 1
         intens = float(r['obs_intens'])
@@ -581,6 +682,13 @@ def hfs_model(cfg_path, rows, source):
             f'correction on ([hfs] apply = true), but {source} was written '
             f'with it off - it has no hfs_shift column.  Run '
             f'classify_lines.py on this set again first.')
+    if settings.apply and not all(c in rows[0] for c in HFS_UNDET_COLUMNS):
+        raise SystemExit(
+            f'make_LOPT_input.py: {source} was written before '
+            f'classify_lines.py gave the levels without a determined A '
+            f'their own columns ({", ".join(HFS_UNDET_COLUMNS)}); without '
+            f'them their hfs would be counted twice.  Run classify_lines.py '
+            f'on this set again first.')
     if has and not settings.apply:
         raise SystemExit(
             f'make_LOPT_input.py: {source} was written with the hyperfine '
@@ -764,7 +872,8 @@ def main(argv=None):
     shifts, hfs_stats = [], {}
     written, accepted, flagged, widened, dropped = write_lines_file(
         rows, lines_out, w_hfs, hfs=hfs, shifts_out=shifts,
-        hfs_stats=hfs_stats)
+        hfs_stats=hfs_stats,
+        components=read_hfs_components(args.classifications))
     # The record of the shifts describes the transitions file just written,
     # so one left from an earlier run with the correction on is removed
     # when the correction is off: it would describe a file that is gone.
@@ -805,6 +914,11 @@ def main(argv=None):
     else:
         print(f'  no hyperfine widths applied: {hfs_widths} does not exist')
     if hfs is not None:
+        print(f"  levels without a determined A: on "
+              f"{hfs_stats.get('undet_counted_once', 0)} transitions the "
+              f"larger of their width and their unknown A was carried, not "
+              f"both; on {hfs_stats.get('undet_by_allowance', 0)} a registry "
+              f"allowance for hfs stood for both")
         lines = {}
         for low, upp, wn_obs, _, d, u in shifts:
             lines[wn_obs] = (d, u)

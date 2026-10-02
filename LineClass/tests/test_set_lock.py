@@ -11,6 +11,9 @@ tests check that:
   * a run that would write a locked set stops before it writes, naming the
     set and the files, and --unlock (or the environment variable that passes
     it on to the chain) lets it through;
+  * classify_lines.py writes no table of another set than its
+    configuration's, so a set that forgot to name its own output cannot
+    overwrite its parent's;
   * every program that writes a set's files asks: classify_lines.py,
     make_LOPT_input.py and sync_IDEN2.py, and insert_new_level.py,
     move_level.py and discard_level.py before they start - and these three
@@ -116,6 +119,8 @@ def test_a_lock_that_is_not_a_boolean_is_an_error(tmp_path):
 # --- the programs ---------------------------------------------------------------
 def test_classify_lines_refuses_the_baseline(stop_at_writable, monkeypatch):
     import classify_lines as CL
+    monkeypatch.setattr(CL, 'CFG', config.load(
+        os.path.join(ROOT, 'lineclass_config.toml')))
     monkeypatch.setattr(CL, 'OUTPUT_FILE',
                         os.path.join(ROOT, 'line_classifications.xlsx'))
     monkeypatch.setattr(CL, 'OUTPUT_CSV',
@@ -131,11 +136,63 @@ def test_classify_lines_refuses_the_baseline(stop_at_writable, monkeypatch):
 def test_classify_lines_writes_iter(stop_at_writable, monkeypatch):
     import classify_lines as CL
     it = os.path.join(ROOT, 'iter')
+    monkeypatch.setattr(CL, 'CFG', config.load(
+        os.path.join(it, 'lineclass_config.toml')))
     monkeypatch.setattr(CL, 'OUTPUT_FILE',
                         os.path.join(it, 'line_classifications.xlsx'))
     monkeypatch.setattr(CL, 'OUTPUT_CSV',
                         os.path.join(it, 'line_classifications.csv'))
     monkeypatch.setattr(CL, 'UNLOCK', False)
+    with pytest.raises(Reached):
+        CL.main()
+
+
+def test_own_output_follows_the_nearest_set(sets, tmp_path):
+    base, child = sets
+    cfg = str(child / 'lineclass_config.toml')
+    config.require_own_output(cfg, [str(child / 'out.csv')], 'prog.py')
+    # the parent's table, inherited by a child that did not name its own
+    with pytest.raises(SystemExit) as exc:
+        config.require_own_output(cfg, [str(base / 'out.csv')], 'prog.py')
+    assert "would write another set's files" in str(exc.value)
+    assert str(base / 'out.csv') in str(exc.value)
+    # and the other way round: the parent writing into a child's directory
+    with pytest.raises(SystemExit):
+        config.require_own_output(str(base / 'lineclass_config.toml'),
+                                  [str(child / 'out.csv')], 'prog.py')
+    # a configuration outside any set, as a test's temporary one is, writes
+    # beside itself
+    other = tmp_path / 'loose'
+    other.mkdir()
+    config.require_own_output(str(other / 'cfg.toml'),
+                              [str(other / 'out.csv')], 'prog.py')
+
+
+def test_a_set_that_forgot_its_output_cannot_write_its_parents(
+        stop_at_writable, monkeypatch, tmp_path):
+    """An iter_hfs/ beside iter/ whose configuration does not name its own
+    output inherits iter's table; classify_lines.py stops before writing."""
+    import classify_lines as CL
+    d = tmp_path / 'iter_hfs'
+    d.mkdir()
+    it = os.path.join(ROOT, 'iter', 'lineclass_config.toml').replace('\\', '/')
+    (d / 'lineclass_config.toml').write_text(
+        f'inherit = "{it}"\n[hfs]\napply = true\n')
+    cfg = config.load(str(d / 'lineclass_config.toml'))
+    assert config.set_of(cfg.output_csv) == os.path.join(ROOT, 'iter')
+    monkeypatch.setattr(CL, 'CFG', cfg)
+    monkeypatch.setattr(CL, 'OUTPUT_FILE', cfg.output_file)
+    monkeypatch.setattr(CL, 'OUTPUT_CSV', cfg.output_csv)
+    with pytest.raises(SystemExit, match="another set's files"):
+        CL.main()
+    # named, it goes through to the writability check
+    (d / 'lineclass_config.toml').write_text(
+        f'inherit = "{it}"\n[files]\noutput = "t.xlsx"\n'
+        'output_csv = "t.csv"\n[hfs]\napply = true\n')
+    cfg = config.load(str(d / 'lineclass_config.toml'))
+    monkeypatch.setattr(CL, 'CFG', cfg)
+    monkeypatch.setattr(CL, 'OUTPUT_FILE', cfg.output_file)
+    monkeypatch.setattr(CL, 'OUTPUT_CSV', cfg.output_csv)
     with pytest.raises(Reached):
         CL.main()
 

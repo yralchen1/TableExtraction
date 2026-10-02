@@ -100,7 +100,8 @@ inflated_unc = "inflated_unc_lines.txt"
 # see that section below.
 hfs_A_levels = "A_hfs_levels.csv"
 # Resolved hyperfine companions (tab-delimited, columns wn_key, main_wn_key,
-# low_id, upp_id, rung, date, reason; a row starting with # is a comment).
+# low_id, upp_id, rung, blend, date, reason; a row starting with # is a
+# comment).
 # A companion is a weaker line of the line list a few tenths of a cm^-1 from
 # a classified one, at the offset of the next rung of that transition's
 # hyperfine pattern (F_low - k -> F_upp - k): both lines are the one
@@ -108,7 +109,10 @@ hfs_A_levels = "A_hfs_levels.csv"
 # is written as that transition's hfs component (grade hfs), never accepted,
 # so it stays out of LOPT and IDEN2, and no other candidate is sought for
 # it; this holds with [hfs] apply off too.  With apply on, the main line's
-# named transition takes kappa = 1, as a flagged line's does.  Read only by
+# named transition takes kappa = 1, as a flagged line's does.  A companion
+# marked blend = 1 is also a transition of its own: it is classified as any
+# other line, and the hfs component, written beside it, keeps its share of
+# the line's calculated intensity.  Read only by
 # the real classification, not by the calibration runs.  See
 # hfs_correction.py.  Comment the line out to run without it.
 hfs_satellites = "hfs_satellites.txt"
@@ -313,11 +317,22 @@ max_forced_offset = 5.0
 #                        takes the flag's kappa, the others the plain one);
 #   make_LOPT_input.py   adds hfs_shift to the wavenumber it gives LOPT, and
 #                        its uncertainty in quadrature to the line's.
-# IDEN2 is not changed: enlev.dat holds the head-frame energies, dlv.dat the
-# lines as measured.  The centers of gravity, E_cg = E - I*A*J, are computed
-# once at the end.  Off here, in the baseline; a set turns it on in its own
-# configuration file.  Nothing changes when it is off.
+# IDEN2's enlev.dat holds the head-frame energies, and dlv.dat the lines as
+# measured unless iden2_display below says otherwise.  The centers of
+# gravity, E_cg = E - I*A*J, are computed once at the end.  Off here, in the
+# baseline; a set turns it on in its own configuration file.  Nothing changes
+# when it is off.
 apply = false
+# What sync_IDEN2.py writes into the set's IDEN2/dlv.dat.  "measured" (the
+# default): every line as measured, so IDEN2 shows each assigned line
+# (1 - kappa)*D away from where LOPT puts it.  "lopt" (needs apply = true):
+# every line the fit uses at the wavenumber and with the uncertainty LOPT is
+# given, so the departure IDEN2 shows is LOPT's O-C; unassigned and
+# rejected lines and hfs satellites stay as measured.  A moved line is drawn
+# moved in every transition's view, and its spacing from unmoved neighbors
+# is not the measured one, so line searches and satellite judgments are made
+# in "measured".  The rows moved are listed in IDEN2/dlv_shown.txt.
+iden2_display = "measured"
 # Levels whose sublevels are resolved, so that each of their lines ends on
 # one sublevel and their own A counts as 0 in D.  Two J = 1/2 levels of
 # 4f2.6s, each standing at its F = 3 sublevel: 059003.000642 (IDEN2 row

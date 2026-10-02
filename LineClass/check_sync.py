@@ -109,12 +109,18 @@ WHAT IT CHECKS
     first: one line number per row and one wavenumber per line, because
     trans.dat names every observed line by its line number.  The line numbers
     need not follow the order of the rows: a line inserted in IDEN2 takes the
-    next free number and stands in its place by wavenumber.
+    next free number and stands in its place by wavenumber.  A set with
+    [hfs] iden2_display = 'lopt' shows every line the fit uses as LOPT is
+    given it (sync_IDEN2.py), and those rows are checked against
+    LOPT_input_lines.txt instead; IDEN2/dlv_shown.txt, written by
+    sync_IDEN2.py, says which line each such row is.
 11. IDEN2/trans.dat against IDEN2/dlv.dat: every identification names its
     line by the line number, and dlv.dat must have that line.  An
     identification also carries a wavenumber, but IDEN2 ignores it, and so
     does this script: the wavenumber of an identified line - here, and in
-    check 9 - is the one on the dlv.dat row its line number names.
+    check 9 - is the one on the dlv.dat row its line number names, or the
+    measured one IDEN2/dlv_shown.txt gives for a row shown as LOPT is given
+    it.
 12. Stability.  unstable_candidates.csv - the assignments classify_lines.py
     withdrew because they oscillate - and line_decisions.csv, whose verdicts
     the classification must obey exactly.
@@ -1374,22 +1380,31 @@ class Iden2(object):
     ``trans.dat`` names a line by the number of its row in it.
     """
 
-    def __init__(self, enlev, trans, row_of, dlv=None):
+    def __init__(self, enlev, trans, row_of, dlv=None, shown=None):
         self.enlev = enlev
         self.trans = trans
         self.row_of = row_of
         self.id_of_row = {n: lid for lid, n in row_of.items()}
         self.dlv = dlv
-        # {line number: wavenumber} - the wavenumber an identification in
-        # trans.dat stands for.  A malformed row is left out here and
+        # {line number: (wn_key, wn_obs, u_obs, wn_shown, u_shown)} - the rows
+        # sync_IDEN2.py wrote as LOPT is given them (IDEN2/dlv_shown.txt).
+        self.shown = shown or {}
+        # {line number: wavenumber} - the measured wavenumber an
+        # identification in trans.dat stands for: the row's own, or, for a
+        # row that still shows what dlv_shown.txt says was written there,
+        # the measured one it gives.  A malformed row is left out here and
         # reported by check_dlv.
         self.wn_of_line = {}
         for rec in dlv or []:
             try:
-                self.wn_of_line[int(rec[_span(sync_IDEN2.DLV_ROW)])] = \
-                    float(rec[_span(sync_IDEN2.DLV_WN)])
+                row = int(rec[_span(sync_IDEN2.DLV_ROW)])
+                wn = float(rec[_span(sync_IDEN2.DLV_WN)])
             except ValueError:
                 continue
+            was = self.shown.get(row)
+            if was is not None and abs(was[3] - wn) <= sync_IDEN2.DLV_MATCH:
+                wn = was[1]
+            self.wn_of_line[row] = wn
 
 
 def load_iden2(iden2_dir, rep):
@@ -1409,8 +1424,15 @@ def load_iden2(iden2_dir, rep):
     else:
         rep.warn('IDEN2/dlv.dat', '%s is missing; the observed lines are not '
                                   'checked' % dlv_path)
+    try:
+        shown = sync_IDEN2.read_shown(iden2_dir)
+    except (KeyError, ValueError) as exc:
+        rep.error('IDEN2/dlv.dat', '%s cannot be read (%s); the rows it lists '
+                                   'are taken at the wavenumber they show'
+                  % (sync_IDEN2.SHOWN_FILE, exc))
+        shown = {}
     return Iden2(IDEN.Enlev(enlev_path), IDEN.Trans(trans_path),
-                 IDEN.read_map(map_path), dlv)
+                 IDEN.read_map(map_path), dlv, shown)
 
 
 def check_iden2(iden, cls, ctx, levels, rep, drift, gross, list_n):
@@ -1648,7 +1670,7 @@ def _span(field):
     return slice(field[0], field[1])
 
 
-def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
+def check_dlv(iden, cfg_path, rep, dlv_tol, list_n, lopt_in=None):
     """The observed line list IDEN2 shows, against the set's own line list.
 
     This is the file the eye reads a measurement off: the wavenumber it is
@@ -1659,6 +1681,9 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
     seeded by copying another set's IDEN2 directory keeps the other set's
     wavenumbers - which is silent, because every screen goes on working and
     the numbers on it are of the right size.
+
+    ``lopt_in`` is the set's LOPT_input_lines.txt, which says what a set with
+    [hfs] iden2_display = 'lopt' is to show.
     """
     if iden is None or iden.dlv is None:
         return
@@ -1676,7 +1701,16 @@ def check_dlv(iden, cfg_path, rep, dlv_tol, list_n):
         rep.warn('IDEN2/dlv.dat', '%s does not exist; dlv.dat is not checked '
                                   'against the line list' % cfg.lines_file)
         return
-    _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n)
+    shown = None
+    if cfg.hfs.iden2_display == sync_IDEN2.DISPLAY_LOPT:
+        if not lopt_in or not os.path.exists(lopt_in):
+            rep.warn('IDEN2/dlv.dat', "[hfs] iden2_display = 'lopt', and "
+                                      "there is no %s to say what LOPT is "
+                                      "given; dlv.dat is not checked against "
+                                      "the line list" % LOPT_IN)
+            return
+        shown = lopt_in
+    _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n, shown, iden.shown)
 
 
 def _dlv_internal(records, rep, list_n):
@@ -1802,7 +1836,8 @@ def _dlv_allowance(r, dlv_tol):
     return max(dlv_tol, 0.0005 + 0.00005 * r.wn / r.lam + 1e-6)
 
 
-def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
+def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n, lopt_in=None,
+                  previous=None):
     """Every wavenumber and every uncertainty in dlv.dat against the line list
     the set is classified and fitted on.
 
@@ -1827,21 +1862,51 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
     in step once it is entered in the registry, and one widened in IDEN2 and
     never entered is reported on its own, since the cure for it is the
     registry and not sync_IDEN2.py, which writes the pipeline's value.
+
+    With ``lopt_in``, the set's LOPT_input_lines.txt, the set has [hfs]
+    iden2_display = 'lopt': a line the fit uses is to be shown at the
+    wavenumber and with the uncertainty LOPT is given (sync_IDEN2.lopt_view),
+    and that is what its row is checked against.  A row still showing such a
+    line as measured, or - without ``lopt_in`` - one still showing what
+    ``previous`` (IDEN2/dlv_shown.txt) says a 'lopt' sync wrote there, is
+    named as what it is: a row sync_IDEN2.py has yet to rewrite.
     """
     try:
         lines = sync_IDEN2.read_line_list(cfg, lambda *a: None)
+        shown = (lines if lopt_in is None else
+                 sync_IDEN2.lopt_view(lines, lopt_in, lambda *a: None))
     except sync_IDEN2.SyncError as exc:
         rep.error('IDEN2/dlv.dat', 'the line list cannot be read: %s' % exc)
         return
     key_name = cfg.lines.columns.get('wn_key') or cfg.lines.columns['wn']
     wn_name = cfg.lines.columns['wn']
     registry = _dlv_registry(cfg, [key for key, _wn, _u in lines], rep)
-    want = sorted((wn, u, key) for key, wn, u in lines)
+    # (wavenumber, uncertainty, wn_key, whether it is what LOPT is given
+    # rather than the measurement)
+    want = sorted((s[1], s[2], s[0], s != m) for s, m in zip(shown, lines))
     want_wn = [t[0] for t in want]
     keyed = sorted((key, wn) for key, wn, _u in lines)
     keyed_wn = [t[0] for t in keyed]
+    # The other ways a row may show its line: as measured when it is to show
+    # what LOPT is given, and as the last 'lopt' sync left it - which is
+    # out of date either when the set has gone back to 'measured' or when
+    # LOPT has been given something else since.
+    target = {round(m[1], 4): s[1] for s, m in zip(shown, lines)}
+    pending = [(was[3], target.get(round(was[1], 4), was[1]))
+               for was in (previous or {}).values()]
+    pending = [p for p in pending if abs(p[0] - p[1]) > 0.0005]
+    if lopt_in is not None:
+        pending += [(m[1], s[1]) for s, m in zip(shown, lines)
+                    if s[1] != m[1]]
+        pending_say = ('each shows its line as measured, or as LOPT was '
+                       'given it before')
+    else:
+        pending_say = ("each still shows its line as a 'lopt' sync wrote "
+                       "it")
+    pending.sort()
+    pending_wn = [t[0] for t in pending]
 
-    stale, unknown, narrow, wide, moved = [], [], [], [], []
+    stale, unknown, narrow, wide, moved, waiting = [], [], [], [], [], []
     drifted = 0
     worst = worst_moved = 0.0
     n_registry = 0
@@ -1855,6 +1920,15 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
             if j is not None and key_name != wn_name:
                 k = None            # it is the key of a line, exactly
         if k is None:
+            j = _nearest(pending_wn, r.wn, allow)
+            if j is not None:
+                waiting.append('line %6d  %12.3f -> %12.3f  (%+.3f)'
+                               % (r.row, r.wn, pending[j][1],
+                                  pending[j][1] - r.wn))
+                k = _nearest(want_wn, pending[j][1], 1e-6)
+                if k is not None:
+                    matched.add(k)
+                continue
             j = _nearest(keyed_wn, r.wn, join)
             if j is not None and key_name != wn_name:
                 stale.append('line %6d  %12.3f -> %12.3f  (%+.3f)'
@@ -1871,23 +1945,45 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
         elif abs(want_wn[k] - r.wn) > 0.0005:
             drifted += 1
             worst = max(worst, abs(want_wn[k] - r.wn))
-        if registry is None:
+        u_list, key, lopt_view = want[k][1], want[k][2], want[k][3]
+        if lopt_view:
+            u_set, u_want = None, u_list
+        elif registry is None:
             continue
-        u_list, key = want[k][1], want[k][2]
-        u_set = registry.lookup(key)
-        u_want = u_list if u_set is None else max(u_list, u_set)
-        if u_set is not None and u_set > u_list:
-            n_registry += 1
+        else:
+            u_set = registry.lookup(key)
+            u_want = u_list if u_set is None else max(u_list, u_set)
+            if u_set is not None and u_set > u_list:
+                n_registry += 1
         quantum = 0.00005 * r.wn / r.lam
         if abs(r.u_wn - u_want) <= quantum + DLV_U_REL * u_want:
             continue
-        item = ('line %6d  %12.3f  dlv %9.4f  pipeline %9.4f  cm-1  (list '
-                '%.4f%s)' % (r.row, r.wn, r.u_wn, u_want, u_list,
+        was = (previous or {}).get(r.row)
+        if (was is not None
+                and abs(r.u_wn - was[4]) <= quantum + DLV_U_REL * was[4]):
+            # The uncertainty the last 'lopt' sync wrote, no longer the one
+            # to show: sync_IDEN2.py rewrites it, and the registry has
+            # nothing to do with it.
+            waiting.append('line %6d  %12.3f  u %.4f -> %.4f'
+                           % (r.row, r.wn, r.u_wn, u_want))
+            continue
+        item = ('line %6d  %12.3f  dlv %9.4f  pipeline %9.4f  cm-1  (%s '
+                '%.4f%s)' % (r.row, r.wn, r.u_wn, u_want,
+                             'LOPT' if lopt_view else 'list', u_list,
                              '' if u_set is None
                              else ', %s %.4f' % (INFLATED, u_set)))
         (wide if r.u_wn > u_want else narrow).append(item)
     absent = ['%12.3f  u %9.4f  cm-1' % want[k][:2] for k in range(len(want))
               if k not in matched]
+    if waiting:
+        rep.warn('IDEN2/dlv.dat',
+                 "%d rows of dlv.dat are out of step with [hfs] "
+                 "iden2_display = '%s': %s"
+                 % (len(waiting), 'measured' if lopt_in is None else 'lopt',
+                    pending_say),
+                 waiting, head='line     dlv.dat now      to show')
+        rep.act(65, "Run sync_IDEN2.py in this set: it writes each line the "
+                    "way [hfs] iden2_display says.")
 
     head = 'line          wavenumber'
     if stale:
@@ -1943,11 +2039,14 @@ def _dlv_vs_lines(rows, cfg, rep, dlv_tol, list_n):
                  'where each takes the next free line number'
                  % (len(absent), os.path.basename(cfg.lines_file)),
                  absent, head='  wavenumber  uncertainty')
-    if not (stale or narrow or wide or moved):
+    if not (stale or narrow or wide or moved or waiting):
         if registry is None:
             said = 'the %s' % wn_name
         else:
             said = 'the %s and the uncertainty the pipeline uses' % wn_name
+        if lopt_in is not None:
+            said += (', or for the %d lines the fit uses what LOPT is given'
+                     % sum(1 for t in want if t[3]))
         rep.ok('IDEN2/dlv.dat',
                'all %d matched rows of dlv.dat carry %s (%d of them differ '
                'in the last printed digit, by up to %.4f cm^-1)%s'
@@ -2237,7 +2336,8 @@ def main(argv=None):
     check_revisions(paths, levels, rep, args.gross)
     check_iden2(iden, cls, ctx, levels, rep, args.drift, args.gross,
                 args.list_n)
-    check_dlv(iden, paths[NAME_CONFIG], rep, args.dlv_tol, args.list_n)
+    check_dlv(iden, paths[NAME_CONFIG], rep, args.dlv_tol, args.list_n,
+              paths[LOPT_IN])
     check_stability(paths, cls, ctx, rep, args.list_n)
 
     if rep.worst != OK:

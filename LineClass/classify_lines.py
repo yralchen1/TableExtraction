@@ -143,6 +143,7 @@ def apply_hfs_model(levels_dict: dict, observed_lines: list) -> None:
                 f"{rec[0]:g}, the level list J = {lev.J_str}; the table of A "
                 f"constants is out of date")
         lev.hfs_S, lev.u_hfs_S = HFS.S(lid)
+        lev.hfs_undetermined = HFS.is_undetermined(lid)
     by_class = {}
     for line in observed_lines:
         kappa, u_kappa = HFS.kappa_of(line.line_character, line.wn_key)
@@ -208,7 +209,7 @@ def release_hfs_allowances(observed_lines: list) -> int:
     return n
 
 
-def hfs_line_shift(line, weights: dict) -> tuple:
+def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
     """(hfs_shift, u_hfs_shift, kappa) of `line`, cm^-1: (1 - kappa) *
     sum BF_i*D_i over its accepted transitions, BF being the share of the
     line each carries (calc_weights), with the uncertainty and the kappa that
@@ -216,7 +217,8 @@ def hfs_line_shift(line, weights: dict) -> tuple:
     component takes the flag's kappa, and a transition whose resolved
     companions the registry lists on this line takes kappa = 1
     (Model.component_kappas).  (0, 0, the line's kappa) for a line with no
-    accepted transition.
+    accepted transition.  `known_A_only` leaves the unknown A of the
+    undetermined levels out of the uncertainty (hfs_undetermined_part).
 
     The classification itself compares every candidate of a flagged line
     with its Ritz value (kappa = 1): which component is the strongest is only
@@ -226,14 +228,40 @@ def hfs_line_shift(line, weights: dict) -> tuple:
     if not acc:
         return 0.0, 0.0, HFS.kappa_of(line.line_character, line.wn_key)[0]
     bfs = [math.sqrt(weights[id(t)]) * line.wn_uncertainty for t in acc]
+    # A blended companion's hfs component takes a share of the line but is
+    # not one of the transitions LOPT is given, so it does not move them: the
+    # shift is that of the line without it.
+    total = sum(bfs)
+    if line.hfs_blend_companion is not None and total > 0:
+        bfs = [bf / total for bf in bfs]
     heads = [(t.lower_level.level_id, t.upper_level.level_id)
              in line.hfs_head_pairs for t in acc]
     kappas = HFS.component_kappas(line.line_character, line.wn_key, bfs,
                                   heads)
+
+    def u_S(lev):
+        return 0.0 if known_A_only and lev.hfs_undetermined else lev.u_hfs_S
     return hfs_correction.combine(
         [(bf, kappa, u_kappa, t.hfs_D,
-          math.hypot(t.upper_level.u_hfs_S, t.lower_level.u_hfs_S))
+          math.hypot(u_S(t.upper_level), u_S(t.lower_level)))
          for t, bf, (kappa, u_kappa) in zip(acc, bfs, kappas)])
+
+
+def hfs_undetermined_part(line, weights: dict) -> float:
+    """The part of u_hfs_shift owed to the levels without a determined A,
+    cm^-1: the quadrature difference between u_hfs_shift and the same
+    without their unknown A.  make_LOPT_input.py carries it, or the levels'
+    widths, not both (hfs_correction.py, after D13)."""
+    u_all = hfs_line_shift(line, weights)[1]
+    u_known = hfs_line_shift(line, weights, known_A_only=True)[1]
+    return math.sqrt(max(u_all ** 2 - u_known ** 2, 0.0))
+
+
+def hfs_allowance_kept(line) -> bool:
+    """True if the line's uncertainty is still a registry allowance tagged
+    hfs, which release_hfs_allowances did not withdraw."""
+    return (line.unc_before_hfs_allowance > 0
+            and line.wn_uncertainty > line.unc_before_hfs_allowance)
 
 
 def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
@@ -244,15 +272,19 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
     A companion line gets `hfs_companion` = (its main line, the transition's
     two levels, the rung): it is written as that transition's hfs component,
     grade hfs, never accepted, and match_and_grade seeks no candidate for
-    it.  The main line gets the transition in `hfs_head_pairs`, which puts
-    that candidate on the head-frame Ritz value (kappa = 1) with [hfs] apply
-    on.
+    it.  A companion the registry marks blend = 1 gets the same tuple as
+    `hfs_blend_companion` instead: it is classified as any other line, and
+    the component is written beside its rows and takes its share of the
+    line (hfs_rung_intensity).  The main line gets the transition in
+    `hfs_head_pairs`, which puts that candidate on the head-frame Ritz value
+    (kappa = 1) with [hfs] apply on.
 
     Raises if an entry names no observed line or two of them, names a level
-    that is not in the run, or names as a companion a line that holds a
-    published identification or an accepted row of the decision ledger:
-    the line cannot be both, and which it is is the analyst's to settle.
-    Returns the number of companions marked.
+    that is not in the run, or names as an unblended companion a line that
+    holds a published identification or an accepted row of the decision
+    ledger: the line cannot be only the companion and that too, and which
+    it is is the analyst's to settle.  Returns the number of companions
+    marked.
     """
     sats = hfs_correction.read_satellites(path)
     name = os.path.basename(path)
@@ -276,7 +308,7 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
             line.hfs_head_pairs = frozenset(pairs)
             for pair in pairs:
                 mains[pair] = mains.get(pair, []) + [line]
-    n = 0
+    n = n_blend = 0
     for line in observed_lines:
         row = sats.companion(line.wn_key)
         if row is None:
@@ -284,6 +316,13 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
         main = [m for m in mains[(row.low_id, row.upp_id)]
                 if (row.low_id, row.upp_id) in sats.head_pairs(m.wn_key)
                 and _names(row.main_key, m.wn_key)]
+        entry = (main[0], levels_dict[row.low_id], levels_dict[row.upp_id],
+                 row.rung)
+        n += 1
+        if row.blend:
+            line.hfs_blend_companion = entry
+            n_blend += 1
+            continue
         held = [f"{t.lower_level.level_id} - {t.upper_level.level_id}"
                 for t in line.original_assignments]
         held += [f"{low} - {upp}" for (low, upp), (verdict, _)
@@ -293,11 +332,11 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
                 f"{name}: the companion {row.key} is identified as "
                 f"{', '.join(held)} (line list or decision ledger); a line "
                 f"is either a resolved hfs companion or an identification "
-                f"of its own - withdraw one of the two")
-        line.hfs_companion = (main[0], levels_dict[row.low_id],
-                              levels_dict[row.upp_id], row.rung)
-        n += 1
-    print(f"  Read {n} resolved hfs companion(s) from {name}, of "
+                f"of its own - withdraw one of the two, or mark the "
+                f"companion blend = 1 if it is both")
+        line.hfs_companion = entry
+    print(f"  Read {n} resolved hfs companion(s) from {name} "
+          f"({n_blend} blended with transitions of their own), of "
           f"{sum(len(p) for p in (l.hfs_head_pairs for l in observed_lines))} "
           f"transition(s) on {sum(1 for l in observed_lines if l.hfs_head_pairs)} "
           f"main line(s).")
@@ -2438,14 +2477,24 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
         #                sum BF_i * (1 - kappa_i) * D_i over the accepted rows,
         #                the same on every row of the line
         #   u_hfs_shift  its uncertainty
+        #   u_hfs_undet  the part of u_hfs_shift owed to levels without a
+        #                determined A
+        #   hfs_allowance  1 if unc_wn_obs is a registry allowance tagged hfs
+        #                that the correction did not withdraw, else 0
         # The row of a resolved hfs companion (hfs_correction.py) names its
         # transition with the grade hfs, is never accepted, and carries its
-        # offset from the Ritz value in dif_wn_O-C.
+        # offset from the Ritz value in dif_wn_O-C.  A blended companion has
+        # it beside the rows of its own candidates, with the component's
+        # calculated intensity and its share of the line in calc_intens and
+        # BF; make_LOPT_input.py reads the intensity back from there.
         hfs_cols = {}
         if HFS is not None:
             shift, u_shift, kappa = hfs_line_shift(obs_line, weights)
             hfs_cols = {'kappa': kappa, 'hfs_D': np.nan, 'hfs_shift': shift,
-                        'u_hfs_shift': u_shift}
+                        'u_hfs_shift': u_shift,
+                        'u_hfs_undet': hfs_undetermined_part(obs_line,
+                                                             weights),
+                        'hfs_allowance': int(hfs_allowance_kept(obs_line))}
         unassigned_row = {
             'wn_obs': obs_line.wavenumber,
             'wn_key': obs_line.wn_key,
@@ -2474,10 +2523,11 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
             'BF': np.nan,
             **hfs_cols
         }
-        if obs_line.hfs_companion is not None:
-            main, low, upp, rung = obs_line.hfs_companion
+        entry = obs_line.hfs_companion or obs_line.hfs_blend_companion
+        if entry is not None:
+            main, low, upp, rung = entry
             rwn = upp.energy - low.energy
-            output_rows.append({
+            comp_row = {
                 **unassigned_row,
                 'low_id': low.level_id,
                 'upp_id': upp.level_id,
@@ -2491,7 +2541,17 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                 'rwn': rwn,
                 'BF': 0.0,
                 **({'hfs_D': upp.hfs_S - low.hfs_S} if hfs_cols else {})
-            })
+            }
+            if obs_line.hfs_blend_companion is not None:
+                acc, sum_i, rung_i = line_intensity_split(obs_line)
+                comp_row['notes2'] += ", blended with the line's own"
+                if rung_i:
+                    comp_row['calc_intens'] = rung_i
+                    comp_row['BF'] = rung_i / sum_i if acc else 0.0
+            output_rows.append(comp_row)
+        if obs_line.hfs_companion is not None or (
+                entry is not None and not obs_line.assigned_transitions):
+            pass
         elif not obs_line.assigned_transitions:
             output_rows.append(unassigned_row)
         else:
@@ -4293,14 +4353,49 @@ def assignment_cycle(observed_lines: list, all_possible: list, levels_dict: dict
     return na
 
 
+def hfs_rung_intensity(line):
+    """The calculated intensity of the hfs component that a blended companion
+    `line` carries (attach_hfs_satellites): the main transition's, as it
+    stands on the main line, times the fraction of the pattern's strength in
+    the rung (hfs_correction.rung_share).  None for any other line, and when
+    the main line carries no such candidate or it has no intensity."""
+    if line.hfs_blend_companion is None:
+        return None
+    main, low, upp, rung = line.hfs_blend_companion
+    for t in main.assigned_transitions:
+        if (t is not UNASSIGNED and t.calc_intensity is not None
+                and t.lower_level.level_id == low.level_id
+                and t.upper_level.level_id == upp.level_id):
+            return t.calc_intensity * hfs_correction.rung_share(
+                low.J_val, upp.J_val, rung)
+    return None
+
+
+def line_intensity_split(line):
+    """`(accepted, sum_i, rung_i)` of `line`: its accepted transitions, the
+    sum calc_weights divides the line by, and the part of that sum which is
+    the hfs component of a blended companion (0.0 if none).  Every accepted
+    transition counts 1 in the sum when a candidate of the line lacks a
+    calculated intensity, and the component is then left out."""
+    accepted = [t for t in line.assigned_transitions if t.accepted == 1]
+    any_none = any(t.calc_intensity is None for t in line.assigned_transitions)
+    if any_none:
+        return accepted, float(len(accepted)), 0.0
+    rung_i = hfs_rung_intensity(line) or 0.0
+    return accepted, sum(t.calc_intensity for t in accepted) + rung_i, rung_i
+
+
 def calc_weights(lines: dict) -> dict:
-    """Calculate weights for energy levels based on accepted transitions."""
+    """Calculate weights for energy levels based on accepted transitions.
+
+    The hfs component of a blended companion (attach_hfs_satellites) takes
+    its share of the line, so the line's accepted transitions divide only
+    the rest between them."""
     weights = {}
     for line in lines:
-        all_accepted = [t for t in line.assigned_transitions if t.accepted == 1]
+        all_accepted, sum_i, _ = line_intensity_split(line)
         if not all_accepted: continue
         any_none = any(t.calc_intensity is None for t in line.assigned_transitions)
-        sum_i = float(len(all_accepted)) if any_none else sum(t.calc_intensity for t in all_accepted)
         for t in all_accepted:
             intens = 1.0 if any_none else t.calc_intensity
             bf = intens / sum_i
@@ -4656,8 +4751,11 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     print("=" * 60)
 
     # An output file open in Excel is locked against writing.  It is found
-    # here, before the work, rather than by the write at the end of it.
+    # here, before the work, rather than by the write at the end of it.  So
+    # are a table that belongs to another set than the configuration (a set
+    # that forgot to name its own output) and a table of a locked set.
     if write_files:
+        config.require_own_output(CFG.path, output_paths(), 'classify_lines.py')
         config.require_unlocked(output_paths(), 'classify_lines.py', UNLOCK)
         output_files.require_writable(output_paths())
 
