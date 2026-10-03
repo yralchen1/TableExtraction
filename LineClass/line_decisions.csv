@@ -38,7 +38,7 @@ wn_key,low_id,upp_id,decision,date,reason
 96174.3869,059003.000081,059003.000398,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20; Lines belonging to levels 059003.000398 and 059003.000483 were swapped on 9/6/2026."
 120168.6067,059003.000064,059003.000534,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
 22715.367,059003.000090,059003.000182,reject,9/3/2026,"not supported in IDEN2: the line is taken by 000179-000236 with much greater predicted intensity, agreeing with the calculated one"
-27399.033,059003.000452,059003.000563,reject,9/3/2026,not justified in IDEN2: no solid support from other transitions
+27399.0328,059003.000452,059003.000563,accept,10/3/2026,IDEN2/LOPT after calibration corrections
 60205.386,059003.000258,059003.000421,reject,9/3/2026,Not even present in IDEN2: much too weak predicted intensity; several tens stronger ones are not detected.
 71303.387,059003.000041,059003.000446,reject,9/3/2026,"No solid support in IDEN2; the line is taken by 000099-000312 with much greater predicted intensity, agreeing with the calculated one"
 11890.65678713296,059003.000546,059003.000479,accept,9/3/2026,Consistent with other assignments of 000479. Keep for stability.
@@ -645,11 +645,33 @@ wn_key,low_id,upp_id,decision,date,reason
 22524.4601,059003.000182,059003.000433,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
 22524.4601,059003.000182,059003.000243,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
 26569.0193,059003.000155,059003.000207,reject,10/2/2026,"IDEN2/LOPT: line reassigned to 000165-000221, unc inflated - this is unresolved hfs of 000165"
+26569.0193,059003.000165,059003.000221,accept,10/2/2026,IDEN2/LOPT: measured at cg of hfs
 43105.9493,059003.000080,059003.000216,accept,10/2/2026,IDEN2/LOPT; unc inflated
 58102.308,059003.000054,059003.000436,reject,10/2/2026,"IDEN2/LOPT: too small Icalc, too far from Ritz"
 35730.2509,059003.000148,059003.000258,accept,10/2/2026,IDEN2/LOPT: hfs corrections bring it in agreement
-37509.3400,059003.000125,059003.000222,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1052, 0.71 below the head-frame Ritz value; needs A(000222) = +0.076, undetermined in the table and +0.073 +- 0.019 in the pattern fit; Icalc 8525 against Iobs 2631; unc inflated"
+37509.34,059003.000125,059003.000222,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1052, 0.71 below the head-frame Ritz value; needs A(000222) = +0.076, undetermined in the table and +0.073 +- 0.019 in the pattern fit; Icalc 8525 against Iobs 2631; unc inflated"
 57611.7558,059003.000125,059003.000676,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-932, 0.67 below the head-frame Ritz value; needs A(000676) = +0.049, not known; Icalc 5739 against Iobs 1404; unc inflated"
-36579.6410,059003.000125,059003.000220,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1056, 0.14 +- 0.10 from the predicted center; Icalc 2823 against Iobs 1339; unc inflated"
-36579.6410,059003.000250,059003.000341,reject,10/2/2026,"IDEN2/LOPT: Icalc 47 against Iobs 1339; the line is the center of gravity of 1156-1056, and 000341 keeps 7 lines"
+36579.641,059003.000125,059003.000220,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1156-1056, 0.14 +- 0.10 from the predicted center; Icalc 2823 against Iobs 1339; unc inflated"
+36579.641,059003.000250,059003.000341,reject,10/2/2026,"IDEN2/LOPT: Icalc 47 against Iobs 1339; the line is the center of gravity of 1156-1056, and 000341 keeps 7 lines"
 35193.6584,059003.000125,059003.000210,accept,10/2/2026,"IDEN2/LOPT: unresolved pattern of 1156-1067 measured halfway between the head and the center of gravity, 0.28 below the head-frame Ritz value (center of gravity 0.57 below); Icalc 9067 against Iobs 2871; unc inflated"
+32981.2519,059003.000068,059003.000192,accept,10/2/2026,IDEN2/LOPT; unc inflated; measured near c.g. of hfs
+30074.3894,059003.000165,059003.000248,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1116-1021, 0.76 below the head-frame Ritz value (center of gravity predicted 0.56 below, 0.62 with the pattern-fit A values); needs A(000248) = +0.048, +0.025 +- 0.006 in the table, kept (its other lines give -0.012 +- 0.018); Icalc 6658 against Iobs 4958; unc inflated"
+35378.1493,059003.000165,059003.000270,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1116-991, 0.58 below the head-frame Ritz value, blended with the weaker 1175-1082; gives A(000270) = +0.038 +- 0.021, entered in the table (its other lines give +0.013 +- 0.023); Icalc 5835 (1175-1082: 4865) against Iobs 8915; unc inflated"
+35378.1493,059003.000106,059003.000196,accept,10/2/2026,"IDEN2/LOPT: blended with the stronger 1116-991, whose center of gravity the line is; unc inflated"
+36833.56,059003.000165,059003.000274,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1116-984, 0.64 below the head-frame Ritz value and -0.01 +- 0.32 from the predicted center, blended with the weaker 1048-878; Icalc 3245 (1048-878: 1228) against Iobs 6661; unc inflated"
+36833.56,059003.000226,059003.000328,accept,10/2/2026,"IDEN2/LOPT: blended with the stronger 1116-984, whose center of gravity the line is; unc inflated"
+21793.4414,059003.000165,059003.000198,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1116-1081, 0.31 below the head-frame Ritz value; gives A(000198) = -0.004 +- 0.009, entered in the table; Icalc 150 against Iobs 102; unc inflated"
+36316.3719,059003.000133,059003.000237,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1148-1039, 0.70 above the head-frame Ritz value (center of gravity predicted 0.83 +- 0.08 above, 0.85 with the pattern-fit A values), blended with the weaker 1161-1065; -0.05 to -0.10 +- 0.09 from the predicted centroid of the blend; Icalc 15732 (1161-1065: 2561) against Iobs 5188; unc inflated"
+36316.3719,059003.000121,059003.000211,accept,10/2/2026,"IDEN2/LOPT: blended with the stronger 1148-1039, whose center of gravity the line is; unc inflated"
+23133.4479,059003.000175,059003.000208,reject,10/2/2026,"IDEN2/LOPT: the line is rung 1 of the hfs pattern of 1097-1024 (hfs_satellites.txt), 0.471 below its head 23133.935 with 0.67 of its intensity; Icalc of 1104-1069 2.2 against Iobs 94"
+52033.7933,059003.000161,059003.000629,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1118-918, 0.89 above the head-frame Ritz value (center of gravity predicted 1.06 above with A(000629) = 0); gives A(000629) = +0.020 +- 0.024, entered in the table (its other lines give +0.017 +- 0.023); Icalc 22457 against Iobs 1804; unc inflated"
+37682.9108,059003.000161,059003.000439,accept,10/2/2026,"IDEN2/LOPT: center of gravity of the unresolved pattern of 1118-980, char w, 0.79 above the head-frame Ritz value (center of gravity predicted 1.06 above with A(000439) = 0); gives A(000439) = +0.020 +- 0.012, entered in the table (its other lines give +0.025 +- 0.016); Icalc 979 against Iobs 2880; unc inflated"
+57127.7778,059003.000264,059003.000419,reject,10/2/2026,"IDEN2/LOPT: the line is rung 1 of the hfs pattern of 1154-932 (hfs_satellites.txt, 10/1/2026), 0.785 above its head 57126.993; Icalc of 000264-000419 2.4 against Iobs 6780"
+17018.9475,059003.000191,059003.000433,accept,10/3/2026,"IDEN2/LOPT: blend cg acceptable, Iobs/Icalc improves with blend"
+66477.4764,059003.000125,059003.000646,accept,10/3/2026,IDEN2/LOPT
+35193.6584,059003.000151,059003.000258,reject,10/3/2026,IDEN2/LOPT
+36302.2109,059003.000219,059003.000320,reject,10/3/2026,IDEN2/LOPT
+35266.469,059003.000451,059003.000670,reject,10/3/2026,IDEN2/LOPT
+66262.2386,059003.000127,059003.000312,reject,10/3/2026,IDEN2/LOPT: on the wrong side of hfs of 000127
+72368.5277,059003.000104,059003.000313,accept,10/3/2026,IDEN2/LOPT; unc inflated
+75218.5745,059003.000083,059003.000313,accept,10/3/2026,IDEN2/LOPT; unc inflated

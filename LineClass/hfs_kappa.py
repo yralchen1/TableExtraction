@@ -372,12 +372,18 @@ def read_levels():
     return {lid: lev.J_val for lid, lev in levels.items()}
 
 
-def read_lines(path=None, constants=None, J_of=None):
+def read_lines(path=None, constants=None, J_of=None, raw=False):
     """The accepted, singly assigned lines, with their displacement D.
 
     A line accepted for more than one transition is a blend: its measured
     wavenumber is the position of a feature made of several patterns and
     belongs to no single pair of levels, so it is not used here.
+
+    With `raw`, a line's wavenumber is its wn_key - Sugar's own value - and
+    not the table's wn_obs.  The two are the same in the baseline's table,
+    which has no wn_key column; in a working set's table wn_obs is already
+    calibrated, and a fit of the calibration has to start from what Sugar
+    measured.
     """
     path = path or os.path.join(HERE, LINES)
     constants = read_A_constants() if constants is None else constants
@@ -398,6 +404,8 @@ def read_lines(path=None, constants=None, J_of=None):
             wn = float(row['wn_obs'])
             key = (row.get('wn_key') or '').strip()
             key = float(key) if key else wn
+            if raw:
+                wn = key
             char = row['char']
             era = era_of(wn)
             jl, ju = J_of.get(low), J_of.get(upp)

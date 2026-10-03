@@ -2210,7 +2210,18 @@ python wavelength_calibration.py              # from inside LineClass/
 python wavelength_calibration.py --model poly # one polynomial per block instead
 python wavelength_calibration.py --degree 2   # force a degree, for a test
 python wavelength_calibration.py --no-write   # print the report, write nothing
+python wavelength_calibration.py --classifications iter_hfs/line_classifications.csv
 ```
+
+`--classifications` names the assignments the fit rests on. Without it the program reads the
+baseline's `line_classifications.csv`, which is frozen (2026-10-01) and no longer holds the
+assignments being made. A working set's table is read on its `wn_key`, Sugar's published
+wavenumber, and never on its `wn_obs`, which that set's calibration has already corrected:
+the fit measures the correction to what Sugar published, and fitting a corrected value would
+measure only what the last pass left behind and then apply it on top of the first. The fitted
+lines and the list of every observed line that receives a correction are both read this way,
+so the output has the same form whichever table is named, and `--set` still says where the
+corrected line list is written (`iter/` by default, which `iter_hfs/` inherits).
 
 `wavelength_calibration_points.csv` is the input for a fit by hand: `lambda_A`,
 `d_lambda_A` and `u_eff_A` are the three columns `fit_power.py` wants, and the points of one
@@ -2652,7 +2663,7 @@ sets, in three directories, because LOPT is run as `lopt.bat LOPT.par` from a di
 | set | where | built from | what it is for |
 |---|---|---|---|
 | baseline | `LineClass/` | `line_classifications.csv` | Sugar's wavenumbers, exactly as measured. The assignment pipeline reads and writes this set and nothing else, so a calibration iteration can never disturb the assignments being made by hand, and a rebuild from scratch is always one command away |
-| iteration | `LineClass/iter/` | the above, plus `wavelength_calibration_corrections.csv`, as `iter/Pr3_lines_corrected.xlsx` | the corrected wavenumbers and the statistical uncertainties that go with them. LOPT is run here, its levels go back into `wavelength_calibration.py`, the corrections are remade and the set is rewritten. It converges in one or two passes |
+| iteration | `LineClass/iter/` | the above, plus `wavelength_calibration_corrections.csv`, as `iter/Pr3_lines_corrected.xlsx` | the corrected wavenumbers and the statistical uncertainties that go with them. LOPT is run here. A further pass does not take LOPT's levels: `wavelength_calibration.py` fits its own level energies together with the calibration. What it takes from the set is the assignments, `--classifications iter/line_classifications.csv` (or `iter_hfs/`), read on Sugar's wavenumbers; the corrections are remade and the set is rewritten from them |
 | final | `LineClass/final/` | the converged iteration set | the hyperfine components merged to centers of gravity, the systematic uncertainties of the calibration entered as LOPT group functions, and the final wavenumbers and uncertainties. This is what the published line list and the paper are cut from |
 
 Each of the two derived directories has its own `IDEN2/` subdirectory, because a decision to
@@ -2992,10 +3003,12 @@ nothing is fitted to it. The centers of gravity, E_cg = E_head − I·A·J, are 
 the end, for the published level list; that is the only place the absolute A values enter.
 
 **The A constants** are `A_hfs_levels.csv` (`files.hfs_A_levels`). A level whose A is
-*determined* there (calculated by Reader and Sugar, from its composition, or from its flag
-intervals) carries S = I·A·J with the uncertainty I·J·u_A. One listed as *not determined*
-(41 levels of 4f5d<sup>2</sup> and 4f<sup>3</sup>) carries S = 0 and the unknown A as the
-uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
+*determined* there (calculated by Reader and Sugar, from its composition, from its flag
+intervals, or since 2026-10-02 from a line measured at the center of gravity of its pattern
+(`059003.000198`, `059003.000270`), from resolved rungs of a pattern (`059003.000055`), or
+from the center of gravity of a companion (`059003.000432`)) carries S = I·A·J with the
+uncertainty I·J·u_A. One listed as *not determined* (39 levels of 4f5d<sup>2</sup> and
+4f<sup>3</sup>) carries S = 0 and the unknown A as the uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
 resolved_levels` counts S = 0 because each of its lines ends on one sublevel. There are two,
 both J = 1/2 levels of 4f<sup>2</sup>6s standing at their F = 3 sublevels: `059003.000642`
 (IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A level whose lines show a resolved
@@ -3015,7 +3028,8 @@ difference, so `make_LOPT_input.py` leaves it out, IDEN2 does not show it as ass
 other candidate is sought for it. This holds with the switch off too. With the switch on, the
 named transition of the main line takes κ = 1, like a flagged line; in a blend the other
 components keep the κ they would have without it. A companion that also carries a published
-identification or an accepted ledger row stops the run, unless it is marked `blend` = 1.
+identification or an accepted ledger row stops the run, unless it is marked `blend` = 1. A
+published identification the ledger rejects is withdrawn and does not stop it (2026-10-02).
 
 A **blended companion** (`blend` = 1, added 2026-10-02) is a companion that is also another
 transition: a line Sugar identified, or one the classification accepts. It is classified as
@@ -3030,11 +3044,20 @@ LOPT normalizes the weights of one line itself, so `make_LOPT_input.py` (and
 (`accepted_share`). The hfs shift of the line's own transitions is computed without the
 component, which does not move them. The main line takes κ = 1 as for any companion.
 
-The file holds 16 active companions (2 of them blended) and the comment row of 1129: eight of
-seven main lines found on 2026-09-30 beside the lines of IDEN2 rows 1138, 1131, 1118 and 1091,
-one of row 1154 on 2026-10-01, and seven of rows 1098, 1088, 1087 and 1141 on 2026-10-02. The
-row of 1129 is a comment because its satellite may be rung 2 with rung 1 blended into the main
-line.
+A **companion whose head is not observed** (`main_wn_key` left empty, added 2026-10-02) is a
+weaker rung of a pattern whose strongest component is missing from the line list. It is
+classified as any companion, grade `hfs`, never accepted, with the note "the head not
+observed"; no line takes κ = 1 for the transition. It cannot be marked `blend` = 1, because a
+blended companion's share of the line is taken from the calculated intensity the head carries.
+
+The file holds 19 active companions (2 of them blended, 2 without an observed head) and the
+comment row of 1129: eight of seven main lines found on 2026-09-30 beside the lines of IDEN2
+rows 1138, 1131, 1118 and 1091, one of row 1154 on 2026-10-01, seven of rows 1098, 1088, 1087
+and 1141 on 2026-10-02, and on the same day rungs 1 and 2 of 1228-1116 (21962.950 and
+21963.279), whose head at 21962.569 is not in the line list, and 32426.086 of 1140-1053, which
+is not one rung but the unresolved lower part of a J = 3/2 to 3/2 pattern (rungs 1 to 3 with
+their off-diagonal components), listed as a double line. The row of 1129 is a comment
+because its satellite may be rung 2 with rung 1 blended into the main line.
 
 **What the correction replaces.** A level with a determined A no longer carries its
 hyperfine width from `level_hfs_widths.csv` into LOPT's uncertainty, and a flagged line, or

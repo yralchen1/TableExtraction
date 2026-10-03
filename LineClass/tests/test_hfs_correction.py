@@ -600,6 +600,28 @@ def test_attach_hfs_satellites(tmp_path, monkeypatch):
     assert 'kappa' not in df.columns        # the switch is off
 
 
+def test_a_companion_whose_head_is_not_observed(tmp_path, monkeypatch):
+    monkeypatch.setattr(cl, 'HFS', None)
+    levels, (main, comp, other) = lines_and_levels()
+    path = satellites(tmp_path, ('30000.4376', '', LOW, UPP, '1', '', ''))
+    sats = H.read_satellites(path)
+    assert sats.rows[0].main_key is None
+    assert sats.head_pairs(29999.9876) == frozenset()
+    sats.check([29999.9876, 30000.4376], 'sat.txt')
+    assert cl.attach_hfs_satellites([main, comp, other], levels, path) == 1
+    assert not main.hfs_head_pairs          # no line is the head
+    assert comp.hfs_companion == (None, levels[LOW], levels[UPP], 1)
+    df = cl.build_output([main, comp, other], {})
+    r = df[df.wn_obs == 30000.45].iloc[0]
+    assert (r.low_id, r.upp_id, r.grade, r.accepted) \
+        == (LOW, UPP, H.COMPANION_GRADE, 0)
+    assert r.notes2 == 'hfs companion, rung 1, the head not observed'
+    # nor can it be blended: its share is taken from the head's intensity
+    bad = blended(tmp_path, ('30000.4376', '', LOW, UPP, '1', '1', '', ''))
+    with pytest.raises(ValueError, match='head is not observed'):
+        H.read_satellites(bad)
+
+
 def test_a_companion_cannot_be_an_identification_too(tmp_path, monkeypatch):
     monkeypatch.setattr(cl, 'HFS', None)
     levels, (main, comp, other) = lines_and_levels()
@@ -608,6 +630,17 @@ def test_a_companion_cannot_be_an_identification_too(tmp_path, monkeypatch):
     comp.decisions[(ABSENT, UPP)] = ('accept', 'by hand')
     with pytest.raises(ValueError, match='identified as'):
         cl.attach_hfs_satellites([main, comp, other], levels, path)
+    comp.decisions.clear()
+    # a published identification holds the line until the ledger rejects it
+    sugar = Transition(lower_level=levels[ABSENT], upper_level=levels[UPP],
+                       assigned_to=comp, calc_intensity=1.0)
+    comp.original_assignments.append(sugar)
+    with pytest.raises(ValueError, match='identified as'):
+        cl.attach_hfs_satellites([main, comp, other], levels, path)
+    comp.decisions[(ABSENT, UPP)] = ('reject', 'the line is the companion')
+    assert cl.attach_hfs_satellites([main, comp, other], levels, path) == 1
+    assert comp.hfs_companion == (main, levels[LOW], levels[UPP], 1)
+    comp.original_assignments.clear()
     del levels[LOW]
     comp.decisions.clear()
     with pytest.raises(ValueError, match='not in this run'):

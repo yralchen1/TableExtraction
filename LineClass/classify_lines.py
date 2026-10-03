@@ -270,7 +270,8 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
     (files.hfs_satellites; see hfs_correction.py).
 
     A companion line gets `hfs_companion` = (its main line, the transition's
-    two levels, the rung): it is written as that transition's hfs component,
+    two levels, the rung; the main line None if the registry says the head
+    is not observed): it is written as that transition's hfs component,
     grade hfs, never accepted, and match_and_grade seeks no candidate for
     it.  A companion the registry marks blend = 1 gets the same tuple as
     `hfs_blend_companion` instead: it is classified as any other line, and
@@ -283,8 +284,9 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
     that is not in the run, or names as an unblended companion a line that
     holds a published identification or an accepted row of the decision
     ledger: the line cannot be only the companion and that too, and which
-    it is is the analyst's to settle.  Returns the number of companions
-    marked.
+    it is is the analyst's to settle.  A published identification the
+    ledger rejects is withdrawn, and does not count.  Returns the number of
+    companions marked.
     """
     sats = hfs_correction.read_satellites(path)
     name = os.path.basename(path)
@@ -313,9 +315,12 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
         row = sats.companion(line.wn_key)
         if row is None:
             continue
-        main = [m for m in mains[(row.low_id, row.upp_id)]
-                if (row.low_id, row.upp_id) in sats.head_pairs(m.wn_key)
-                and _names(row.main_key, m.wn_key)]
+        if row.main_key is None:        # the head is not observed
+            main = [None]
+        else:
+            main = [m for m in mains[(row.low_id, row.upp_id)]
+                    if (row.low_id, row.upp_id) in sats.head_pairs(m.wn_key)
+                    and _names(row.main_key, m.wn_key)]
         entry = (main[0], levels_dict[row.low_id], levels_dict[row.upp_id],
                  row.rung)
         n += 1
@@ -323,8 +328,10 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
             line.hfs_blend_companion = entry
             n_blend += 1
             continue
-        held = [f"{t.lower_level.level_id} - {t.upper_level.level_id}"
-                for t in line.original_assignments]
+        pairs = [(t.lower_level.level_id, t.upper_level.level_id)
+                 for t in line.original_assignments]
+        held = [f"{low} - {upp}" for low, upp in pairs
+                if line.decisions.get((low, upp), ('',))[0] != 'reject']
         held += [f"{low} - {upp}" for (low, upp), (verdict, _)
                  in line.decisions.items() if verdict == 'accept']
         if held:
@@ -332,8 +339,9 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
                 f"{name}: the companion {row.key} is identified as "
                 f"{', '.join(held)} (line list or decision ledger); a line "
                 f"is either a resolved hfs companion or an identification "
-                f"of its own - withdraw one of the two, or mark the "
-                f"companion blend = 1 if it is both")
+                f"of its own - withdraw one of the two (a published one by "
+                f"a reject row of the ledger), or mark the companion "
+                f"blend = 1 if it is both")
         line.hfs_companion = entry
     print(f"  Read {n} resolved hfs companion(s) from {name} "
           f"({n_blend} blended with transitions of their own), of "
@@ -2533,8 +2541,10 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                 'upp_id': upp.level_id,
                 'dif_wn_O-C': obs_line.wavenumber - rwn,
                 'grade': hfs_correction.COMPANION_GRADE,
-                'notes2': f"hfs companion, rung {rung}, of the line "
-                          f"{main.wn_key:.4f}",
+                'notes2': (f"hfs companion, rung {rung}, of the line "
+                           f"{main.wn_key:.4f}" if main is not None else
+                           f"hfs companion, rung {rung}, the head not "
+                           f"observed"),
                 'accepted': 0,
                 'low_E': low.energy,
                 'upp_E': upp.energy,
@@ -4362,6 +4372,8 @@ def hfs_rung_intensity(line):
     if line.hfs_blend_companion is None:
         return None
     main, low, upp, rung = line.hfs_blend_companion
+    if main is None:
+        return None
     for t in main.assigned_transitions:
         if (t is not UNASSIGNED and t.calc_intensity is not None
                 and t.lower_level.level_id == low.level_id

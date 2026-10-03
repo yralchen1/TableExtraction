@@ -75,9 +75,10 @@ class SpectralLine:
     # classify_lines.attach_hfs_satellites().
     hfs_companion: Optional[tuple] = None
     # (main line, lower level, upper level, rung) if the registry names this
-    # line as a resolved hfs companion of that transition on the main line:
-    # it is classified as that, never accepted, and no candidate is sought
-    # for it.  None for every other line.
+    # line as a resolved hfs companion of that transition on the main line
+    # (main line None if the head of the pattern is not observed): it is
+    # classified as that, never accepted, and no candidate is sought for it.
+    # None for every other line.
     hfs_blend_companion: Optional[tuple] = None
     # The same tuple if the registry names this line as a companion blended
     # with transitions of its own (column blend): it is classified as any

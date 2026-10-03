@@ -126,6 +126,14 @@ rung k, the companion joining F_low - k and F_upp - k.  It rules in two ways:
   era, if the line is also flagged).  The main line gives up its level
   widths in make_LOPT_input.py as a flagged line does.
 
+The head of a pattern may be missing from the line list while weaker rungs
+are there (main_wn_key left empty, 2026-10-02).  The companions are then
+classified as above, grade hfs and never accepted, and no line takes
+kappa = 1 for the transition.
+
+A companion cannot also be an identification of its own (attach_hfs_satellites
+stops the run), except a published one the ledger rejects, which is withdrawn.
+
 A companion may be blended with a transition of its own: the weaker part of
 a line Sugar identified, or one the classification accepts (column `blend` =
 1, 2026-10-02).  Such a line is classified as any other, published and
@@ -396,6 +404,8 @@ class Satellites(object):
         self._companion = {r.key: r for r in self.rows}
         self._heads = {}
         for r in self.rows:
+            if r.main_key is None:          # the head is not observed
+                continue
             self._heads.setdefault(r.main_key, set()).add((r.low_id,
                                                            r.upp_id))
 
@@ -442,11 +452,13 @@ def read_satellites(path):
     Tab-delimited, with the columns of SATELLITE_COLUMNS; a row whose
     wn_key starts with '#' is a comment.  `blend` is 1 for a companion
     blended with a transition of its own, empty or 0 otherwise; a file
-    without the column has none.  A missing file, or none named, is an
-    empty registry; a row that cannot mean what it says - a line that is
-    its own companion, a companion entered twice, a line entered both as a
-    companion and as a main line, a rung that is not a positive integer, a
-    blend that is not 0 or 1 - raises.
+    without the column has none.  An empty main_wn_key means the head of the
+    pattern is not observed: the row's main_key is None.  A missing file, or
+    none named, is an empty registry; a row that cannot mean what it says - a
+    line that is its own companion, a companion entered twice, a line entered
+    both as a companion and as a main line, a rung that is not a positive
+    integer, a blend that is not 0 or 1, a blended companion without a head -
+    raises.
     """
     if not path or not os.path.exists(path):
         return Satellites()
@@ -467,21 +479,26 @@ def read_satellites(path):
             low = (rec.get('low_id') or '').strip()
             upp = (rec.get('upp_id') or '').strip()
             rung = (rec.get('rung') or '').strip()
-            if not (main and low and upp) or not rung.isdigit() \
-                    or int(rung) < 1:
-                raise ValueError('%s: the row of %s needs main_wn_key, '
-                                 'low_id, upp_id and a rung of 1 or more'
-                                 % (name, wn))
+            if not (low and upp) or not rung.isdigit() or int(rung) < 1:
+                raise ValueError('%s: the row of %s needs low_id, upp_id '
+                                 'and a rung of 1 or more' % (name, wn))
             blend = (rec.get('blend') or '').strip()
             if blend not in ('', '0', '1'):
                 raise ValueError('%s: the row of %s has blend = %r; it is 1 '
                                  'for a blended companion, empty or 0 '
                                  'otherwise' % (name, wn, blend))
+            if not main and blend == '1':
+                raise ValueError('%s: the row of %s has no main_wn_key and '
+                                 'blend = 1; a companion whose head is not '
+                                 'observed cannot be blended (its share of '
+                                 'the line is taken from the head\'s '
+                                 'calculated intensity)' % (name, wn))
             rows.append(Satellite(hfs_kappa.registry_key(wn),
-                                  hfs_kappa.registry_key(main), low, upp,
+                                  hfs_kappa.registry_key(main) if main
+                                  else None, low, upp,
                                   int(rung), blend == '1',
                                   (rec.get('reason') or '').strip()))
-    seen, mains = set(), {r.main_key for r in rows}
+    seen, mains = set(), {r.main_key for r in rows if r.main_key}
     for r in rows:
         if r.key == r.main_key:
             raise ValueError('%s: %s is entered as its own companion'

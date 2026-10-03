@@ -1643,23 +1643,25 @@ def main(argv=None):
     if not args.no_lines:
         log()
         cfg = config.load(args.config)
-        lines = apply_registry(read_line_list(cfg, log),
-                               getattr(cfg, 'inflated_unc', ''), log)
+        # Not ``lines``: that is the report log() appends to, and rebinding it
+        # here would send every later message into the observed-line list.
+        observed = apply_registry(read_line_list(cfg, log),
+                                  getattr(cfg, 'inflated_unc', ''), log)
         shown = None
         if cfg.hfs.iden2_display == DISPLAY_LOPT:
-            shown = lopt_view(lines, args.lopt_lines, log)
+            shown = lopt_view(observed, args.lopt_lines, log)
         else:
             log("  [hfs] iden2_display = 'measured': every line is shown as "
                 "measured")
         dlv_records, dlv_endings = IDEN.read_records(dlv_path)
         dispersion, _n = check_dispersion(dlv_records)
-        dlv_records, dlv_rep = rewrite_dlv(dlv_records, lines, log, shown,
+        dlv_records, dlv_rep = rewrite_dlv(dlv_records, observed, log, shown,
                                            read_shown(args.iden2))
         dlv_rep['dispersion'] = dispersion
         report_dlv(dlv_rep, log)
         lopt_lines = read_lopt_transitions(args.lopt_lines)
         if shown is not None:
-            lopt_lines = as_shown(lopt_lines, lines, shown)
+            lopt_lines = as_shown(lopt_lines, observed, shown)
         log()
         log('%s: %d records' % (args.lopt_lines, len(lopt_lines)))
         wanted, assign_rep = sync_assignments(

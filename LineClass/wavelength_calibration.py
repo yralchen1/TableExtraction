@@ -345,6 +345,20 @@ def write_corrected_lines(corr, path, source=None):
     return n, miss
 
 
+def classifications_path(name=None):
+    """The classification table the fit reads: `name` as given, or beside
+    this program if it is not found from the current directory; the
+    baseline's table when `name` is empty.  A table that is not there stops
+    the run, since falling back to another one would calibrate the wrong
+    set of assignments without a word."""
+    if not name:
+        return os.path.join(HERE, hfs_kappa.LINES)
+    for path in (name, os.path.join(HERE, name)):
+        if os.path.isfile(path):
+            return os.path.abspath(path)
+    raise SystemExit('--classifications: no such file: %s' % name)
+
+
 def observed_wavenumbers(path=None):
     """Every distinct observed wavenumber of the line list, with its character
     and its wn_key (Sugar's value, which names it in the hand-kept files).
@@ -353,15 +367,18 @@ def observed_wavenumbers(path=None):
     correction is a property of the plate and applies to every line recorded
     on it - the unclassified ones above all, which is where the next
     identification has to be made.
+
+    The wavenumber is Sugar's own, the wn_key, as in `hfs_kappa.read_lines`
+    with `raw`: a working set's wn_obs has been calibrated already, and the
+    correction is added to what he published.
     """
     path = path or os.path.join(hfs_kappa.HERE, hfs_kappa.LINES)
     seen = {}
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
-            wn = float(row['wn_obs'])
             key = (row.get('wn_key') or '').strip()
-            key = float(key) if key else wn
-            seen.setdefault(round(wn, 6), (wn, row['char'], key))
+            key = float(key) if key else float(row['wn_obs'])
+            seen.setdefault(round(key, 6), (key, row['char'], key))
     return [seen[k] for k in sorted(seen)]
 
 
@@ -559,7 +576,15 @@ def main(argv=None):
                     help='the working set the corrected line list is written '
                          'into, as %s (default: %%(default)s).  An empty '
                          'value writes no line list.' % OUT_LINES)
+    ap.add_argument('--classifications', metavar='CSV', default=None,
+                    help='the classification table whose accepted, singly '
+                         'assigned lines the fit rests on (default: the '
+                         "baseline's %s).  A working set's table, such as "
+                         'iter/%s, is read on its wn_key, the wavenumber '
+                         'Sugar published, never on its calibrated wn_obs.'
+                         % (hfs_kappa.LINES, hfs_kappa.LINES))
     args = ap.parse_args(argv)
+    table_path = classifications_path(args.classifications)
 
     # The fit takes a minute or two and every file is written at the end of
     # it, so a report left open in Excel would otherwise be discovered only
@@ -573,7 +598,7 @@ def main(argv=None):
         output_files.require_writable(outputs, 'output file')
 
     blocks = read_blocks()
-    lines = hfs_kappa.read_lines()
+    lines = hfs_kappa.read_lines(table_path, raw=True)
     sigma, keep, table, _ = hfs_kappa.adopt_uncertainties(
         lines, scale=hfs_kappa.A_SCALE)
     lam = [1e8 / ln.wn for ln in lines]
@@ -774,6 +799,8 @@ def main(argv=None):
     say('a positive delta_lambda therefore means his wavenumber is too small, and the')
     say('correction to add to it is +delta_lambda * wn^2 * 1e-8.')
     say()
+    say('assignments: %s, read on wn_key (the wavenumber Sugar published)'
+        % os.path.relpath(table_path, HERE))
     say('model: %s' % ('one polynomial in wavelength per block, its degree '
                        'chosen by the data'
                        if args.model == 'poly'
@@ -1181,7 +1208,7 @@ def main(argv=None):
     for i, ln in enumerate(lines):
         key_of_char[(ln.char, ln.era)] = ucls[i]
     fixed_unc = hfs_kappa.read_inflated()
-    observed = observed_wavenumbers()
+    observed = observed_wavenumbers(table_path)
     unknown = fixed_unc.check([key for _, _, key in observed])
     if unknown:
         print('  %s: no observed line has the wn_key of %s'
