@@ -185,3 +185,4 @@ wn_key	unc_wn	date	reason
 47379.9004	0.2	10/3/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 72368.5277	0.3	10/3/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 75218.5745	0.3	10/3/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
+26409.0895	0.17	10/3/2026	char d - c.g. of head and rung 1 components

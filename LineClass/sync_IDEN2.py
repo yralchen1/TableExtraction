@@ -120,7 +120,11 @@ It rewrites both files from the current fit:
     default, ``'measured'``.  The rows written away from the measured values
     are listed in ``IDEN2/dlv_shown.txt``, which is how the next run, and
     ``check_sync.py``, know which line a moved row is; a run in
-    ``'measured'`` mode puts them back and removes that file.  The rows of
+    ``'measured'`` mode puts them back and removes that file.  Every row a
+    run writes is also listed, with its line's ``wn_key``, in
+    ``IDEN2/dlv_keys.txt``, which is how the next run finds a row whose line
+    a new wavelength calibration has moved by more than ``DLV_MATCH``.  The
+    rows of
     ``dlv.dat`` are kept in decreasing order of the wavenumber they show,
     each with its own line number, the way IDEN2 places a line inserted on
     its screen.
@@ -252,6 +256,13 @@ DLV_MATCH = 0.01
 # wavenumber or uncertainty ([hfs] iden2_display = 'lopt'), kept beside it.
 SHOWN_FILE = 'dlv_shown.txt'
 SHOWN_COLUMNS = ('line', 'wn_key', 'wn_obs', 'u_obs', 'wn_shown', 'u_shown')
+# The record of which observed line every row of dlv.dat was last written for,
+# kept beside it.  A recalibration moves a line by more than DLV_MATCH, and
+# then neither the wavenumber a row shows nor its line's wn_key, which
+# differs from it by the old correction, finds the row: on 2026-10-03 the
+# second calibration of iter_hfs left 2212 rows on the first one's values.
+KEYS_FILE = 'dlv_keys.txt'
+KEYS_COLUMNS = ('line', 'wn_key', 'wn_written')
 DISPLAY_LOPT = 'lopt'
 # A record of LOPT_input_lines.txt stands for the observed line whose
 # wavenumber agrees with the measured one it gives back to this much: LOPT is
@@ -506,7 +517,7 @@ def check_dispersion(records):
     return bad, n
 
 
-def rewrite_dlv(records, lines, log, shown=None, previous=None):
+def rewrite_dlv(records, lines, log, shown=None, previous=None, keys=None):
     """``dlv.dat`` on the set's own wavenumbers, and a report of the change.
 
     Every row keeps its number, its intensity code and its character: the
@@ -529,11 +540,13 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
     ``shown``, a list parallel to ``lines``, is what to write for each line
     when that is not the line list's own values - what LOPT is given, from
     ``lopt_view``.  ``previous`` is the record ``read_shown`` returns of the
-    rows the last run wrote away from their measured values.
+    rows the last run wrote away from their measured values, and ``keys``
+    the one ``read_keys`` returns of the line every row was written for.
 
     A row is the line its line number was written for by the last run, when
-    ``previous`` lists the number and the row still shows what was written
-    there; or else the line whose current wavenumber it carries - a set
+    ``keys`` or ``previous`` lists the number and the row still shows what
+    was written there - however far a new calibration has moved the line
+    since; or else the line whose current wavenumber it carries - a set
     already brought up to date; or the line whose shown value it carries; or
     the line whose ``wn_key`` it carries - a file as first built, on the
     scale that never moves.  The measured and key joins are both needed: a
@@ -549,16 +562,21 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
     passed a neighbor's.  ``changed`` lists every row rewritten, as
     ``(row, wn_old, wn_new, u_old, u_lam, u_wn, lam_old, lam_new)``;
     ``shown`` every row written away from its line's measured values, as
-    ``(row, wn_key, wn_obs, u_obs, wn_shown, u_shown)``; ``order`` is the new
-    order of the records, as indices into ``records``.
+    ``(row, wn_key, wn_obs, u_obs, wn_shown, u_shown)``; ``keyed`` every row
+    matched to a line, as ``(row, wn_key, wn_shown)``, for ``write_keys``;
+    ``n_by_key`` how many rows the ``keys`` record found that their current
+    wavenumber would not have; ``order`` is the new order of the records, as
+    indices into ``records``.
     """
     shown = lines if shown is None else shown
     previous = previous or {}
+    keys = keys or {}
     by_wn = sorted((wn, i) for i, (_k, wn, _u) in enumerate(lines))
     by_key = sorted((k, i) for i, (k, _wn, _u) in enumerate(lines))
     by_shown = sorted((wn, i) for i, (_k, wn, _u) in enumerate(shown)
                       if wn != lines[i][1])
     out, changed, unmatched, matched, moved = [], [], [], set(), []
+    keyed, n_by_key = [], 0
     for rec in records:
         if len(rec) < DLV_WIDTH or not rec.strip():
             out.append(rec)
@@ -568,8 +586,16 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
         u_old = float(rec[DLV_UNC[0]:DLV_UNC[1]])
         row = int(rec[DLV_ROW[0]:DLV_ROW[1]])
         best = None
+        written = keys.get(row)
+        if written is not None and abs(written[1] - wn_old) <= DLV_MATCH:
+            best = _nearest_line(by_key, written[0], LOPT_PRINT)
+            if (best is not None
+                    and _nearest_line(by_wn, wn_old) is None
+                    and _nearest_line(by_shown, wn_old) is None):
+                n_by_key += 1
         was = previous.get(row)
-        if was is not None and abs(was[3] - wn_old) <= DLV_MATCH:
+        if (best is None and was is not None
+                and abs(was[3] - wn_old) <= DLV_MATCH):
             best = _nearest_line(by_key, was[0], LOPT_PRINT)
         if best is None:
             best = _nearest_line(by_wn, wn_old)
@@ -580,6 +606,8 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
         if best is None:
             unmatched.append((row, wn_old))
             out.append(rec)
+            if written is not None:
+                keyed.append((row, written[0], written[1]))
             continue
         matched.add(best)
         key, wn_obs, u_obs = lines[best]
@@ -592,6 +620,7 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
         new = IDEN.put(new, DLV_LAMBDA, '%14.4f' % lam_new)
         new = IDEN.put(new, DLV_UNC, '%13.4f' % u_lam)
         out.append(new)
+        keyed.append((row, key, round(wn_new, 3)))
         if new != rec:
             changed.append((row, wn_old, wn_new, u_old, u_lam, u_wn,
                             lam_old, lam_new))
@@ -600,7 +629,7 @@ def rewrite_dlv(records, lines, log, shown=None, previous=None):
     _require_distinct(out, moved)
     report = {'n_rows': len(records), 'changed': changed,
               'unmatched': unmatched, 'absent': absent, 'shown': moved,
-              'order': order,
+              'keyed': keyed, 'n_by_key': n_by_key, 'order': order,
               'n_reordered': sum(1 for k, i in enumerate(order) if k != i)}
     return [out[i] for i in order], report
 
@@ -824,6 +853,39 @@ def write_shown(path, shown):
                                                  key=lambda r: -r[2]):
             fh.write('%d\t%r\t%r\t%.4f\t%.3f\t%.4f\n'
                      % (row, float(key), float(wn), u, wn_s, u_s))
+
+
+def keys_path(iden2_dir):
+    """Where the record of the line every row was written for belongs:
+    beside ``dlv.dat``."""
+    return os.path.join(iden2_dir, KEYS_FILE)
+
+
+def read_keys(iden2_dir):
+    """``{line number: (wn_key, wn_written)}`` from the record beside
+    ``dlv.dat``, or ``{}`` if there is none - a file no run has written it
+    for yet, whose rows are then found by their wavenumbers alone."""
+    path = keys_path(iden2_dir)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding='utf-8', newline='') as fh:
+        rows = list(csv.DictReader(fh, delimiter='\t'))
+    for row in rows:
+        out[int(row['line'])] = (float(row['wn_key']),
+                                 float(row['wn_written']))
+    return out
+
+
+def write_keys(path, keyed):
+    """Write the record: ``keyed`` as rewrite_dlv reports it, ``(row, wn_key,
+    wn_written)``, in decreasing order of the wavenumber written.  ``wn_key``
+    is written in full, so that reading it back gives the line list's own
+    number."""
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        fh.write('\t'.join(KEYS_COLUMNS) + '\n')
+        for row, key, wn in sorted(keyed, key=lambda r: (-r[2], r[0])):
+            fh.write('%d\t%r\t%.3f\n' % (row, float(key), wn))
 
 
 def dlv_rows_by_wavenumber(records):
@@ -1320,6 +1382,10 @@ def report_dlv(rep, log):
     """What the rewrite of ``dlv.dat`` changed."""
     changed = rep['changed']
     log(f"dlv.dat: {rep['n_rows']} rows, {len(changed)} rewritten")
+    if rep.get('n_by_key'):
+        log(f"  {rep['n_by_key']} rows are found only through {KEYS_FILE}: "
+            f"their lines have moved by more than {DLV_MATCH} cm^-1 since "
+            f"the last sync")
     bad = rep.get('dispersion')
     if bad:
         log(f"  {len(bad)} rows carried a wavelength that is not the "
@@ -1360,7 +1426,10 @@ def report_dlv(rep, log):
             f"number")
     if rep['unmatched']:
         log(f"  {len(rep['unmatched'])} rows match no line of the list and "
-            f"are left exactly as they were:")
+            f"are left exactly as they were.  A row whose line has moved by "
+            f"more than {DLV_MATCH} cm^-1 since dlv.dat was written, and "
+            f"which {KEYS_FILE} does not list, is one of them; check_sync.py "
+            f"then finds its transitions on a different observed line:")
         for row, wn in rep['unmatched'][:20]:
             log(f"    row {row:5d}  {wn:12.3f}")
     if rep['absent']:
@@ -1502,11 +1571,12 @@ def main(argv=None):
     dlv_path = os.path.join(args.iden2, 'dlv.dat')
     map_path = os.path.join(args.iden2, 'IDEN_level_ids.txt')
     shown_file = shown_path(args.iden2)
+    keys_file = keys_path(args.iden2)
     needed = [enlev_path, trans_path, map_path, args.lopt_levels, args.tp]
     written = [enlev_path, trans_path]
     if not args.no_lines:
         needed += [dlv_path, args.lopt_lines, args.config]
-        written += [dlv_path, shown_file]
+        written += [dlv_path, shown_file, keys_file]
     for path in needed:
         if not os.path.exists(path):
             raise SystemExit('%s does not exist' % path)
@@ -1656,7 +1726,8 @@ def main(argv=None):
         dlv_records, dlv_endings = IDEN.read_records(dlv_path)
         dispersion, _n = check_dispersion(dlv_records)
         dlv_records, dlv_rep = rewrite_dlv(dlv_records, observed, log, shown,
-                                           read_shown(args.iden2))
+                                           read_shown(args.iden2),
+                                           read_keys(args.iden2))
         dlv_rep['dispersion'] = dispersion
         report_dlv(dlv_rep, log)
         lopt_lines = read_lopt_transitions(args.lopt_lines)
@@ -1737,6 +1808,11 @@ def main(argv=None):
                 os.remove(shown_file)
                 log(f"  {SHOWN_FILE} removed: every row shows its line as "
                     f"measured")
+            if os.path.exists(keys_file):
+                backup(keys_file, args.backup_suffix, log)
+            write_keys(keys_file, dlv_rep['keyed'])
+            log(f"  {KEYS_FILE} lists the line each of the "
+                f"{len(dlv_rep['keyed'])} matched rows was written for")
         for index, (E, unc, known) in energies.items():
             enlev.set_measurement(index, unc, E, known)
         IDEN.write_records(enlev_path, enlev.records, enlev.endings)

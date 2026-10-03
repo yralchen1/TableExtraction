@@ -39,7 +39,8 @@ measured where, per class of line, as the convention factor kappa:
 kappa = 1 for the lines he flagged `*r` or `*v` - those sit exactly on the
 head-frame Ritz value - 0.944 for the plain lines of 1974, 0.633 for the plain
 lines of 1969 and 0.20 for the lines he called complex.  The classes and
-their values live in `[hfs.kappa]`.
+their values live in `[hfs.kappa]`, which since 2026-10-03 holds the values
+the plate calibration fits with them (0.925, 0.708 and 0.271).
 
 So a candidate transition i of an observed line is predicted at
 

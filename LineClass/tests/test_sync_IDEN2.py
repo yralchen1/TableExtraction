@@ -685,6 +685,59 @@ def test_a_file_on_another_dispersion_formula_stops_the_sync():
     assert sync.check_dispersion(good + rows[:1])[0][0][0] == 1
 
 
+def test_a_recalibrated_line_is_found_through_the_keys_record():
+    """The case check_sync.py found on 2026-10-03: a second calibration moved
+    a line by 0.05 since dlv.dat was written, so the row shows neither its
+    line's new wavenumber nor its wn_key.  Without the record it is left
+    alone; with it, it is the line it was written for."""
+    old = dlv_record(62, 20000.100, sync.wavelength_of(20000.100), 'c',
+                     0.0050, 7)
+    lines = [(20000.000, 20000.150, 0.1)]
+    _new, rep = sync.rewrite_dlv([old], lines, lambda *a: None)
+    assert rep['unmatched'] == [(7, 20000.100)]
+    new, rep = sync.rewrite_dlv([old], lines, lambda *a: None,
+                                keys={7: (20000.000, 20000.100)})
+    assert not rep['unmatched'] and not rep['absent']
+    assert float(new[0][sync.DLV_WN[0]:sync.DLV_WN[1]]) == 20000.150
+    assert rep['n_by_key'] == 1
+    assert rep['keyed'] == [(7, 20000.000, 20000.150)]
+
+
+def test_a_row_edited_since_it_was_written_is_not_taken_by_its_record():
+    """The record names the line a row was written for only while the row
+    still shows what was written; a row moved in IDEN2 is found by what it
+    shows now."""
+    old = dlv_record(62, 25000.000, sync.wavelength_of(25000.000), 'c',
+                     0.0050, 7)
+    lines = [(20000.000, 20000.150, 0.1), (25000.000, 25000.000, 0.1)]
+    new, rep = sync.rewrite_dlv([old], lines, lambda *a: None,
+                                keys={7: (20000.000, 20000.100)})
+    assert float(new[0][sync.DLV_WN[0]:sync.DLV_WN[1]]) == 25000.000
+    assert rep['keyed'] == [(7, 25000.000, 25000.000)] and rep['n_by_key'] == 0
+
+
+def test_an_unmatched_row_keeps_its_entry_in_the_keys_record():
+    old = dlv_record(62, 20000.100, sync.wavelength_of(20000.100), 'c',
+                     0.0050, 7)
+    _new, rep = sync.rewrite_dlv([old], [(31000.0, 31000.0, 0.1)],
+                                 lambda *a: None,
+                                 keys={7: (20000.000, 20000.100)})
+    assert rep['unmatched'] == [(7, 20000.100)]
+    assert rep['keyed'] == [(7, 20000.000, 20000.100)]
+
+
+def test_the_keys_record_reads_back_what_was_written(tmp_path):
+    key = 15714.85007185795
+    sync.write_keys(sync.keys_path(str(tmp_path)),
+                    [(6213, key, 15714.848), (1, 30000.0, 30000.1)])
+    assert sync.read_keys(str(tmp_path)) == {6213: (key, 15714.848),
+                                             1: (30000.0, 30000.1)}
+    assert sync.read_keys(str(tmp_path / 'nowhere')) == {}
+    lines = (tmp_path / sync.KEYS_FILE).read_text().splitlines()
+    assert lines[0] == 'line\twn_key\twn_written'
+    assert lines[1].startswith('1\t')
+
+
 REGISTRY = ('wn_key\tunc_wn\tdate\treason\n'
             '20000.1\t0.3\t\twidened in IDEN2\n'
             '30000.0\t0.01\t\tnarrower than the list\n')

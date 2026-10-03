@@ -82,7 +82,7 @@ def write_config(tmp_path, body, name='set.toml'):
 def test_the_baseline_has_it_off():
     cfg = config.load()
     assert cfg.hfs.apply is False
-    assert dict(cfg.hfs.kappa)['plain_1969'] == (0.633, 0.035)
+    assert dict(cfg.hfs.kappa)['plain_1969'] == (0.708, 0.021)
 
 
 def test_a_set_turns_it_on_with_one_line(tmp_path):

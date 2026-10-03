@@ -340,14 +340,17 @@ iden2_display = "measured"
 resolved_levels = ["059003.000642", "059003.000190"]
 
 [hfs.kappa]
-# [kappa, its uncertainty] per class, from hfs_kappa.py (Step 3, 2026-09-21),
-# fitted jointly with the plate calibration and therefore unchanged (D12).
+# [kappa, its uncertainty] per class, as fitted jointly with the plate
+# calibration in use (D12): wavelength_calibration.py of 2026-10-03, run on
+# the assignments of iter_hfs/.  Change them together with the calibration.
+# Until then they were the Step 3 values of hfs_kappa.py (2026-09-21):
+# plain_1974 0.944(14), plain_1969 0.633(35), c 0.20(12).
 #   flag        Sugar's *r and *v lines, whose pattern he saw; measured at
 #               the strongest component (Step 2), the anchor of the others
 #   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974
 #   plain_1969  unflagged lines above it, measured in 1969
 #   c           lines Sugar marked complex
 flag       = [1.0, 0.0]
-plain_1974 = [0.944, 0.014]
-plain_1969 = [0.633, 0.035]
-c          = [0.20, 0.12]
+plain_1974 = [0.925, 0.012]
+plain_1969 = [0.708, 0.021]
+c          = [0.271, 0.044]
