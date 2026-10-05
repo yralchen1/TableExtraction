@@ -91,7 +91,6 @@ wn_key	unc_wn	date	reason
 25555.9702	0.3	10/3/2026	"weak line, 0.13 off Ritz away from the center of gravity of 1129-1079, cause not found"
 22372.6908	0.3	10/3/2026	"weak line, 0.17 off Ritz, cause not found; the unresolved pattern of 1129-1083 is 0.81 from head to center of gravity"
 59346.0167	0.3	9/27/2026	hfs of f26s
-39960.6491	0.3	9/27/2026	close to cg of the pattern
 36193.2901	0.3	9/27/2026	hfs of f26s
 50210.3292	0.3	9/27/2026	hfs of f26s
 32572.7602	0.7	10/3/2026	"center of gravity of 1129-1027, not its head (0.67 apart); char d"
@@ -130,7 +129,6 @@ wn_key	unc_wn	date	reason
 53957.0443	0.3	9/28/2026	hfs of fds
 40402.9389	0.14	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 36468.7598	0.14	9/28/2026	blend
-39719.0502	0.5	9/28/2026	close to cg of the pattern (0.11 cm-1 past)
 55224.9751	0.5	9/28/2026	hfs of fds
 94414.705	0.5	9/28/2026	blend
 45604.9993	0.15	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
@@ -141,12 +139,9 @@ wn_key	unc_wn	date	reason
 33722.4702	0.3	9/30/2026	hfs of f26s
 28508.8216	0.25	10/3/2026	"char d: 1089-964 unresolved from its partner from the F = 2 sublevel of 1089, 0.50 lower; measured between the two"
 44134.0401	0.4	9/30/2026	hfs of f26s
-27443.3325	0.25	10/3/2026	"char d: 1089-972 unresolved from its partner from the F = 2 sublevel of 1089, 0.50 lower; measured between the two"
-33934.5817	0.3	9/30/2026	000190 F=2/F=3 centroid
 51071.138	0.4	9/30/2026	hfs of f26s
 31478.9216	0.3	9/30/2026	blend of head and rung 1 components (plus some rung 2)
 33044.2299	0.3	9/30/2026	hfs of f26s
-36647.5418	0.4	9/30/2026	c.g. of the pattern
 38425.7687	0.3	9/30/2026	hfs of f26s
 34406.941	0.2	9/30/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 61680.8807	0.4	9/30/2026	hfs of f26s
@@ -158,11 +153,10 @@ wn_key	unc_wn	date	reason
 54936.1186	0.4	9/30/2026	hfs of f26s
 35972.5687	0.5	10/1/2026	"measured near c.g., char d"
 40253.7799	0.6	10/1/2026	"measured near c.g., char w"
-44494.0809	0.7	10/1/2026	near (0.22 cm-1 past) the cg of the pattern
+44494.0809	0.25	10/1/2026	near (0.22 cm-1 past) the cg of the pattern
 37037.9192	0.6	10/1/2026	"measured near c.g., char w"
-35266.469	0.7	10/1/2026	near (0.14 cm-1 past) the cg of the pattern
+35266.469	0.15	10/1/2026	near (0.14 cm-1 past) the cg of the pattern
 40790.2001	0.5	10/1/2026	measured near c.g.
-44570.63	0.5	10/1/2026	c.g. of the pattern
 36302.2109	0.8	10/3/2026	"center of gravity of 1131-1003, not its head (0.78 apart); char d"
 27260.1627	0.15	10/2/2026	hfs of fds? Char d
 58102.308	0.7	10/2/2026	hfs of f26s

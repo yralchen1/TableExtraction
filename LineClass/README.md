@@ -3166,6 +3166,80 @@ The first eight rows (2026-10-05) are all `cg`:
   marked with it `unresolved`. With A(000190) = −0.157 their predicted centroids, −0.213 and
   −0.234 cm⁻¹ from the F = 3 position, match the observed −0.203 and −0.230.
 
+Once a line's residual is explained this way, its row in `inflated_unc_lines.txt` is removed
+rather than set to Sugar's value. A registry value is frozen, and a registry line is kept out
+of the calibration's outlier filter and out of the fit of its uncertainty class. A line that
+is understood belongs back in the model, with the model's uncertainty for its character and
+era, even though that value changes from one calibration pass to the next. Five of the eight
+rows were removed from the registry on 2026-10-05; 44494.0809 and 35266.469 were reduced.
+
+#### Finding the lines that belong there: `kappa_candidates.py`
+
+`kappa_candidates.py` (2026-10-05) searches a working set for lines whose κ is not their
+class's, and audits the rows already in the registry. It writes only its own report,
+`<set>/kappa_candidates.csv`; every row of the registry stays the analyst's decision.
+
+```bash
+python kappa_candidates.py                  # iter_hfs/
+python kappa_candidates.py --dchi2 16 --fit-sigma 2 --max-u-kappa 0.3
+```
+
+**The residual under another κ.** LOPT fits each line in the head frame at the κ it was
+given, leaving the residual r = `dWO-C`. Had the line been given κ′ instead, its residual
+would be r(κ′) = r(κ) + (κ − κ′)·D. So three hypotheses are compared on one number: the
+line's class, the head (κ = 1) and the center of gravity (κ = 0).
+
+**Level support, from LOPT's own uncertainties.** A line the fit used has partly pulled its
+levels toward itself. Its leverage h = (uWnCstat/uWnOStat)² is the share of its own residual
+the fit has already absorbed. The residual it would have if the fit had not used it is
+r/(1 − h). The uncertainty of the Ritz value the other lines give alone is
+u_rest = uWnCstat·uWnOStat/√(uWnOStat² − uWnCstat²). This counts precision, not lines. A
+level with many assigned lines, only one of them precise, gives that line h near 1 and an
+unbounded u_rest, so the line is untestable.
+
+**The line's own uncertainty** in the test is the calibration's model value for its
+character and era, read from the class table of `wavelength_calibration.txt`. It is never
+the value in `inflated_unc_lines.txt`: a line was usually inflated because of the very
+residual tested here. The uncertainty of the hfs shift is added in quadrature:
+σ = √(u_model² + u_hfs_shift² + u_rest²).
+
+**What is tested, and the verdicts.** A line is tested when it is the only accepted
+transition of its observed line, both of its levels have a known A (or are resolved), and the
+κ it measures is known to within `--max-u-kappa` (σ/|D| ≤ 0.3). The verdicts:
+- `candidate-cg` or `candidate-head`: the class loses to the better alternative by
+  Δχ² ≥ `--dchi2` (9, three sigma) and that alternative fits within `--fit-sigma` (2σ);
+- `class-fails`: the class is rejected beyond 3σ and neither alternative fits;
+- `fits-class`: none of the above;
+- `audit-ok` or `audit-fails`, for a line already held (a row of `kappa_exceptions.txt`, or a
+  main line of `hfs_satellites.txt`): whether it fits its own κ within 2σ.
+
+Blends and lines with an undetermined A are counted, not tested.
+
+**The evidence beside the residual.** A residual alone should not decide a row, or the registry
+would only record where lines happen to sit. Each row also gives:
+- Sugar's character and the intensity;
+- the nearest other line of the line list;
+- `rung1_dwn`, where the first rung of the pattern lies from its strongest component, and
+  `line_at_rung1`, a line of the list within 0.1 cm⁻¹ of it if there is one;
+- the registry row, if the line has one.
+
+The console summary gives the median κ of the tested lines by character and era. It also lists
+the levels with more than one line off its class. A level whose lines fail in opposite
+directions is more likely wrong itself, in its A or its energy, than each of its lines.
+
+**The first run (2026-10-05, iter_hfs after convergence)** tested 332 lines. 48 were too weakly
+supported to test, 1110 rows were blends, and 4118 rows touched a level of unknown A. Results:
+- **Candidates:** 6 at the cg (40253.7799, 37682.9107, 21793.4414, 36302.2109, 52033.7933,
+  32572.7601) and 3 at the head (25340.6622, 42750.9010, 23533.7482).
+- **Class rejected, neither alternative fits:** 15 lines.
+- **Audits:** 16 rows fit their own κ. Two fail: 44494.0809 sits 0.24 cm⁻¹ past the center of
+  gravity (2.6σ), and the satellite head 23792.4971 sits at κ = 0.91 ± 0.04 (2.3σ).
+- **Levels:** five of the failing lines belong to 000150 (IDEN2 1129) and four to 000165
+  (IDEN2 1116), in both directions.
+
+By character, the median κ of the tested lines is 0.97–0.98 for `*r`/`*v`, 0.83 for plain
+1974 lines, 0.10 for `c`, 0.28 for `w` and 0.34 for `d`.
+
 **What the correction replaces.** A level with a determined A no longer carries its
 hyperfine width from `level_hfs_widths.csv` into LOPT's uncertainty, and a flagged line, or
 the main line of resolved companions, carries none; a level without a determined A keeps its
