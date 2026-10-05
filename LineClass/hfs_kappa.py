@@ -46,12 +46,13 @@ flagged wavelength at the extreme component of the pattern, with no measurable
 offset, so `kappa(flag) = 1` is now a measurement rather than an assumption.
 
 Step 2 measured one thing more that belongs here.  Fitted against the observed
-component spacings, the calculated A constants are 4.2 +- 0.6 per cent too
-large.  Since `D` is computed from those constants, every kappa fitted against
-`D` absorbs that error, and the honest anchor is not `kappa(flag) = 1` but
-`kappa(flag) = 0.958 +- 0.006` with `D` as computed.  Both anchors are
-reported below; the difference between them is smaller than the uncertainty of
-the result, which is worth knowing.
+component spacings, the calculated A constants are 3.6 +- 0.8 per cent too
+large (`A_SCALE`, remeasured 2026-10-03 on the calculated constants alone).
+`read_A_constants` therefore multiplies every calculated constant by
+`A_SCALE` and leaves the measured ones - from flags, resolved components and
+the like - as they are; see `scaled_A`.  The `D` of every line is then on the
+measured scale, the same one `hfs_correction.py` gives the pipeline, and
+`kappa(flag) = 1` is the anchor.
 
 THE WEIGHTS
 ===========
@@ -119,9 +120,12 @@ STATED_PLAIN = {1974: 0.0030, 1969: 0.0040}
 STATED_OTHER = 0.0070
 
 #: the scale error of the calculated A constants measured in Step 2, and its
-#: uncertainty.  `hfs_patterns.scale_tests` is where these come from.
-A_SCALE = 0.9582
-U_A_SCALE = 0.0058
+#: uncertainty.  `hfs_patterns.scale_tests` on the 135 patterns whose two
+#: levels both have a calculated A (271 spacings), remeasured 2026-10-03; the
+#: uncertainty is the jackknife one (the formal one is 0.0048).  It applies to
+#: calculated constants only (`is_calculated`).
+A_SCALE = 0.9638
+U_A_SCALE = 0.0079
 
 #: a line this far from the fit in units of its own uncertainty is set aside
 #: as probably misassigned.
@@ -156,8 +160,12 @@ INFLATED = 'inflated_unc_lines.txt'
 
 #: `key` is the line's wn_key - Sugar's observed wavenumber, the name the
 #: registry and the ledger know it by.  `None` means the same as `wn`.
+#: `fixed` names what holds the line's kappa ('' if nothing does; see
+#: `read_lines` with a model): such a line has `cls` 'flag' and D already
+#: multiplied by its kappa.
 Line = collections.namedtuple(
-    'Line', 'wn char era cls ucls low upp D dJ key', defaults=(None,))
+    'Line', 'wn char era cls ucls low upp D dJ key fixed',
+    defaults=(None, ''))
 
 
 def era_of(wn):
@@ -336,8 +344,30 @@ def held_uncertainties(lines):
     return [fixed.lookup(line_wn_key(ln)) for ln in lines]
 
 
+def is_calculated(source):
+    """True if a row of `A_hfs_levels.csv` with this source holds a
+    calculated A constant: one evaluated from Reader and Sugar's published
+    coefficients, or from the level's composition.  These are the constants
+    Step 2's scale error belongs to.  Every other determined source is a
+    measurement - flag intervals, resolved components, hand estimates from
+    the lines - and is already on the measured scale."""
+    return source.startswith('composition') or source.startswith(
+        'Reader & Sugar')
+
+
+def scaled_A(A, u_A, source):
+    """`(A, u_A)` on the measured scale: a calculated constant multiplied by
+    `A_SCALE`, with the scale's own uncertainty added in quadrature; any
+    other constant unchanged.  `hfs_correction.Model` reads the table through
+    this too, so that the pipeline and the fits of kappa use the same D."""
+    if not is_calculated(source):
+        return A, u_A
+    return A_SCALE * A, math.hypot(A_SCALE * u_A, A * U_A_SCALE)
+
+
 def read_A_constants(path=None):
-    """`level_id -> (J, A, u_A, source)` from `A_hfs_levels.csv`.
+    """`level_id -> (J, A, u_A, source)` from `A_hfs_levels.csv`, with the
+    calculated constants put on the measured scale (`scaled_A`).
 
     A level whose constant is undetermined, and a level whose calculated
     constant contradicts its own flags (section 3.2), are both given A = 0
@@ -350,10 +380,10 @@ def read_A_constants(path=None):
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
             src = row['source']
-            A = float(row['A_cm-1'])
+            A, u_A = scaled_A(float(row['A_cm-1']), float(row['u_A']), src)
             if src == 'not determined' or 'CONFLICT' in src:
                 A = 0.0
-            out[row['level_id']] = (float(row['J']), A, float(row['u_A']), src)
+            out[row['level_id']] = (float(row['J']), A, u_A, src)
     return out
 
 
@@ -372,7 +402,7 @@ def read_levels():
     return {lid: lev.J_val for lid, lev in levels.items()}
 
 
-def read_lines(path=None, constants=None, J_of=None, raw=False):
+def read_lines(path=None, constants=None, J_of=None, raw=False, model=None):
     """The accepted, singly assigned lines, with their displacement D.
 
     A line accepted for more than one transition is a blend: its measured
@@ -384,6 +414,14 @@ def read_lines(path=None, constants=None, J_of=None, raw=False):
     which has no wn_key column; in a working set's table wn_obs is already
     calibrated, and a fit of the calibration has to start from what Sugar
     measured.
+
+    With `model`, an `hfs_correction.Model`, the class and D of each line
+    are the model's (`Model.fit_terms`), so that the fit sees the lines as
+    the classification does: resolved levels count S = 0, and a line whose
+    kappa a registry fixes - an entry of the kappa exceptions, the main line
+    of resolved companions - is an anchor-class line with D multiplied by
+    that kappa, and votes on no class's kappa.  `constants` is then not
+    used: the model reads its own table of A constants.
     """
     path = path or os.path.join(HERE, LINES)
     constants = read_A_constants() if constants is None else constants
@@ -410,10 +448,14 @@ def read_lines(path=None, constants=None, J_of=None, raw=False):
             era = era_of(wn)
             jl, ju = J_of.get(low), J_of.get(upp)
             dJ = None if jl is None or ju is None else ju - jl
+            if model is None:
+                cls, D, fixed = kappa_class(char), S(upp) - S(low), ''
+            else:
+                cls, D, fixed = model.fit_terms(char, key, low, upp)
             lines.append(Line(wn=wn, char=char, era=era,
-                              cls=kappa_class(char), ucls=(char, era),
-                              low=low, upp=upp, D=S(upp) - S(low), dJ=dJ,
-                              key=key))
+                              cls=cls, ucls=(char, era),
+                              low=low, upp=upp, D=D, dJ=dJ,
+                              key=key, fixed=fixed))
     return lines
 
 
@@ -439,8 +481,8 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
     the class named by `anchor` is held at `anchor_value` and the rest are
     free, which is what makes the system full rank (see the degeneracy
     theorem in the module docstring).  `scale` multiplies every displacement
-    D, and is how Step 2's measured scale error of the A constants is carried
-    in.  `use` is an optional boolean mask of the lines to fit.
+    D; `read_A_constants` already puts the calculated constants on the
+    measured scale, so it is 1 except in a test of that scale.  `use` is an optional boolean mask of the lines to fit.
 
     Returns a dict with the fitted kappas, their covariance, the residual of
     every line (including the ones masked out), and the fit diagnostics.
@@ -940,10 +982,10 @@ def _fmt(value, u):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('--lines', default=None)
-    ap.add_argument('--scale', type=float, default=A_SCALE,
-                    help='scale applied to every A constant; Step 2 measured '
-                         '%.4f, and 1.0 uses the constants as calculated'
-                         % A_SCALE)
+    ap.add_argument('--scale', type=float, default=1.0,
+                    help='an extra factor on every D, for testing; the '
+                         'calculated A constants are already scaled by %.4f '
+                         'when read' % A_SCALE)
     ap.add_argument('--outlier', type=float, default=OUTLIER_SIGMA)
     ap.add_argument('--nulls', type=int, default=20,
                     help='permutations of the displacements in control 1')
@@ -976,7 +1018,8 @@ def main(argv=None):
     print('\nset aside as probably misassigned, beyond %.0f sigma: %d of %d'
           % (args.outlier, n_out, len(lines)))
 
-    print('\nthe convention factors, A constants scaled by %.4f' % args.scale)
+    print('\nthe convention factors, calculated A constants scaled by %.4f,'
+          ' every D by %.4f more' % (A_SCALE, args.scale))
     print('   fit: %d lines, %d unknowns, rank %d, chi2/dof %.2f, rms %.4f'
           % (fit['n'], fit['unknowns'], fit['rank'],
              fit['chi2'] / max(fit['dof'], 1), fit['rms']))

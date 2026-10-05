@@ -14,16 +14,19 @@ their strongest component, that the two eras disagree, and that the
 displacements carry the signal - not the last digit of any of them.
 """
 
+import math
+import os
+
 import pytest
 
+import hfs_correction
 import hfs_kappa
 
 
 @pytest.fixture(scope='module')
 def fitted():
     lines = hfs_kappa.read_lines()
-    sigma, keep, table, fit = hfs_kappa.adopt_uncertainties(
-        lines, scale=hfs_kappa.A_SCALE)
+    sigma, keep, table, fit = hfs_kappa.adopt_uncertainties(lines)
     return lines, sigma, keep, table, fit
 
 
@@ -42,6 +45,44 @@ def test_stated_uncertainty_converts_angstrom_to_wavenumber():
     # deviation from Ritz, 0.0070 angstrom
     assert hfs_kappa.stated_uncertainty('w', 1974, 20000.0) == pytest.approx(
         0.0070 * 1e-8 * 20000.0 ** 2)
+
+
+def test_only_calculated_constants_are_scaled():
+    """Step 2's scale error belongs to the calculated A constants; a constant
+    measured from flags or from resolved components is already on the
+    measured scale and is read as written."""
+    s, u_s = hfs_kappa.A_SCALE, hfs_kappa.U_A_SCALE
+    for src in ('composition', 'Reader & Sugar 1965 (calculated)',
+                'composition, flags consistent (2026-09-29 review)'):
+        assert hfs_kappa.is_calculated(src)
+        assert hfs_kappa.scaled_A(0.2, 0.01, src) == pytest.approx(
+            (0.2 * s, math.hypot(0.01 * s, 0.2 * u_s)))
+    for src in ('flag interval', 'not determined',
+                'estimate: unsplit lines (2026-10-01 review)',
+                'center of gravity of 35378.125 (1116-991), 2026-10-02',
+                'rungs 1 and 2 of 1228-1116 (21962.950 and 21963.279), '
+                '2026-10-02'):
+        assert not hfs_kappa.is_calculated(src)
+        assert hfs_kappa.scaled_A(0.2, 0.01, src) == (0.2, 0.01)
+
+
+def test_the_project_table_is_read_on_the_measured_scale():
+    """Every row of A_hfs_levels.csv comes back scaled by its source."""
+    import csv
+    path = os.path.join(os.path.dirname(hfs_kappa.__file__),
+                        hfs_kappa.A_LEVELS)
+    with open(path, encoding='utf-8', newline='') as fh:
+        rows = {r['level_id']: r for r in csv.DictReader(fh)}
+    read = hfs_kappa.read_A_constants()
+    assert set(read) == set(rows)
+    for lid, r in rows.items():
+        A = read[lid][1]
+        if not hfs_correction.is_determined(r['source']):
+            assert A == 0.0
+        elif hfs_kappa.is_calculated(r['source']):
+            assert A == pytest.approx(hfs_kappa.A_SCALE * float(r['A_cm-1']))
+        else:
+            assert A == float(r['A_cm-1'])
 
 
 def test_era_and_class_of_a_line():
@@ -167,7 +208,7 @@ def test_the_two_eras_disagree(fitted):
     kappa per era, not one per class.
     """
     lines, sigma, keep, _, _ = fitted
-    fit = hfs_kappa.era_test(lines, sigma, keep, scale=hfs_kappa.A_SCALE)
+    fit = hfs_kappa.era_test(lines, sigma, keep)
     d, u = hfs_kappa.difference(fit, ('plain', 1974), ('plain', 1969))
     assert fit['kappa'][('plain', 1974)] > fit['kappa'][('plain', 1969)]
     assert d / u > 5.0
@@ -181,8 +222,7 @@ def test_the_era_difference_is_not_an_artifact_of_the_constants(fitted):
     does not.
     """
     lines, sigma, keep, _, _ = fitted
-    fit, shared, counts = hfs_kappa.shared_level_test(
-        lines, sigma, keep, scale=hfs_kappa.A_SCALE)
+    fit, shared, counts = hfs_kappa.shared_level_test(lines, sigma, keep)
     assert len(shared) > 50
     d, u = hfs_kappa.difference(fit, ('plain', 1974), ('plain', 1969))
     assert d / u > 4.0
@@ -196,7 +236,7 @@ def test_the_flag_branches_agree(fitted):
     residuals agree, within about two sigma of the dJ = +1 branch.
     """
     lines, sigma, keep, _, _ = fitted
-    fit = hfs_kappa.branch_test(lines, sigma, keep, scale=hfs_kappa.A_SCALE)
+    fit = hfs_kappa.branch_test(lines, sigma, keep)
     values = [fit['kappa'][k] for k in fit['kappa'] if isinstance(k, tuple)]
     assert len(values) == 3
     assert max(values) - min(values) < 0.15
@@ -210,7 +250,7 @@ def test_permuting_the_displacements_destroys_kappa(fitted):
     line with its own pattern.  kappa then comes out at zero.
     """
     lines, sigma, keep, _, fit = fitted
-    draws = [hfs_kappa.null_test(lines, sigma, keep, scale=hfs_kappa.A_SCALE,
+    draws = [hfs_kappa.null_test(lines, sigma, keep,
                                  seed=s)['kappa']['plain']
              for s in range(4)]
     mean = sum(draws) / len(draws)

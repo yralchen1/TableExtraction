@@ -1,9 +1,9 @@
 level_id,cfg,J,A_cm-1,u_A,source,n_flagged
-059003.000040,4f3,5.5,+0.0000,0.0500,not determined,1
-059003.000043,4f3,3.5,+0.0470,0.0500,not determined,2
+059003.000040,4f3,5.5,+0.0195,0.0012,"resolved components, 1 pattern, 4 positions (Step 4 anchored fit, 2026-10-04)",1
+059003.000043,4f3,3.5,+0.0237,0.0020,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000055,4f3,4.5,+0.0214,0.0050,"rungs 1 and 2 of 1228-1116 (21962.950 and 21963.279), 2026-10-02",0
 059003.000125,f26s,3.5,-0.0275,0.0049,Reader & Sugar 1965 (calculated),0
-059003.000127,f26s,4.5,+0.0970,0.0039,Reader & Sugar 1965 (calculated),0
+059003.000127,f26s,4.5,+0.0775,0.0015,"resolved components, 13 patterns, 22 positions (Step 4 anchored fit, 2026-10-04)",0
 059003.000133,f26s,5.5,+0.0816,0.0034,Reader & Sugar 1965 (calculated),0
 059003.000134,f26s,4.5,-0.0206,0.0038,Reader & Sugar 1965 (calculated),0
 059003.000139,f26s,6.5,+0.0700,0.0029,Reader & Sugar 1965 (calculated),0
@@ -14,6 +14,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000148,f26s,4.5,+0.0948,0.0032,Reader & Sugar 1965 (calculated),0
 059003.000149,f26s,2.5,-0.0428,0.0035,Reader & Sugar 1965 (calculated),0
 059003.000150,f26s,3.5,-0.0329,0.0033,Reader & Sugar 1965 (calculated),0
+059003.000151,f25d,4.5,-0.0683,0.0057,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",3
 059003.000161,f26s,4.5,+0.0942,0.0031,Reader & Sugar 1965 (calculated),0
 059003.000165,f26s,3.5,-0.0391,0.0039,Reader & Sugar 1965 (calculated),0
 059003.000182,f26s,2.5,+0.1495,0.0030,Reader & Sugar 1965 (calculated),0
@@ -21,7 +22,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000187,f26s,1.5,+0.2053,0.0021,Reader & Sugar 1965 (calculated),0
 059003.000188,f26s,5.5,-0.0178,0.0038,Reader & Sugar 1965 (calculated),0
 059003.000189,f26s,6.5,+0.0758,0.0034,Reader & Sugar 1965 (calculated),0
-059003.000190,f26s,0.5,-0.0787,0.0022,Reader & Sugar 1965 (calculated),0
+059003.000190,f26s,0.5,-0.1570,0.0100,"resolved F = 3/F = 2 pair 29294.7083/29294.2095 (IDEN2 1089-960), 4f26s_2P_0.5_hfs.md; adopted 2026-10-05 (calculated -0.0787)",0
 059003.000191,f26s,2.5,+0.1307,0.0025,Reader & Sugar 1965 (calculated),0
 059003.000192,f26s,1.5,-0.1060,0.0030,Reader & Sugar 1965 (calculated),0
 059003.000194,f26p,3.5,+0.0296,0.0083,composition,5
@@ -32,85 +33,85 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000199,f26p,4.5,+0.0314,0.0061,composition,4
 059003.000200,f26p,3.5,+0.0381,0.0062,composition,5
 059003.000201,f26p,2.5,+0.0479,0.0080,composition,3
-059003.000202,f5d2,4.5,+0.0378,0.0500,not determined,3
+059003.000202,f5d2,4.5,+0.0339,0.0018,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-04)",3
 059003.000203,f26p,5.5,+0.0259,0.0059,composition,5
-059003.000204,f5d2,4.5,+0.0000,0.0500,not determined,1
+059003.000204,f5d2,4.5,+0.0324,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000205,f26p,5.5,+0.0223,0.0061,composition,5
 059003.000206,f26p,6.5,+0.0295,0.0063,composition,3
 059003.000207,f26p,1.5,+0.0192,0.0120,composition,2
-059003.000208,f5d2,3.5,+0.0477,0.0500,not determined,6
+059003.000208,f5d2,3.5,+0.0355,0.0022,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-04)",6
 059003.000209,f26p,2.5,+0.0509,0.0096,composition,4
 059003.000210,f26p,4.5,+0.0293,0.0057,composition,5
 059003.000211,f26p,3.5,+0.0367,0.0074,composition,7
-059003.000212,f26p,5.5,+0.0312,0.0481,flag interval,4
-059003.000213,f5d2,5.5,+0.0000,0.0500,not determined,2
+059003.000212,f26p,5.5,+0.0282,0.0012,"resolved components, 4 patterns, 10 positions (Step 4 anchored fit, 2026-10-04)",4
+059003.000213,f5d2,5.5,+0.0282,0.0017,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000214,f26p,6.5,+0.0266,0.0058,composition,2
-059003.000215,f5d2,4.5,+0.0284,0.0489,flag interval,5
+059003.000215,f5d2,4.5,+0.0235,0.0019,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-04)",5
 059003.000216,f26p,2.5,+0.0123,0.0091,composition,2
-059003.000217,f5d2,2.5,+0.0000,0.0500,not determined,2
+059003.000217,f5d2,2.5,+0.0351,0.0030,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000218,f26p,4.5,+0.0336,0.0073,composition,6
-059003.000219,f5d2,5.5,+0.0324,0.0492,flag interval,2
+059003.000219,f5d2,5.5,+0.0200,0.0020,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000220,f26p,3.5,+0.0133,0.0078,composition,2
 059003.000221,f26p,3.5,+0.0341,0.0066,composition,4
-059003.000222,f5d2,2.5,+0.0000,0.0500,not determined,3
+059003.000222,f5d2,2.5,+0.0298,0.0033,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",3
 059003.000223,f26p,5.5,+0.0227,0.0054,"composition, flags consistent (2026-09-29 review)",5
-059003.000224,f5d2,3.5,+0.0363,0.0500,not determined,5
-059003.000225,f5d2,6.5,+0.0252,0.0439,flag interval,2
-059003.000226,f5d2,6.5,+0.0252,0.0439,flag interval,3
+059003.000224,f5d2,3.5,+0.0204,0.0016,"resolved components, 3 patterns, 8 positions (Step 4 anchored fit, 2026-10-04)",5
+059003.000225,f5d2,6.5,+0.0210,0.0014,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-04)",2
+059003.000226,f5d2,6.5,+0.0221,0.0014,"resolved components, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-04)",3
 059003.000227,f26p,7.5,+0.0221,0.0055,composition,1
 059003.000229,f26p,2.5,+0.0297,0.0063,composition,2
 059003.000230,f5d2,6.5,+0.0223,0.0053,composition,2
-059003.000231,f5d2,3.5,+0.0342,0.0500,not determined,3
+059003.000231,f5d2,3.5,+0.0177,0.0032,"resolved components, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",3
 059003.000232,f26p,1.5,+0.0329,0.0060,composition,1
-059003.000233,f5d2,2.5,-0.0462,0.0040,flag interval,3
-059003.000234,f5d2,4.5,+0.0000,0.0500,not determined,2
-059003.000235,f5d2,3.5,+0.0000,0.0500,not determined,2
-059003.000236,f5d2,2.5,+0.0445,0.0500,not determined,2
+059003.000233,f5d2,2.5,+0.0193,0.0044,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-04)",3
+059003.000234,f5d2,4.5,+0.0284,0.0071,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",2
+059003.000235,f5d2,3.5,+0.0287,0.0056,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-04)",2
+059003.000236,f5d2,2.5,+0.0251,0.0071,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000237,f26p,4.5,+0.0261,0.0061,composition,3
 059003.000238,f26p,3.5,+0.0173,0.0080,composition,3
 059003.000239,f26p,4.5,+0.0254,0.0060,composition,6
 059003.000240,f26p,1.5,+0.0293,0.0088,composition,2
-059003.000242,f5d2,7.5,+0.0000,0.0500,not determined,1
-059003.000243,f5d2,3.5,+0.0000,0.0500,not determined,4
+059003.000242,f5d2,7.5,+0.0150,0.0012,"resolved components, 1 pattern, 5 positions (Step 4 anchored fit, 2026-10-04)",1
+059003.000243,f5d2,3.5,+0.0211,0.0014,"resolved components, 2 patterns, 9 positions (Step 4 anchored fit, 2026-10-04)",4
 059003.000244,f26p,4.5,+0.0341,0.0069,composition,4
 059003.000245,f26p,3.5,+0.0242,0.0056,composition,4
 059003.000246,f26p,5.5,+0.0231,0.0058,composition,3
-059003.000247,f5d2,4.5,+0.0251,0.0500,not determined,2
+059003.000247,f5d2,4.5,+0.0229,0.0024,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000248,f26p,3.5,+0.0251,0.0055,"composition, flags consistent (2026-09-29 review)",5
 059003.000249,f26p,2.5,+0.0244,0.0062,composition,1
-059003.000250,f5d2,3.5,+0.0332,0.0500,not determined,2
+059003.000250,f5d2,3.5,+0.0366,0.0080,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",2
 059003.000251,f26p,4.5,+0.0243,0.0055,composition,5
-059003.000252,f5d2,5.5,+0.0000,0.0500,not determined,1
-059003.000253,f5d2,3.5,+0.0344,0.0500,not determined,4
-059003.000255,f5d2,4.5,+0.0319,0.0500,not determined,2
-059003.000256,f5d2,5.5,+0.0000,0.0500,not determined,1
+059003.000252,f5d2,5.5,+0.0200,0.0020,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",1
+059003.000253,f5d2,3.5,+0.0162,0.0021,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-04)",4
+059003.000255,f5d2,4.5,+0.0169,0.0014,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-04)",2
+059003.000256,f5d2,5.5,+0.0157,0.0021,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000258,f5d2,4.5,+0.0000,0.0500,not determined,1
-059003.000260,f5d2,1.5,+0.0089,0.0080,"companion 21273.954 of 1092-1000 (the F = 3 group), with A(000187) = +0.2053, 2026-10-02",0
+059003.000260,f5d2,1.5,+0.0013,0.0080,"companion 21273.954 of 1092-1000 (the F = 3 group), with A(000187) = +0.1979 (0.9638 x +0.2053), 2026-10-02, recomputed 2026-10-04",0
 059003.000261,f26p,2.5,+0.0299,0.0076,composition,2
 059003.000262,f26p,4.5,+0.0254,0.0056,composition,2
 059003.000263,f26p,5.5,+0.0251,0.0059,composition,2
 059003.000264,f26p,3.5,+0.0264,0.0055,composition,2
-059003.000267,f5d2,3.5,+0.0000,0.0500,not determined,1
+059003.000267,f5d2,3.5,+0.0337,0.0086,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",1
 059003.000270,f5d2,2.5,+0.0385,0.0210,"center of gravity of 35378.125 (1116-991), 2026-10-02",0
 059003.000273,f26p,1.5,+0.0097,0.0116,composition,2
-059003.000274,f5d2,2.5,+0.0464,0.0500,not determined,2
+059003.000274,f5d2,2.5,+0.0253,0.0043,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000275,f26p,2.5,+0.0464,0.0113,composition,2
-059003.000276,f5d2,5.5,+0.0000,0.0500,not determined,1
-059003.000277,f5d2,4.5,+0.0000,0.0500,not determined,1
-059003.000279,f5d2,2.5,+0.0000,0.0500,not determined,1
+059003.000276,f5d2,5.5,+0.0204,0.0074,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",1
+059003.000277,f5d2,4.5,+0.0163,0.0084,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",1
+059003.000279,f5d2,2.5,+0.0189,0.0038,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000280,f26p,0.5,+0.0299,0.0118,composition,2
 059003.000281,f26p,3.5,+0.0251,0.0067,composition,1
-059003.000282,f5d2,5.5,+0.0359,0.0500,not determined,2
-059003.000284,f5d2,6.5,+0.0000,0.0500,not determined,1
+059003.000282,f5d2,5.5,+0.0257,0.0019,"resolved components, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-04)",2
+059003.000284,f5d2,6.5,+0.0246,0.0041,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",1
 059003.000285,f26p,2.5,+0.0251,0.0063,composition,2
-059003.000286,f5d2,3.5,+0.0000,0.0500,not determined,1
+059003.000286,f5d2,3.5,+0.0236,0.0044,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000287,f26p,0.5,-0.0084,0.0059,composition,3
 059003.000288,f26p,1.5,+0.0395,0.0168,composition,2
 059003.000289,f26p,5.5,+0.0220,0.0069,composition,2
 059003.000290,f26p,1.5,-0.0001,0.0106,composition,2
 059003.000291,f26p,6.5,+0.0360,0.0067,composition,2
 059003.000292,f26p,2.5,+0.0386,0.0112,composition,2
-059003.000293,f5d2,1.5,+0.0895,0.0500,not determined,2
+059003.000293,f5d2,1.5,+0.0153,0.0052,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-04)",2
 059003.000294,f26p,1.5,+0.0140,0.0089,composition,2
 059003.000295,f5d2,2.5,+0.0000,0.0500,not determined,1
 059003.000296,f26p,5.5,+0.0287,0.0057,composition,2
@@ -119,18 +120,20 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000300,f26p,3.5,+0.0190,0.0065,composition,1
 059003.000301,f26p,7.5,+0.0272,0.0057,composition,1
 059003.000302,f26p,2.5,+0.0184,0.0062,composition,2
-059003.000431,f5d2,1.5,+0.0000,0.0500,not determined,1
-059003.000432,f5d2,1.5,+0.0383,0.0180,"center of gravity of the companion 32426.086 of 1140-1053, with A(000140) = -0.0826, 2026-10-02",1
+059003.000431,f5d2,1.5,+0.0103,0.0111,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-04)",1
+059003.000432,f5d2,1.5,+0.0416,0.0180,"center of gravity of the companion 32426.086 of 1140-1053, with A(000140) = -0.0796 (0.9638 x -0.0826), 2026-10-02, recomputed 2026-10-04",1
 059003.000433,f26p,2.5,+0.0260,0.0061,composition,2
-059003.000437,f5d2,4.5,+0.0000,0.0500,not determined,1
-059003.000439,f5d2,5.5,+0.0200,0.0120,"center of gravity of 37682.867 (1118-980), with A(000161) = +0.0942, 2026-10-02",0
-059003.000440,f5d2,2.5,+0.0000,0.0500,not determined,1
-059003.000441,f5d2,6.5,+0.0304,0.0454,flag interval,2
-059003.000443,f5d2,7.5,+0.0000,0.0500,not determined,1
+059003.000437,f5d2,4.5,+0.0230,0.0039,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",1
+059003.000439,f5d2,5.5,+0.0172,0.0120,"center of gravity of 37682.867 (1118-980), with A(000161) = +0.0908 (0.9638 x +0.0942), 2026-10-02, recomputed 2026-10-04",0
+059003.000440,f5d2,2.5,+0.0141,0.0045,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",1
+059003.000441,f5d2,6.5,+0.0305,0.0018,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",2
+059003.000443,f5d2,7.5,+0.0240,0.0016,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000444,f26p,0.5,+0.0874,0.0344,composition,1
 059003.000447,f26p,1.5,+0.0157,0.0092,composition,3
 059003.000448,f5d6s,4.5,+0.0000,0.0500,not determined,1
-059003.000449,f26p,1.5,+0.0000,0.0500,not determined,1
+059003.000449,f26p,1.5,+0.0044,0.0062,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",1
 059003.000451,f5d6s,3.5,+0.1100,0.0100,estimate: unsplit lines (2026-10-01 review),0
 059003.000453,f5d2,1.5,+0.0000,0.0500,not determined,1
-059003.000629,f5d6s,3.5,+0.0199,0.0240,"center of gravity of 52033.827 (1118-918), with A(000161) = +0.0942, 2026-10-02",0
+059003.000629,f5d6s,3.5,+0.0155,0.0240,"center of gravity of 52033.827 (1118-918), with A(000161) = +0.0908 (0.9638 x +0.0942), 2026-10-02, recomputed 2026-10-04",0
+059003.000654,f5d2,2.5,+0.0173,0.0036,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-04)",3
+059003.000656,f5d2,3.5,+0.0140,0.0043,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-04)",1

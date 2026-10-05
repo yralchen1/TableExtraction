@@ -113,9 +113,22 @@ hfs_A_levels = "A_hfs_levels.csv"
 # marked blend = 1 is also a transition of its own: it is classified as any
 # other line, and the hfs component, written beside it, keeps its share of
 # the line's calculated intensity.  Read only by
-# the real classification, not by the calibration runs.  See
-# hfs_correction.py.  Comment the line out to run without it.
+# the real classification, not by the chance-coincidence calibration runs;
+# wavelength_calibration.py reads it too and holds the main line's kappa at
+# 1.  See hfs_correction.py.  Comment the line out to run without it.
 hfs_satellites = "hfs_satellites.txt"
+# Lines measured otherwise than their class says (tab-delimited, columns
+# wn_key, low_id, upp_id, class, unresolved, date, reason; a row starting
+# with # is a comment).  Kept by hand, keyed on wn_key like the ledger, one
+# row per transition of a line.  class is head (kappa = 1), cg (kappa = 0)
+# or a class of [hfs.kappa], whose value it then takes; the named
+# transition is predicted, and the line corrected, with that kappa, and
+# wavelength_calibration.py holds it there instead of fitting it.
+# unresolved names levels of [hfs] resolved_levels whose sublevels the line
+# does not separate (comma-separated): for that line they count with their
+# whole pattern, S = I*A*J.  Read with [hfs] apply on.  See
+# hfs_correction.py.  Comment the line out to run without it.
+kappa_exceptions = "kappa_exceptions.txt"
 
 [range]
 # Wavenumber interval of the observed spectrum (cm^-1).  Candidate transitions
@@ -341,16 +354,30 @@ resolved_levels = ["059003.000642", "059003.000190"]
 
 [hfs.kappa]
 # [kappa, its uncertainty] per class, as fitted jointly with the plate
-# calibration in use (D12): wavelength_calibration.py of 2026-10-03, run on
-# the assignments of iter_hfs/.  Change them together with the calibration.
-# Until then they were the Step 3 values of hfs_kappa.py (2026-09-21):
-# plain_1974 0.944(14), plain_1969 0.633(35), c 0.20(12).
+# calibration in use (D12).  Since 2026-10-05 wavelength_calibration.py
+# writes plain_1974, plain_1969 and c here itself at the end of every run
+# that writes its files (--keep-kappa to leave them; config.set_hfs_kappa),
+# and replaces the two "# [wavelength_calibration.py]" lines above flag with
+# when, from which table, and the values they replace.  Edit by hand only
+# what it does not: this comment, and flag.
+# History: pass 6 of 2026-10-05, the first through iter_hfs/'s hfs model
+# (Step 4 A constants, A(000190) = -0.157, 26 lines held at a fixed kappa),
+# gave plain_1974 0.850(13), plain_1969 0.651(21), c 0.172(51).  Pass 5 of
+# 2026-10-04 (calculated A constants scaled by
+# hfs_kappa.A_SCALE = 0.9638, D14; 83315.6988 inflated to 0.5 cm^-1) gave
+# plain_1974 0.926(12), plain_1969 0.717(21), c 0.276(44).  Pass 4 gave
+# plain_1974 0.925(12), plain_1969 0.712(20), c 0.276(44).  Pass 3, with every D scaled by 0.9582, gave plain_1974
+# 0.924(12), plain_1969 0.708(21), c 0.271(44); before that they were the
+# Step 3 values of hfs_kappa.py (2026-09-21): plain_1974 0.944(14),
+# plain_1969 0.633(35), c 0.20(12).
 #   flag        Sugar's *r and *v lines, whose pattern he saw; measured at
 #               the strongest component (Step 2), the anchor of the others
 #   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974
 #   plain_1969  unflagged lines above it, measured in 1969
 #   c           lines Sugar marked complex
+# [wavelength_calibration.py] written 2026-10-05 11:59 from iter_hfs/line_classifications.csv (4491 lines);
+# [wavelength_calibration.py] the values before: plain_1974 0.817(13), plain_1969 0.633(20), c 0.174(50)
 flag       = [1.0, 0.0]
-plain_1974 = [0.925, 0.012]
-plain_1969 = [0.708, 0.021]
-c          = [0.271, 0.044]
+plain_1974 = [0.817, 0.013]
+plain_1969 = [0.632, 0.020]
+c          = [0.174, 0.050]

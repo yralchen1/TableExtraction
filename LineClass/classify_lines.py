@@ -143,6 +143,7 @@ def apply_hfs_model(levels_dict: dict, observed_lines: list) -> None:
                 f"{rec[0]:g}, the level list J = {lev.J_str}; the table of A "
                 f"constants is out of date")
         lev.hfs_S, lev.u_hfs_S = HFS.S(lid)
+        lev.hfs_S_pattern, lev.u_hfs_S_pattern = HFS.S(lid, pattern=True)
         lev.hfs_undetermined = HFS.is_undetermined(lid)
     by_class = {}
     for line in observed_lines:
@@ -150,13 +151,73 @@ def apply_hfs_model(levels_dict: dict, observed_lines: list) -> None:
         line.hfs_factor = 1.0 - kappa
         line.hfs_u_kappa = u_kappa
         by_class[kappa] = by_class.get(kappa, 0) + 1
-    HFS_MAX_D = 2.0 * max((abs(lev.hfs_S) for lev in levels_dict.values()),
-                          default=0.0)
+    HFS_MAX_D = 2.0 * max((abs(lev.hfs_S_pattern)
+                           for lev in levels_dict.values()), default=0.0)
     n_S = sum(1 for lev in levels_dict.values()
               if lev.hfs_S and not lev.is_decoy)
     print(f"  Hyperfine correction on ([hfs] apply): {n_S} levels carry an "
           f"S = I*A*J (largest |D| {HFS_MAX_D:.3f} cm^-1); lines by kappa: "
           + ', '.join(f"{k:g}: {n}" for k, n in sorted(by_class.items())))
+
+
+def attach_kappa_exceptions(observed_lines: list, levels_dict: dict) -> int:
+    """Give the lines of the registry files.kappa_exceptions their
+    exceptions (hfs_correction.py): `hfs_exceptions` maps each transition
+    the registry names on a line to (kappa, u_kappa, the levels of [hfs]
+    resolved_levels it does not resolve).  The kappa rules the candidate's
+    predicted wavenumber (Transition.hfs_offset) and the line's hfs_shift
+    (hfs_line_shift).
+
+    Laid over the calibration runs too: like the hand-set uncertainties, it
+    describes how the line was measured, not what it is.  Raises if an entry
+    names no observed line or two of them, or a level that is not in the
+    run.  Returns the number of entries.
+    """
+    reg = HFS.exceptions
+    if not reg:
+        return 0
+    name = os.path.basename(CFG.hfs.kappa_exceptions)
+    reg.check([l.wn_key for l in observed_lines], name)
+    for row in reg.rows:
+        for lid in (row.low_id, row.upp_id):
+            if lid not in levels_dict:
+                raise ValueError(
+                    f"{name}: the entry {row.key} names the level {lid}, "
+                    f"which is not in this run's level list (discarded, or "
+                    f"mistyped)")
+    n = 0
+    for line in observed_lines:
+        rows = reg.rows_of(line.wn_key)
+        if not rows:
+            continue
+        line.hfs_exceptions = {
+            (r.low_id, r.upp_id): HFS.kappa_value(r.cls) + (r.unresolved,)
+            for r in rows}
+        n += len(rows)
+    by_cls = {}
+    for r in reg.rows:
+        by_cls[r.cls] = by_cls.get(r.cls, 0) + 1
+    print(f"  Read {n} kappa exception(s) from {name}: "
+          + ', '.join(f"{c} {k}" for c, k in sorted(by_cls.items()))
+          + f"; {sum(1 for r in reg.rows if r.unresolved)} with a resolved "
+          f"level counted unresolved.")
+    return n
+
+
+def unmet_kappa_exceptions(observed_lines: list) -> list:
+    """`(wn_key, low_id, upp_id)` of the registry entries whose transition
+    is not accepted on their line once the classification has converged:
+    the entry then changes nothing, and the analyst should know."""
+    out = []
+    for line in observed_lines:
+        if not line.hfs_exceptions:
+            continue
+        acc = {(t.lower_level.level_id, t.upper_level.level_id)
+               for t in line.assigned_transitions
+               if t is not UNASSIGNED and t.accepted == 1}
+        out += [(line.wn_key,) + pair for pair in line.hfs_exceptions
+                if pair not in acc]
+    return out
 
 
 def hfs_accounted(line) -> bool:
@@ -216,8 +277,9 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
     hfs_correction.combine gives; in a flagged blend only the strongest
     component takes the flag's kappa, and a transition whose resolved
     companions the registry lists on this line takes kappa = 1
-    (Model.component_kappas).  (0, 0, the line's kappa) for a line with no
-    accepted transition.  `known_A_only` leaves the unknown A of the
+    (Model.component_kappas), and one the registry files.kappa_exceptions
+    names takes the kappa and the D written there (attach_kappa_exceptions).
+    (0, 0, the line's kappa) for a line with no accepted transition.  `known_A_only` leaves the unknown A of the
     undetermined levels out of the uncertainty (hfs_undetermined_part).
 
     The classification itself compares every candidate of a flagged line
@@ -236,15 +298,21 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
         bfs = [bf / total for bf in bfs]
     heads = [(t.lower_level.level_id, t.upper_level.level_id)
              in line.hfs_head_pairs for t in acc]
+    exc = [line.hfs_exceptions.get((t.lower_level.level_id,
+                                    t.upper_level.level_id))
+           for t in acc]
     kappas = HFS.component_kappas(line.line_character, line.wn_key, bfs,
-                                  heads)
+                                  heads, [e[:2] if e else None for e in exc])
 
-    def u_S(lev):
-        return 0.0 if known_A_only and lev.hfs_undetermined else lev.u_hfs_S
+    def u_S(lev, e):
+        if known_A_only and lev.hfs_undetermined:
+            return 0.0
+        return lev.u_hfs_S_pattern if e and lev.level_id in e[2] \
+            else lev.u_hfs_S
     return hfs_correction.combine(
-        [(bf, kappa, u_kappa, t.hfs_D,
-          math.hypot(u_S(t.upper_level), u_S(t.lower_level)))
-         for t, bf, (kappa, u_kappa) in zip(acc, bfs, kappas)])
+        [(bf, kappa, u_kappa, t.hfs_D_on(line),
+          math.hypot(u_S(t.upper_level, e), u_S(t.lower_level, e)))
+         for t, bf, (kappa, u_kappa), e in zip(acc, bfs, kappas, exc)])
 
 
 def hfs_undetermined_part(line, weights: dict) -> float:
@@ -2258,7 +2326,12 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
         # The candidates are sorted by their Ritz wavenumbers, and a line is
         # compared with Ritz - (1 - kappa)*D (hfs_correction.py), so the
         # window reaches as far as the largest such offset.
-        search_tolerance += obs_line.hfs_factor * HFS_MAX_D
+        # A kappa exception can move one candidate further than the line's
+        # class does (attach_kappa_exceptions).
+        search_tolerance += max([obs_line.hfs_factor]
+                                + [1.0 - e[0] for e in
+                                   obs_line.hfs_exceptions.values()]) \
+            * HFS_MAX_D
         wn_lo = obs_line.wavenumber - search_tolerance
         wn_hi = obs_line.wavenumber + search_tolerance
 
@@ -2606,7 +2679,8 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                     'upp_E': tr.upper_level.energy if tr.upper_level else np.nan,
                     'rwn': tr.upper_level.energy-tr.lower_level.energy if tr.upper_level and tr.lower_level else np.nan,
                     'BF': bf,
-                    **({**hfs_cols, 'hfs_D': tr.hfs_D} if hfs_cols else {})
+                    **({**hfs_cols, 'hfs_D': tr.hfs_D_on(obs_line)}
+                       if hfs_cols else {})
                 })
 
     df = pd.DataFrame(output_rows)
@@ -4789,6 +4863,8 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     retag_legacy_identifications(observed_lines, levels_dict,
                                  calc_trans_index)
     apply_hfs_model(levels_dict, observed_lines)
+    if HFS is not None:
+        attach_kappa_exceptions(observed_lines, levels_dict)
 
     # The uncertainties set by hand.  Unlike the verdicts below they are laid
     # over calibration runs too: they describe the measurement, which a
@@ -4851,6 +4927,11 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     # The weights carry the line's uncertainty, so they are worked out again.
     if release_hfs_allowances(observed_lines):
         weights = calc_weights(observed_lines)
+    if HFS is not None:
+        for wn, low, upp in unmet_kappa_exceptions(observed_lines):
+            print(f"  NOTE: the kappa exception of {wn:.4f} names {low} - "
+                  f"{upp}, which is not accepted on that line; it changes "
+                  f"nothing.")
 
     # One transition cannot belong to two observed lines.  A run that ends
     # with such a pair is wrong wherever that pair appears, so it stops here,

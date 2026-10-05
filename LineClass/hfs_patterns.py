@@ -68,6 +68,21 @@ the scale factor stays at 0.955.  So the tabulated wavenumber of a flagged
 line is the strongest component of the pattern, with no measurable offset, and
 not its center of gravity: the center of gravity is at sigma_tab - D.
 
+Remeasured 2026-10-03 on the current assignments and the levels table
+`A_hfs_levels.csv`, with only the *calculated* constants tested (sources
+"Reader & Sugar 1965 (calculated)" and "composition..."; the 7 flag-interval
+levels the first measurement included are measurements, not calculations):
+135 patterns, 271 positions, rms 0.072 -> 0.065 cm^-1 at
+
+    s = 0.9638 +- 0.0079   (jackknife; the formal uncertainty is 0.0048)
+
+which is `hfs_kappa.A_SCALE`.  It is applied to calculated constants only
+(`hfs_kappa.scaled_A`), in the pipeline and in the fits of kappa alike.  The
+first spacing has the right sign in 135 of 135 patterns.  Fitted on the *r
+lines alone the scale is 0.981 +- 0.009, on the *v lines alone 0.958 +-
+0.006; with scale and offset both free, 0.981 +- 0.011 and -0.016 +- 0.009
+cm^-1 - 1.7 sigma, not adopted.
+
 THE THREE ANSWERS
 =================
 1. The tabulated wavelength of a flagged 1974 line is the extreme principal
@@ -93,8 +108,9 @@ constant to every A changes the predicted spacings only through the
 J_low - J_upp difference, so the absolute scale of the A constants is weakly
 determined even though their differences are not.  The fitted constants are
 therefore reported with that caveat and are NOT written back into
-`A_hfs_levels.csv`; doing so is Step 4's business, with the LS-coupled
-calculation in hand.
+`A_hfs_levels.csv`.  `hfs_A_fit.py` (Step 4, 2026-10-04) removes the
+singular direction by holding the confirmed calculated constants at their
+scaled values as priors, and writes the values it determines.
 
 Run as ``python hfs_patterns.py``.  Nothing in the assignment pipeline is
 touched, and no file is written unless ``--out`` is given.
@@ -214,7 +230,13 @@ def read_patterns(components_csv=None, levels_csv=None):
         levels = {r['level_id']: r for r in csv.DictReader(fh)}
     with open(path, encoding='utf-8', newline='') as fh:
         rows = list(csv.DictReader(fh))
+    return patterns_from(rows, levels, os.path.basename(levels_path))
 
+
+def patterns_from(rows, levels, levels_name='the level table'):
+    """`read_patterns` on rows already read: `rows` as `hfs_components.csv`
+    gives them, `levels` as `{level_id: row}` with the columns J, A_cm-1,
+    u_A and A_source."""
     grouped = collections.OrderedDict()
     for r in rows:
         grouped.setdefault(r['wn_line'], []).append(r)
@@ -227,7 +249,7 @@ def read_patterns(components_csv=None, levels_csv=None):
             continue
         low, upp = levels.get(first['low_id']), levels.get(first['upp_id'])
         if low is None or upp is None:
-            skipped['level absent from %s' % os.path.basename(levels_path)] += 1
+            skipped['level absent from %s' % levels_name] += 1
             continue
         J1, J2 = float(low['J']), float(upp['J'])
         dwn = sorted((float(r['dwn']) for r in group), key=abs)

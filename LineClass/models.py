@@ -27,6 +27,10 @@ class EnergyLevel:
     u_hfs_S: float = 0.0                   # its uncertainty (cm^-1)
     hfs_undetermined: bool = False         # listed in the table of A constants without a usable
                                            #     A: u_hfs_S is the unknown A, S is 0
+    hfs_S_pattern: float = 0.0             # the S of a level of [hfs] resolved_levels in a line that
+                                           #     does not separate its sublevels (hfs_S is 0 for it);
+                                           #     hfs_S for every other level
+    u_hfs_S_pattern: float = 0.0           # its uncertainty (cm^-1)
     from_transitions: List['Transition'] = field(default_factory=list)  # transitions where this is upper_level
     to_transitions: List['Transition'] = field(default_factory=list)    # transitions where this is lower_level
     u_contrib: Dict[tuple, tuple] = field(default_factory=dict)
@@ -73,6 +77,11 @@ class SpectralLine:
     # strongest component of the pattern and sits on the head-frame Ritz
     # value, kappa = 1, whatever its class (hfs_correction.py).  Set by
     # classify_lines.attach_hfs_satellites().
+    hfs_exceptions: Dict[tuple, tuple] = field(default_factory=dict)
+    # (lower_id, upper_id) -> (kappa, u_kappa, unresolved level ids): the
+    # transitions of this line the registry files.kappa_exceptions says were
+    # measured otherwise than the line's class (hfs_correction.py).  Set by
+    # classify_lines.attach_kappa_exceptions().
     hfs_companion: Optional[tuple] = None
     # (main line, lower level, upper level, rung) if the registry names this
     # line as a resolved hfs companion of that transition on the main line
@@ -136,14 +145,39 @@ class Transition:
             return self.upper_level.hfs_S - self.lower_level.hfs_S
         return 0.0
 
+    def hfs_D_on(self, line: Optional['SpectralLine'] = None) -> float:
+        """D of this transition as `line` (default: the line it is assigned
+        to) measures it: hfs_D, unless the registry files.kappa_exceptions
+        names levels of [hfs] resolved_levels this line does not resolve,
+        which then count with their whole pattern (hfs_S_pattern)."""
+        line = self.assigned_to if line is None else line
+        exc = line.hfs_exceptions.get(
+            (self.lower_level.level_id, self.upper_level.level_id)) \
+            if line is not None and line.hfs_exceptions else None
+        if not exc or not exc[2]:
+            return self.hfs_D
+        low, upp = self.lower_level, self.upper_level
+        s_u = upp.hfs_S_pattern if upp.level_id in exc[2] else upp.hfs_S
+        s_l = low.hfs_S_pattern if low.level_id in exc[2] else low.hfs_S
+        return s_u - s_l
+
     def hfs_offset(self, line: Optional['SpectralLine'] = None) -> float:
         """How far below the Ritz wavenumber `line` (default: the line this
         transition is assigned to) is expected to have been measured, if it
         is this transition: (1 - kappa) * D.  0.0 with [hfs] apply off, and
         0.0 for a transition whose resolved companions the registry of
-        files.hfs_satellites lists on this line."""
+        files.hfs_satellites lists on this line.  A transition the registry
+        files.kappa_exceptions names on this line takes the kappa written
+        there, and the D of hfs_D_on."""
         line = self.assigned_to if line is None else line
-        if line is None or not line.hfs_factor:
+        if line is None:
+            return 0.0
+        if line.hfs_exceptions:
+            exc = line.hfs_exceptions.get((self.lower_level.level_id,
+                                           self.upper_level.level_id))
+            if exc is not None:
+                return (1.0 - exc[0]) * self.hfs_D_on(line)
+        if not line.hfs_factor:
             return 0.0
         if line.hfs_head_pairs and (self.lower_level.level_id,
                                     self.upper_level.level_id) \

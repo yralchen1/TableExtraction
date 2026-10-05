@@ -34,6 +34,7 @@ import check_sync                          # noqa: E402
 import classify_lines as cl                # noqa: E402
 import config                              # noqa: E402
 import hfs_correction as H                 # noqa: E402
+import hfs_kappa                           # noqa: E402
 import hfs_patterns                        # noqa: E402
 import make_LOPT_input as M                # noqa: E402
 import sync_IDEN2 as sync                  # noqa: E402
@@ -49,11 +50,12 @@ LOW, UPP, UNDET, ABSENT, RESOLVED = (
 
 def a_table(tmp_path):
     """A table of A constants: two determined levels, one undetermined, one
-    determined but resolved; ABSENT is not listed."""
+    determined but resolved; ABSENT is not listed.  LOW's constant is a
+    measured one, UPP's a calculated one, which the model scales."""
     path = tmp_path / 'A.csv'
     path.write_text(
         'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
-        f'{LOW},f26s,3.5,-0.0400,0.0040,composition,0\n'
+        f'{LOW},f26s,3.5,-0.0400,0.0040,flag interval,0\n'
         f'{UPP},f26p,2.5,+0.1000,0.0100,Reader & Sugar 1965 (calculated),0\n'
         f'{UNDET},f5d2,4.5,+0.0000,0.0500,not determined,1\n'
         f'{RESOLVED},f26s,0.5,+0.5000,0.0100,composition,0\n',
@@ -82,7 +84,12 @@ def write_config(tmp_path, body, name='set.toml'):
 def test_the_baseline_has_it_off():
     cfg = config.load()
     assert cfg.hfs.apply is False
-    assert dict(cfg.hfs.kappa)['plain_1969'] == (0.708, 0.021)
+    # wavelength_calibration.py rewrites the fitted values on every run,
+    # so only their form is fixed here
+    kappa = dict(cfg.hfs.kappa)
+    assert kappa['flag'] == (1.0, 0.0)
+    for c in config.FITTED_KAPPA_CLASSES:
+        assert 0.0 < kappa[c][0] < 1.0 and 0.0 < kappa[c][1] < 0.2
 
 
 def test_a_set_turns_it_on_with_one_line(tmp_path):
@@ -112,6 +119,10 @@ def test_a_kappa_class_must_be_a_pair(tmp_path):
 # ---------------------------------------------------------------------------
 def test_the_groups_of_levels(model):
     assert model.S(LOW) == pytest.approx((2.5 * -0.04 * 3.5, 2.5 * 3.5 * 0.004))
+    # a calculated constant is put on the measured scale of Step 2
+    s, u_s = hfs_kappa.A_SCALE, hfs_kappa.U_A_SCALE
+    assert model.S(UPP) == pytest.approx(
+        (2.5 * 0.1 * s * 2.5, 2.5 * 2.5 * math.hypot(0.01 * s, 0.1 * u_s)))
     # undetermined: no displacement, the unknown A carried as uncertainty
     assert model.S(UNDET) == pytest.approx((0.0, 2.5 * 4.5 * 0.05))
     assert model.S(ABSENT) == (0.0, 0.0)
@@ -134,7 +145,7 @@ def test_the_classes_of_kappa(model):
 
 
 def test_a_blend_takes_one_shift(model):
-    d1 = model.D(LOW, UPP)[0]                 # 0.625 + 0.35
+    d1 = model.D(LOW, UPP)[0]                 # 0.625 * A_SCALE + 0.35
     d2 = model.D(LOW, ABSENT)[0]              # 0.35
     shift, u, kappa = model.line_shift(
         '', 60000.0, [(LOW, UPP, 0.75), (LOW, ABSENT, 0.25)])
@@ -222,11 +233,11 @@ def test_apply_hfs_model(monkeypatch, model):
     lines = [SpectralLine(30000.0, 0.1, 1.0, '*r', wn_key=30000.0),
              SpectralLine(60000.0, 0.1, 1.0, '', wn_key=60000.0)]
     cl.apply_hfs_model(levels, lines)
-    assert levels[UPP].hfs_S == pytest.approx(0.625)
+    assert levels[UPP].hfs_S == pytest.approx(0.625 * hfs_kappa.A_SCALE)
     assert decoy.hfs_S == levels[UPP].hfs_S      # the decoy copies its level
     assert levels[ABSENT].hfs_S == 0.0
     assert [ln.hfs_factor for ln in lines] == pytest.approx([0.0, 0.367])
-    assert cl.HFS_MAX_D == pytest.approx(1.25)
+    assert cl.HFS_MAX_D == pytest.approx(1.25 * hfs_kappa.A_SCALE)
 
 
 def test_a_table_out_of_step_with_the_levels_stops(monkeypatch, model):

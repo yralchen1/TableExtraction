@@ -91,6 +91,7 @@ _OPTIONAL = {'inherit', 'locked',
              'files.new_levels', 'files.icalc_extra',
              'files.discarded_levels', 'files.inflated_unc',
              'files.hfs_A_levels', 'files.hfs_satellites',
+             'files.kappa_exceptions',
              'decisions', 'decisions.max_forced_offset',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
 
@@ -102,7 +103,7 @@ _SCHEMA = {
               'line_decisions': str, 'new_levels': str,
               'icalc_extra': str, 'discarded_levels': str,
               'inflated_unc': str, 'hfs_A_levels': str,
-              'hfs_satellites': str},
+              'hfs_satellites': str, 'kappa_exceptions': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -190,7 +191,9 @@ class HfsSettings:
     sublevels are resolved and whose own A therefore counts as zero in a
     line's displacement.  `satellites` is the registry of resolved hfs
     companions (files.hfs_satellites, '' if none), which is read whether
-    `apply` is on or not.  `iden2_display` says where sync_IDEN2.py puts the
+    `apply` is on or not.  `kappa_exceptions` is the registry of lines
+    measured otherwise than their class says (files.kappa_exceptions, ''
+    if none), read with `apply` on and by the plate calibration.  `iden2_display` says where sync_IDEN2.py puts the
     lines LOPT uses in IDEN2's dlv.dat: 'measured' (the default) or 'lopt',
     at the wavenumber and uncertainty LOPT is given, which needs `apply`.
     hfs_correction.py says what each of them means.
@@ -198,6 +201,7 @@ class HfsSettings:
     apply: bool = False
     A_levels: str = ''
     satellites: str = ''
+    kappa_exceptions: str = ''
     kappa: tuple = ()           # ((class, (kappa, u_kappa)), ...)
     resolved_levels: tuple = ()
     iden2_display: str = 'measured'
@@ -300,6 +304,110 @@ def _read(path: str, seen=()) -> dict:
     return _merge(parent, raw)
 
 
+#: the classes of [hfs.kappa] the plate calibration fits; `flag` is its anchor
+#: and is never rewritten.
+FITTED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c')
+
+#: what begins each comment line `set_hfs_kappa` writes, so that the next run
+#: can find and replace them; nothing else in the file is touched.
+KAPPA_NOTE = '# [wavelength_calibration.py] '
+
+
+def kappa_file(path: str = None) -> str:
+    """The configuration file that holds the `[hfs.kappa]` a run of `path`
+    uses: `path` itself if it writes the table, else the nearest file it
+    inherits from that does (today the baseline's, which iter_hfs/
+    inherits).  Raises if none of them does."""
+    path = os.path.abspath(path or DEFAULT_PATH)
+    seen = ()
+    while True:
+        if path in seen:
+            raise ConfigError("configuration inherits itself: "
+                              + ' -> '.join(seen + (path,)))
+        if not os.path.isfile(path):
+            raise ConfigError(f"configuration file not found: {path}")
+        with open(path, 'rb') as fh:
+            raw = tomllib.load(fh)
+        if 'kappa' in (raw.get('hfs') or {}):
+            return path
+        parent = raw.get('inherit')
+        if not parent:
+            first = seen[0] if seen else path
+            raise ConfigError(f"no file of the chain of {first} has an "
+                              f"[hfs.kappa] table")
+        seen += (path,)
+        path = os.path.abspath(os.path.join(os.path.dirname(path), parent))
+
+
+def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
+    """Write the fitted kappas `values` ({class: (kappa, u_kappa)}, the
+    classes of FITTED_KAPPA_CLASSES) into the `[hfs.kappa]` the configuration
+    `path` uses (`kappa_file`), and return `(file written, the values it
+    held before)`.
+
+    The file is edited as text, so that every comment and every other line
+    stays as it is: only the line of each class is rewritten, in the form
+    `plain_1974 = [0.850, 0.013]`, and the comment lines beginning with
+    KAPPA_NOTE are replaced by `note`, placed just above the `flag` line.
+    The file is read back afterwards; if it does not give exactly the new
+    values, the old text is put back and ConfigError raised.
+    """
+    missing = [c for c in FITTED_KAPPA_CLASSES if c not in values]
+    if missing:
+        raise ConfigError(f"set_hfs_kappa: no value for "
+                          f"{', '.join(missing)}")
+    target = kappa_file(path)
+    with open(target, 'rb') as fh:
+        before = {k: tuple(v) for k, v in
+                  tomllib.load(fh)['hfs']['kappa'].items()}
+    with open(target, encoding='utf-8', newline='') as fh:
+        text = fh.read()
+    eol = '\r\n' if '\r\n' in text else '\n'
+    lines = text.split(eol)
+    try:
+        start = next(i for i, ln in enumerate(lines)
+                     if ln.strip() == '[hfs.kappa]')
+    except StopIteration:
+        raise ConfigError(f"{target}: [hfs.kappa] is not written as a "
+                          f"table header of its own") from None
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].lstrip().startswith('[')), len(lines))
+    width = max(len(c) for c in HFS_KAPPA_CLASSES)
+    body, done = [], set()
+    for ln in lines[start + 1:end]:
+        if ln.startswith(KAPPA_NOTE):
+            continue
+        key = (ln.split('=', 1)[0].strip()
+               if '=' in ln and not ln.lstrip().startswith('#') else None)
+        if key == 'flag' and note:
+            body += [KAPPA_NOTE + part for part in note.splitlines()]
+        if key in FITTED_KAPPA_CLASSES:
+            k, u = values[key]
+            ln = '%s = [%.3f, %.3f]' % (key.ljust(width), k, u)
+            done.add(key)
+        body.append(ln)
+    if done != set(FITTED_KAPPA_CLASSES):
+        raise ConfigError(f"{target}: [hfs.kappa] lacks the line of "
+                          f"{', '.join(sorted(set(FITTED_KAPPA_CLASSES) - done))}")
+    new_text = eol.join(lines[:start + 1] + body + lines[end:])
+    with open(target, 'w', encoding='utf-8', newline='') as fh:
+        fh.write(new_text)
+    try:
+        with open(target, 'rb') as fh:
+            after = tomllib.load(fh)['hfs']['kappa']
+        for c in FITTED_KAPPA_CLASSES:
+            want = tuple(float('%.3f' % x) for x in values[c])
+            if tuple(after[c]) != want:
+                raise ConfigError(f"{target}: [hfs.kappa] {c} reads back as "
+                                  f"{after[c]}, not {list(want)}")
+    except (tomllib.TOMLDecodeError, ConfigError, KeyError) as exc:
+        with open(target, 'w', encoding='utf-8', newline='') as fh:
+            fh.write(text)
+        raise ConfigError(f"set_hfs_kappa: {exc}; {target} "
+                          f"restored") from None
+    return target, before
+
+
 def load(path: str = None) -> Config:
     """Read, validate and return the configuration."""
     path = os.path.abspath(path or DEFAULT_PATH)
@@ -313,7 +421,9 @@ def load(path: str = None) -> Config:
 
     satellites = (_p('hfs_satellites')
                   if raw['files'].get('hfs_satellites') else '')
-    hfs = HfsSettings(satellites=satellites)
+    exceptions = (_p('kappa_exceptions')
+                  if raw['files'].get('kappa_exceptions') else '')
+    hfs = HfsSettings(satellites=satellites, kappa_exceptions=exceptions)
     if 'hfs' in raw:
         h = raw['hfs']
         a_levels = (_p('hfs_A_levels')
@@ -329,6 +439,7 @@ def load(path: str = None) -> Config:
                               "to show")
         hfs = HfsSettings(
             apply=h['apply'], A_levels=a_levels, satellites=satellites,
+            kappa_exceptions=exceptions,
             kappa=tuple((k, tuple(h['kappa'][k]))
                         for k in HFS_KAPPA_CLASSES),
             resolved_levels=tuple(h.get('resolved_levels', ())),

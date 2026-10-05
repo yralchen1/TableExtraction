@@ -1917,6 +1917,17 @@ tie is the whole measurement. `D` is the calculated hyperfine displacement of th
 `kappa` the fraction of it Sugar's measuring convention picked up (plan Step 3); the `*r` and
 `*v` flagged lines have their measured displacement removed directly and carry no `kappa`.
 
+Since 2026-10-05 the fit sees each line as the classification does. It builds the hfs model
+of the set whose table it reads (the `lineclass_config.toml` beside the table, or `--config`),
+so a level in `[hfs] resolved_levels` counts S = 0 here too. A line whose κ a hand-kept
+registry fixes is treated like a flagged line, with its own κ: the main line of resolved
+companions (`hfs_satellites.txt`, κ = 1) and every row of `kappa_exceptions.txt`. Such a line
+helps fit the level energies and the calibration but does not vote on any class's `kappa`
+(`hfs_correction.Model.fit_terms`). An exception that borrows a fitted class takes the value
+`[hfs.kappa]` holds, which is the previous pass's. The report states how many lines were held
+and why. Before that date the fit gave the resolved levels' lines their calculated S and the
+companions' main lines their class's κ (37 of 4498 lines read differently on 2026-10-05).
+
 **Blocks and groups.** A *block* is a stretch of wavelength over which one calibration can
 be carried. Two things end one.
 
@@ -2211,7 +2222,27 @@ python wavelength_calibration.py --model poly # one polynomial per block instead
 python wavelength_calibration.py --degree 2   # force a degree, for a test
 python wavelength_calibration.py --no-write   # print the report, write nothing
 python wavelength_calibration.py --classifications iter_hfs/line_classifications.csv
+python wavelength_calibration.py --keep-kappa # write the files, leave [hfs.kappa] alone
 ```
+
+**The fitted κ go into the configuration by themselves** (since 2026-10-05). A run that
+writes its files also writes `plain_1974`, `plain_1969` and `c` into `[hfs.kappa]`
+(`config.set_hfs_kappa`). The file written is the one in the configuration chain that holds
+that table, found from the configuration the fit's hfs model comes from. Today that is the
+baseline's `lineclass_config.toml`, which `iter_hfs/` inherits. So after a pass, the next
+`classify_lines.py` of `iter_hfs/` uses the κ that were fitted together with the corrections
+it reads, and nothing has to be copied by hand. The file is edited as text:
+- only the lines of the three classes change, written as `plain_1974 = [0.850, 0.013]`;
+- two comment lines beginning `# [wavelength_calibration.py]` are put just above `flag`. They
+  give when the values were written, from which table and on how many lines, and the values
+  they replaced. The next run replaces them;
+- every other line, the hand comments included, stays as it was.
+
+The file is read back afterwards. If it does not give exactly the new values, the old text is
+restored and the run stops with an error. The file is checked for writability at the start,
+with the other outputs. The report ends by naming the file, or by saying that `--keep-kappa`
+left it alone, and the console shows each new κ beside the one it replaced. `--no-write`
+writes nothing, the configuration included.
 
 `--classifications` names the assignments the fit rests on. Without it the program reads the
 baseline's `line_classifications.csv`, which is frozen (2026-10-01) and no longer holds the
@@ -2958,7 +2989,18 @@ F = I + J sublevels and lies D = S(upper) − S(lower) from the line's center of
 Sugar tabulated that strongest component where he resolved the pattern (the lines he
 flagged `*r` or `*v`), and a point between it and the center of gravity where he did not;
 `hfs_kappa.py` measured where, as the convention factor κ of each class of line
-(`Work_on_hfs_plan.md`, Step 3).
+(`Work_on_hfs_plan.md`, Step 3). The κ in use are fitted jointly with the plate calibration
+(`wavelength_calibration.py`, decision D12). The table gives the converged values of
+2026-10-05, on the assignments of `iter_hfs/`: the last two passes, alternating with runs of
+that set's chain, agreed to 0.001. The values in force are those in `[hfs.kappa]` of
+`lineclass_config.toml`. `wavelength_calibration.py` rewrites them at the end of every run (see
+its section), and this table is not updated with them.
+Those passes were the first with three changes: the A constants of Step 4 (`hfs_A_fit.py`),
+A(000190) = −0.157, and 26 lines whose κ is fixed rather than fitted (`kappa_exceptions.txt`,
+the main lines of `hfs_satellites.txt`). The first of them (pass 6) gave 0.850 ± 0.013,
+0.651 ± 0.021 and 0.172 ± 0.051. Pass 5 of 2026-10-04 had given 0.926 ± 0.012,
+0.717 ± 0.021 and 0.276 ± 0.044. Step 3 alone had given 0.944 ± 0.014, 0.633 ± 0.035 and
+0.20 ± 0.12.
 
 The pipeline works in the **head frame**: its level energies, LOPT's and IDEN2's are the
 F = I + J sublevels, E_head = E_cg + S. A line of class κ was then measured (1 − κ)·D below
@@ -2967,9 +3009,9 @@ the head-frame Ritz wavenumber:
 | class | κ | where the line sits |
 |---|---|---|
 | `flag` (`*r`, `*v`) | 1 | on the Ritz value |
-| `plain_1974` (unflagged, below 47500 cm⁻¹) | 0.944 ± 0.014 | 0.056·D below it |
-| `plain_1969` (unflagged, above) | 0.633 ± 0.035 | 0.367·D below it |
-| `c` | 0.20 ± 0.12 | 0.80·D below it |
+| `plain_1974` (unflagged, below 47500 cm⁻¹) | 0.817 ± 0.013 | 0.183·D below it |
+| `plain_1969` (unflagged, above) | 0.632 ± 0.020 | 0.368·D below it |
+| `c` | 0.174 ± 0.050 | 0.826·D below it |
 
 With `apply = true` in the `[hfs]` section of a set's configuration:
 
@@ -3003,15 +3045,37 @@ nothing is fitted to it. The centers of gravity, E_cg = E_head − I·A·J, are 
 the end, for the published level list; that is the only place the absolute A values enter.
 
 **The A constants** are `A_hfs_levels.csv` (`files.hfs_A_levels`). A level whose A is
-*determined* there (calculated by Reader and Sugar, from its composition, from its flag
-intervals, or since 2026-10-02 from a line measured at the center of gravity of its pattern
-(`059003.000198`, `059003.000270`), from resolved rungs of a pattern (`059003.000055`), or
-from the center of gravity of a companion (`059003.000432`)) carries S = I·A·J with the
-uncertainty I·J·u_A. One listed as *not determined* (39 levels of 4f5d<sup>2</sup> and
-4f<sup>3</sup>) carries S = 0 and the unknown A as the uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
+*determined* there (calculated by Reader and Sugar, from its composition, since 2026-10-02
+from a line measured at the center of gravity of its pattern (`059003.000198`,
+`059003.000270`), from resolved rungs of a pattern (`059003.000055`), or from the center of
+gravity of a companion (`059003.000432`), and since 2026-10-04 from Sugar's resolved
+components (46 levels, below)) carries S = I·A·J with the uncertainty I·J·u_A.
+
+The 46 come from `hfs_A_fit.py`. Each hyperfine component position Sugar printed beside a
+flagged line is one linear equation in the A constants of the line's two levels. All of them
+are solved together, with every calculated constant the spacings confirm entering as a prior
+at its scaled value; without those priors one constant could be added to every A almost
+unseen. The fit (440 positions, 218 patterns, chi²/dof 0.61 on Sugar's 0.003 Å) gives A to 35
+of the 39 levels that had none, replaces the 7 flag intervals, and replaces the calculated A of
+`059003.000127`, which the spacings contradict. Three levels the fit determines were missing
+from the table and were added on 2026-10-04: `059003.000151`, `059003.000654` and
+`059003.000656`. Each value is checked against the level's other
+patterns, against the bounds its flags set, and against its own lines; `hfs_A_anchored.csv`
+records the checks. One level the fit determines, `059003.000448`, is held back (`HOLD`): its
+value rests on a single position, and its lines disagree with it. A *calculated* A (Reader and Sugar's, or from the composition) is first
+multiplied by `hfs_kappa.A_SCALE` = 0.9638 ± 0.0079, the factor by which Sugar's measured
+hyperfine component spacings are smaller than the calculated ones (`hfs_patterns.py`), and
+the scale's uncertainty is added to u_A; a measured A is used as written. `hfs_kappa.scaled_A`
+does this for the pipeline and for the fits of κ alike (`hfs_kappa.py`,
+`wavelength_calibration.py`), so the κ are fitted with the same D the pipeline applies. One listed as *not determined* (4 levels since 2026-10-04: `059003.000258`,
+`059003.000295` and `059003.000453`, which no usable pattern reaches, and `059003.000448`) carries S = 0 and the unknown A as the uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
 resolved_levels` counts S = 0 because each of its lines ends on one sublevel. There are two,
 both J = 1/2 levels of 4f<sup>2</sup>6s standing at their F = 3 sublevels: `059003.000642`
-(IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A level whose lines show a resolved
+(IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A line that does not separate such a
+level's sublevels is named in `kappa_exceptions.txt` (column `unresolved`, below). For that
+line the level then counts with its whole pattern. A(000190) is −0.157 ± 0.010 since
+2026-10-05, the value measured from its resolved F = 3/F = 2 pair (`4f26s_2P_0.5_hfs.md`), in
+place of the calculated −0.0787. A level whose lines show a resolved
 second hyperfine component does not belong in this list. Along that series both levels
 change F together, so the listed line is the strongest component of the whole pattern.
 That is a property of the line, as Sugar's `*r`/`*v` flags are, not of the level.
@@ -3058,6 +3122,49 @@ and 1141 on 2026-10-02, and on the same day rungs 1 and 2 of 1228-1116 (21962.95
 is not one rung but the unresolved lower part of a J = 3/2 to 3/2 pattern (rungs 1 to 3 with
 their off-diagonal components), listed as a double line. The row of 1129 is a comment
 because its satellite may be rung 2 with rung 1 blended into the main line.
+
+**Lines measured otherwise than their class** (added 2026-10-05). A class's κ is where Sugar
+measured its lines on the whole. Some single lines were measured elsewhere:
+- a wide or double line whose components merged into one profile that peaks at the center of
+  gravity;
+- a line that is the head of a pattern Sugar did not flag.
+
+`kappa_exceptions.txt` (`files.kappa_exceptions`, kept by hand, tab-delimited) names them. A
+row starting with `#` is a comment. Its columns:
+
+- `wn_key`, `low_id`, `upp_id`: one transition of one line;
+- `class`: where that transition was measured. `head` means κ = 1 and `cg` means κ = 0, both
+  by definition. A class of `[hfs.kappa]` (`flag`, `plain_1974`, `plain_1969`, `c`) means the
+  value written there;
+- `unresolved`: optional, one or more levels of `[hfs] resolved_levels`, comma-separated, whose
+  sublevels the line does not separate. For that line such a level counts with its whole
+  pattern, S = I·A·J with its u_S;
+- `date` and `reason`.
+
+The named transition is predicted at the head-frame Ritz value less (1 − κ)·D with that κ and
+that D. The line's `hfs_shift` uses them too. The line's other transitions keep the κ of its
+class. A `head` row also makes the line give up its level widths in `make_LOPT_input.py`, as a
+flagged line does.
+
+Classes are reused, not fitted per line, because a class fitted on lines chosen for where they
+sit would only measure the choice. For the same reason the plate calibration holds an
+exception's κ instead of fitting it (see the wavelength calibration above).
+
+The run stops on an entry that:
+- names no observed line, or two of them;
+- names a level that is not in the run;
+- has an unknown class;
+- marks a level `unresolved` that is not resolved or not one of its two levels.
+
+An entry whose transition is not accepted on its line is reported as a NOTE: it changes
+nothing. The file is read with the switch on, and by `wavelength_calibration.py`.
+
+The first eight rows (2026-10-05) are all `cg`:
+- six w/d lines that sit at the center of gravity of their patterns: 39960.6491, 39719.0502,
+  36647.5418, 44494.0809, 35266.469 and 44570.63;
+- 33934.5817 and 27443.3325, which fall between the F = 3 and F = 2 groups of 000190 and are
+  marked with it `unresolved`. With A(000190) = −0.157 their predicted centroids, −0.213 and
+  −0.234 cm⁻¹ from the F = 3 position, match the observed −0.203 and −0.230.
 
 **What the correction replaces.** A level with a determined A no longer carries its
 hyperfine width from `level_hfs_widths.csv` into LOPT's uncertainty, and a flagged line, or
@@ -6211,7 +6318,7 @@ Relative paths are taken relative to the directory holding the configuration fil
 | `[missing_gA]`              | `policy` (`"impute"` or `"none"`) and the settings of the imputation recipe          |
 | `[intensity_model]`         | `C` and `kT` of `Icalc = C·gA·exp(−Eup/kT)/rwn`, plus the tolerance of the re-fit check |
 | `[decisions]`               | `max_forced_offset`: how far, in cm⁻¹, the Ritz wavenumber of a pair the decision ledger accepts may sit from the line it is accepted on before the run stops — the stale-row guard (5.0; optional, one row at a time exempted with `offset-ok` in its reason) |
-| `[hfs]`                     | the head-frame hyperfine correction: `apply` (off in the baseline), `resolved_levels`, and `[hfs.kappa]`, `[kappa, u_kappa]` per class of line; the A constants are `files.hfs_A_levels`, the resolved companions `files.hfs_satellites`. See "The hyperfine correction: the head frame" |
+| `[hfs]`                     | the head-frame hyperfine correction: `apply` (off in the baseline), `resolved_levels`, and `[hfs.kappa]`, `[kappa, u_kappa]` per class of line; the A constants are `files.hfs_A_levels`, the resolved companions `files.hfs_satellites`, the per-line kappa exceptions `files.kappa_exceptions`. See "The hyperfine correction: the head frame" |
 
 The remaining tunables are decisions about the *method* rather than the data, and stay as
 module constants and function defaults in `classify_lines.py`:

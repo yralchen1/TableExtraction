@@ -30,6 +30,16 @@ pattern and the point of it that Sugar's measurement actually followed, and
 complex, `c`; the lines he flagged `*r` and `*v` have their measured
 displacement removed directly and carry no `kappa`.
 
+The lines are seen as the classification sees them: the hfs model is that
+of the working set whose table is read (its `lineclass_config.toml`, or
+`--config`; hfs_correction.Model), so a level of `[hfs] resolved_levels`
+counts S = 0, and a line whose kappa a hand-kept registry fixes - an entry
+of `kappa_exceptions.txt`, the main line of resolved companions in
+`hfs_satellites.txt` - has that kappa removed directly as a flagged line's
+is, and votes on no class's `kappa` (hfs_correction.Model.fit_terms).  An
+exception borrowing a fitted class takes the value `[hfs.kappa]` gives it,
+which is the previous pass's.
+
 Where a plate ends
 ------------------
 Sugar's exposure boundaries were never published, but the line list maps
@@ -141,12 +151,16 @@ wavenumber - so a rank deficiency of exactly one is expected and harmless.
 import argparse
 import collections
 import csv
+import datetime
 import io
 import math
 import os
+import tomllib
 
 import numpy as np
 
+import config
+import hfs_correction
 import hfs_kappa
 import output_files
 
@@ -359,6 +373,48 @@ def classifications_path(name=None):
     raise SystemExit('--classifications: no such file: %s' % name)
 
 
+def config_for(table_path, name=None):
+    """The configuration whose hfs model the fit uses: `name` if given,
+    else the `lineclass_config.toml` beside the classification table (the
+    working set's own), else the baseline's."""
+    if name:
+        return name
+    beside = os.path.join(os.path.dirname(table_path), 'lineclass_config.toml')
+    return beside if os.path.isfile(beside) else config.DEFAULT_PATH
+
+
+def before_of(kappa_path):
+    """`{class: (kappa, u_kappa)}` as [hfs.kappa] of `kappa_path` holds them
+    now, before this run writes its own."""
+    with open(kappa_path, 'rb') as fh:
+        return {k: tuple(v) for k, v in
+                tomllib.load(fh)['hfs']['kappa'].items()}
+
+
+def kappa_note(fit, before, table_path, n_lines):
+    """The comment `config.set_hfs_kappa` puts above the kappas it writes:
+    when, from which table and how many lines, and what they replace."""
+    def fmt(k, u):
+        return '%.3f(%d)' % (k, round(u * 1000))
+    return ('written %s from %s (%d lines);\nthe values before: %s'
+            % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+               os.path.relpath(table_path, HERE).replace('\\', '/'), n_lines,
+               ', '.join('%s %s' % (c, fmt(*before[c]))
+                         for c in config.FITTED_KAPPA_CLASSES if c in before)))
+
+
+def hfs_model_of(cfg_path):
+    """The hfs_correction.Model of the configuration at `cfg_path`, built
+    whether or not its [hfs] apply is on: the fit always models the
+    hyperfine displacement, and needs the set's resolved levels and
+    registries to see the lines as its classification does."""
+    settings = config.load(cfg_path).hfs
+    if not settings.A_levels:
+        raise SystemExit('%s names no table of A constants '
+                         '(files.hfs_A_levels)' % cfg_path)
+    return hfs_correction.Model(settings)
+
+
 def observed_wavenumbers(path=None):
     """Every distinct observed wavenumber of the line list, with its character
     and its wn_key (Sugar's value, which names it in the hand-kept files).
@@ -525,7 +581,7 @@ def build(lines, lam, blk, binof, sigma, keep, ncal, terms):
         scale = ln.wn * ln.wn * 1e-8
         for col, val in terms(blk[i], binof[i], lam[i]):
             A[r, off + col] -= scale * val
-        D = hfs_kappa.A_SCALE * ln.D
+        D = ln.D
         if ln.cls == 'flag':
             y[r] = ln.wn - D
         else:
@@ -583,8 +639,23 @@ def main(argv=None):
                          'iter/%s, is read on its wn_key, the wavenumber '
                          'Sugar published, never on its calibrated wn_obs.'
                          % (hfs_kappa.LINES, hfs_kappa.LINES))
+    ap.add_argument('--config', metavar='TOML', default=None,
+                    help='the configuration whose hfs model (A constants, '
+                         'resolved levels, kappa exceptions, resolved '
+                         'companions) the fit uses (default: the '
+                         'lineclass_config.toml beside the classification '
+                         "table, else the baseline's)")
+    ap.add_argument('--keep-kappa', action='store_true',
+                    help='leave [hfs.kappa] of the configuration as it is.  '
+                         'By default a run that writes its files also '
+                         'writes the kappas it fitted there, in the file of '
+                         'the configuration chain that holds the table '
+                         '(config.set_hfs_kappa)')
     args = ap.parse_args(argv)
     table_path = classifications_path(args.classifications)
+    cfg_path = config_for(table_path, args.config)
+    kappa_path = (None if args.no_write or args.keep_kappa
+                  else config.kappa_file(cfg_path))
 
     # The fit takes a minute or two and every file is written at the end of
     # it, so a report left open in Excel would otherwise be discovered only
@@ -595,12 +666,19 @@ def main(argv=None):
             outputs.append(OUT_POLY)
         if args.set_dir:
             outputs.append(os.path.join(HERE, args.set_dir, OUT_LINES))
+        if kappa_path:
+            outputs.append(kappa_path)
         output_files.require_writable(outputs, 'output file')
 
     blocks = read_blocks()
-    lines = hfs_kappa.read_lines(table_path, raw=True)
-    sigma, keep, table, _ = hfs_kappa.adopt_uncertainties(
-        lines, scale=hfs_kappa.A_SCALE)
+    model = hfs_model_of(cfg_path)
+    lines = hfs_kappa.read_lines(table_path, raw=True, model=model)
+    fixed = collections.Counter(ln.fixed for ln in lines if ln.fixed)
+    print('hfs model of %s: kappa held for %d line(s) (%s)'
+          % (os.path.relpath(cfg_path, HERE), sum(fixed.values()),
+             ', '.join('%s %d' % kv for kv in sorted(fixed.items()))
+             or 'none'))
+    sigma, keep, table, _ = hfs_kappa.adopt_uncertainties(lines)
     lam = [1e8 / ln.wn for ln in lines]
     blk, binof, counts, span = group_bins(blocks, lam, keep)
     good = sorted(counts)
@@ -865,6 +943,10 @@ def main(argv=None):
            math.sqrt(float(np.mean(fit['residual'] ** 2)))))
     say('calibration parameters %d, levels %d, kappa 3'
         % (ncal, len(levels)))
+    say('hfs model of %s; kappa held, not fitted, for %d line(s): %s'
+        % (os.path.relpath(cfg_path, HERE), sum(fixed.values()),
+           ', '.join('%s %d' % kv for kv in sorted(fixed.items()))
+           or 'none'))
     say('with every calibration parameter free: rank %d' % fit['rank'])
     say('with one of them held at zero:          rank %d' % held['rank'])
     if anchored:
@@ -875,9 +957,10 @@ def main(argv=None):
         say('the rank falls by one when a parameter is held, so every '
             'parameter is determined')
         say('by the data: the curve is absolute and nothing is held.')
+    kappa_fit = {c: (float(sol[j]), math.sqrt(max(cov[j, j], 0.0)))
+                 for c, j in kidx.items()}
     say('kappa: ' + '  '.join(
-        '%s %+.3f+-%.3f' % (c, sol[j], math.sqrt(cov[j, j]))
-        for c, j in kidx.items()))
+        '%s %+.3f+-%.3f' % (c, k, u) for c, (k, u) in kappa_fit.items()))
     say('the one remaining rank deficiency is the energy zero: every level '
         'can be raised by')
     say('the same amount without changing a single level difference, so '
@@ -1156,7 +1239,7 @@ def main(argv=None):
         ln = lines[i]
         k = 1.0 if ln.cls == 'flag' else K['c' if ln.cls == 'c'
                                            else 'plain_%d' % ln.era]
-        ritz = E[ln.upp] - E[ln.low] + k * hfs_kappa.A_SCALE * ln.D
+        ritz = E[ln.upp] - E[ln.low] + k * ln.D
         scale = ln.wn * ln.wn * 1e-8
         g = binof[i]
         points.append(dict(
@@ -1164,7 +1247,7 @@ def main(argv=None):
             block=blk[i],
             group=('%.0f-%.0f' % span[g]) if g in span else '',
             char=ln.char, era=ln.era, low_id=ln.low, upp_id=ln.upp,
-            hfs_shift_cm1='%+.4f' % (k * hfs_kappa.A_SCALE * ln.D),
+            hfs_shift_cm1='%+.4f' % (k * ln.D),
             ritz_cm1='%.4f' % ritz,
             d_lambda_A='%+.5f' % ((ritz - ln.wn) / scale),
             u_d_lambda_A='%.5f' % (sigma[i] / scale),
@@ -1256,6 +1339,14 @@ def main(argv=None):
                        own_correction='', u_own_correction='')
         corr.append(row)
 
+    if kappa_path:
+        say()
+        say('kappa written into [hfs.kappa] of %s'
+            % os.path.relpath(kappa_path, HERE))
+    elif not args.no_write:
+        say()
+        say('kappa not written into the configuration (--keep-kappa)')
+
     if args.no_write:
         print(out.getvalue(), end='')
         return 0
@@ -1284,6 +1375,14 @@ def main(argv=None):
             corr, os.path.join(HERE, args.set_dir, OUT_LINES))
         print('  %s: %d line(s) corrected, %d left on the published value.'
               % (os.path.join(args.set_dir, OUT_LINES), n, miss))
+    if kappa_path:
+        written, before = config.set_hfs_kappa(
+            cfg_path, kappa_fit, kappa_note(kappa_fit, before_of(kappa_path),
+                                            table_path, len(rows)))
+        print('  [hfs.kappa] of %s: %s'
+              % (os.path.relpath(written, HERE), '  '.join(
+                  '%s %.3f (was %.3f)' % (c, kappa_fit[c][0], before[c][0])
+                  for c in config.FITTED_KAPPA_CLASSES)))
 
     # ---- the parameters themselves, with their covariance ---------------
     if args.model == 'poly':

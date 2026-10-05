@@ -1,0 +1,9 @@
+wn_key	low_id	upp_id	class	unresolved	date	reason
+39960.6491	059003.000150	059003.000277	cg		10/5/2026	char w: 0.37 below the head, 0.09 from the center of gravity (D = +0.46)
+39719.0502	059003.000142	059003.000267	cg		10/5/2026	char d: 0.65 above the head, 0.11 past the center of gravity (D = -0.54)
+36647.5418	059003.000183	059003.000293	cg		10/5/2026	char w: 0.42 below the head, at the center of gravity (D = +0.40)
+44494.0809	059003.000127	059003.000267	cg		10/5/2026	char w: 0.79 above the head, 0.22 past the center of gravity (D = -0.58)
+35266.469	059003.000127	059003.000213	cg		10/5/2026	char d: 0.62 above the head, 0.14 past the center of gravity (D = -0.48)
+44570.63	059003.000145	059003.000286	cg		10/5/2026	char w: 0.58 above the head, at the center of gravity (D = -0.63)
+33934.5817	059003.000190	059003.000449	cg	059003.000190	10/5/2026	char w: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.213 from F = 3, observed -0.203
+27443.3325	059003.000190	059003.000280	cg	059003.000190	10/5/2026	char d: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.234 from F = 3, observed -0.230

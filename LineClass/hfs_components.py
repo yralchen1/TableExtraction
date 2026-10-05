@@ -202,14 +202,21 @@ def side_violations(paired):
 
 
 def read_line_list(path=None):
-    """Return {wavenumber: [classification rows]} from the pipeline's list."""
+    """Return {wavenumber: [classification rows]} from the pipeline's list.
+
+    A working set's table carries the calibrated wavenumber in wn_obs and
+    Sugar's published one in wn_key; the components are Sugar's, so the join
+    is made on wn_key wherever the table has it.  The baseline table has no
+    wn_key and is joined on wn_obs, as before.
+    """
     path = path or os.path.join(HERE, LINE_LIST)
     by_wn = {}
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
-            if not row.get('wn_obs'):
+            wn = row.get('wn_key') or row.get('wn_obs')
+            if not wn:
                 continue
-            by_wn.setdefault(float(row['wn_obs']), []).append(row)
+            by_wn.setdefault(float(wn), []).append(row)
     return by_wn
 
 
