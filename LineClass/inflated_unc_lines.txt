@@ -176,7 +176,8 @@ wn_key	unc_wn	date	reason
 112448.4995	0.7	10/5/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 32947.1485	0.1	10/5/2026	blend of 000148-000241 and theoretically much stronger rung 1 of 000149-000433
 38770.69	0.1	10/6/2026	blend
-22800.9719	0.15	10/6/2026	"outlier in IDEN2/LOPT, reason unknown"
-23529.3109	0.13	10/6/2026	"outlier in IDEN2/LOPT, reason unknown"
+22800.9719	0.05	10/6/2026	head class in kappa_exceptions.txt; residual at the head +0.047
+23529.3109	0.06	10/6/2026	head class in kappa_exceptions.txt; residual at the head -0.066 (kappa_line 0.94)
 15084.3664	0.075	10/6/2026	"outlier in IDEN2/LOPT, reason unknown"
-22524.4601	0.12	10/6/2026	"outlier in IDEN2/LOPT, reason unknown"
+67563.3182	0.7	10/6/2026	char h and too high Iobs indicate possible blend
+40175.1498	0.08	10/6/2026	char w and too high Iobs indicate possible blend

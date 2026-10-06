@@ -753,3 +753,10 @@ wn_key,low_id,upp_id,decision,date,reason
 38770.69,059003.000104,059003.000208,accept,10/6/2026,"blend improves cg, fair Iobs/Icalc"
 38770.69,059003.000245,059003.000556,accept,10/6/2026,"blend improves cg, fair Iobs/Icalc"
 53756.0123,059003.000047,059003.000248,reject,10/6/2026,"Too high Iobs, too far from Ritz"
+56732.2797,059003.000134,059003.000454,accept,10/6/2026,"Fair cg, better Iobs/Icalc"
+26314.727,059003.000148,059003.000200,accept,10/6/2026,IDEN2/LOPT: Good obs-Ritz after LOPT
+37534.6193,059003.000161,059003.000438,accept,10/6/2026,IDEN2/LOPT: Good obs-Ritz after LOPT
+70759.6321,059003.000041,059003.000296,accept,10/6/2026,"Fair cg, better Iobs/Icalc; char h supports blend"
+67563.3182,059003.000130,059003.000313,accept,10/6/2026,IDEN2/LOPT; unc inflated; char h indicates possible blend
+40175.1498,059003.000238,059003.000347,accept,10/6/2026,IDEN2/LOPT; unc inflated; char w and too high Iobs indicate possible blend
+40175.1498,059003.000182,059003.000450,accept,10/6/2026,IDEN2/LOPT; unc inflated; char w and too high Iobs indicate possible blend

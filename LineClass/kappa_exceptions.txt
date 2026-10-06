@@ -32,3 +32,7 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 31478.92163	059003.000140	059003.000217	partial:0-1		10/5/2026	blend of head and rung 1 components (plus some rung 2); questionable because no char was given
 34395.48159	059003.000148	059003.000255	partial:0-1		10/5/2026	blend of head and rung 1 components; char w
 22372.69081	059003.000150	059003.000195	partial:0-1		10/5/2026	blend of head and rung 1 components; questionable because no char was given
+22524.4601	059003.000182	059003.000243	head		10/6/2026	head of 1098-1028 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)
+22524.4601	059003.000182	059003.000433	head		10/6/2026	head of 1098-1031 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)
+22800.9719	059003.000037	059003.000142	head		10/6/2026	head of 1246-1139 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)
+23529.3109	059003.000039	059003.000148	head		10/6/2026	head of 1244-1131 pattern; kappa_line 0.94; inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)
