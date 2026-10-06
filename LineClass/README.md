@@ -3475,6 +3475,60 @@ wavenumber.
 from the table. Do not use the first three on a set with the switch on;
 `insert_new_level.py` refuses to run on one.
 
+#### Open problem: two groups of head lines of level 1098 disagree by 0.09 cm⁻¹
+
+Level `059003.000182` (IDEN2 row 1098, 4f²6s, J = 5/2, A = +0.149 cm⁻¹, one of the widest
+hyperfine patterns) has two groups of lines measured at the head of their patterns, and they
+disagree. Both are held at κ = 1. Figures are from the converged fit of 2026-10-06
+(plain_1974 = 0.803):
+
+- seven `*v` lines at 2977–3378 Å, every one with printed components. Six of them sit
+  +0.066 to +0.115 cm⁻¹ above the head-frame Ritz value (mean +0.09). The seventh,
+  29602.3422 (to 000273), sits at +0.005. With their uncertainty of 0.063 cm⁻¹ each is only
+  1.0–1.8σ off, so none is an outlier;
+- six unflagged transitions at 4053–4572 Å that are heads by a registry: 21872.0023,
+  22685.2332, 23082.9190 and 24670.6422 (main lines of resolved companions,
+  `hfs_satellites.txt`), and the two transitions of 22524.4601 (`kappa_exceptions.txt`). All
+  fit within ±0.03 cm⁻¹. With uncertainties of 0.022 cm⁻¹ they carry about eight times the
+  weight of a `*v` line and fix the level where LOPT has it.
+
+The κ classes cannot reconcile the two groups. A line held at κ = 1 is predicted at the
+head-frame Ritz value whatever κ, A(000182) or D are. The discrepancy was the same at every κ
+the calibration has passed through, from 0.944 to 0.697, and after the split of the flags.
+
+**What it is not** (2026-10-06):
+- the plate calibration. The `*r` lines of the neighboring level 000183 go to the same upper
+  levels at wavelengths about 0.4 Å from the `*v` lines and fit. The offset was already there
+  in the uncalibrated baseline of August;
+- A(000182) or the choice of component. The printed companions of the `*v` lines sit on the
+  rungs predicted from the tabulated line: for 29602.3422, +0.729, +1.299, +1.738, +1.976
+  measured against +0.706, +1.273, +1.701, +1.989. That confirms A = 0.149 (Reader and
+  Sugar's 0.1495 agrees) and that the tabulated line is the strongest component;
+- the upper levels. Each is fixed by 13–36 other lines, and the `*r` lines of 000183 to the
+  same upper levels fit;
+- the flag class. Flagged lines with printed components fit κ = 1 everywhere else
+  (κ′ = 0.998 ± 0.007, 222 lines).
+
+**Two readings, between which the line positions cannot decide:**
+1. The level is right, and the six `*v` heads are measured 0.09 cm⁻¹ too far to the violet.
+   No mechanism is known. Only 29602.3422 is a ΔJ = −1 transition, and it alone fits, but one
+   case is not a pattern.
+2. The level should be 0.09 cm⁻¹ lower, which raises every Ritz value of its lines by that
+   much. The `*v` lines then fit, and so do the companion spacings below. But the unflagged
+   head lines at 4053–4572 Å would then sit 0.06–0.10 cm⁻¹ on the red side of their own heads,
+   which no single pattern allows, so they would carry a common systematic error. One sign of
+   such an error: the companions of 21872.0023 and 22685.2332 lie +0.732 and +0.716 cm⁻¹ from
+   their main lines, against +0.644 and +0.605 predicted for rung 1 with the composition A of
+   000238 and 000245. That is 0.09–0.11 too far, as reading 2 would have it. But it could also
+   mean that A(000238) and A(000245) are near +0.005 instead of their composition values
+   (+0.017 ± 0.008, +0.024 ± 0.006). The unflagged plain lines of 000182 would then sit at
+   κ ≈ 0.93–1.0, as wide patterns elsewhere do.
+
+The plates would decide it; the line list cannot. Until then the level stays where LOPT puts
+it, the `*v` lines stay accepted, and neither group is given registry rows or inflations on
+the strength of one reading. Nothing else depends on it by more than about 0.09 cm⁻¹. A
+published energy of 1098 should carry an uncertainty of about 0.05 cm⁻¹ for it.
+
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
 ### What the absence of a transition means
