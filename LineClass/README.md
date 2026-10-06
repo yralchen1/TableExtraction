@@ -3635,6 +3635,146 @@ it, the `*v` lines stay accepted, and neither group is given registry rows or in
 the strength of one reading. Nothing else depends on it by more than about 0.09 cm⁻¹. A
 published energy of 1098 should carry an uncertainty of about 0.05 cm⁻¹ for it.
 
+### A constants from the Cowan eigenvectors: `hfs_A_theory.py`
+
+`hfs_A_theory.py` computes the magnetic-dipole constant A of every level from its eigenvector
+in `RCEOUT`, the output of Cowan's RCE fit. Nothing reads its output: no A constant used by
+the pipeline changes. It is the check calculation of item 4 of Step 4 in
+`Work_on_hfs_plan.md`.
+
+**The model.** Every open shell nl contributes three terms to the hyperfine operator, each
+with its own *radial parameter* in cm⁻¹:
+- a01, the orbital term;
+- a12, the spin-dipolar term;
+- a10, the contact term (for l > 0, core polarization).
+
+Nonrelativistically a01 = a12, and a10 = 0 for l > 0. A single s electron has only a10.
+
+A is linear in these parameters: A = Σ θ·a. The angular coefficients θ depend only on the
+eigenvector. The program computes every θ of every level, then forms A from the parameters
+in `hfs_radial_params.toml`. With `--fit` it also fits chosen parameters to the measured
+constants of `A_hfs_levels.csv`. Semiempirical, undetermined, estimated and CONFLICT rows are
+not used. Matrix elements between configurations are neglected, as is usual for effective
+parameters.
+
+**The eigenvectors.** RCEOUT prints up to ten components per level: the signed amplitude
+×100, rounded, the configuration, and a 12-character label. A is a quadratic form in the
+amplitudes, so the signs matter. The cross terms between, for example, 4P and 2P of 4f²6s
+J = 1/2 are as large as the diagonal ones.
+
+The program rebuilds Cowan's basis states:
+- **Shell states.** Each l^w is built from Cowan's own coefficients of fractional parentage
+  (`CODE/lsjj/cowan_cfp.py` and `CODE/ING11.CFP` of the Cowan repository, imported, not
+  copied), so the states carry RCG's alpha labels and signs.
+- **Coupling.** Shells are coupled in configuration-card order, as RCG does it. The card list
+  is at the top of the program, taken from `WORK/Pr3/IN36`.
+- **Labels.** Each state is labeled by RCG's own rule, so every RCEOUT label names exactly one
+  state.
+
+The operator is applied in the m-scheme, to Slater determinants, so no Racah phase
+convention has to be matched.
+
+The three 5p⁵ core-excited configurations (`f4p5`, `p5f3d`, `p5f3s`) are left out. Their
+labels are ambiguous, and they hold under 1% of any observed level.
+
+**Tests that the conventions are Cowan's** (`tests/test_hfs_A_theory.py`):
+- One p, d or f electron gives A_j = a·l(l+1)/[j(j+1)].
+- Pure LS states of 4f²6s give the vector-model projections.
+- The 4f spin cancels the 6s contact cross term between 4P₁/₂ and 2P₁/₂.
+- Every component RCEOUT prints, for 5626 levels, names exactly one state.
+
+The decisive check is physical. Fitted to the measured constants, a₆ₛ comes out at
+0.645 ± 0.005 cm⁻¹ and a₄f at 0.0287 ± 0.0005. Reader and Sugar (1965) found 0.639 and 0.029
+with their own angular algebra. A wrong sign convention would not reproduce them.
+
+**Is RCEOUT precise enough? Yes.** Two errors come from the file, and the program computes
+both for every level:
+- **Rounding** of the amplitudes to 0.01 (`u_round`): a median 0.00003 cm⁻¹, negligible.
+- **Truncation** after ten components: the printed weight of the observed levels has a median
+  of 0.965, a 5th percentile of 0.915, and a minimum of 0.759.
+  - `trunc_bound` is the largest change the missing weight could make (Cauchy–Schwarz).
+  - The bound is very pessimistic. Each run calibrates it: every level that prints ten
+    components is recomputed from its first seven, and the known change that components 8–10
+    bring is compared with their bound. The ratio is a median 0.13 (90th percentile 0.41).
+  - `u_trunc` is the bound times that median: 0.0003 cm⁻¹ median and 0.0011 at the 90th
+    percentile. Both are below the measurement uncertainties of all but a few levels.
+
+`OUTG11`'s complete eigenvectors are therefore not needed.
+
+**First run, 2026-10-06.** The fit used 70 measured constants:
+
+```
+python hfs_A_theory.py --fit 4f.a01,4f3/4f.a01,5d.a01,5d.a10,6s.a10 --exclude 151,127,190,198
+
+a_4f   (a01 = a12)       +0.0287 +- 0.0005
+a_4f   in 4f3 only       +0.0227 +- 0.0013
+a_5d   a01 (= a12)       +0.0227 +- 0.0015
+a_5d   a10               -0.0287 +- 0.0060
+a_6s                     +0.645  +- 0.005      chi2/dof 1.15
+```
+
+`a_6p` is not fitted: no measured constant tests it. The value used is the estimate of
+`Work_on_hfs_plan.md` section 2.4, converted to a01 = 0.04 and a12 = 0.05 with a10 = 0. The
+fitted set was written into `hfs_radial_params.toml` on the user's decision, with the command
+and the uncertainties in its comments. A plain `python hfs_A_theory.py` reproduces the fitted
+run. The results are in `hfs_A_theory.csv`, one row per identified level; the log is
+`hfs_A_theory.log`.
+
+By configuration (rms residual / median |z|):
+
+```
+4f²6s   22   0.017 / 0.85   (0.003 without 000127 and 000190)
+4f5d²   45   0.009 / 0.60
+4f³      3   0.002 / 0.30
+```
+
+The present compositions repair most of the level-by-level faults of Reader and Sugar's 1965
+values. Measured/calculated ratios against the present calculation:
+- 000149 and 000150 (×0.76 against theirs): 0.97 and 0.96;
+- 000145: 1.03;
+- 000142: 0.96;
+- 000165: 0.98;
+- 000191: 0.99;
+- 000140: 1.08.
+
+Four levels disagree beyond 3σ and were left out of the fit:
+
+```
+level    leading           A_meas            A_calc    z
+000151   f25d (1D) 2G      -0.0684 +- 0.0057  +0.0234  -15.9   1 pattern, 1 position; opposite sign
+000127   f26s (3H) 4H      +0.0777 +- 0.0017  +0.0945   -9.4   as Reader and Sugar's (+0.0935 scaled)
+000190   f26s (3P) 2P      -0.1570 +- 0.0100  -0.0802   -7.0   as Reader and Sugar's (-0.0787); cancellation
+000198   f5d2 (3F) 4H      -0.0040 +- 0.0090  +0.0409   -4.9   from the center of gravity of 21793.442
+```
+
+For 000127 and 000190 the present eigenvectors give what Reader and Sugar's did, so the fault
+is in the composition the level-structure fit produces. A refined Cowan fit is the remedy, not
+the radial parameters.
+
+**Columns of `hfs_A_theory.csv`.**
+- `norm`: the printed weight.
+- `w_skipped`: the weight of components left out.
+- `th_<nl>_<kind>`: θ summed over the configurations.
+- `A_calc`, `u_round`, `u_trunc` and `trunc_bound`.
+- `cancel`: the sum of |θ·a| over |A|. It is 1 when every term has the same sign, and large
+  when A is the residue of a cancellation.
+- `missing` and `w_missing`: shells without parameters (5f, 6d, 7s, …), which contribute
+  nothing, and the weight of their configurations. A is left blank above 5%.
+- `A_meas`, `u_meas`, `resid` and `z`.
+
+**Running it.** The Cowan repository is read where `COWAN_REPO` points, by default
+`F:\COWAN\repo`; nothing in it is changed. A configuration-specific parameter is written
+`config/nl`, for example `4f3/4f.a01`. In `hfs_radial_params.toml` a kind may name another kind
+of the same shell, which ties the two (`a12 = "a01"`). `--all` writes every RCEOUT level, not
+only those with a level_id. `--no-write` prints the report only.
+
+RCEOUT carries no level identifier. Its levels are paired with those of
+`tp_E1_no_trials.xlsx`, the same calculation, by aligning calculated energies within each
+parity and J. The Cowan level numbers then become level_ids through
+`classify_lines.cowan_lid_ids`, which uses `IDEN2/IDEN_level_ids.txt`. Where both files carry
+an observed energy, the two are compared. All 654 identified levels are paired, and none
+disagrees.
+
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 
 ### What the absence of a transition means

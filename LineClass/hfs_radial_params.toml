@@ -1,0 +1,30 @@
+# Radial hyperfine parameters for hfs_A_theory.py, in cm^-1.
+#
+# Each open shell nl has three effective parameters (Sandars and Beck):
+#   a01  orbital
+#   a12  spin-dipolar
+#   a10  contact; for l > 0 the core polarization
+# A kind may name another kind of the same entry, which ties the two
+# (a12 = "a01" is the nonrelativistic relation).  A kind that is absent has
+# no value, and a level whose A needs it gets none.  A key "config/nl", e.g.
+# "4f3/4f", overrides the plain "nl" entry in that configuration only.
+
+[radial]
+# Fitted 2026-10-06 to 70 measured constants of A_hfs_levels.csv
+# (chi2/dof 1.15; uncertainties scaled by sqrt(chi2/dof)):
+#   python hfs_A_theory.py --fit 4f.a01,4f3/4f.a01,5d.a01,5d.a10,6s.a10
+#                          --exclude 151,127,190,198
+# a01   4f     0.02870 +- 0.00050   (Reader and Sugar 1965: 0.029)
+# a01   4f3/4f 0.02266 +- 0.00135   (three 4f3 levels only)
+# a01   5d     0.02269 +- 0.00155
+# a10   5d    -0.02867 +- 0.00597
+# a10   6s     0.64504 +- 0.00454   (Reader and Sugar 1965: 0.639)
+"4f" = { a01 = 0.02870, a12 = "a01", a10 = 0.0 }
+"4f3/4f" = { a01 = 0.02266, a12 = "a01", a10 = 0.0 }
+"5d" = { a01 = 0.02269, a12 = "a01", a10 = -0.02867 }
+"6s" = { a10 = 0.64504 }
+
+# Not fitted: no measured constant tests it.  Work_on_hfs_plan.md section
+# 2.4: a_6p(1/2) = 0.12 and a_6p(3/2) = 0.020, estimated from the 6s/6p
+# ratios of Cs I and Ba II, turned into a01 and a12 with a10 = 0.
+"6p" = { a01 = 0.04, a12 = 0.05, a10 = 0.0 }
