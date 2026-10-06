@@ -3208,6 +3208,20 @@ that D. The line's `hfs_shift` uses them too. The line's other transitions keep 
 class. A `head` row also makes the line give up its level widths in `make_LOPT_input.py`, as a
 flagged line does.
 
+Every level a row names needs an A, except in a `head` row. A head row moves its line by
+(1 − 1)·D = 0, whatever D is, so one of its levels may lack an A as long as the other has one
+and gives the line a pattern to head. Two rows do this (2026-10-06): 22800.9719 (000037-000142)
+and 23529.3109 (000039-000148). Such a row has three costs:
+- the evidence for the head assumed that the level without an A has no hfs of its own;
+- the line gives up its level widths, so that level's unknown hfs is covered only by the
+  line's inflation in `inflated_unc_lines.txt` (0.05 and 0.06 cm⁻¹ here);
+- `kappa_candidates.py` cannot audit the row, since it tests only lines whose two levels have
+  an A.
+
+Keep those inflations. Each line still pins the energy of its wide-pattern level. Without its
+0.06, 23529.3109 alone moves plain_1974 from 0.802 to 0.778 (one-edit scratch calibrations of
+2026-10-06).
+
 Classes are reused, not fitted per line, because a class fitted on lines chosen for where they
 sit would only measure the choice. For the same reason the plate calibration holds an
 exception's κ instead of fitting it (see the wavelength calibration above).
@@ -3280,6 +3294,11 @@ transition of its observed line, both of its levels have a known A (or are resol
   row that borrows a class, such as `c`, is audited at that class's κ (`kappa_held`). A row
   added after the last chain run is not yet in the fit (`kappa_now`, the κ LOPT saw, differs
   from `kappa_held`); it is audited at `kappa_held` all the same, and the summary names it.
+  A held line whose inflation in `inflated_unc_lines.txt` already covers its residual passes
+  too: its `registry_advice` reads `needs X (now X)`, or asks for less than the registry has,
+  rounded to the two decimals it prints. The two rows together then account for the line, and a
+  failure would only repeat what the inflation says (changed 2026-10-06, after 37509.3400 and
+  25555.9702 failed with `needs 0.29 (now 0.29)` and `needs 0.09 (now 0.09)`).
   `--fit-sigma` plays no part in the audit: it only says how well the head or cg must itself
   fit for a candidate.
 
@@ -3523,6 +3542,59 @@ the calibration has passed through, from 0.944 to 0.697, and after the split of 
    mean that A(000238) and A(000245) are near +0.005 instead of their composition values
    (+0.017 ± 0.008, +0.024 ± 0.006). The unflagged plain lines of 000182 would then sit at
    κ ≈ 0.93–1.0, as wide patterns elsewhere do.
+
+**Neighboring levels** (2026-10-06, later the same day). Two levels can mix through the
+hyperfine interaction only when they have the same parity and share values of F. Even then,
+the magnetic dipole interaction (A) connects only levels whose J differ by at most 1. The
+electric quadrupole interaction (B) reaches ΔJ = 2, but B is about 0.001–0.002 cm⁻¹ for ¹⁴¹Pr.
+- **000181 (1099)**, 4f²5d, J = 9/2, A not known, lies 1.236 cm⁻¹ below 1098. They share
+  F = 2–5, but ΔJ = 2, so only B can mix them. That shifts a sublevel by at most about
+  0.001 cm⁻¹, even where two sublevels of equal F cross. The mixing cannot make 0.09.
+- **000243 (1028, 4f5d², J = 7/2) and 000433 (1031, 4f²6p, J = 5/2)** lie 0.051 cm⁻¹ apart.
+  This is the only pair within 5 cm⁻¹, of the same parity and with |ΔJ| ≤ 1, in which both
+  levels have an A; the other 29 such pairs are mostly 4f²5g doublets without one. 37
+  observed lines are assigned to both levels at once, 22524.4601 among them. That line is
+  therefore two hfs patterns of different J lying on top of each other (heads 0.185 and
+  0.163 cm⁻¹ above their own centers of gravity), with no single well-defined head. If the
+  two levels also mix through A, sublevels of equal F (1–5) repel. The size of that depends on
+  an off-diagonal constant that only the eigenvector compositions could give. Either way, the
+  two head rows of 22524.4601 are a weaker anchor for 1098 than the other four registry heads.
+  A(000243) is not affected: it comes from 29883.33 and 33040.76, whose lower levels
+  (J = 9/2) cannot reach 1031.
+
+**Rung 2 favors reading 2.** 1099's transitions from the J = 7/2 upper levels that 1098
+shares fall 1.236 cm⁻¹ to the violet of the 1098 lines, close to rung 2 of their patterns.
+Two of them are in the list: 21873.2418 (1035) and 22686.3980 (1030), both accepted for
+1099. Measured from the main lines 21872.0023 and 22685.2332:
+
+```
+                       rung 1   rung 2
+1098-1035  observed    +0.732   +1.240
+           predicted   +0.641   +1.150   (A(000238) = +0.0173, composition)
+1098-1030  observed    +0.716   +1.165
+           predicted   +0.599   +1.074   (A(000245) = +0.0242, composition)
+```
+
+Both rungs of both patterns sit about 0.09 farther out than predicted. A smaller A of the
+upper level cannot do that: rung 2 moves almost twice as fast with A as rung 1 does, so an A
+that fits rung 1 misses rung 2 by 0.05–0.12. Fitting the A of the upper level and an offset
+of the main line together, from the two rungs, gives:
+- 1035: A = +0.0176, main line +0.09 ± 0.04 red of the true head;
+- 1030: A = +0.0294, main line +0.15 ± 0.04 red of the true head.
+
+Both A values agree with their composition values. So the main lines, not the A constants,
+look displaced, as reading 2 has it. The ±0.04 assumes 0.02 cm⁻¹ for each companion
+position.
+
+The caveat is the identity of the rung-2 lines. They are accepted 1099 transitions, and
+1099's 1.236 cm⁻¹ separation puts its lines exactly in this region.
+- 21873.2418 fits as a 1099 line too (−0.025), so it decides nothing.
+- 22686.3980 lies −0.09 from its 1099 Ritz value and fits rung 2 under reading 2. It is the
+  one piece of evidence that does not depend on the identity.
+
+No mechanism is known that would put an unflagged head 0.09–0.15 cm⁻¹ to the red of its
+pattern. The nearest red-side component, F = 5 → 5, lies 0.10 cm⁻¹ below the head at 12% of
+its strength. Blended in, it would move the measured position by about 0.01.
 
 The plates would decide it; the line list cannot. Until then the level stays where LOPT puts
 it, the `*v` lines stay accepted, and neither group is given registry rows or inflations on

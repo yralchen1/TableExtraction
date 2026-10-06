@@ -61,7 +61,11 @@ its own kappa is rejected as a class is, beyond sqrt(--dchi2) (three
 sigma), not at --fit-sigma - among some 20 audited rows one or two lie
 beyond 2 sigma by chance alone (2026-10-05).  The kappa audited is the
 registry's (kappa_held), which differs from the one the fit used
-(kappa_now) for a row added after the last chain run.
+(kappa_now) for a row added after the last chain run.  A held line whose
+inflation in inflated_unc_lines.txt already covers its residual, to the
+two decimals the advice prints, passes the audit too (2026-10-06): its
+registry_advice reads 'needs X (now X)' or less, and the pair of rows says
+all the test can.
 
 PARTIAL PATTERNS: INFORMATION, NEVER A VERDICT
 ==============================================
@@ -225,6 +229,24 @@ def hypotheses(r_loo, kappa_now, kappa_class, D, sigma, kappa_held=None):
     return out
 
 
+def needed_unc(zz, sigma, u_shift, u_rest):
+    """The own uncertainty that makes the residual zz * sigma a 1-sigma one
+    together with the hfs shift and the rest of the network:
+    sqrt(r^2 - u_hfs_shift^2 - u_rest^2), or 0 when those two cover it."""
+    r = zz * sigma
+    return math.sqrt(max(r ** 2 - u_shift ** 2 - u_rest ** 2, 0.0))
+
+
+def inflation_covers(reg_u, z, sigma, u_shift, u_rest):
+    """Whether the registry value `reg_u` already covers the residual of a
+    held line at its held kappa (z['held'], else z['now']): the need, rounded
+    to the two decimals registry_advice prints, is at most reg_u."""
+    if reg_u is None:
+        return False
+    need = needed_unc(z.get('held', z['now']), sigma, u_shift, u_rest)
+    return round(need, 2) <= reg_u + 1e-9
+
+
 def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
                     at=None):
     """What the inflation registry's value `reg_u` of a line should become,
@@ -244,8 +266,7 @@ def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
     prefix = 'at %s: ' % at if at else ''
     if abs(zz) <= fit_sigma:
         return prefix + 'delete'
-    r = zz * sigma
-    need = math.sqrt(max(r ** 2 - u_shift ** 2 - u_rest ** 2, 0.0))
+    need = needed_unc(zz, sigma, u_shift, u_rest)
     return prefix + 'needs %.2f (now %g)' % (need, reg_u)
 
 
@@ -275,13 +296,15 @@ def best_alternative(z, kappa_class=None):
     return min(alts, key=lambda k: abs(z[k]))
 
 
-def verdict(z, held, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA, kappa_class=None):
+def verdict(z, held, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA, kappa_class=None,
+            covered=False):
     """`(verdict, dchi2)` of a testable line.
 
     `held` is the registry's class name for the line ('' if none).  A held
     line is audited against the kappa the registry holds it at (z['held'],
     or z['now'] when absent): 'audit-fails' when that is rejected beyond
-    sqrt(dchi2_min), as a class is, else 'audit-ok'.
+    sqrt(dchi2_min), as a class is, and its inflation does not cover the
+    residual (`covered`, inflation_covers), else 'audit-ok'.
     Otherwise 'candidate-head' or 'candidate-cg' when the class loses to the
     better alternative by at least dchi2_min and that one fits within
     fit_sigma; 'class-fails' when the class is rejected and neither
@@ -290,7 +313,7 @@ def verdict(z, held, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA, kappa_class=None):
     best = best_alternative(z, kappa_class)
     dchi2 = z['class'] ** 2 - z[best] ** 2
     if held:
-        return ('audit-ok' if abs(z.get('held', z['now']))
+        return ('audit-ok' if covered or abs(z.get('held', z['now']))
                 <= math.sqrt(dchi2_min)
                 else 'audit-fails', dchi2)
     if dchi2 >= dchi2_min and abs(z[best]) <= fit_sigma:
@@ -477,10 +500,12 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
             # line at kappa_now: audit it at the kappa the row asks for
             count['held, not yet in the fit'] += 1
         z = hypotheses(r_loo, kappa_now, kappa_class, D, sigma, kappa_held)
-        v, dchi2 = verdict(z, held, dchi2_min, fit_sigma, kappa_class)
+        reg_u = registry.lookup(key)
+        v, dchi2 = verdict(z, held, dchi2_min, fit_sigma, kappa_class,
+                           covered=bool(held) and inflation_covers(
+                               reg_u, z, sigma, u_shift, u_rest))
         count[v] += 1
         near = nearest_other(keys, intens, pos[key])
-        reg_u = registry.lookup(key)
         r1 = rung1(model, low, upp)
         at_r1 = None if r1 is None else line_near(keys, key + r1)
         kappa_line = kappa_now + r_loo / D

@@ -760,3 +760,4 @@ wn_key,low_id,upp_id,decision,date,reason
 67563.3182,059003.000130,059003.000313,accept,10/6/2026,IDEN2/LOPT; unc inflated; char h indicates possible blend
 40175.1498,059003.000238,059003.000347,accept,10/6/2026,IDEN2/LOPT; unc inflated; char w and too high Iobs indicate possible blend
 40175.1498,059003.000182,059003.000450,accept,10/6/2026,IDEN2/LOPT; unc inflated; char w and too high Iobs indicate possible blend
+40075.8501,059003.000238,059003.000669,accept,10/6/2026,IDEN2/LOPT; unc inflated

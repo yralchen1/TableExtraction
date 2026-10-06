@@ -317,4 +317,12 @@ def test_the_baseline_names_the_registry_and_it_reads():
         'kappa_exceptions.txt'
     m = W.hfs_model_of(config.DEFAULT_PATH)
     for row in m.exceptions.rows:
-        assert row.low_id in m.levels and row.upp_id in m.levels
+        known = [lid in m.levels for lid in (row.low_id, row.upp_id)]
+        if row.cls == 'head':
+            # a head row shifts its line by (1 - 1) * D = 0 whatever D is,
+            # so one level may lack an A (22800.9719, 23529.3109: 000037
+            # and 000039, 2026-10-06); the other must give the line a
+            # pattern to be the head of
+            assert any(known), row
+        else:
+            assert all(known), row

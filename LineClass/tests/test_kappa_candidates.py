@@ -137,6 +137,26 @@ def test_the_advice_by_verdict():
         'delete'
 
 
+def test_an_inflation_that_covers_the_residual_passes_the_audit():
+    # 37509.3400 held at the cg, -5.4 sigma of 0.0546: the residual is
+    # 0.2923, and less the shift (0.0302) and the rest (0.025) it needs 0.29,
+    # which is what the registry has
+    sigma, u_shift, u_rest = 0.0546, 0.0302, 0.025
+    z = {'now': -0.2923 / sigma, 'held': -0.2923 / sigma, 'class': -11.6,
+         'head': -13.1, 'cg': -0.2923 / sigma}
+    assert K.registry_advice(0.29, z, sigma, u_shift, u_rest) == \
+        'needs 0.29 (now 0.29)'
+    assert K.inflation_covers(0.29, z, sigma, u_shift, u_rest)
+    assert K.verdict(z, 'cg', kappa_class=0.803, covered=True)[0] == \
+        'audit-ok'
+    # an inflation short of the need, or none, does not
+    assert not K.inflation_covers(0.25, z, sigma, u_shift, u_rest)
+    assert not K.inflation_covers(None, z, sigma, u_shift, u_rest)
+    assert K.verdict(z, 'cg', kappa_class=0.803)[0] == 'audit-fails'
+    # a larger inflation covers too; the advice then asks for less
+    assert K.inflation_covers(0.4, z, sigma, u_shift, u_rest)
+
+
 def test_the_median():
     assert K.median([3.0, 1.0, 2.0]) == 2.0
     assert K.median([4.0, 1.0, 2.0, 3.0]) == 2.5
