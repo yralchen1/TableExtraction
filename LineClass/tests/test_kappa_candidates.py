@@ -103,8 +103,13 @@ def test_the_registry_advice():
     # 44494.0809: 2.6 sigma of 0.0946 is 0.246; less the hfs shift (0.0771)
     # and the rest (0.0233), the line's own value must be 0.232
     z = {'now': 2.6, 'held': 2.6}
-    assert K.registry_advice(0.25, z, 0.0946, 0.0771, 0.0233) == \
-        'needs 0.23 (now 0.25)'
+    assert K.registry_advice(0.30, z, 0.0946, 0.0771, 0.0233) == \
+        'needs 0.23 (now 0.3)'
+    # within 10 per cent of the registry's value there is nothing to change
+    # (2026-10-06): 0.232 is 7 per cent off 0.25, and 10.5 off 0.21
+    assert K.registry_advice(0.25, z, 0.0946, 0.0771, 0.0233) == ''
+    assert K.registry_advice(0.21, z, 0.0946, 0.0771, 0.0233) == \
+        'needs 0.23 (now 0.21)'
     # a line not held is judged where it is fitted
     assert K.registry_advice(0.3, {'now': -1.5}, 0.05, 0.0, 0.0) == 'delete'
     # a candidate is judged where it would be held, and says so
@@ -144,8 +149,7 @@ def test_an_inflation_that_covers_the_residual_passes_the_audit():
     sigma, u_shift, u_rest = 0.0546, 0.0302, 0.025
     z = {'now': -0.2923 / sigma, 'held': -0.2923 / sigma, 'class': -11.6,
          'head': -13.1, 'cg': -0.2923 / sigma}
-    assert K.registry_advice(0.29, z, sigma, u_shift, u_rest) == \
-        'needs 0.29 (now 0.29)'
+    assert K.registry_advice(0.29, z, sigma, u_shift, u_rest) == ''
     assert K.inflation_covers(0.29, z, sigma, u_shift, u_rest)
     assert K.verdict(z, 'cg', kappa_class=0.803, covered=True)[0] == \
         'audit-ok'
@@ -155,6 +159,18 @@ def test_an_inflation_that_covers_the_residual_passes_the_audit():
     assert K.verdict(z, 'cg', kappa_class=0.803)[0] == 'audit-fails'
     # a larger inflation covers too; the advice then asks for less
     assert K.inflation_covers(0.4, z, sigma, u_shift, u_rest)
+    assert K.registry_advice(0.4, z, sigma, u_shift, u_rest) == \
+        'needs 0.29 (now 0.4)'
+
+
+def test_a_class_failure_with_one_value_in_agreement():
+    # at the class the registry's 0.31 is what the line needs: only the
+    # value at the cg is given, without a leading '; '
+    sigma = 0.0481
+    z = {'now': 0.31 / sigma, 'class': 0.31 / sigma, 'head': 18.0,
+         'cg': 0.15 / sigma}
+    assert K.advice_of('class-fails', 0.31, z, sigma, 0.0, 0.0,
+                       kappa_class=0.817) == 'at cg: needs 0.15 (now 0.31)'
 
 
 def test_the_median():

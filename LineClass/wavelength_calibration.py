@@ -40,6 +40,37 @@ is, and votes on no class's `kappa` (hfs_correction.Model.fit_terms).  An
 exception borrowing a fitted class takes the value `[hfs.kappa]` gives it,
 which is the previous pass's.
 
+How far a few lines move kappa, and when kappa moves
+----------------------------------------------------
+The formal uncertainty of a class's `kappa` assumes every line votes as
+its weight says.  It does not: a narrow pattern (|D| small) tells almost
+nothing, because the level energies absorb a change of kappa, and the class
+value rests on a few dozen wide patterns - ten lines carried 80 per cent of
+plain_1974's information on 2026-10-06.  Deleting one of them, or changing
+its inflation, moved plain_1974 by 0.024 against a formal 0.013.
+
+So every class also gets a jackknife uncertainty (`kappa_jackknife`): the
+spread of the kappas the fit would give with each line left out in turn,
+taken from each line's leave-one-out influence on the final fit,
+
+    d kappa_i = -(C a_i w_i) (w_i e_i) / (1 - h_i),
+
+C the covariance, a_i the line's row of the design matrix, w_i = 1/sigma_i,
+e_i its residual and h_i its leverage; u_jack^2 = (n - 1)/n * sum of
+(d kappa_i - their mean)^2.  The uncertainty written is the larger of the
+formal and the jackknife one, and the report names the lines that move the
+class most.
+
+And a class's kappa moves only when the data move it beyond that
+uncertainty (`kappa_holds`): a fitted kappa within `--kappa-deadband`
+(1) times it of the value [hfs.kappa] holds now is not taken.  The class is
+held at its present value, the final fit is made once more with that kappa
+fixed, so that the curve and the points are the ones that go with the kappa
+written, and only the uncertainty is updated.  A few lines added, deleted
+or re-inflated then leave kappa where it was, which the less populated
+classes (c, flag_unlisted, plain_1969) need most.  `--kappa-deadband 0`
+takes every fitted value.
+
 Where a plate ends
 ------------------
 Sugar's exposure boundaries were never published, but the line list maps
@@ -184,6 +215,11 @@ MIN_THIN = 2
 #: satisfies it exactly whatever `delta_lambda` is.  Such a line is written
 #: into `wavelength_calibration_points.csv` with an empty `u_eff_A`.
 H_MAX = 0.999
+#: a class's kappa moves only beyond this many realistic uncertainties of
+#: the value [hfs.kappa] holds now (`kappa_holds`)
+KAPPA_DEADBAND = 1.0
+#: how many of the lines that move a class most the report names
+KAPPA_TOP = 5
 
 GAPS = os.path.join(HERE, 'coverage_gaps.txt')
 BREAKS = os.path.join(HERE, 'calibration_breaks.txt')
@@ -564,22 +600,26 @@ def kappa_name(ln):
     return 'plain_%d' % ln.era
 
 
-def build(lines, lam, blk, binof, sigma, keep, ncal, terms):
+def build(lines, lam, blk, binof, sigma, keep, ncal, terms, fixed=None):
     """The design matrix, the right-hand side and the weights.
 
     The columns are the level energies, then the `ncal` calibration
     parameters laid out by `terms`, then the `kappa` of each fitted class of
     the hyperfine convention (config.FITTED_KAPPA_CLASSES) that has a line
     here: `flag_unlisted` only where the configuration splits the flags.
+    `fixed`, {class: kappa}, holds those classes instead: their lines have
+    kappa * D taken off the right-hand side, as a flagged line has D, and
+    they get no column (`kappa_holds`).
     """
+    fixed = fixed or {}
     rows = [i for i in range(len(lines)) if keep[i]]
     levels = sorted(set(lines[i].low for i in rows)
                     | set(lines[i].upp for i in rows))
     lidx = {v: k for k, v in enumerate(levels)}
     off = len(levels)
     present = {kappa_name(lines[i]) for i in rows if lines[i].cls != 'flag'}
-    kcls = [c for c in config.FITTED_KAPPA_CLASSES
-            if c in config.REQUIRED_KAPPA_CLASSES or c in present]
+    kcls = [c for c in config.FITTED_KAPPA_CLASSES if c not in fixed
+            and (c in config.REQUIRED_KAPPA_CLASSES or c in present)]
     kidx = {c: off + ncal + k for k, c in enumerate(kcls)}
 
     A = np.zeros((len(rows), off + ncal + len(kcls)))
@@ -595,11 +635,59 @@ def build(lines, lam, blk, binof, sigma, keep, ncal, terms):
         D = ln.D
         if ln.cls == 'flag':
             y[r] = ln.wn - D
+        elif kappa_name(ln) in fixed:
+            y[r] = ln.wn - fixed[kappa_name(ln)] * D
         else:
             A[r, kidx[kappa_name(ln)]] += D
             y[r] = ln.wn
         w[r] = 1.0 / sigma[i]
     return rows, levels, lidx, off, kidx, A, y, w
+
+
+def kappa_jackknife(parts, fit, lines, top=KAPPA_TOP):
+    """`{class: (u_jack, n, [(wn_key, d_kappa), ...])}` of the fit `fit` of
+    `parts` (`build`'s): the jackknife uncertainty of each fitted kappa, the
+    number of lines that vote on it, and the `top` lines whose leaving out
+    would move it most, with how far.
+
+    A line's leave-one-out change of the parameters is
+    -C (w_i a_i) (w_i e_i) / (1 - h_i); a line of leverage H_MAX or more,
+    which alone fixes a level, changes nothing and is left out of the sum.
+    """
+    rows, A, w = parts[0], parts[5], parts[7]
+    kidx = parts[4]
+    Aw = A * w[:, None]
+    h = np.asarray(fit['leverage'], dtype=float)
+    ok = h < H_MAX
+    scale = np.where(ok, fit['residual'] * w / np.where(ok, 1.0 - h, 1.0),
+                     0.0)
+    out = {}
+    for c, j in kidx.items():
+        d = -fit['cov'][j].dot(Aw.T) * scale
+        votes = np.abs(A[:, j]) > 0.0
+        n = int(np.sum(ok))
+        dm = d[ok]
+        u = (math.sqrt((n - 1) / n * float(np.sum((dm - dm.mean()) ** 2)))
+             if n > 1 else 0.0)
+        order = np.argsort(-np.abs(d))[:top]
+        out[c] = (u, int(np.sum(votes)),
+                  [(lines[rows[r]].key or lines[rows[r]].wn, float(d[r]))
+                   for r in order])
+    return out
+
+
+def kappa_holds(fitted, previous, deadband=KAPPA_DEADBAND):
+    """`{class: kappa}` of the classes whose kappa does not move: those whose
+    fitted value lies within `deadband` times its realistic uncertainty of
+    the value [hfs.kappa] holds now.  `fitted` is {class: (kappa, u)} with u
+    the realistic uncertainty, `previous` {class: (kappa, u)} as the
+    configuration has it; a class it lacks moves.  A deadband of 0 holds
+    nothing."""
+    out = {}
+    for c, (k, u) in fitted.items():
+        if c in previous and deadband > 0.0 and                 abs(k - previous[c][0]) <= deadband * u:
+            out[c] = float(previous[c][0])
+    return out
 
 
 def solve(A, y, w):
@@ -662,6 +750,13 @@ def main(argv=None):
                          'writes the kappas it fitted there, in the file of '
                          'the configuration chain that holds the table '
                          '(config.set_hfs_kappa)')
+    ap.add_argument('--kappa-deadband', type=float, default=KAPPA_DEADBAND,
+                    help='a class keeps its kappa unless the fit puts it '
+                         'more than this many realistic uncertainties (the '
+                         'larger of the formal and the jackknife one) from '
+                         'the value [hfs.kappa] holds now; else it is held '
+                         'there and the final fit made with it fixed.  0 '
+                         'takes every fitted value (default: %(default)s)')
     args = ap.parse_args(argv)
     table_path = classifications_path(args.classifications)
     cfg_path = config_for(table_path, args.config)
@@ -694,8 +789,9 @@ def main(argv=None):
     blk, binof, counts, span = group_bins(blocks, lam, keep)
     good = sorted(counts)
 
-    def run(ncal, terms):
-        parts = build(lines, lam, blk, binof, sigma, keep, ncal, terms)
+    def run(ncal, terms, fixed=None):
+        parts = build(lines, lam, blk, binof, sigma, keep, ncal, terms,
+                      fixed)
         return parts, solve(*parts[5:])
 
     # ---- the uncertainties, measured again once the curve is known -------
@@ -836,6 +932,21 @@ def main(argv=None):
                                                      lev_line)
         parts, fit = run(ncal, terms)
 
+    # ---- kappa: how far a few lines move it, and whether it moves ---------
+    # (the module docstring).  The jackknife is taken on the fit with every
+    # class free; a class that stays within the deadband of its present
+    # value is held there, and the final fit is made once more with it fixed.
+    jack = kappa_jackknife(parts, fit, lines)
+    free = {c: (float(fit['sol'][j]), math.sqrt(max(fit['cov'][j, j], 0.0)))
+            for c, j in parts[4].items()}
+    realistic = {c: (free[c][0], max(free[c][1], jack[c][0])) for c in free}
+    previous = {c: tuple(v) for c, v in config.load(cfg_path).hfs.kappa}
+    held_kappa = kappa_holds(realistic, previous, args.kappa_deadband)
+    if held_kappa:
+        parts, fit = run(ncal, terms, fixed=held_kappa)
+    kappa_fit = {c: (held_kappa.get(c, realistic[c][0]), realistic[c][1])
+                 for c in free}
+
     rows, levels, lidx, off, kidx, A, y, w = parts
     sol, cov = fit['sol'], fit['cov']
     ncol = A.shape[1]
@@ -968,10 +1079,12 @@ def main(argv=None):
         say('the rank falls by one when a parameter is held, so every '
             'parameter is determined')
         say('by the data: the curve is absolute and nothing is held.')
-    kappa_fit = {c: (float(sol[j]), math.sqrt(max(cov[j, j], 0.0)))
-                 for c, j in kidx.items()}
     say('kappa: ' + '  '.join(
         '%s %+.3f+-%.3f' % (c, k, u) for c, (k, u) in kappa_fit.items()))
+    say('  (the uncertainty is the larger of the formal and the jackknife '
+        'one; a class within')
+    say('  %g of them of its present value is held there - see "kappa, '
+        'line by line" below)' % args.kappa_deadband)
     say('the one remaining rank deficiency is the energy zero: every level '
         'can be raised by')
     say('the same amount without changing a single level difference, so '
@@ -1242,9 +1355,33 @@ def main(argv=None):
         'calibration is; they')
     say('measure nothing.')
 
+    say()
+    say('kappa, line by line')
+    say('-------------------')
+    say('fitted: every class free.  u_jack: the spread of the kappas with '
+        'each line left out')
+    say('in turn.  written: the fitted value, or the present one where the '
+        'fit stays within')
+    say('%g realistic uncertainties of it (held); the uncertainty written is '
+        'the larger of' % args.kappa_deadband)
+    say('u_formal and u_jack either way.')
+    say('%-14s %5s  %-15s %7s %7s  %-8s %s' % (
+        'class', 'lines', 'fitted', 'u_jack', 'present', 'written', ''))
+    for c in free:
+        k, u = free[c]
+        say('%-14s %5d  %+.3f +- %.3f  %7.3f %7s  %.3f(%d) %s' % (
+            c, jack[c][1], k, u, jack[c][0],
+            '%.3f' % previous[c][0] if c in previous else '-',
+            kappa_fit[c][0], round(kappa_fit[c][1] * 1000),
+            'held' if c in held_kappa else 'moved'))
+    say('the lines whose leaving out would move each class most:')
+    for c in free:
+        say('  %-14s %s' % (c, '  '.join(
+            '%.4f %+.3f' % (wn, d) for wn, d in jack[c][2])))
+
     # ---- the per-line points --------------------------------------------
     E = {v: sol[k] for k, v in enumerate(levels)}
-    K = {c: sol[j] for c, j in kidx.items()}
+    K = {c: k for c, (k, _) in kappa_fit.items()}
     points = []
     for r, i in enumerate(rows):
         ln = lines[i]

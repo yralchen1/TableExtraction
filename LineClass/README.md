@@ -2226,6 +2226,7 @@ python wavelength_calibration.py --degree 2   # force a degree, for a test
 python wavelength_calibration.py --no-write   # print the report, write nothing
 python wavelength_calibration.py --classifications iter_hfs/line_classifications.csv
 python wavelength_calibration.py --keep-kappa # write the files, leave [hfs.kappa] alone
+python wavelength_calibration.py --kappa-deadband 0  # write every fitted kappa, held or not
 ```
 
 **The fitted κ go into the configuration by themselves** (since 2026-10-05). A run that
@@ -2248,6 +2249,37 @@ restored and the run stops with an error. The file is checked for writability at
 with the other outputs. The report ends by naming the file, or by saying that `--keep-kappa`
 left it alone, and the console shows each new κ beside the one it replaced. `--no-write`
 writes nothing, the configuration included.
+
+**A realistic uncertainty, and κ moves only beyond it** (2026-10-06). A class's formal
+uncertainty assumes every line votes as its weight says, and that is not how this fit works.
+A narrow pattern says almost nothing about κ, because the level energies absorb any change of
+it. So a class rests on a few dozen wide patterns: on 2026-10-06 ten lines carried 80% of
+plain_1974's information. Removing the inflation of one of them (23529.3109) moved plain_1974
+from 0.802 to 0.778, against a formal ±0.013. A class of few lines, such as `c`,
+`flag_unlisted` or `plain_1969`, is more exposed still. Two things guard against this:
+
+- **The jackknife uncertainty.** The calibration works out how far each class's κ would move
+  if each line were left out in turn. It does this exactly, from each line's leave-one-out
+  influence on the final fit, with no refits: Δκᵢ = −(C·wᵢaᵢ)(wᵢeᵢ)/(1 − hᵢ). Here C is the
+  covariance, aᵢ the line's row of the design matrix, wᵢ = 1/σᵢ, eᵢ its residual and hᵢ its
+  leverage. The spread of these Δκᵢ is the jackknife uncertainty. The uncertainty written into
+  `[hfs.kappa]` is the larger of the formal and the jackknife one. It is the one κ enters the
+  lines' `u_hfs_shift` with, so wide-pattern lines get correspondingly wider uncertainties.
+- **The deadband.** A class's κ is written only when the fit puts it more than
+  `--kappa-deadband` (1) realistic uncertainties from the value `[hfs.kappa]` holds now.
+  Otherwise the class keeps its present κ, and only its uncertainty is updated. The final fit
+  is then made once more with that κ fixed, so the curve, the points and the corrected line
+  list are the ones that go with the κ written. A few lines added, deleted or re-inflated then
+  leave κ where it was. A real change of the data still moves it, once the change exceeds the
+  deadband. A class the configuration does not have yet is always written.
+  `--kappa-deadband 0` takes every fitted value, as before 2026-10-06.
+
+The report's section **kappa, line by line** gives, for each class:
+- the fitted value with its formal uncertainty, the jackknife uncertainty, the present value,
+  and what is written (`held` or `moved`);
+- the five lines whose leaving out would move it most, with how far.
+
+Those lines are the ones to look at before a registry row or an inflation is changed.
 
 **Flagged lines without listed components** (2026-10-06). κ(flag) = 1 is not fitted, and it
 cannot be. Adding the same constant to every class's κ, and that constant times S to every
@@ -3295,8 +3327,7 @@ transition of its observed line, both of its levels have a known A (or are resol
   added after the last chain run is not yet in the fit (`kappa_now`, the κ LOPT saw, differs
   from `kappa_held`); it is audited at `kappa_held` all the same, and the summary names it.
   A held line whose inflation in `inflated_unc_lines.txt` already covers its residual passes
-  too: its `registry_advice` reads `needs X (now X)`, or asks for less than the registry has,
-  rounded to the two decimals it prints. The two rows together then account for the line, and a
+  too: the uncertainty it needs, rounded to two decimals, is at most the registry's. The two rows together then account for the line, and a
   failure would only repeat what the inflation says (changed 2026-10-06, after 37509.3400 and
   25555.9702 failed with `needs 0.29 (now 0.29)` and `needs 0.09 (now 0.09)`).
   `--fit-sigma` plays no part in the audit: it only says how well the head or cg must itself
@@ -3347,6 +3378,8 @@ at (`z_now`). The model uncertainty σ is the calibration's, never the registry'
 - `needs X (now Y)` otherwise. X is the line's own uncertainty that, combined with the
   uncertainty of the hfs shift and that of the rest of the network, makes the residual r a
   1σ one: X = √(r² − u_hfs_shift² − u_rest²).
+- nothing when X is within 10% of Y: the registry value already does its job, and a change of
+  a few hundredths would only chase the residual (2026-10-06).
 
 - For a `class-fails` row, two values: at the class, then, after `; `, at the better of head
   and cg (`needs 0.76 (now 0.5); at cg: needs 0.31 (now 0.5)` for 40790.2000). The second is
@@ -3356,8 +3389,9 @@ at (`z_now`). The model uncertainty σ is the calibration's, never the registry'
   either would need more inflation, not less.
 
 Example: 40253.7799, held at the cg since 2026-10-05, misses by 0.059 cm⁻¹ against σ = 0.047
-(1.2σ) and reads `delete`. 44494.0809 misses the cg by 0.246 cm⁻¹ (2.6σ) and reads
-`needs 0.23 (now 0.25)`: its inflation still covers an excess nobody has explained.
+(1.2σ) and reads `delete`. 44494.0809 misses the cg by 0.246 cm⁻¹ (2.6σ) and needs 0.23. Its
+registry value, 0.25 when this was written, is within 10% of that, so the advice is blank: its
+inflation still covers an excess nobody has explained.
 
 The console summary gives the median κ of the tested lines by character and era. It also lists
 the levels with more than one line off its class. A level whose lines fail in opposite

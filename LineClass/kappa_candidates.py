@@ -63,9 +63,9 @@ beyond 2 sigma by chance alone (2026-10-05).  The kappa audited is the
 registry's (kappa_held), which differs from the one the fit used
 (kappa_now) for a row added after the last chain run.  A held line whose
 inflation in inflated_unc_lines.txt already covers its residual, to the
-two decimals the advice prints, passes the audit too (2026-10-06): its
-registry_advice reads 'needs X (now X)' or less, and the pair of rows says
-all the test can.
+two decimals the advice prints, passes the audit too (2026-10-06): the
+pair of rows says all the test can.  The advice itself is left blank when
+the value a line needs is within 10 per cent of the registry's.
 
 PARTIAL PATTERNS: INFORMATION, NEVER A VERDICT
 ==============================================
@@ -124,6 +124,7 @@ OUT = 'kappa_candidates.csv'
 
 DCHI2 = 9.0
 FIT_SIGMA = 2.0
+AGREE = 0.10
 MAX_U_KAPPA = 0.3
 
 COLUMNS = ('verdict', 'wn_key', 'char', 'era', 'low_id', 'upp_id',
@@ -248,7 +249,7 @@ def inflation_covers(reg_u, z, sigma, u_shift, u_rest):
 
 
 def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
-                    at=None):
+                    at=None, agree=AGREE):
     """What the inflation registry's value `reg_u` of a line should become,
     judged at the kappa the line is held at (z['held']) or else fitted at
     (z['now']), with `sigma` the model's own total uncertainty.  `at`
@@ -259,7 +260,9 @@ def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
     bar a head or cg alternative must clear: the line then needs no own
     value.  Otherwise 'needs X (now Y)', X being the own uncertainty that
     makes the residual a 1-sigma one together with the hfs shift and the
-    rest of the network: sqrt(r^2 - u_hfs_shift^2 - u_rest^2)."""
+    rest of the network: sqrt(r^2 - u_hfs_shift^2 - u_rest^2) - or nothing
+    when X is within `agree` (10 per cent) of Y, which has nothing to change
+    (2026-10-06)."""
     if reg_u is None:
         return ''
     zz = z[at] if at else z.get('held', z['now'])
@@ -267,6 +270,8 @@ def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
     if abs(zz) <= fit_sigma:
         return prefix + 'delete'
     need = needed_unc(zz, sigma, u_shift, u_rest)
+    if abs(need - reg_u) <= agree * reg_u:
+        return ''
     return prefix + 'needs %.2f (now %g)' % (need, reg_u)
 
 
@@ -280,12 +285,12 @@ def advice_of(v, reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
     if v.startswith('candidate-'):
         return registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma,
                                at=v[len('candidate-'):])
-    out = registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma)
-    if v == 'class-fails' and out:
-        out += '; ' + registry_advice(reg_u, z, sigma, u_shift, u_rest,
-                                      fit_sigma,
-                                      at=best_alternative(z, kappa_class))
-    return out
+    out = [registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma)]
+    if v == 'class-fails':
+        out.append(registry_advice(reg_u, z, sigma, u_shift, u_rest,
+                                   fit_sigma,
+                                   at=best_alternative(z, kappa_class)))
+    return '; '.join(a for a in out if a)
 
 
 def best_alternative(z, kappa_class=None):
