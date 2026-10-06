@@ -191,7 +191,7 @@ def attach_kappa_exceptions(observed_lines: list, levels_dict: dict) -> int:
         if not rows:
             continue
         line.hfs_exceptions = {
-            (r.low_id, r.upp_id): HFS.kappa_value(r.cls) + (r.unresolved,)
+            (r.low_id, r.upp_id): HFS.row_kappa(r) + (r.unresolved,)
             for r in rows}
         n += len(rows)
     by_cls = {}

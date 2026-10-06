@@ -80,9 +80,12 @@ _ENUMS = {
     'hfs.iden2_display': ('measured', 'lopt'),
 }
 
-#: The four classes of the hfs convention model, each given as
+#: The classes of the hfs convention model, each given as
 #: [kappa, its uncertainty] under [hfs.kappa]; see hfs_correction.py.
-HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c')
+#: `flag_unlisted` is needed only by a configuration that names the list of
+#: Sugar's resolved components (files.hfs_components): it is the class of the
+#: flagged lines whose components he did not list (2026-10-06).
+HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c', 'flag_unlisted')
 
 # Keys the configuration file may leave out; they take the default written
 # into load() below.
@@ -91,7 +94,8 @@ _OPTIONAL = {'inherit', 'locked',
              'files.new_levels', 'files.icalc_extra',
              'files.discarded_levels', 'files.inflated_unc',
              'files.hfs_A_levels', 'files.hfs_satellites',
-             'files.kappa_exceptions',
+             'files.kappa_exceptions', 'files.hfs_components',
+             'hfs.kappa.flag_unlisted',
              'decisions', 'decisions.max_forced_offset',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
 
@@ -103,7 +107,8 @@ _SCHEMA = {
               'line_decisions': str, 'new_levels': str,
               'icalc_extra': str, 'discarded_levels': str,
               'inflated_unc': str, 'hfs_A_levels': str,
-              'hfs_satellites': str, 'kappa_exceptions': str},
+              'hfs_satellites': str, 'kappa_exceptions': str,
+              'hfs_components': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -186,14 +191,18 @@ class HfsSettings:
     `apply` switches it on; with it off (the default, and the state of a
     configuration without the section) no program changes anything.
     `A_levels` is the table of hyperfine A constants (files.hfs_A_levels,
-    '' if none), `kappa` maps each class of HFS_KAPPA_CLASSES to
-    (kappa, its uncertainty), and `resolved_levels` names the levels whose
+    '' if none), `kappa` maps each class of HFS_KAPPA_CLASSES the file
+    gives to (kappa, its uncertainty), and `resolved_levels` names the levels whose
     sublevels are resolved and whose own A therefore counts as zero in a
     line's displacement.  `satellites` is the registry of resolved hfs
     companions (files.hfs_satellites, '' if none), which is read whether
     `apply` is on or not.  `kappa_exceptions` is the registry of lines
     measured otherwise than their class says (files.kappa_exceptions, ''
-    if none), read with `apply` on and by the plate calibration.  `iden2_display` says where sync_IDEN2.py puts the
+    if none), read with `apply` on and by the plate calibration.
+    `components` is the list of Sugar's resolved hfs components
+    (files.hfs_components, '' if none): with it, a flagged line whose
+    components he did not list is of the class `flag_unlisted`, which
+    [hfs.kappa] must then give.  `iden2_display` says where sync_IDEN2.py puts the
     lines LOPT uses in IDEN2's dlv.dat: 'measured' (the default) or 'lopt',
     at the wavenumber and uncertainty LOPT is given, which needs `apply`.
     hfs_correction.py says what each of them means.
@@ -202,6 +211,7 @@ class HfsSettings:
     A_levels: str = ''
     satellites: str = ''
     kappa_exceptions: str = ''
+    components: str = ''
     kappa: tuple = ()           # ((class, (kappa, u_kappa)), ...)
     resolved_levels: tuple = ()
     iden2_display: str = 'measured'
@@ -305,8 +315,11 @@ def _read(path: str, seen=()) -> dict:
 
 
 #: the classes of [hfs.kappa] the plate calibration fits; `flag` is its anchor
-#: and is never rewritten.
-FITTED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c')
+#: and is never rewritten.  `flag_unlisted` is fitted only where the
+#: configuration splits the flags (files.hfs_components); the other three
+#: always are.
+FITTED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c', 'flag_unlisted')
+REQUIRED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c')
 
 #: what begins each comment line `set_hfs_kappa` writes, so that the next run
 #: can find and replace them; nothing else in the file is touched.
@@ -345,6 +358,8 @@ def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
     `path` uses (`kappa_file`), and return `(file written, the values it
     held before)`.
 
+    The classes of REQUIRED_KAPPA_CLASSES must be in `values`; those of
+    FITTED_KAPPA_CLASSES beyond them are written when `values` gives them.
     The file is edited as text, so that every comment and every other line
     stays as it is: only the line of each class is rewritten, in the form
     `plain_1974 = [0.850, 0.013]`, and the comment lines beginning with
@@ -352,7 +367,8 @@ def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
     The file is read back afterwards; if it does not give exactly the new
     values, the old text is put back and ConfigError raised.
     """
-    missing = [c for c in FITTED_KAPPA_CLASSES if c not in values]
+    missing = [c for c in REQUIRED_KAPPA_CLASSES if c not in values]
+    wanted = [c for c in FITTED_KAPPA_CLASSES if c in values]
     if missing:
         raise ConfigError(f"set_hfs_kappa: no value for "
                           f"{', '.join(missing)}")
@@ -372,7 +388,11 @@ def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
                           f"table header of its own") from None
     end = next((i for i in range(start + 1, len(lines))
                 if lines[i].lstrip().startswith('[')), len(lines))
-    width = max(len(c) for c in HFS_KAPPA_CLASSES)
+    # the names are padded as the table's own keys are, so that a file keeps
+    # its alignment whichever classes it holds
+    keys = [ln.split('=', 1)[0].strip() for ln in lines[start + 1:end]
+            if '=' in ln and not ln.lstrip().startswith('#')]
+    width = max([len(k) for k in keys] + [len(c) for c in wanted])
     body, done = [], set()
     for ln in lines[start + 1:end]:
         if ln.startswith(KAPPA_NOTE):
@@ -381,21 +401,21 @@ def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
                if '=' in ln and not ln.lstrip().startswith('#') else None)
         if key == 'flag' and note:
             body += [KAPPA_NOTE + part for part in note.splitlines()]
-        if key in FITTED_KAPPA_CLASSES:
+        if key in wanted:
             k, u = values[key]
             ln = '%s = [%.3f, %.3f]' % (key.ljust(width), k, u)
             done.add(key)
         body.append(ln)
-    if done != set(FITTED_KAPPA_CLASSES):
+    if done != set(wanted):
         raise ConfigError(f"{target}: [hfs.kappa] lacks the line of "
-                          f"{', '.join(sorted(set(FITTED_KAPPA_CLASSES) - done))}")
+                          f"{', '.join(sorted(set(wanted) - done))}")
     new_text = eol.join(lines[:start + 1] + body + lines[end:])
     with open(target, 'w', encoding='utf-8', newline='') as fh:
         fh.write(new_text)
     try:
         with open(target, 'rb') as fh:
             after = tomllib.load(fh)['hfs']['kappa']
-        for c in FITTED_KAPPA_CLASSES:
+        for c in wanted:
             want = tuple(float('%.3f' % x) for x in values[c])
             if tuple(after[c]) != want:
                 raise ConfigError(f"{target}: [hfs.kappa] {c} reads back as "
@@ -423,7 +443,10 @@ def load(path: str = None) -> Config:
                   if raw['files'].get('hfs_satellites') else '')
     exceptions = (_p('kappa_exceptions')
                   if raw['files'].get('kappa_exceptions') else '')
-    hfs = HfsSettings(satellites=satellites, kappa_exceptions=exceptions)
+    components = (_p('hfs_components')
+                  if raw['files'].get('hfs_components') else '')
+    hfs = HfsSettings(satellites=satellites, kappa_exceptions=exceptions,
+                      components=components)
     if 'hfs' in raw:
         h = raw['hfs']
         a_levels = (_p('hfs_A_levels')
@@ -437,11 +460,15 @@ def load(path: str = None) -> Config:
                               "true: with the correction off LOPT is given "
                               "the measured lines, so there is nothing else "
                               "to show")
+        if components and 'flag_unlisted' not in h['kappa']:
+            raise ConfigError("files.hfs_components splits the flagged lines, "
+                              "so [hfs.kappa] needs flag_unlisted, the class "
+                              "of those whose components Sugar did not list")
         hfs = HfsSettings(
             apply=h['apply'], A_levels=a_levels, satellites=satellites,
-            kappa_exceptions=exceptions,
+            kappa_exceptions=exceptions, components=components,
             kappa=tuple((k, tuple(h['kappa'][k]))
-                        for k in HFS_KAPPA_CLASSES),
+                        for k in HFS_KAPPA_CLASSES if k in h['kappa']),
             resolved_levels=tuple(h.get('resolved_levels', ())),
             iden2_display=display)
 

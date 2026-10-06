@@ -1,5 +1,6 @@
 """A constants from Sugar's resolved hfs components, anchored on the confirmed
-calculated constants (Work_on_hfs_plan.md, Step 4, item 1).
+semiempirical constants of the level compositions (Work_on_hfs_plan.md, Step
+4, item 1).
 
 WHAT THIS IS FOR
 ================
@@ -26,13 +27,21 @@ THE FIT
 =======
 Solving for every A at once (`hfs_patterns.fit_levels`) leaves a nearly
 singular direction: adding one constant to every A changes the spacings only
-through J1 - J2.  Here that direction is fixed by the levels whose calculated
-A the spacings confirm (sources "Reader & Sugar 1965 (calculated)" and
-"composition ..."): each enters as a prior, A = A_SCALE * A_calc within its
+through J1 - J2.  Here that direction is fixed by the levels whose
+semiempirical A from the composition the spacings confirm (source
+"composition ..."): each enters as a prior, A = A_SCALE * A_semi within its
 uncertainty (`hfs_kappa.scaled_A`), so the fit can pull it only as far as the
 spacings demand.  Every other level met by a pattern is free: the
-undetermined ones, those whose A is a flag interval, and the calculated
-constants the spacings contradict (`CONTRADICTED`).
+undetermined ones, those whose A is a flag interval, the semiempirical
+constants the spacings contradict (`CONTRADICTED`), and Reader and Sugar's
+(`FREED_SOURCES`).
+
+Reader and Sugar's 20 values of 4f2.6s were priors too until 2026-10-05.
+Fitted with their own priors removed, the components put them at 0.76 to 1.10
+times the published values, a scatter far beyond the uncertainties that no
+single scale describes (the mean, 0.968 +- 0.005, is A_SCALE): a fault of
+their treatment level by level, not of their radial parameters.  The user
+had the component values adopted instead.
 
 The weight of a measured position is Sugar's precision, 0.003 A in
 wavelength, taken twice because a spacing is the difference of two measured
@@ -52,7 +61,7 @@ THE CHECKS
   of character, give A through the kappa model, independently and weakly
   (plan section 3.1, route 3).  The table must have been made with the A
   table given by --levels: its O-C carry that table's constants.  The route
-  is circular for a level whose calculated D the kappas were fitted with
+  is circular for a level whose semiempirical D the kappas were fitted with
   (000127).
 
 Usage
@@ -84,9 +93,14 @@ OUT = 'hfs_A_anchored.csv'
 #: Sugar's precision on one tabulated wavelength, in cm (0.003 A).
 DLAM = 0.003e-8
 
-#: calculated constants the measured spacings contradict (plan section 3.1):
+#: semiempirical constants the measured spacings contradict (plan section 3.1):
 #: freed rather than anchored.
 CONTRADICTED = {'059003.000127'}
+
+#: sources of semiempirical constants that are not priors but free levels of
+#: the fit, and replaced by `--write-levels` (user, 2026-10-05; see the
+#: module docstring).
+FREED_SOURCES = ('Reader & Sugar',)
 
 #: patterns left out of the fit, by the line's wavenumber to 0.001 cm^-1.
 SET_ASIDE = {
@@ -103,7 +117,7 @@ HOLD = {
 }
 
 #: the sources whose rows `--write-levels` may replace; its own earlier
-#: values (SOURCE_PREFIX) are refreshed too.
+#: values (SOURCE_PREFIX) are refreshed too, and FREED_SOURCES replaced.
 REPLACEABLE = ('not determined', 'flag interval')
 SOURCE_PREFIX = 'resolved components, '
 
@@ -125,11 +139,13 @@ def read_A_table(path=None):
 
 
 def anchors_of(table, contradicted=CONTRADICTED):
-    """`{level_id: (A, u_A)}` of the confirmed calculated constants, on the
+    """`{level_id: (A, u_A)}` of the confirmed semiempirical constants, on the
     measured scale: the priors of the fit."""
     out = {}
     for lid, r in table.items():
-        if lid in contradicted or not hfs_kappa.is_calculated(r['source']):
+        if (lid in contradicted
+                or not hfs_kappa.is_semiempirical(r['source'])
+                or r['source'].startswith(FREED_SOURCES)):
             continue
         out[lid] = hfs_kappa.scaled_A(float(r['A_cm-1']), float(r['u_A']),
                                       r['source'])
@@ -304,7 +320,8 @@ def adoptable(lid, table, result):
     if r is None or lid not in result.A or lid in result.null or lid in HOLD:
         return False
     return (r['source'] in REPLACEABLE or lid in CONTRADICTED
-            or r['source'].startswith(SOURCE_PREFIX))
+            or r['source'].startswith(SOURCE_PREFIX)
+            or r['source'].startswith(FREED_SOURCES))
 
 
 def write_levels(table, result, counts, path, date):

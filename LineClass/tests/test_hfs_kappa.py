@@ -48,13 +48,13 @@ def test_stated_uncertainty_converts_angstrom_to_wavenumber():
 
 
 def test_only_calculated_constants_are_scaled():
-    """Step 2's scale error belongs to the calculated A constants; a constant
+    """Step 2's scale error belongs to the semiempirical A constants; a constant
     measured from flags or from resolved components is already on the
     measured scale and is read as written."""
     s, u_s = hfs_kappa.A_SCALE, hfs_kappa.U_A_SCALE
-    for src in ('composition', 'Reader & Sugar 1965 (calculated)',
+    for src in ('composition', 'Reader & Sugar 1965 (semiempirical)',
                 'composition, flags consistent (2026-09-29 review)'):
-        assert hfs_kappa.is_calculated(src)
+        assert hfs_kappa.is_semiempirical(src)
         assert hfs_kappa.scaled_A(0.2, 0.01, src) == pytest.approx(
             (0.2 * s, math.hypot(0.01 * s, 0.2 * u_s)))
     for src in ('flag interval', 'not determined',
@@ -62,7 +62,7 @@ def test_only_calculated_constants_are_scaled():
                 'center of gravity of 35378.125 (1116-991), 2026-10-02',
                 'rungs 1 and 2 of 1228-1116 (21962.950 and 21963.279), '
                 '2026-10-02'):
-        assert not hfs_kappa.is_calculated(src)
+        assert not hfs_kappa.is_semiempirical(src)
         assert hfs_kappa.scaled_A(0.2, 0.01, src) == (0.2, 0.01)
 
 
@@ -79,7 +79,7 @@ def test_the_project_table_is_read_on_the_measured_scale():
         A = read[lid][1]
         if not hfs_correction.is_determined(r['source']):
             assert A == 0.0
-        elif hfs_kappa.is_calculated(r['source']):
+        elif hfs_kappa.is_semiempirical(r['source']):
             assert A == pytest.approx(hfs_kappa.A_SCALE * float(r['A_cm-1']))
         else:
             assert A == float(r['A_cm-1'])

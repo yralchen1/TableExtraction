@@ -54,7 +54,7 @@ def a_table(tmp_path):
     path.write_text(
         'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
         f'{LOW},f26s,3.5,-0.0400,0.0040,flag interval,0\n'
-        f'{UPP},f26p,2.5,+0.1000,0.0100,Reader & Sugar 1965 (calculated),0\n'
+        f'{UPP},f26p,2.5,+0.1000,0.0100,Reader & Sugar 1965 (semiempirical),0\n'
         f'{OTHER},f5d2,1.5,+0.0200,0.0030,flag interval,0\n'
         f'{RESOLVED},f26s,0.5,+0.5000,0.0100,composition,0\n',
         encoding='utf-8', newline='\n')

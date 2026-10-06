@@ -226,7 +226,7 @@ def test_no_level_is_labeled_as_conflicting_any_more():
     on 9/12.  `059003.000248`: 39917.569 `*r` was rejected on 9/12, and the
     `*v` of 33417.350 belongs to the stronger blend component
     `059003.000133`-`059003.000213`.  Every remaining flag of both levels
-    agrees with the calculated A.
+    agrees with the semiempirical A.
     """
     with open(os.path.join(HERE, 'A_hfs_levels.csv'), encoding='utf-8',
               newline='') as fh:

@@ -150,7 +150,6 @@ import os
 
 import config
 import hfs_correction
-import hfs_kappa
 import output_files
 from swap_paths import working_path
 
@@ -587,13 +586,14 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
             all_rows.setdefault(r['wn_obs'], []).append(r)
             continue
         # The widths the correction replaces (D13): none at all on a line
-        # Sugar flagged, which sits on the head-frame Ritz value (its blends'
-        # other components included), nor on the main line of resolved
-        # companions, which does too, and none for a level whose hyperfine
-        # structure is computed.
-        flagged = (hfs_kappa.kappa_class(
-            (r.get('char') or '').strip()) == 'flag'
-            or hfs.is_head_line(float(r.get('wn_key') or r['wn_obs'])))
+        # Sugar flagged and resolved, which sits on the head-frame Ritz value
+        # (its blends' other components included), nor on the main line of
+        # resolved companions, which does too, and none for a level whose
+        # hyperfine structure is computed.  A flagged line whose components
+        # he did not list (flag_unlisted, 2026-10-06) is corrected like a
+        # plain one and keeps the widths of its uncorrected levels.
+        flagged = hfs.sits_at_head((r.get('char') or '').strip(),
+                                   float(r.get('wn_key') or r['wn_obs']))
         widths = {lid: w_hfs[lid] for lid in (low, upp)
                   if lid in w_hfs and not flagged
                   and not hfs.is_corrected(lid)}

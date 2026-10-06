@@ -8,7 +8,7 @@ This module is what those measurements are for.  It answers the three
 questions of `Work_on_hfs_plan.md` section 3.5, in order:
 
 1. what feature of the pattern the tabulated wavelength of a flagged line is;
-2. whether the A constants calculated from the level compositions reproduce
+2. whether the semiempirical A constants from the level compositions reproduce
    the measured component spacings;
 3. whether the assumption kappa(flag) = 1 - the single external assumption the
    corrected level list rests on - survives.
@@ -52,7 +52,7 @@ predicted with no free parameter at all from the A constants of
     d(k) = (k/2) * [ (2F1max + 1 - k) A1 - (2F2max + 1 - k) A2 ]
 
 over 313 measured positions on 158 patterns whose two levels both have a
-calculated A.  The result is an rms of 0.090 cm^-1, against a spread of
+semiempirical A.  The result is an rms of 0.090 cm^-1, against a spread of
 displacements that runs to 2.2 cm^-1 and a measurement precision of about
 0.03 cm^-1 per component; the sign is right in 500 cases out of 500.  With one
 free parameter - a single scale factor applied to every A constant in the
@@ -60,7 +60,7 @@ project - the rms falls to 0.084 cm^-1 at
 
     s = 0.958 +- 0.006
 
-that is, the measured intervals are 4.2 % smaller than the calculated ones.
+that is, the measured intervals are 4.2 % smaller than the semiempirical ones.
 An alternative one-parameter model, a constant displacement of the tabulated
 line towards the degraded side, does worse (0.085 cm^-1 at -0.030 cm^-1), and
 when both are free the displacement collapses to +0.003 +- 0.005 cm^-1 while
@@ -69,14 +69,14 @@ line is the strongest component of the pattern, with no measurable offset, and
 not its center of gravity: the center of gravity is at sigma_tab - D.
 
 Remeasured 2026-10-03 on the current assignments and the levels table
-`A_hfs_levels.csv`, with only the *calculated* constants tested (sources
-"Reader & Sugar 1965 (calculated)" and "composition..."; the 7 flag-interval
-levels the first measurement included are measurements, not calculations):
+`A_hfs_levels.csv`, with only the *semiempirical* constants tested (sources
+"Reader & Sugar 1965 (semiempirical)" and "composition..."; the 7 flag-interval
+levels the first measurement included are measurements, not semiempirical values):
 135 patterns, 271 positions, rms 0.072 -> 0.065 cm^-1 at
 
     s = 0.9638 +- 0.0079   (jackknife; the formal uncertainty is 0.0048)
 
-which is `hfs_kappa.A_SCALE`.  It is applied to calculated constants only
+which is `hfs_kappa.A_SCALE`.  It is applied to semiempirical constants only
 (`hfs_kappa.scaled_A`), in the pipeline and in the fits of kappa alike.  The
 first spacing has the right sign in 135 of 135 patterns.  Fitted on the *r
 lines alone the scale is 0.981 +- 0.009, on the *v lines alone 0.958 +-
@@ -89,7 +89,7 @@ THE THREE ANSWERS
    component F = I+J1 -> I+J2, the strongest one.  This is decided, not
    assumed: were it the center of gravity the components would straddle it,
    and not one of the 500 does.
-2. The calculated A constants reproduce the measured spacings to 4 % in scale
+2. The semiempirical A constants reproduce the measured spacings to 4 % in scale
    and 0.084 cm^-1 in scatter.  The 4 % is a measurement about the radial
    parameters behind those constants and belongs in the error budget of every
    computed A; it is not absorbed silently here.
@@ -109,7 +109,7 @@ J_low - J_upp difference, so the absolute scale of the A constants is weakly
 determined even though their differences are not.  The fitted constants are
 therefore reported with that caveat and are NOT written back into
 `A_hfs_levels.csv`.  `hfs_A_fit.py` (Step 4, 2026-10-04) removes the
-singular direction by holding the confirmed calculated constants at their
+singular direction by holding the confirmed semiempirical constants at their
 scaled values as priors, and writes the values it determines.
 
 Run as ``python hfs_patterns.py``.  Nothing in the assignment pipeline is
@@ -210,6 +210,73 @@ def rung(k, J1, A1, J2, A2, spin=I_SPIN):
 def ladder_length(J1, J2, spin=I_SPIN):
     """How many rungs below the strongest component the ladder has."""
     return int(round(min(2 * min(spin, J1), 2 * min(spin, J2))))
+
+
+#: what partial_pattern returns: the kappa of the measured part, its share
+#: of the pattern's strength, and the part left out (None if nothing is) as
+#: (side, position, share) - the side 'head' or 'tail', the position of its
+#: center of gravity measured from the whole pattern's, cm^-1, and its share.
+Partial = collections.namedtuple('Partial', 'kappa share missing')
+
+
+def rung_of(J1, A1, J2, A2, spin=I_SPIN):
+    """`[(position, strength, k)]`: every component of the pattern with the
+    rung k of the principal ladder it lies nearest (the first of equals),
+    positions measured from the center of gravity.  A component off the
+    ladder thus joins the part of the pattern it sits in."""
+    D = head_displacement(J1, A1, J2, A2, spin)
+    rungs = [D + rung(k, J1, A1, J2, A2, spin)
+             for k in range(ladder_length(J1, J2, spin) + 1)]
+    return [(p, s, min(range(len(rungs)), key=lambda k: abs(p - rungs[k])))
+            for p, s, _, _ in components(J1, A1, J2, A2, spin)]
+
+
+def partial_pattern(J1, A1, J2, A2, first, last=None, spin=I_SPIN):
+    """Where a line is measured that saw only the rungs `first` ... `last` of
+    its pattern (`last` None: to the end of the ladder), each rung with the
+    components nearest it; see `rung_of`.
+
+    Rung 0 is the strongest component, the head; a part left out lies on one
+    side of what is kept, or on both if `first` > 0 and `last` < the end -
+    `missing` then describes the head side.  kappa is the measured part's
+    center of gravity over D, the head's: 1 at the head, 0 at the whole
+    pattern's center of gravity.  Raises ValueError for a range outside the
+    ladder, for the whole ladder (that is the class cg) and for D = 0.
+    """
+    n = ladder_length(J1, J2, spin)
+    last = n if last is None else last
+    if not 0 <= first <= last <= n:
+        raise ValueError('rungs %d-%d are outside the ladder 0-%d of this '
+                         'pattern' % (first, last, n))
+    if first == 0 and last == n:
+        raise ValueError('rungs 0-%d are the whole pattern: that is the '
+                         'class cg' % n)
+    D = head_displacement(J1, A1, J2, A2, spin)
+    if D == 0.0:
+        raise ValueError('the pattern has D = 0: a part of it has no kappa')
+    comps = [c for c in rung_of(J1, A1, J2, A2, spin) if c[1] > 1e-12]
+    total = sum(s for _, s, _ in comps)
+    if not any(first <= k <= last for _, _, k in comps):
+        raise ValueError('rungs %d-%d carry no strength in this pattern'
+                         % (first, last))
+    if all(first <= k <= last for _, _, k in comps):
+        raise ValueError('rungs %d-%d carry the whole strength of this '
+                         'pattern: that is the class cg' % (first, last))
+    kept = [(p, s) for p, s, k in comps if first <= k <= last]
+    head = [(p, s) for p, s, k in comps if k < first]
+    tail = [(p, s) for p, s, k in comps if k > last]
+
+    def centre(part):
+        w = sum(s for _, s in part)
+        return sum(p * s for p, s in part) / w, w
+
+    p, w = centre(kept)
+    out = head or tail
+    missing = None
+    if out:
+        pm, wm = centre(out)
+        missing = ('head' if head else 'tail', pm, wm / total)
+    return Partial(p / D, w / total, missing)
 
 
 # --- the measurements -------------------------------------------------------
@@ -384,7 +451,7 @@ def main(argv=None):
     known = [(x, sol[i], err[i], levels[x]) for i, x in enumerate(ids)
              if levels[x]['A_source'] != 'not determined' and err[i] < 0.02]
     d = [a - float(r['A_cm-1']) for _, a, _, r in known]
-    print('   against the calculated constants, %d levels with u < 0.02:'
+    print('   against the semiempirical constants, %d levels with u < 0.02:'
           % len(known))
     print('      mean difference %+.4f, scatter about it %.4f cm^-1'
           % (sum(d) / len(d), _rms([x - sum(d) / len(d) for x in d])))

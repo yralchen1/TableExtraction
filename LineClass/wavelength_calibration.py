@@ -556,19 +556,30 @@ def model_poly(degrees, ranges, omit=None):
     return len(idx), terms
 
 
+def kappa_name(ln):
+    """The [hfs.kappa] class whose kappa a line of a fitted class votes
+    on: 'c', 'flag_unlisted', or the plain class of its era."""
+    if ln.cls in ('c', hfs_kappa.FLAG_UNLISTED):
+        return ln.cls
+    return 'plain_%d' % ln.era
+
+
 def build(lines, lam, blk, binof, sigma, keep, ncal, terms):
     """The design matrix, the right-hand side and the weights.
 
     The columns are the level energies, then the `ncal` calibration
-    parameters laid out by `terms`, then the three `kappa` of the hyperfine
-    convention.
+    parameters laid out by `terms`, then the `kappa` of each fitted class of
+    the hyperfine convention (config.FITTED_KAPPA_CLASSES) that has a line
+    here: `flag_unlisted` only where the configuration splits the flags.
     """
     rows = [i for i in range(len(lines)) if keep[i]]
     levels = sorted(set(lines[i].low for i in rows)
                     | set(lines[i].upp for i in rows))
     lidx = {v: k for k, v in enumerate(levels)}
     off = len(levels)
-    kcls = ['plain_1974', 'plain_1969', 'c']
+    present = {kappa_name(lines[i]) for i in rows if lines[i].cls != 'flag'}
+    kcls = [c for c in config.FITTED_KAPPA_CLASSES
+            if c in config.REQUIRED_KAPPA_CLASSES or c in present]
     kidx = {c: off + ncal + k for k, c in enumerate(kcls)}
 
     A = np.zeros((len(rows), off + ncal + len(kcls)))
@@ -585,7 +596,7 @@ def build(lines, lam, blk, binof, sigma, keep, ncal, terms):
         if ln.cls == 'flag':
             y[r] = ln.wn - D
         else:
-            A[r, kidx['c' if ln.cls == 'c' else 'plain_%d' % ln.era]] += D
+            A[r, kidx[kappa_name(ln)]] += D
             y[r] = ln.wn
         w[r] = 1.0 / sigma[i]
     return rows, levels, lidx, off, kidx, A, y, w
@@ -1237,8 +1248,7 @@ def main(argv=None):
     points = []
     for r, i in enumerate(rows):
         ln = lines[i]
-        k = 1.0 if ln.cls == 'flag' else K['c' if ln.cls == 'c'
-                                           else 'plain_%d' % ln.era]
+        k = 1.0 if ln.cls == 'flag' else K[kappa_name(ln)]
         ritz = E[ln.upp] - E[ln.low] + k * ln.D
         scale = ln.wn * ln.wn * 1e-8
         g = binof[i]
@@ -1381,8 +1391,10 @@ def main(argv=None):
                                             table_path, len(rows)))
         print('  [hfs.kappa] of %s: %s'
               % (os.path.relpath(written, HERE), '  '.join(
-                  '%s %.3f (was %.3f)' % (c, kappa_fit[c][0], before[c][0])
-                  for c in config.FITTED_KAPPA_CLASSES)))
+                  '%s %.3f (was %s)' % (c, kappa_fit[c][0],
+                                        '%.3f' % before[c][0] if c in before
+                                        else 'not set')
+                  for c in kappa_fit)))
 
     # ---- the parameters themselves, with their covariance ---------------
     if args.model == 'poly':

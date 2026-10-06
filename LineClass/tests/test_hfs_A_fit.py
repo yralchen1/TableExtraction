@@ -125,7 +125,8 @@ def test_write_levels_replaces_only_what_it_may(tmp_path):
     path = tmp_path / 'A.csv'
     path.write_text(
         'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
-        'L1,f26s,4.5,+0.0934,0.0030,Reader & Sugar 1965 (calculated),0\n'
+        'L1,f26s,4.5,+0.0934,0.0030,Reader & Sugar 1965 (semiempirical),0\n'
+        'C1,f26p,2.5,+0.0251,0.0055,composition,5\n'
         'F1,f5d2,3.5,+0.0000,0.0500,not determined,2\n'
         'F2,f5d2,5.5,+0.0300,0.0480,flag interval,1\n'
         'F3,f5d2,2.5,+0.0100,0.0080,"center of gravity of 1, 2026-10-02",0\n'
@@ -133,9 +134,11 @@ def test_write_levels_replaces_only_what_it_may(tmp_path):
         encoding='utf-8', newline='\n')
     table = hfs_A_fit.read_A_table(str(path))
     res = hfs_A_fit.Fit(
-        ids=['L1', 'F1', 'F2', 'F3', 'H'],
-        A={'L1': 0.09, 'F1': 0.025, 'F2': 0.031, 'F3': 0.02, 'H': 0.08},
-        u={'L1': 0.003, 'F1': 0.002, 'F2': 0.002, 'F3': 0.002, 'H': 0.007},
+        ids=['L1', 'C1', 'F1', 'F2', 'F3', 'H'],
+        A={'L1': 0.09, 'C1': 0.024, 'F1': 0.025, 'F2': 0.031, 'F3': 0.02,
+           'H': 0.08},
+        u={'L1': 0.003, 'C1': 0.004, 'F1': 0.002, 'F2': 0.002, 'F3': 0.002,
+           'H': 0.007},
         chi2=0.0, dof=1, n_positions=1, n_priors=1, null=set(), pulls={},
         resid_rms=0.0)
     counts = {x: (2, 3) for x in res.ids}
@@ -146,7 +149,8 @@ def test_write_levels_replaces_only_what_it_may(tmp_path):
                                          '2026-10-04')
     finally:
         hfs_A_fit.HOLD = saved
-    assert changed == ['F1', 'F2']
+    # Reader and Sugar's value is freed and replaced (2026-10-05)
+    assert changed == ['L1', 'F1', 'F2']
     raw = path.read_bytes()
     assert b'\r' not in raw
     rows = {r['level_id']: r for r in csv.DictReader(
@@ -154,19 +158,31 @@ def test_write_levels_replaces_only_what_it_may(tmp_path):
     assert rows['F1']['A_cm-1'] == '+0.0250'
     assert rows['F1']['source'].startswith('resolved components, 2 patterns')
     assert rows['F2']['A_cm-1'] == '+0.0310'
-    # the calculated anchor, the hand measurement and the held level stay
-    assert rows['L1']['A_cm-1'] == '+0.0934'
+    assert rows['L1']['A_cm-1'] == '+0.0900'
+    assert rows['L1']['source'].startswith('resolved components')
+    # the composition anchor, the hand measurement and the held level stay
+    assert rows['C1']['A_cm-1'] == '+0.0251'
     assert rows['F3']['source'].startswith('center of gravity')
     assert rows['H']['source'] == 'not determined'
 
 
+def test_reader_and_sugar_are_no_priors():
+    table = {
+        'L1': {'A_cm-1': '+0.0934', 'u_A': '0.0030',
+               'source': 'Reader & Sugar 1965 (semiempirical)'},
+        'C1': {'A_cm-1': '+0.0251', 'u_A': '0.0055', 'source': 'composition'},
+        'F2': {'A_cm-1': '+0.0300', 'u_A': '0.0480',
+               'source': 'flag interval'}}
+    assert set(hfs_A_fit.anchors_of(table)) == {'C1'}
+
+
 def test_a_written_source_is_read_as_a_measurement():
-    """The new source must not be mistaken for a calculated constant (which
+    """The new source must not be mistaken for a semiempirical constant (which
     would be scaled again) nor for an undetermined one."""
     import hfs_correction
     import hfs_kappa
     src = hfs_A_fit.source_of(3, 7, '2026-10-04')
-    assert not hfs_kappa.is_calculated(src)
+    assert not hfs_kappa.is_semiempirical(src)
     assert hfs_correction.is_determined(src)
     assert hfs_kappa.scaled_A(0.02, 0.002, src) == (0.02, 0.002)
 

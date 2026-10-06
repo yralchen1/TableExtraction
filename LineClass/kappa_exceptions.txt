@@ -1,9 +1,34 @@
 wn_key	low_id	upp_id	class	unresolved	date	reason
-39960.6491	059003.000150	059003.000277	cg		10/5/2026	char w: 0.37 below the head, 0.09 from the center of gravity (D = +0.46)
-39719.0502	059003.000142	059003.000267	cg		10/5/2026	char d: 0.65 above the head, 0.11 past the center of gravity (D = -0.54)
-36647.5418	059003.000183	059003.000293	cg		10/5/2026	char w: 0.42 below the head, at the center of gravity (D = +0.40)
-44494.0809	059003.000127	059003.000267	cg		10/5/2026	char w: 0.79 above the head, 0.22 past the center of gravity (D = -0.58)
-35266.469	059003.000127	059003.000213	cg		10/5/2026	char d: 0.62 above the head, 0.14 past the center of gravity (D = -0.48)
-44570.63	059003.000145	059003.000286	cg		10/5/2026	char w: 0.58 above the head, at the center of gravity (D = -0.63)
-33934.5817	059003.000190	059003.000449	cg	059003.000190	10/5/2026	char w: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.213 from F = 3, observed -0.203
-27443.3325	059003.000190	059003.000280	cg	059003.000190	10/5/2026	char d: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.234 from F = 3, observed -0.230
+39960.6491	059003.000150	059003.000277	cg		10/5/2026	"char w: 0.37 below the head, 0.09 from the center of gravity (D = +0.46)"
+39719.0502	059003.000142	059003.000267	cg		10/5/2026	"char d: 0.65 above the head, 0.11 past the center of gravity (D = -0.54)"
+36647.5418	059003.000183	059003.000293	cg		10/5/2026	"char w: 0.42 below the head, at the center of gravity (D = +0.40)"
+44494.0809	059003.000127	059003.000267	cg		10/5/2026	"char w: 0.79 above the head, 0.22 past the center of gravity (D = -0.58)"
+35266.469	059003.000127	059003.000213	cg		10/5/2026	"char d: 0.62 above the head, 0.14 past the center of gravity (D = -0.48)"
+44570.63	059003.000145	059003.000286	cg		10/5/2026	"char w: 0.58 above the head, at the center of gravity (D = -0.63)"
+33934.5817	059003.000190	059003.000449	cg	059003.000190	10/5/2026	"char w: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.213 from F = 3, observed -0.203"
+27443.3325	059003.000190	059003.000280	cg	059003.000190	10/5/2026	"char d: between the F = 3 and F = 2 groups of 1089 (A = -0.157); centroid -0.234 from F = 3, observed -0.230"
+23792.49712	059003.000161	059003.000203	head		10/5/2026	Both the head and rung 1 components are well resolved and measured.
+40253.77989639465	059003.000127	059003.000251	cg		10/5/2026	"char w, cg of 1154-1017, not its head"
+37682.91076	059003.000161	059003.000439	cg		10/5/2026	"char w, cg of 1118-980, not its head"
+21793.44144	059003.000165	059003.000198	cg		10/5/2026	"cg of 1116-1081, not its head"
+36302.21094	059003.000148	059003.000262	cg		10/5/2026	"cg of 1131-1003, not its head (0.78 apart); char d"
+52033.79332	059003.000161	059003.000629	cg		10/5/2026	"cg of 1118-918, not its head"
+32572.76017	059003.000150	059003.000244	cg		10/5/2026	"cg of 1129-1027, not its head (0.67 apart); char d"
+25340.66223	059003.000145	059003.000196	head		10/5/2026	
+42750.90102	059003.000142	059003.000440	head		10/5/2026	
+23533.74829	059003.000192	059003.000274	head		10/5/2026	
+30074.38935	059003.000165	059003.000248	cg		10/5/2026	"center of gravity of 1116-1021, not its head"
+40790.20007	059003.000145	059003.000275	cg		10/5/2026	measured near c.g.
+37509.34003	059003.000125	059003.000222	cg		10/5/2026	"center of gravity of 1156-1052, not its head"
+36579.64103	059003.000125	059003.000220	cg		10/5/2026	"center of gravity of 1156-1056, not its head"
+26569.01926	059003.000165	059003.000221	partial:0-2		10/5/2026	"close to cg of 1116-1055, not its head; questionable because no char was given"
+24866.92218	059003.000165	059003.000210	head		10/5/2026	head of 1116-1067 pattern
+25555.97021	059003.000150	059003.000199	head		10/5/2026	head of 1129-1079 pattern
+36875.86888	059003.000134	059003.000239	partial:0-3		10/5/2026	"close to cg of 1145-1033, not its head; char w"
+24719.22959	059003.000150	059003.000198	head		10/5/2026	head of 1129-1081 pattern
+43594.56937	059003.000150	059003.000286	head		10/5/2026	head of 1129-961 pattern
+56820.89432	059003.000142	059003.000629	head		10/5/2026	head of 1139-918 pattern
+35193.65836	059003.000125	059003.000210	partial:0-2		10/5/2026	halfway between the head and the center of gravity of 1156-1067; questionable because no char was given
+31478.92163	059003.000140	059003.000217	partial:0-1		10/5/2026	blend of head and rung 1 components (plus some rung 2); questionable because no char was given
+34395.48159	059003.000148	059003.000255	partial:0-1		10/5/2026	blend of head and rung 1 components; char w
+22372.69081	059003.000150	059003.000195	partial:0-1		10/5/2026	blend of head and rung 1 components; questionable because no char was given

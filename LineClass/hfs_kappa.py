@@ -33,6 +33,12 @@ gravity.  The three classes are the ones Sugar's own characters define:
     c       the lines he marked `c` for complex
     plain   everything else
 
+Since 2026-10-06 the pipeline (hfs_correction.py, the plate calibration)
+splits the flags: a flagged line whose resolved components Sugar did not
+print is of a fourth class, `flag_unlisted` (FLAG_UNLISTED), fitted like the
+others, and only the lines whose components he printed are the anchor.  This
+module's own analysis (`main`) keeps the three classes of Step 3.
+
 **The line list alone cannot measure the absolute scale of kappa.**  This is
 the degeneracy theorem of the plan's section 2.1, and it is exact: adding the
 same constant c to the kappa of every class, and c * S_k to the fitted energy
@@ -46,9 +52,9 @@ flagged wavelength at the extreme component of the pattern, with no measurable
 offset, so `kappa(flag) = 1` is now a measurement rather than an assumption.
 
 Step 2 measured one thing more that belongs here.  Fitted against the observed
-component spacings, the calculated A constants are 3.6 +- 0.8 per cent too
-large (`A_SCALE`, remeasured 2026-10-03 on the calculated constants alone).
-`read_A_constants` therefore multiplies every calculated constant by
+component spacings, the semiempirical A constants are 3.6 +- 0.8 per cent too
+large (`A_SCALE`, remeasured 2026-10-03 on the semiempirical constants alone).
+`read_A_constants` therefore multiplies every semiempirical constant by
 `A_SCALE` and leaves the measured ones - from flags, resolved components and
 the like - as they are; see `scaled_A`.  The `D` of every line is then on the
 measured scale, the same one `hfs_correction.py` gives the pipeline, and
@@ -88,6 +94,7 @@ to more than one transition is a blend whose measured wavenumber belongs to no
 single pair of levels, and is left out.
 """
 import argparse
+import bisect
 import collections
 import contextlib
 import csv
@@ -119,11 +126,11 @@ ERA_SPLIT = 47500.0
 STATED_PLAIN = {1974: 0.0030, 1969: 0.0040}
 STATED_OTHER = 0.0070
 
-#: the scale error of the calculated A constants measured in Step 2, and its
+#: the scale error of the semiempirical A constants measured in Step 2, and its
 #: uncertainty.  `hfs_patterns.scale_tests` on the 135 patterns whose two
-#: levels both have a calculated A (271 spacings), remeasured 2026-10-03; the
+#: levels both have a semiempirical A (271 spacings), remeasured 2026-10-03; the
 #: uncertainty is the jackknife one (the formal one is 0.0048).  It applies to
-#: calculated constants only (`is_calculated`).
+#: semiempirical constants only (`is_semiempirical`).
 A_SCALE = 0.9638
 U_A_SCALE = 0.0079
 
@@ -173,13 +180,55 @@ def era_of(wn):
     return 1974 if wn < ERA_SPLIT else 1969
 
 
-def kappa_class(char):
-    """The three classes of the convention model."""
+#: the class of a flagged line whose hfs components Sugar did not list
+#: (2026-10-06).  Its pattern was not resolved, so his setting was on a peak
+#: that the unresolved neighbors pull from the strongest component towards the
+#: center of gravity: about 0.04 cm^-1 on the 38 lines in the fit of that day,
+#: kappa 0.90 +- 0.02 against the 1.01 +- 0.01 of the flagged lines whose
+#: components he listed, and the 0.81 of the plain lines.  Those listed lines
+#: alone are the anchor, kappa = 1 (`flag`), which the component spacings
+#: confirm (hfs_patterns.py).
+FLAG_UNLISTED = 'flag_unlisted'
+
+#: how close, in cm^-1, a line's wn_key must be to the tabulated wavenumber of
+#: a flagged line with listed components to be that line
+#: (hfs_components.LINE_JOIN_WINDOW).
+LISTED_WINDOW = 0.006
+
+
+def kappa_class(char, listed=True):
+    """The class of the convention model a line of Sugar's character `char`
+    belongs to: 'flag', 'c' or 'plain' - and, for a flagged line, 'flag'
+    only if `listed`, i.e. Sugar printed its resolved components; otherwise
+    FLAG_UNLISTED."""
     if char in ('*r', '*v'):
-        return 'flag'
+        return 'flag' if listed else FLAG_UNLISTED
     if char == 'c':
         return 'c'
     return 'plain'
+
+
+class ListedLines(object):
+    """The flagged lines whose resolved hfs components Sugar printed, named
+    by his tabulated wavenumber: the parent lines `wn_line` of
+    `hfs_components.csv` (files.hfs_components)."""
+
+    def __init__(self, wavenumbers=()):
+        self.wn = sorted(set(float(w) for w in wavenumbers))
+
+    def __len__(self):
+        return len(self.wn)
+
+    def __contains__(self, wn_key):
+        i = bisect.bisect_left(self.wn, float(wn_key) - LISTED_WINDOW)
+        return (i < len(self.wn)
+                and self.wn[i] <= float(wn_key) + LISTED_WINDOW)
+
+
+def read_listed(path):
+    """`ListedLines` of the components file at `path`."""
+    with open(path, encoding='utf-8', newline='') as fh:
+        return ListedLines(row['wn_line'] for row in csv.DictReader(fh))
 
 
 def stated_uncertainty(char, era, wn):
@@ -344,11 +393,14 @@ def held_uncertainties(lines):
     return [fixed.lookup(line_wn_key(ln)) for ln in lines]
 
 
-def is_calculated(source):
+def is_semiempirical(source):
     """True if a row of `A_hfs_levels.csv` with this source holds a
-    calculated A constant: one evaluated from Reader and Sugar's published
-    coefficients, or from the level's composition.  These are the constants
-    Step 2's scale error belongs to.  Every other determined source is a
+    semiempirical A constant: one evaluated from Reader and Sugar's published
+    coefficients, or from the level's composition.  Semiempirical, not
+    calculated: Reader and Sugar (1965) calculated only the angular factors
+    theta_4f and theta_6s; their radial parameters a_4f and a_6s are a
+    least-squares fit to measured hyperfine structure (user, 2026-10-05).
+    These are the constants Step 2's scale error belongs to.  Every other determined source is a
     measurement - flag intervals, resolved components, hand estimates from
     the lines - and is already on the measured scale."""
     return source.startswith('composition') or source.startswith(
@@ -356,18 +408,18 @@ def is_calculated(source):
 
 
 def scaled_A(A, u_A, source):
-    """`(A, u_A)` on the measured scale: a calculated constant multiplied by
+    """`(A, u_A)` on the measured scale: a semiempirical constant multiplied by
     `A_SCALE`, with the scale's own uncertainty added in quadrature; any
     other constant unchanged.  `hfs_correction.Model` reads the table through
     this too, so that the pipeline and the fits of kappa use the same D."""
-    if not is_calculated(source):
+    if not is_semiempirical(source):
         return A, u_A
     return A_SCALE * A, math.hypot(A_SCALE * u_A, A * U_A_SCALE)
 
 
 def read_A_constants(path=None):
     """`level_id -> (J, A, u_A, source)` from `A_hfs_levels.csv`, with the
-    calculated constants put on the measured scale (`scaled_A`).
+    semiempirical constants put on the measured scale (`scaled_A`).
 
     A level whose constant is undetermined, and a level whose calculated
     constant contradicts its own flags (section 3.2), are both given A = 0
@@ -481,7 +533,7 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
     the class named by `anchor` is held at `anchor_value` and the rest are
     free, which is what makes the system full rank (see the degeneracy
     theorem in the module docstring).  `scale` multiplies every displacement
-    D; `read_A_constants` already puts the calculated constants on the
+    D; `read_A_constants` already puts the semiempirical constants on the
     measured scale, so it is 1 except in a test of that scale.  `use` is an optional boolean mask of the lines to fit.
 
     Returns a dict with the fitted kappas, their covariance, the residual of
@@ -984,7 +1036,7 @@ def main(argv=None):
     ap.add_argument('--lines', default=None)
     ap.add_argument('--scale', type=float, default=1.0,
                     help='an extra factor on every D, for testing; the '
-                         'calculated A constants are already scaled by %.4f '
+                         'semiempirical A constants are already scaled by %.4f '
                          'when read' % A_SCALE)
     ap.add_argument('--outlier', type=float, default=OUTLIER_SIGMA)
     ap.add_argument('--nulls', type=int, default=20,
@@ -1018,7 +1070,7 @@ def main(argv=None):
     print('\nset aside as probably misassigned, beyond %.0f sigma: %d of %d'
           % (args.outlier, n_out, len(lines)))
 
-    print('\nthe convention factors, calculated A constants scaled by %.4f,'
+    print('\nthe convention factors, semiempirical A constants scaled by %.4f,'
           ' every D by %.4f more' % (A_SCALE, args.scale))
     print('   fit: %d lines, %d unknowns, rank %d, chi2/dof %.2f, rms %.4f'
           % (fit['n'], fit['unknowns'], fit['rank'],

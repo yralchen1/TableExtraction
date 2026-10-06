@@ -75,13 +75,72 @@ def test_leave_one_out():
 def test_the_residual_under_another_kappa():
     # given at kappa 0.8 with D = +0.5: at the cg it would sit 0.4 lower
     z = K.hypotheses(0.0, 0.8, 0.8, 0.5, 0.1)
-    assert z['class'] == pytest.approx(0.0)
+    assert z['now'] == z['class'] == pytest.approx(0.0)
     assert z['head'] == pytest.approx(-1.0)
     assert z['cg'] == pytest.approx(4.0)
     # a held line (kappa 0 now) seen at its class
     z = K.hypotheses(0.0, 0.0, 0.8, 0.5, 0.1)
+    assert z['now'] == pytest.approx(0.0)
     assert z['class'] == pytest.approx(-4.0)
     assert z['cg'] == pytest.approx(0.0)
+    assert 'held' not in z
+    # a registry row newer than the fit: fitted at the class (0.8), held at
+    # the cg, and the cg is where the line fits
+    z = K.hypotheses(0.4, 0.8, 0.8, 0.5, 0.1, kappa_held=0.0)
+    assert z['now'] == pytest.approx(4.0)
+    assert z['held'] == z['cg'] == pytest.approx(8.0)
+    z = K.hypotheses(-0.4, 0.8, 0.8, 0.5, 0.1, kappa_held=0.0)
+    assert z['held'] == pytest.approx(0.0)
+    assert K.verdict(z, 'cg', kappa_class=0.8)[0] == 'audit-ok'
+
+
+def test_the_registry_advice():
+    # no inflation: nothing to say
+    assert K.registry_advice(None, {'now': 5.0}, 0.05, 0.01, 0.02) == ''
+    # 40253.7799 held at the cg: 1.2 sigma, the inflation goes
+    z = {'now': 11.8, 'held': 1.2}
+    assert K.registry_advice(0.6, z, 0.0471, 0.0138, 0.0159) == 'delete'
+    # 44494.0809: 2.6 sigma of 0.0946 is 0.246; less the hfs shift (0.0771)
+    # and the rest (0.0233), the line's own value must be 0.232
+    z = {'now': 2.6, 'held': 2.6}
+    assert K.registry_advice(0.25, z, 0.0946, 0.0771, 0.0233) == \
+        'needs 0.23 (now 0.25)'
+    # a line not held is judged where it is fitted
+    assert K.registry_advice(0.3, {'now': -1.5}, 0.05, 0.0, 0.0) == 'delete'
+    # a candidate is judged where it would be held, and says so
+    z = {'now': 10.8, 'cg': 0.9, 'head': 12.0}
+    assert K.registry_advice(0.5, z, 0.05, 0.0, 0.0, at='cg') == \
+        'at cg: delete'
+    assert K.registry_advice(0.5, z, 0.05, 0.0, 0.0, at='head') == \
+        'at head: needs 0.60 (now 0.5)'
+
+
+def test_the_advice_by_verdict():
+    # 40790.2000 fails its class (0.817): judged there, then at the cg
+    # (0.308 cm-1 off: an own value of 0.31 with the shift and the rest)
+    sigma, u_shift, u_rest = 0.0481, 0.0152, 0.0195
+    z = {'now': 15.9, 'class': 15.9, 'head': 18.0, 'cg': 0.308 / sigma}
+    assert K.advice_of('class-fails', 0.5, z, sigma, u_shift, u_rest,
+                       kappa_class=0.817) == \
+        'needs 0.76 (now 0.5); at cg: needs 0.31 (now 0.5)'
+    # a flagged class has no head alternative, however close the head is
+    z = {'now': 5.0, 'class': 5.0, 'head': 5.0, 'cg': 1.0}
+    assert K.advice_of('class-fails', 0.3, z, 0.05, 0.0, 0.0,
+                       kappa_class=1.0) == \
+        'needs 0.25 (now 0.3); at cg: delete'
+    # a candidate is judged only where it would be held; no inflation, none
+    z = {'now': 6.0, 'class': 6.0, 'head': 7.0, 'cg': 0.5}
+    assert K.advice_of('candidate-cg', 0.5, z, 0.05, 0.0, 0.0) == \
+        'at cg: delete'
+    assert K.advice_of('class-fails', None, z, 0.05, 0.0, 0.0) == ''
+    assert K.advice_of('fits-class', 0.5, {'now': 1.0}, 0.05, 0.0, 0.0) == \
+        'delete'
+
+
+def test_the_median():
+    assert K.median([3.0, 1.0, 2.0]) == 2.0
+    assert K.median([4.0, 1.0, 2.0, 3.0]) == 2.5
+    assert K.median([0.7]) == 0.7
 
 
 @pytest.mark.parametrize('z, held, kc, want', [
@@ -91,10 +150,24 @@ def test_the_residual_under_another_kappa():
     ({'class': 1.0, 'head': 2.0, 'cg': 4.0}, '', 0.8, 'fits-class'),
     # 2.5 sigma: not rejected, and the alternative does not gain 9
     ({'class': 2.5, 'head': 3.0, 'cg': 1.0}, '', 0.8, 'fits-class'),
-    ({'class': 5.0, 'head': 6.0, 'cg': 0.5}, 'cg', 0.8, 'audit-ok'),
-    ({'class': 5.0, 'head': 6.0, 'cg': 2.6}, 'cg', 0.8, 'audit-fails'),
-    ({'class': -4.0, 'head': 0.3, 'cg': -9.0}, 'head', 0.8, 'audit-ok'),
-    ({'class': 1.0, 'head': 2.0, 'cg': 4.0}, 'c', 0.8, 'audit-ok'),
+    # a held line is audited at the kappa it is held at, failing as a class
+    # does, beyond 3 sigma: 2.3 and 2.6 sigma pass (23792.4971, 44494.0809)
+    ({'now': 0.5, 'class': 5.0, 'head': 6.0, 'cg': 0.5}, 'cg', 0.8,
+     'audit-ok'),
+    ({'now': 2.6, 'class': 5.0, 'head': 6.0, 'cg': 2.6}, 'cg', 0.8,
+     'audit-ok'),
+    ({'now': 2.3, 'class': -2.3, 'head': 2.3, 'cg': -22.6}, 'head', 0.817,
+     'audit-ok'),
+    ({'now': 3.5, 'class': 5.0, 'head': 6.0, 'cg': 3.5}, 'cg', 0.8,
+     'audit-fails'),
+    # a borrowed class is audited at its own kappa, not the line's class
+    ({'now': 0.4, 'class': 4.0, 'head': 5.0, 'cg': -3.0}, 'c', 0.8,
+     'audit-ok'),
+    # a row newer than the fit is audited at its held kappa, not at 'now'
+    ({'now': 11.8, 'held': 1.2, 'class': 11.8, 'head': 14.1, 'cg': 1.2},
+     'cg', 0.817, 'audit-ok'),
+    ({'now': 0.5, 'held': 4.0, 'class': 0.5, 'head': 2.0, 'cg': 4.0},
+     'cg', 0.817, 'audit-fails'),
     # a flagged line has no head alternative: its class is the head
     ({'class': -4.0, 'head': -4.0, 'cg': -9.0}, '', 1.0, 'class-fails'),
 ])

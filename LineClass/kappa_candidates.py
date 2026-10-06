@@ -56,8 +56,28 @@ A line is testable when sigma / |D|, the uncertainty of the kappa it
 measures, is at most --max-u-kappa (0.3).  It is a candidate when its class
 is rejected against the better of head and cg by chi^2(class) -
 chi^2(best) >= --dchi2 (9, three sigma) and the better one fits within
---fit-sigma (2).  A row already in the registry is audited: it should still
-fit its own kappa.
+--fit-sigma (2).  A row already in the registry is audited: it fails when
+its own kappa is rejected as a class is, beyond sqrt(--dchi2) (three
+sigma), not at --fit-sigma - among some 20 audited rows one or two lie
+beyond 2 sigma by chance alone (2026-10-05).  The kappa audited is the
+registry's (kappa_held), which differs from the one the fit used
+(kappa_now) for a row added after the last chain run.
+
+PARTIAL PATTERNS: INFORMATION, NEVER A VERDICT
+==============================================
+A line may have been measured on a part of its pattern, one end of it lost:
+the head side (`partial:k-`, rungs k to the end) or the tail side
+(`partial:0-k`, the head to rung k); see hfs_patterns.partial_pattern.  For
+a line that does not fit where it is now (beyond --fit-sigma at its held or
+fitted kappa) the part that fits it best is reported with the evidence for
+it: where the part left out would lie, a line of the list there
+(`line_at_missing`, with what it is assigned to) and any candidate
+transition of the classification predicted there (`blend_at_missing`).
+About ten parts per pattern, spread 0.2 - 0.3 apart in kappa, mean that
+nearly any line fits one by chance, so the residual alone justifies none.
+The user's rule (2026-10-05): a part left out must be accounted for by a
+blending transition, or the line stays at the cg with an inflated
+uncertainty - the plates cannot be inspected and IDEN2 cannot show it.
 
 WHAT IS LEFT OUT
 ================
@@ -85,7 +105,6 @@ import csv
 import math
 import os
 import re
-import statistics
 import sys
 
 import config
@@ -105,14 +124,27 @@ MAX_U_KAPPA = 0.3
 
 COLUMNS = ('verdict', 'wn_key', 'char', 'era', 'low_id', 'upp_id',
            'iden_low', 'iden_upp', 'obs_intens', 'D', 'kappa_class',
-           'kappa_now', 'held', 'kappa_line', 'u_kappa_line', 'leverage',
-           'u_rest', 'u_model', 'u_hfs_shift', 'r_loo', 'z_class', 'z_head',
-           'z_cg', 'dchi2', 'registry_unc', 'registry_reason',
-           'nearest_dwn', 'nearest_intens', 'rung1_dwn', 'line_at_rung1')
+           'kappa_now', 'held', 'kappa_held', 'kappa_line', 'u_kappa_line',
+           'leverage', 'u_rest', 'u_model', 'u_hfs_shift', 'r_loo', 'z_now',
+           'z_held', 'z_class', 'z_head', 'z_cg', 'dchi2', 'registry_unc',
+           'registry_advice', 'registry_reason',
+           'nearest_dwn', 'nearest_intens', 'rung1_dwn', 'line_at_rung1',
+           'partial_best', 'kappa_partial', 'z_partial', 'missing_side',
+           'missing_share', 'missing_dwn', 'line_at_missing',
+           'blend_at_missing')
+
+#: the columns of the best partial pattern and the evidence for it: for
+#: information only, never a verdict (see the module docstring).
+PARTIAL_COLUMNS = COLUMNS[COLUMNS.index('partial_best'):]
 
 #: how close a line of the list must lie to the predicted rung 1 to be
 #: named in `line_at_rung1`, cm^-1.
 RUNG_WINDOW = 0.1
+
+#: how close a line of the list, or the predicted position of a candidate
+#: transition, must lie to the part of a pattern a partial measurement left
+#: out to be named in `line_at_missing` or `blend_at_missing`, cm^-1.
+MISSING_WINDOW = 0.1
 
 
 # --- the model uncertainty -------------------------------------------------
@@ -169,33 +201,98 @@ def leave_one_out(r, u_obs, u_calc):
             u_calc * u_obs / math.sqrt(u_obs ** 2 - u_calc ** 2))
 
 
-def hypotheses(r_loo, kappa_now, kappa_class, D, sigma):
-    """`{'class', 'head', 'cg'}` -> z, the residual without the line under
-    each kappa in units of sigma."""
+def median(values):
+    """The median of a non-empty list.  Not the standard library's: a
+    `statistics.py` of the repository root (Mandel-Paule, imported by
+    classify_lines.py) shadows it whenever the root is on the path."""
+    v = sorted(values)
+    n = len(v)
+    return v[n // 2] if n % 2 else 0.5 * (v[n // 2 - 1] + v[n // 2])
+
+
+def hypotheses(r_loo, kappa_now, kappa_class, D, sigma, kappa_held=None):
+    """`{'now', 'class', 'head', 'cg'}` -> z, the residual without the line
+    under each kappa in units of sigma; 'now' is the kappa the line was
+    fitted at.  With `kappa_held` (a line the registries hold) there is a
+    'held' key too: it differs from 'now' when the registry row is newer
+    than the fit."""
     def z(k):
         return (r_loo + (kappa_now - k) * D) / sigma
-    return {'class': z(kappa_class), 'head': z(1.0), 'cg': z(0.0)}
+    out = {'now': z(kappa_now), 'class': z(kappa_class), 'head': z(1.0),
+           'cg': z(0.0)}
+    if kappa_held is not None:
+        out['held'] = z(kappa_held)
+    return out
+
+
+def registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
+                    at=None):
+    """What the inflation registry's value `reg_u` of a line should become,
+    judged at the kappa the line is held at (z['held']) or else fitted at
+    (z['now']), with `sigma` the model's own total uncertainty.  `at`
+    ('head' or 'cg') judges a candidate where it would be held instead, and
+    says so: 'at cg: delete'.
+
+    'delete' when the residual fits the model within `fit_sigma`, the same
+    bar a head or cg alternative must clear: the line then needs no own
+    value.  Otherwise 'needs X (now Y)', X being the own uncertainty that
+    makes the residual a 1-sigma one together with the hfs shift and the
+    rest of the network: sqrt(r^2 - u_hfs_shift^2 - u_rest^2)."""
+    if reg_u is None:
+        return ''
+    zz = z[at] if at else z.get('held', z['now'])
+    prefix = 'at %s: ' % at if at else ''
+    if abs(zz) <= fit_sigma:
+        return prefix + 'delete'
+    r = zz * sigma
+    need = math.sqrt(max(r ** 2 - u_shift ** 2 - u_rest ** 2, 0.0))
+    return prefix + 'needs %.2f (now %g)' % (need, reg_u)
+
+
+def advice_of(v, reg_u, z, sigma, u_shift, u_rest, fit_sigma=FIT_SIGMA,
+              kappa_class=None):
+    """The `registry_advice` of a line whose verdict is `v`: a candidate is
+    judged where it would be held; a line that fails its class is judged at
+    the class and, after '; ', at the better of head and cg, where a row of
+    kappa_exceptions.txt would hold it - its failure is then a measurement
+    one, and that value is what the inflation should be."""
+    if v.startswith('candidate-'):
+        return registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma,
+                               at=v[len('candidate-'):])
+    out = registry_advice(reg_u, z, sigma, u_shift, u_rest, fit_sigma)
+    if v == 'class-fails' and out:
+        out += '; ' + registry_advice(reg_u, z, sigma, u_shift, u_rest,
+                                      fit_sigma,
+                                      at=best_alternative(z, kappa_class))
+    return out
+
+
+def best_alternative(z, kappa_class=None):
+    """'head' or 'cg', whichever fits the line better; a class whose kappa is
+    itself 1 (a flagged line) has no head alternative."""
+    alts = ['cg'] if kappa_class is not None and kappa_class >= 1.0 \
+        else ['head', 'cg']
+    return min(alts, key=lambda k: abs(z[k]))
 
 
 def verdict(z, held, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA, kappa_class=None):
     """`(verdict, dchi2)` of a testable line.
 
     `held` is the registry's class name for the line ('' if none).  A held
-    line is audited against its own kappa: 'audit-ok' or 'audit-fails'.
+    line is audited against the kappa the registry holds it at (z['held'],
+    or z['now'] when absent): 'audit-fails' when that is rejected beyond
+    sqrt(dchi2_min), as a class is, else 'audit-ok'.
     Otherwise 'candidate-head' or 'candidate-cg' when the class loses to the
     better alternative by at least dchi2_min and that one fits within
     fit_sigma; 'class-fails' when the class is rejected and neither
     alternative fits; 'fits-class' else.  A class whose kappa is itself 1
     (a flagged line) has no head alternative."""
-    alts = ['cg'] if kappa_class is not None and kappa_class >= 1.0 \
-        else ['head', 'cg']
-    best = min(alts, key=lambda k: abs(z[k]))
+    best = best_alternative(z, kappa_class)
     dchi2 = z['class'] ** 2 - z[best] ** 2
     if held:
-        own = 'head' if held in ('head', 'flag') else (
-            'cg' if held == 'cg' else 'class')
-        return ('audit-ok' if abs(z[own]) <= fit_sigma else 'audit-fails',
-                dchi2)
+        return ('audit-ok' if abs(z.get('held', z['now']))
+                <= math.sqrt(dchi2_min)
+                else 'audit-fails', dchi2)
     if dchi2 >= dchi2_min and abs(z[best]) <= fit_sigma:
         return 'candidate-' + best, dchi2
     if abs(z['class']) > math.sqrt(dchi2_min):
@@ -250,11 +347,55 @@ def rung1(model, low, upp):
     return hfs_patterns.rung(1, J1, A1, J2, A2)
 
 
-def line_near(keys, wn, window=RUNG_WINDOW):
+def partial_family(model, low, upp, unresolved=()):
+    """`[(name, Partial, u_kappa)]`: the parts of the transition's pattern
+    a line can be measured on when one end of it is lost - the head side
+    (`partial:k-`, k = 1 ... the end of the ladder) or the tail side
+    (`partial:0-k`, k = 1 ... one short of it; `partial:0-0`, the head and
+    its nearest off-ladder components, is left to the class head).  Empty
+    when the transition has no pattern of its own."""
+    try:
+        J1, A1, _, J2, A2, _ = model.pattern_of(low, upp, unresolved)
+    except ValueError:
+        return []
+    n = hfs_patterns.ladder_length(J1, J2)
+    out = []
+    for first, last in ([(k, None) for k in range(1, n + 1)]
+                        + [(0, k) for k in range(1, n)]):
+        try:
+            part = hfs_patterns.partial_pattern(J1, A1, J2, A2, first, last)
+        except ValueError:
+            continue
+        u = model.partial_kappa(low, upp, first, last, unresolved)[1]
+        out.append((hfs_correction.partial_name(first, last), part, u))
+    return out
+
+
+def best_partial(family, r_loo, kappa_now, D, sigma):
+    """`(name, Partial, z)` of the part of `family` that fits the line best,
+    the uncertainty of its kappa added to `sigma`; None if there is none."""
+    best = None
+    for name, part, u in family:
+        z = ((r_loo + (kappa_now - part.kappa) * D)
+             / math.hypot(sigma, u * D))
+        if best is None or abs(z) < abs(best[2]):
+            best = (name, part, z)
+    return best
+
+
+def missing_offset(part, kappa_line, D):
+    """Where the part of the pattern a partial measurement left out lies,
+    from the line as measured, cm^-1: its center of gravity less the
+    measured point, both from the pattern's center of gravity."""
+    return part.missing[1] - kappa_line * D
+
+
+def line_near(keys, wn, window=RUNG_WINDOW, exclude=None):
     """The line of the sorted list `keys` nearest `wn`, if within
-    `window`."""
+    `window`; never the line `exclude`."""
     i = bisect.bisect_left(keys, wn)
-    near = [keys[j] for j in (i - 1, i) if 0 <= j < len(keys)]
+    near = [keys[j] for j in (i - 2, i - 1, i, i + 1)
+            if 0 <= j < len(keys) and keys[j] != exclude]
     best = min(near, key=lambda k: abs(k - wn), default=None)
     return best if best is not None and abs(best - wn) <= window else None
 
@@ -287,6 +428,12 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
     keys = sorted(intens_of)
     pos = {k: i for i, k in enumerate(keys)}
     intens = [intens_of[k] for k in keys]
+    rows_of = collections.defaultdict(list)
+    for r in table:
+        rows_of[float(r['wn_key'])].append(r)
+
+    def name(low, upp):
+        return '%s-%s' % (iden.get(low, low[-6:]), iden.get(upp, upp[-6:]))
 
     count = collections.Counter()
     rows = []
@@ -323,13 +470,64 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
         exc = model.exception(key, low, upp)
         held = exc.cls if exc else ('head' if (low, upp) in
                                     model.satellites.head_pairs(key) else '')
-        z = hypotheses(r_loo, kappa_now, kappa_class, D, sigma)
+        kappa_held = (model.row_kappa(exc)[0] if exc else
+                      1.0 if held else None)
+        if held and abs(kappa_held - kappa_now) > 1e-6:
+            # the registry row is newer than the fit, which still has the
+            # line at kappa_now: audit it at the kappa the row asks for
+            count['held, not yet in the fit'] += 1
+        z = hypotheses(r_loo, kappa_now, kappa_class, D, sigma, kappa_held)
         v, dchi2 = verdict(z, held, dchi2_min, fit_sigma, kappa_class)
         count[v] += 1
         near = nearest_other(keys, intens, pos[key])
         reg_u = registry.lookup(key)
         r1 = rung1(model, low, upp)
         at_r1 = None if r1 is None else line_near(keys, key + r1)
+        kappa_line = kappa_now + r_loo / D
+        part = best_partial(
+            partial_family(model, low, upp, exc.unresolved if exc else ()),
+            r_loo, kappa_now, D, sigma)
+        miss = {}
+        # only a line that does not fit where it is now is worth a part
+        if part is not None and abs(z.get('held', z['now'])) > fit_sigma:
+            count['partial tested'] += 1
+            off = missing_offset(part[1], kappa_line, D)
+            at = key + off
+            there = line_near(keys, at, MISSING_WINDOW, exclude=key)
+            blends = []
+            for k in [key] + ([there] if there is not None else []):
+                for c in rows_of[k]:
+                    if not (c['low_id'] and c['upp_id']) or (
+                            k == key and (c['low_id'], c['upp_id'])
+                            == (low, upp)):
+                        continue
+                    pred = k - float(c['dif_wn_O-C'] or 0.0)
+                    if abs(pred - at) <= MISSING_WINDOW:
+                        blends.append('%s at %+.3f, Icalc %.0f%s' % (
+                            name(c['low_id'], c['upp_id']), pred - at,
+                            float(c['calc_intens'] or 0.0),
+                            ', accepted' if c['accepted'] == '1.0' else ''))
+            assigned = [name(c['low_id'], c['upp_id'])
+                        for c in rows_of.get(there, ())
+                        if c['accepted'] == '1.0']
+            miss = {
+                'partial_best': part[0],
+                'kappa_partial': '%.2f' % part[1].kappa,
+                'z_partial': '%+.1f' % part[2],
+                'missing_side': part[1].missing[0],
+                'missing_share': '%.0f%%' % (100 * part[1].missing[2]),
+                'missing_dwn': '%+.3f' % off,
+                'line_at_missing': '' if there is None else
+                '%.4f (I %.0f%s)' % (there, intens_of[there],
+                                     '; ' + ', '.join(assigned)
+                                     if assigned else '; unassigned'),
+                'blend_at_missing': '; '.join(blends),
+            }
+            if abs(part[2]) <= fit_sigma and (
+                    v in ('class-fails', 'audit-fails')):
+                count['partial fits'] += 1
+                if there is not None or blends:
+                    count['partial fits, evidence'] += 1
         rows.append({
             'verdict': v, 'wn_key': r['wn_key'], 'char': char,
             'era': hfs_kappa.era_of(key), 'low_id': low, 'upp_id': upp,
@@ -337,14 +535,19 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
             'obs_intens': '%.0f' % float(r['obs_intens']),
             'D': '%+.4f' % D, 'kappa_class': '%.3f' % kappa_class,
             'kappa_now': '%.3f' % kappa_now, 'held': held,
-            'kappa_line': '%.2f' % (kappa_now + r_loo / D),
+            'kappa_held': '' if kappa_held is None else '%.3f' % kappa_held,
+            'kappa_line': '%.2f' % kappa_line,
             'u_kappa_line': '%.2f' % (sigma / abs(D)),
             'leverage': '%.3f' % h, 'u_rest': '%.4f' % u_rest,
             'u_model': '%.4f' % u_mod, 'u_hfs_shift': '%.4f' % u_shift,
             'r_loo': '%+.4f' % r_loo,
+            'z_now': '%+.1f' % z['now'],
+            'z_held': '%+.1f' % z['held'] if 'held' in z else '',
             'z_class': '%+.1f' % z['class'], 'z_head': '%+.1f' % z['head'],
             'z_cg': '%+.1f' % z['cg'], 'dchi2': '%.1f' % dchi2,
             'registry_unc': '' if reg_u is None else '%g' % reg_u,
+            'registry_advice': advice_of(v, reg_u, z, sigma, u_shift,
+                                         u_rest, fit_sigma, kappa_class),
             'registry_reason': '' if reg_u is None else reasons.get(
                 _registry_name(reasons, key), ''),
             'nearest_dwn': '' if near[0] is None else '%+.3f' % near[0],
@@ -352,6 +555,7 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
             'rung1_dwn': '' if r1 is None else '%+.3f' % r1,
             'line_at_rung1': '' if at_r1 is None else '%.4f (I %.0f)' % (
                 at_r1, intens_of[at_r1]),
+            **{c: miss.get(c, '') for c in PARTIAL_COLUMNS},
         })
     order = {'audit-fails': 0, 'candidate-cg': 1, 'candidate-head': 1,
              'class-fails': 2, 'audit-ok': 3, 'fits-class': 4}
@@ -377,6 +581,19 @@ def summary(rows, count):
         '%s %d' % (k, count[k]) for k in
         ('candidate-cg', 'candidate-head', 'class-fails', 'audit-ok',
          'audit-fails', 'fits-class')))
+    if count['partial tested']:
+        lines.append('partial patterns (information only, never a verdict): '
+                     '%d failing line(s) fit one within %s sigma; %d of them '
+                     'have a line or a candidate transition where the part '
+                     'left out would lie' % (
+                         count['partial fits'], '%g' % FIT_SIGMA,
+                         count['partial fits, evidence']))
+    if count['held, not yet in the fit']:
+        lines.append('%d held line(s) not yet in the fit (registry row newer '
+                     'than the LOPT run; audited at kappa_held): %s' % (
+                         count['held, not yet in the fit'], ', '.join(
+                             r['wn_key'][:10] for r in rows if r['held']
+                             and r['kappa_held'] != r['kappa_now'])))
     lines.append('')
     lines.append('char  era     n  median kappa_line  candidates (cg/head)'
                  '  class fails')
@@ -388,7 +605,7 @@ def summary(rows, count):
                                   key=lambda kv: (kv[0][1], -len(kv[1]))):
         lines.append('%-5s %d %5d  %17.2f  %10d/%d  %11d' % (
             char, era, len(rs),
-            statistics.median(float(r['kappa_line']) for r in rs),
+            median([float(r['kappa_line']) for r in rs]),
             sum(r['verdict'] == 'candidate-cg' for r in rs),
             sum(r['verdict'] == 'candidate-head' for r in rs),
             sum(r['verdict'] == 'class-fails' for r in rs)))
@@ -418,10 +635,14 @@ def main(argv=None):
                     help='the working set (default: %(default)s); it needs '
                          'the hfs correction on and a LOPT fit')
     ap.add_argument('--dchi2', type=float, default=DCHI2,
-                    help='how much better the alternative must fit '
-                         '(default: %(default)s)')
+                    help='how much better (in chi^2) the head or cg must fit '
+                         'than the class for a candidate; its square root '
+                         'is also where a class fails and where an audit of '
+                         'a held line fails (default: %(default)s, i.e. 3 '
+                         'sigma)')
     ap.add_argument('--fit-sigma', type=float, default=FIT_SIGMA,
-                    help='how close the alternative must fit, in sigma '
+                    help='for a candidate only: how close the head or cg '
+                         'must itself fit, in sigma; not used by the audit '
                          '(default: %(default)s)')
     ap.add_argument('--max-u-kappa', type=float, default=MAX_U_KAPPA,
                     help='the largest uncertainty of a line\'s own kappa '

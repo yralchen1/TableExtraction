@@ -42,6 +42,15 @@ lines of 1969 and 0.20 for the lines he called complex.  The classes and
 their values live in `[hfs.kappa]`, which since 2026-10-03 holds the values
 the plate calibration fits with them (0.925, 0.708 and 0.271).
 
+Since 2026-10-06 a flagged line counts as the anchor (`flag`, kappa = 1) only
+if Sugar printed its resolved components, which a configuration that names
+the list of them (files.hfs_components) checks.  A flagged line whose
+components he did not print is of the class `flag_unlisted`: its pattern was
+not resolved, and his setting on its peak was pulled about 0.04 cm^-1 from the
+strongest component towards the center of gravity by the unresolved
+neighbors (kappa 0.90 against the plain lines' 0.81).  The plate calibration
+fits that class like the plain ones (`Model.line_class`).
+
 So a candidate transition i of an observed line is predicted at
 
     Ritz_i - (1 - kappa) * D_i
@@ -62,7 +71,8 @@ unidentified line cannot be, and need not be, since nothing is fitted to it.
 A flagged blend is the one line whose components do not all share its kappa
 (user's decision of 2026-09-30).  Sugar's flag describes the resolved pattern
 of one transition, taken to be the blend's strongest (largest BF), which
-takes kappa = 1; the others take the kappa the line would have without the
+takes the flag's kappa (1, or that of `flag_unlisted`); the others take the
+kappa the line would have without the
 flag, the plain kappa of its era.  Each component then carries its own
 (1 - kappa_i) * D_i:
 
@@ -83,12 +93,13 @@ THE A CONSTANTS, AND WHAT IS MISSING FROM THEM
 source of the value for each level it lists.  A level falls in one of three
 groups:
 
-* **determined** - A comes from Reader and Sugar's calculated values, from the
-  level's composition, from its flag intervals or from its measured lines.
-  S = I*A*J, with the uncertainty I*J*u_A.  A calculated constant (the first
-  two sources) is first multiplied by Step 2's scale, `hfs_kappa.A_SCALE`,
+* **determined** - A comes from the level's composition (semiempirical),
+  from Sugar's resolved components (Reader and Sugar's semiempirical values
+  were replaced by these on 2026-10-05), from its flag intervals or from its
+  measured lines.  S = I*A*J, with the uncertainty I*J*u_A.  A semiempirical
+  constant is first multiplied by Step 2's scale, `hfs_kappa.A_SCALE`,
   and the scale's uncertainty added to u_A (`hfs_kappa.scaled_A`): the
-  calculated constants are a few per cent too large against Sugar's measured
+  semiempirical constants are a few per cent too large against Sugar's measured
   component spacings, and the kappas are fitted with D on this same scale;
 * **undetermined** - listed, with the source "not determined" (the 41 4f5d2
   and 4f3 levels of the plan's section 3.1, 4 since `hfs_A_fit.py` gave the
@@ -164,8 +175,18 @@ measured in:
 
     head    kappa = 1, the strongest component, by definition;
     cg      kappa = 0, the center of gravity, by definition;
-    flag, plain_1974, plain_1969, c
-            the value [hfs.kappa] gives that class.
+    flag, plain_1974, plain_1969, c, flag_unlisted
+            the value [hfs.kappa] gives that class;
+    partial:<first>-<last>
+            the center of gravity of the rungs first ... last of the
+            pattern (last left out: to the end of the ladder), each rung
+            with the off-ladder components nearest it
+            (hfs_patterns.partial_pattern).  Rung 0 is the head;
+            `partial:1-` is a line measured without its head, `partial:0-1`
+            one measured on its head and rung 1 only.  The kappa is computed
+            from the J and A of the transition's two levels, so it follows
+            them when an A changes; its uncertainty is theirs.  Both levels
+            need a determined A (2026-10-05).
 
 The named transition of the line takes that kappa; the line's other
 transitions keep theirs.  Such a line is no measurement of the class it
@@ -244,8 +265,26 @@ EXCEPTION_COLUMNS = ('wn_key', 'low_id', 'upp_id', 'class', 'unresolved',
                      'date', 'reason')
 
 #: the classes of that registry whose kappa is fixed by definition; the
-#: others are the classes of [hfs.kappa].
+#: others are the classes of [hfs.kappa] and the partial patterns.
 FIXED_KAPPA = {'head': (1.0, 0.0), 'cg': (0.0, 0.0)}
+
+#: a class of that registry naming a part of the pattern: rungs first-last,
+#: or first to the end of the ladder ('partial:1-').
+PARTIAL_RE = re.compile(r'^partial:(\d+)-(\d*)$')
+
+
+def parse_partial(cls):
+    """`(first, last)` of a partial class (`last` None: to the end of the
+    ladder), or None if `cls` is not one."""
+    m = PARTIAL_RE.match(cls or '')
+    if not m:
+        return None
+    return int(m.group(1)), (int(m.group(2)) if m.group(2) else None)
+
+
+def partial_name(first, last=None):
+    """The registry's name of the part rungs `first` ... `last`."""
+    return 'partial:%d-%s' % (first, '' if last is None else last)
 
 
 def is_determined(source):
@@ -263,6 +302,15 @@ class Model(object):
 
     def __init__(self, settings):
         self.kappa = dict(settings.kappa)
+        components = getattr(settings, 'components', '')
+        # with the list of Sugar's resolved components the flags are split
+        # (`line_class`); without it every flagged line is the anchor's
+        self.listed = (hfs_kappa.read_listed(components) if components
+                       else None)
+        if self.listed is not None and hfs_kappa.FLAG_UNLISTED not in self.kappa:
+            raise ValueError('[hfs.kappa] has no %s, the class the list of '
+                             'components %s makes of the flagged lines not '
+                             'in it' % (hfs_kappa.FLAG_UNLISTED, components))
         self.resolved = set(settings.resolved_levels)
         self.satellites = read_satellites(settings.satellites)
         self.exceptions = read_kappa_exceptions(
@@ -276,6 +324,18 @@ class Model(object):
                                             float(row['u_A']), src)
                 self.levels[row['level_id'].strip()] = (
                     float(row['J']), A, u_A, is_determined(src))
+        # a partial class's kappa comes from the transition's pattern: a row
+        # that cannot have one stops the run here, not in mid-classification
+        name = os.path.basename(getattr(settings, 'kappa_exceptions', '')
+                                or 'kappa_exceptions')
+        for row in self.exceptions.rows:
+            if parse_partial(row.cls):
+                try:
+                    self.row_kappa(row)
+                except ValueError as e:
+                    raise ValueError('%s: the row of %s (%s - %s), %s: %s'
+                                     % (name, row.key, row.low_id,
+                                        row.upp_id, row.cls, e))
 
     # --- levels -------------------------------------------------------------
     def S(self, level_id, pattern=False):
@@ -310,18 +370,80 @@ class Model(object):
 
     # --- lines --------------------------------------------------------------
     def kappa_value(self, cls):
-        """`(kappa, u_kappa)` of a class of the exception registry."""
+        """`(kappa, u_kappa)` of a class of the exception registry.  A
+        partial class has none of its own - its kappa is the transition's;
+        see `row_kappa`."""
+        if parse_partial(cls):
+            raise ValueError('the kappa of %s depends on the transition: '
+                             'use Model.row_kappa' % cls)
         return FIXED_KAPPA[cls] if cls in FIXED_KAPPA else self.kappa[cls]
+
+    def row_kappa(self, row):
+        """`(kappa, u_kappa)` of a row of the exception registry."""
+        part = parse_partial(row.cls)
+        if part is None:
+            return self.kappa_value(row.cls)
+        return self.partial_kappa(row.low_id, row.upp_id, part[0], part[1],
+                                  row.unresolved)
+
+    def pattern_of(self, low_id, upp_id, unresolved=()):
+        """`(J1, A1, u_A1, J2, A2, u_A2)` of the transition's pattern, the
+        lower level first: both levels need a determined A, and a level of
+        `resolved_levels` has no pattern unless `unresolved` names it.
+        Raises ValueError otherwise."""
+        out = ()
+        for lid in (low_id, upp_id):
+            rec = self.levels.get(lid)
+            if lid in self.resolved and lid not in unresolved:
+                raise ValueError('%s is in resolved_levels: its lines join '
+                                 'single sublevels (name it unresolved if '
+                                 'this one does not)' % lid)
+            if rec is None or not rec[3]:
+                raise ValueError('%s has no determined A' % lid)
+            out += (rec[0], rec[1], rec[2])
+        return out
+
+    def partial_kappa(self, low_id, upp_id, first, last=None, unresolved=()):
+        """`(kappa, u_kappa)` of the part rungs `first` ... `last` of the
+        transition's pattern (hfs_patterns.partial_pattern), the uncertainty
+        from those of the two A constants."""
+        J1, A1, u1, J2, A2, u2 = self.pattern_of(low_id, upp_id, unresolved)
+        k = hfs_patterns.partial_pattern(J1, A1, J2, A2, first, last).kappa
+        var = 0.0
+        for dA1, dA2, u in ((1, 0, u1), (0, 1, u2)):
+            if u <= 0.0:
+                continue
+            h = 1e-3 * u
+            k2 = hfs_patterns.partial_pattern(J1, A1 + dA1 * h, J2,
+                                              A2 + dA2 * h, first,
+                                              last).kappa
+            var += ((k2 - k) / h * u) ** 2
+        return k, math.sqrt(var)
 
     def exception(self, wn_key, low_id, upp_id):
         """The exception registry's row for the transition `low_id` -
         `upp_id` of the line `wn_key`, or None."""
         return self.exceptions.find(wn_key, low_id, upp_id)
 
+    def line_class(self, char, wn_key):
+        """The convention class of an observed line, as
+        `hfs_kappa.kappa_class` gives it: 'flag', 'flag_unlisted', 'c' or
+        'plain'.  A flagged line is 'flag' only if its resolved components
+        are in the list of them, when the model has one."""
+        listed = self.listed is None or wn_key in self.listed
+        return hfs_kappa.kappa_class(char or '', listed)
+
+    def sits_at_head(self, char, wn_key):
+        """True if the observed line sits on a head-frame Ritz value as a
+        whole: a flagged line of the anchor class, or a line a registry makes
+        the head of a pattern (`is_head_line`)."""
+        return (self.line_class(char, wn_key) == 'flag'
+                or self.is_head_line(wn_key))
+
     def kappa_of(self, char, wn_key):
         """`(kappa, u_kappa)` of an observed line with Sugar's character
         `char`, named by `wn_key` (his own wavenumber, which says the era)."""
-        cls = hfs_kappa.kappa_class(char or '')
+        cls = self.line_class(char, wn_key)
         if cls == 'plain':
             cls = 'plain_%d' % hfs_kappa.era_of(wn_key)
         return self.kappa[cls]
@@ -339,12 +461,14 @@ class Model(object):
         the others of its line the kappa the line would have without that
         mark (the plain kappa of its era if the line is also flagged).
         Otherwise, in a flagged blend the strongest component (largest BF,
-        the first of equals) takes the flag's kappa and the others the plain
+        the first of equals) takes the line's own kappa (that of `flag` or
+        of `flag_unlisted`) and the others the plain
         kappa of the line's era, the one the line would have without the
         flag.
         """
         k = self.kappa_of(char, wn_key)
-        flagged = hfs_kappa.kappa_class(char or '') == 'flag'
+        flagged = self.line_class(char, wn_key) in ('flag',
+                                                    hfs_kappa.FLAG_UNLISTED)
         plain = self.kappa['plain_%d' % hfs_kappa.era_of(wn_key)]
         if heads and any(heads):
             other = plain if flagged else k
@@ -364,7 +488,7 @@ class Model(object):
         exception registry puts at kappa = 1."""
         if self.satellites.head_pairs(wn_key):
             return True
-        return any(self.kappa_value(row.cls)[0] == 1.0
+        return any(self.row_kappa(row)[0] == 1.0
                    for row in self.exceptions.rows_of(wn_key))
 
     def D(self, low_id, upp_id, unresolved=()):
@@ -390,12 +514,12 @@ class Model(object):
         with its pattern."""
         row = self.exception(wn_key, low_id, upp_id)
         if row is not None:
-            kappa = self.kappa_value(row.cls)[0]
+            kappa = self.row_kappa(row)[0]
             return ('flag', kappa * self.D(low_id, upp_id, row.unresolved)[0],
                     row.cls)
         if (low_id, upp_id) in self.satellites.head_pairs(wn_key):
             return 'flag', self.D(low_id, upp_id)[0], 'head'
-        return (hfs_kappa.kappa_class(char or ''),
+        return (self.line_class(char, wn_key),
                 self.D(low_id, upp_id)[0], '')
 
     def line_shift(self, char, wn_key, components):
@@ -412,7 +536,7 @@ class Model(object):
         kappas = self.component_kappas(
             char, wn_key, [bf for _, _, bf in components],
             [(low, upp) in heads for low, upp, _ in components],
-            [self.kappa_value(r.cls) if r else None for r in rows])
+            [self.row_kappa(r) if r else None for r in rows])
         return combine([(bf,) + k + self.D(low, upp,
                                            r.unresolved if r else ())
                         for (low, upp, bf), k, r
@@ -723,8 +847,10 @@ def read_kappa_exceptions(path, resolved=(), classes=()):
     docstring.
 
     Tab-delimited, with the columns of EXCEPTION_COLUMNS; a row whose wn_key
-    starts with '#' is a comment.  `class` is one of FIXED_KAPPA or of
-    `classes` (the classes of [hfs.kappa]); `unresolved` is empty or one or
+    starts with '#' is a comment.  `class` is one of FIXED_KAPPA, of
+    `classes` (the classes of [hfs.kappa]) or a partial class
+    (PARTIAL_RE), whose rungs the Model checks against the pattern;
+    `unresolved` is empty or one or
     more level ids, separated by commas, each of them in `resolved` and one
     of the row's two levels.  A missing file, or none named, is an empty
     registry; a row that cannot mean what it says raises.
@@ -751,10 +877,10 @@ def read_kappa_exceptions(path, resolved=(), classes=()):
             if not (low and upp):
                 raise ValueError('%s: the row of %s needs low_id and upp_id'
                                  % (name, wn))
-            if cls not in allowed:
+            if cls not in allowed and not parse_partial(cls):
                 raise ValueError('%s: the row of %s has the class %r; it is '
-                                 'one of %s' % (name, wn, cls,
-                                                ', '.join(allowed)))
+                                 'one of %s, or partial:<first>-<last>'
+                                 % (name, wn, cls, ', '.join(allowed)))
             unresolved = frozenset(
                 x.strip() for x in (rec.get('unresolved') or '').split(',')
                 if x.strip())

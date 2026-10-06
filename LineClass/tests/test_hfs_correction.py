@@ -56,7 +56,7 @@ def a_table(tmp_path):
     path.write_text(
         'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
         f'{LOW},f26s,3.5,-0.0400,0.0040,flag interval,0\n'
-        f'{UPP},f26p,2.5,+0.1000,0.0100,Reader & Sugar 1965 (calculated),0\n'
+        f'{UPP},f26p,2.5,+0.1000,0.0100,Reader & Sugar 1965 (semiempirical),0\n'
         f'{UNDET},f5d2,4.5,+0.0000,0.0500,not determined,1\n'
         f'{RESOLVED},f26s,0.5,+0.5000,0.0100,composition,0\n',
         encoding='utf-8', newline='\n')
@@ -119,7 +119,7 @@ def test_a_kappa_class_must_be_a_pair(tmp_path):
 # ---------------------------------------------------------------------------
 def test_the_groups_of_levels(model):
     assert model.S(LOW) == pytest.approx((2.5 * -0.04 * 3.5, 2.5 * 3.5 * 0.004))
-    # a calculated constant is put on the measured scale of Step 2
+    # a semiempirical constant is put on the measured scale of Step 2
     s, u_s = hfs_kappa.A_SCALE, hfs_kappa.U_A_SCALE
     assert model.S(UPP) == pytest.approx(
         (2.5 * 0.1 * s * 2.5, 2.5 * 2.5 * math.hypot(0.01 * s, 0.1 * u_s)))
