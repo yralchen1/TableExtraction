@@ -57,7 +57,6 @@ wn_key	unc_wn	date	reason
 87425.1129	0.5	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 11513.7962	0.03	9/26/2026	IDEN2/LOPT
 17331.44354164608	0.0718	9/26/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
-34395.482	0.06	9/26/2026	blend of head and rung 1 components; char w
 91634.4111	0.5	9/26/2026	blend
 97566.3032	0.5	9/27/2026	blend
 93959.4233	0.5	9/27/2026	blend
@@ -86,7 +85,6 @@ wn_key	unc_wn	date	reason
 68213.5741	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 56993.5991	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 43594.5694	0.14	9/27/2026	head of 1129-961 pattern
-37577.0988	0.09	9/27/2026	head+rung 1 blend
 24719.2296	0.14	10/3/2026	head of 1129-1081 pattern
 25555.9702	0.09	10/3/2026	head of 1129-1079 pattern
 22372.6908	0.06	10/3/2026	blend of head and rung 1 components; questionable because no char was given
@@ -99,7 +97,6 @@ wn_key	unc_wn	date	reason
 37374.7104	0.18	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 42564.3613	0.25	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 34861.8898	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
-36219.3018	0.5	9/27/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 40266.5397	0.15	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 45334.941	0.23	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 43043.3695	0.18	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
@@ -109,8 +106,7 @@ wn_key	unc_wn	date	reason
 40169.1908	0.13	9/28/2026	blend
 33207.6503	0.5	9/28/2026	blend
 32105.4086	0.35	9/28/2026	blend
-24866.9222	0.07	9/28/2026	head of 1116-1067 pattern
-36887.6208	0.19	9/28/2026	hfs of f26s
+24866.9222	0.08	9/28/2026	head of 1116-1067 pattern
 26937.8332	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 33818.0984	0.1	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 59111.2243	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
@@ -119,7 +115,6 @@ wn_key	unc_wn	date	reason
 67195.1827	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 44840.8392	0.3	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 51766.8259	0.4	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
-31636.6609	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 31177.3707	0.5	9/28/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 55805.502	0.5	9/28/2026	hfs of fds
 49399.839	0.5	9/28/2026	hfs of fds
@@ -156,8 +151,6 @@ wn_key	unc_wn	date	reason
 43105.9493	0.18	10/2/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 37509.34	0.29	10/2/2026	"center of gravity of 1156-1052, not its head"
 57611.7558	0.5	10/2/2026	"center of gravity of 1156-932, not its head"
-36579.641	0.12	10/2/2026	"center of gravity of 1156-1056, not its head"
-35193.6584	0.11	10/2/2026	halfway between the head and the center of gravity of 1156-1067
 30074.3894	0.19	10/2/2026	"center of gravity of 1116-1021, not its head"
 35378.1493	0.5	10/2/2026	"center of gravity of 1116-991, blended with 1175-1082"
 36833.56	0.5	10/2/2026	"center of gravity of 1116-984, blended with 1048-878"
