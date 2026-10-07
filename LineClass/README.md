@@ -3148,20 +3148,30 @@ from the table and were added on 2026-10-04: `059003.000151`, `059003.000654` an
 `059003.000656`. Each value is checked against the level's other
 patterns, against the bounds its flags set, and against its own lines; `hfs_A_anchored.csv`
 records the checks. One level the fit determines, `059003.000448`, is held back (`HOLD`): its
-value rests on a single position, and its lines disagree with it. A *semiempirical* A (from the composition; Reader and Sugar's until 2026-10-05) is first
+value rests on a single position, and its lines disagree with it. Since 2026-10-07 its row is
+the calculated +0.0806 ± 0.0115 (`hfs_A_candidates.py`, below), which agrees with the component
+value +0.0886 ± 0.0075. On the same day the user dismissed 000151's only pattern: the companion
+Sugar printed 0.579 cm⁻¹ below 29151.147 `*r` (1128–1056) gave A = −0.068, a width no other
+line of this 4f²5d level shows. The pattern is in `SET_ASIDE`, and the level carries its
+calculated A. A *semiempirical* A (from the composition; Reader and Sugar's until 2026-10-05) is first
 multiplied by `hfs_kappa.A_SCALE` = 0.9638 ± 0.0079, the factor by which Sugar's measured
 hyperfine component spacings are smaller than the semiempirical ones (`hfs_patterns.py`), and
 the scale's uncertainty is added to u_A; a measured A is used as written. `hfs_kappa.scaled_A`
 does this for the pipeline and for the fits of κ alike (`hfs_kappa.py`,
-`wavelength_calibration.py`), so the κ are fitted with the same D the pipeline applies. One listed as *not determined* (4 levels since 2026-10-04: `059003.000258`,
-`059003.000295` and `059003.000453`, which no usable pattern reaches, and `059003.000448`) carries S = 0 and the unknown A as the uncertainty I·J·u_A. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
+`wavelength_calibration.py`), so the κ are fitted with the same D the pipeline applies. One listed as *not determined* (79 levels since 2026-10-07: `059003.000453`, which no
+usable pattern reaches, and the 78 tier-3 levels of `hfs_A_candidates.py`) carries S = 0 and
+the unknown A as the uncertainty I·J·u_A. A *calculated* A (source beginning `calculated`, 149
+levels since 2026-10-07) is used as written, like a measured one. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
 resolved_levels` counts S = 0 because each of its lines ends on one sublevel. There are two,
 both J = 1/2 levels of 4f<sup>2</sup>6s standing at their F = 3 sublevels: `059003.000642`
 (IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A line that does not separate such a
 level's sublevels is named in `kappa_exceptions.txt` (column `unresolved`, below). For that
 line the level then counts with its whole pattern. A(000190) is −0.157 ± 0.010 since
 2026-10-05, the value measured from its resolved F = 3/F = 2 pair (`4f26s_2P_0.5_hfs.md`), in
-place of the semiempirical −0.0787. A level whose lines show a resolved
+place of the semiempirical −0.0787. A(000642) is +0.505 ± 0.007 since 2026-10-07, the mean of
+four F = 3/F = 2 separations (`4f26s_4P_0.5_hfs.md`). It had been left out of the table by
+oversight, not by any rule. Neither value changes D: a resolved level counts S = 0 whatever its
+A. The value matters for the step to the center of gravity and for lines named `unresolved`. A level whose lines show a resolved
 second hyperfine component does not belong in this list. Along that series both levels
 change F together, so the listed line is the strongest component of the whole pattern.
 That is a property of the line, as Sugar's `*r`/`*v` flags are, not of the level.
@@ -3580,7 +3590,8 @@ the calibration has passed through, from 0.944 to 0.697, and after the split of 
 **Neighboring levels** (2026-10-06, later the same day). Two levels can mix through the
 hyperfine interaction only when they have the same parity and share values of F. Even then,
 the magnetic dipole interaction (A) connects only levels whose J differ by at most 1. The
-electric quadrupole interaction (B) reaches ΔJ = 2, but B is about 0.001–0.002 cm⁻¹ for ¹⁴¹Pr.
+electric quadrupole interaction (B) reaches ΔJ = 2, but B is about 0.001–0.002 cm⁻¹ for ¹⁴¹Pr
+(0.001–0.003 by the estimate under `hfs_A_theory.py` below).
 - **000181 (1099)**, 4f²5d, J = 9/2, A not known, lies 1.236 cm⁻¹ below 1098. They share
   F = 2–5, but ΔJ = 2, so only B can mix them. That shifts a sublevel by at most about
   0.001 cm⁻¹, even where two sublevels of equal F cross. The mixing cannot make 0.09.
@@ -3638,9 +3649,9 @@ published energy of 1098 should carry an uncertainty of about 0.05 cm⁻¹ for i
 ### A constants from the Cowan eigenvectors: `hfs_A_theory.py`
 
 `hfs_A_theory.py` computes the magnetic-dipole constant A of every level from its eigenvector
-in `RCEOUT`, the output of Cowan's RCE fit. Nothing reads its output: no A constant used by
-the pipeline changes. It is the check calculation of item 4 of Step 4 in
-`Work_on_hfs_plan.md`.
+in `RCEOUT`, the output of Cowan's RCE fit. It began as the check calculation of item 4 of
+Step 4 in `Work_on_hfs_plan.md`. The pipeline does not read its output directly. Since
+2026-10-07, `hfs_A_candidates.py` (below) writes its values into `A_hfs_levels.csv`.
 
 **The model.** Every open shell nl contributes three terms to the hyperfine operator, each
 with its own *radial parameter* in cm⁻¹:
@@ -3653,8 +3664,10 @@ Nonrelativistically a01 = a12, and a10 = 0 for l > 0. A single s electron has on
 A is linear in these parameters: A = Σ θ·a. The angular coefficients θ depend only on the
 eigenvector. The program computes every θ of every level, then forms A from the parameters
 in `hfs_radial_params.toml`. With `--fit` it also fits chosen parameters to the measured
-constants of `A_hfs_levels.csv`. Semiempirical, undetermined, estimated and CONFLICT rows are
-not used. Matrix elements between configurations are neglected, as is usual for effective
+constants of `A_hfs_levels.csv`. Semiempirical, undetermined, estimated, CONFLICT and
+calculated rows are not used. A measured row that a calculated one replaced is read back from
+`A_hfs_levels_superseded.csv`, so the parameters stay fitted to every measurement. A row the
+user dismissed is not read back. Matrix elements between configurations are neglected, as is usual for effective
 parameters.
 
 **The eigenvectors.** RCEOUT prints up to ten components per level: the signed amplitude
@@ -3700,6 +3713,41 @@ both for every level:
     percentile. Both are below the measurement uncertainties of all but a few levels.
 
 `OUTG11`'s complete eigenvectors are therefore not needed.
+
+**How good the eigenvector itself is: `u_amp`.** `u_round` and `u_trunc` measure only how well
+the file reproduces Cowan's eigenvector, not how close that eigenvector is to the true one. In
+the user's experience the amplitudes of a level-structure fit are uncertain by 0.05–0.10.
+`u_amp` gives each printed amplitude an independent error of standard deviation
+`--amp-sigma` (default 0.10) and propagates it to A to first order. A Monte Carlo of the
+same model (amplitudes drawn at random, renormalized, A recomputed) agrees with the
+first-order value to about 10%.
+
+The default run gives, over the observed levels, u_amp = 0.0014 cm⁻¹ median, 0.0074 at
+the 90th percentile, and 0.063 at most (000190 and 000642, J = 1/2 of 4f²6s). |A_calc| <
+u_amp for 6 of 322 levels.
+
+The measured constants allow about 0.03 (0.05 for 4f5d²), so 0.10 is conservative for the
+fitted configurations. `u_amp` is a lower bound on the real error, all the same. Mixing with
+a state that is not printed is not in it, and no amplitude error of this kind explains
+000151 or 000198: each would need errors above 1. `u_amp` enters neither `z` nor the fit
+weights.
+
+**The total uncertainty: `u_total`.** Two more terms come from the radial parameters, both set
+in `hfs_radial_params.toml`:
+- `u_par`: the parameters' own uncertainties (table `[uncertainty]`: the fitted ones, and 50%
+  of the 6p estimates), taken as independent, times dA/da.
+- `u_cfg`: a configuration is *tested* (column `tested`) when at least `min_measured` = 3
+  levels with a measured constant have it as their leading configuration. In 2026-10-07 that
+  meant 4f²6s, 4f5d² and 4f³. Nothing checks that a parameter fitted in one configuration
+  holds in another, so the part of A the untested configurations give is uncertain by
+  `fraction` = 10% of itself.
+
+The 50% and the 10% are judgments (2026-10-07), not measurements.
+
+`u_total` combines `u_round`, `u_trunc`, `u_amp`, `u_par` and `u_cfg` in quadrature: a median
+0.0032 cm⁻¹ and 0.0091 at the 90th percentile over the observed levels. Rows of
+`A_hfs_levels.csv` taken from this program carry a source beginning with `calculated`, and
+`read_measured` never fits to them.
 
 **First run, 2026-10-06.** The fit used 70 measured constants:
 
@@ -3747,15 +3795,55 @@ level    leading           A_meas            A_calc    z
 000198   f5d2 (3F) 4H      -0.0040 +- 0.0090  +0.0409   -4.9   from the center of gravity of 21793.442
 ```
 
+The user dismissed the measurements of 000151 and 000198 on 2026-10-07. Both levels now carry
+the calculated A, and the old rows are in `A_hfs_levels_superseded.csv`:
+- 000151: the one component is taken to be another line (see `SET_ASIDE` above).
+- 000198: 21793.442 is too weak a line to be trusted.
+
 For 000127 and 000190 the present eigenvectors give what Reader and Sugar's did, so the fault
 is in the composition the level-structure fit produces. A refined Cowan fit is the remedy, not
 the radial parameters.
+
+**The electric quadrupole constant B is not computed, and is neglected everywhere.** B
+measures the interaction of the nucleus's quadrupole moment Q with the electric field
+gradient of the electrons. For ¹⁴¹Pr (I = 5/2):
+
+- **Q = −0.077(6) b**: N. J. Stone, "Table of Nuclear Electric Quadrupole Moments," At. Data
+  Nucl. Data Tables 111–112, 1–28 (2016), doi:10.1016/j.adt.2015.12.002 (checked by the user,
+  2026-10-07).
+- **The radial factor.** The fitted a₄f = 0.0287 cm⁻¹ (860 MHz) corresponds to
+  ⟨r⁻³⟩₄f ≈ 5.3 a₀⁻³. This uses a_l = 95.41 MHz × (μ/μ_N)/I × ⟨r⁻³⟩[a₀⁻³], with
+  μ = +4.275 μ_N (quoted from memory, not checked against a table). Then
+  e²Q⟨r⁻³⟩/h = 234.96 MHz × Q[b] × ⟨r⁻³⟩[a₀⁻³] ≈ −95 ± 7 MHz ≈ −0.0032 cm⁻¹. That value is
+  before Sternheimer shielding, which makes it somewhat smaller. For neutral Pr, Lew measured
+  −60.1 MHz [H. Lew, Phys. Rev. 91, 619 (1953), as quoted by Reader and Sugar]. The 4f
+  orbital of Pr²⁺ is more contracted, so a larger value is expected here.
+- **The angular factor.** One electron of angular momentum j has
+  B = −e²Q⟨r⁻³⟩(2j−1)/(2j+2): 4/7 of e²Q⟨r⁻³⟩ for j = 5/2, and 2/3 for j = 7/2. For one 4f
+  electron that makes B ≈ +0.0018 to +0.0021 cm⁻¹. 5d is similar (a₅d gives
+  e²Q⟨r⁻³⟩ ≈ −75 MHz). A 6s electron gives none.
+- **Estimate:** |B| ≈ 0.001–0.003 cm⁻¹ (30–90 MHz) for levels with open 4f or 5d shells.
+  Reader and Sugar [J. Reader and J. Sugar, Phys. Rev. 137, B784–B789 (1965)] used Lew's value
+  and put the largest quadrupole change of a 4f²6s hyperfine interval at about 0.0003 cm⁻¹.
+
+What B would change:
+- **The center of gravity:** nothing; the B term averages to zero over the sublevels weighted
+  by 2F+1.
+- **The component strengths:** nothing; they depend only on I, J and F.
+- **The head:** the sublevel F = I+J moves by exactly B/4, so D gains (B_up − B_low)/4, at most
+  about 0.001 cm⁻¹.
+- **The spacings:** the interval next to the head changes by about B/2 to B (B for J = 1,
+  0.47 B for J = 9/2), so by at most about 0.003 cm⁻¹.
+
+All of these are below the line uncertainties (0.01–0.04 cm⁻¹) and below the uncertainties
+of the A constants. That is why B is neglected.
 
 **Columns of `hfs_A_theory.csv`.**
 - `norm`: the printed weight.
 - `w_skipped`: the weight of components left out.
 - `th_<nl>_<kind>`: θ summed over the configurations.
-- `A_calc`, `u_round`, `u_trunc` and `trunc_bound`.
+- `A_calc`, `u_round`, `u_trunc`, `u_amp`, `u_par`, `u_cfg`, `u_total`, `tested` and
+  `trunc_bound`.
 - `cancel`: the sum of |θ·a| over |A|. It is 1 when every term has the same sign, and large
   when A is the residue of a cancellation.
 - `missing` and `w_missing`: shells without parameters (5f, 6d, 7s, …), which contribute
@@ -3766,7 +3854,8 @@ the radial parameters.
 `F:\COWAN\repo`; nothing in it is changed. A configuration-specific parameter is written
 `config/nl`, for example `4f3/4f.a01`. In `hfs_radial_params.toml` a kind may name another kind
 of the same shell, which ties the two (`a12 = "a01"`). `--all` writes every RCEOUT level, not
-only those with a level_id. `--no-write` prints the report only.
+only those with a level_id. `--amp-sigma` sets the amplitude error behind `u_amp`.
+`--no-write` prints the report only.
 
 RCEOUT carries no level identifier. Its levels are paired with those of
 `tp_E1_no_trials.xlsx`, the same calculation, by aligning calculated energies within each
@@ -3774,6 +3863,215 @@ parity and J. The Cowan level numbers then become level_ids through
 `classify_lines.cowan_lid_ids`, which uses `IDEN2/IDEN_level_ids.txt`. Where both files carry
 an observed energy, the two are compared. All 654 identified levels are paired, and none
 disagrees.
+
+### Calculated A in the table: `hfs_A_candidates.py`
+
+**The problem (2026-10-07).** 218 identified levels had no usable A in
+`A_hfs_levels.csv`: either no row, or a row "not determined".
+- In the hfs working set such a level has S = I·A·J = 0, with no uncertainty if it has no row.
+- Its lines are measured a fraction κ of the way from the center of gravity to the head, so
+  the energy LOPT gives it stands about κ·S from its center of gravity.
+- A_calc puts |S| at a median of 0.22 cm⁻¹, and up to 1.05 for 4f5d6s levels.
+
+**The tiers.** The program sorts every level with an A_calc into three tiers and writes the
+evidence for each to `hfs_A_candidates.csv`. The rules were agreed with the user on
+2026-10-07:
+- **Tier 1** (56 levels: 4f³ 37, 4f5d² 19). Three conditions: `cancel` < 2,
+  `u_total` ≤ 25% of |A|, and a tested leading configuration.
+- **Tier 2** (93: 4f²5d 81, 4f5d6s 9, 4f5d6p 2, 4f²6p 1). The same conditions, but the
+  leading configuration is untested.
+- **Tier 3, not determined** (81). Any one of four reasons:
+  - A is the residue of a cancellation;
+  - its uncertainty is too large;
+  - the eigenvector is suspect because the level lies more than 300 cm⁻¹ from its calculated
+    energy (`E_DEV_MAX`, the user's criterion);
+  - the level's line intensities contradict its eigenvector (status "fail" of
+    `eigenvector_check.py`, below).
+
+  The row is "not determined" with u_A = √(A² + u_total² + (0.1·Σ|θ·a|)²). That covers the
+  value, its uncertainty, and a 10% error in any one of the cancelling terms. The level's
+  lines then carry I·J·u_A in place of nothing.
+
+The 300 cm⁻¹ criterion replaces any distinction between levels the Cowan fit used and levels
+found after it. A level left out of the fit still has its eigenvector shaped by the fitted
+levels around it. Of the 32 levels beyond 300 cm⁻¹, 31 had no row.
+
+**What is adopted.** Tiers 1 and 2 go into the table:
+- where it has no row or a "not determined" one;
+- in place of a measured A, when the calculation is *much more accurate* and agrees with it.
+
+`hfs_A_fit.much_more_accurate` defines that: an uncertainty at most a third of the other's
+(`MUCH_MORE_ACCURATE`), and a difference within 3 combined standard uncertainties
+(`AGREE_SIGMA`). The rule works both ways, because neither a measurement nor a calculation
+always wins (user, 2026-10-07):
+- `hfs_A_fit.adoptable` replaces a calculated row only with a fitted value that is much more
+  accurate in the same sense.
+- Between the two ratios, whichever row is in the table stays.
+
+The third was set by 000182: the user keeps its measured 0.1489 ± 0.0049 rather than the
+calculated 0.1499 ± 0.0020, a ratio of 0.41.
+
+Rows that are not replaced:
+- **A measured A that disagrees** is left to the user. The user's decisions are in
+  `USER_DECISIONS` (000151 and 000198, both dismissed).
+- **The semiempirical composition rows** stay, since they are the priors of `hfs_A_fit.py`.
+- **A level of `[hfs] resolved_levels`** keeps the A measured from its sublevels.
+
+A measured row that is replaced moves to `A_hfs_levels_superseded.csv`. That file has the
+table's columns plus `superseded_on` and `reason`. `hfs_A_theory.read_measured` reads it back.
+
+The source of an adopted row is "calculated, hfs_A_theory 2026-10-07, tier N". The prefix has
+three effects:
+- **No scaling:** the rows are already on the measured scale, because the radial parameters
+  were fitted to measured constants.
+- **Determined:** `hfs_correction` counts them as determined.
+- **Not fitted to:** `hfs_A_theory.py` keeps them out of its fit.
+
+**What was written (2026-10-07, `--write`):**
+- 145 rows added and 69 "not determined" rows added;
+- 3 "not determined" rows replaced: 000258, 000295 and 000448;
+- 9 measured rows replaced as much less accurate: 000055, 000234, 000250, 000267, 000270,
+  000276, 000277, 000432 and 000656;
+- 000151 and 000198 replaced on the user's decision.
+
+000642 had wrongly received a calculated row. It was given its measured value by hand, and a
+resolved level now never takes a calculated A.
+
+A second `--write` applied the intensity veto. It withdrew 9 calculated rows, which became
+"not determined": 000100, 000173, 000241, 000257, 000271, 000311, 000445, 000650 and 000674. A
+calculated row whose level falls to tier 3 is always withdrawn in this way. The table now holds
+149 calculated rows and 79 "not determined" rows. The chain has to be rerun for any of this to
+reach LOPT.
+
+**The evidence columns of `hfs_A_candidates.csv`.**
+- `A_table`, `u_table`, `z_table`: the row the level had, and A_calc's distance from it in
+  combined σ.
+- `E_dev`: E_obs − E_calc, with E_obs from the working set where RCEOUT has none.
+- `eigenvector`: the level's status in `eigenvector_check.csv`, with its χ²/n and degrees of
+  freedom.
+- `n_lines` and `kappa_mean`: the level's accepted lines in `iter_hfs`, with κ weighted
+  BF/unc² as LOPT weighs the lines.
+- `dE_expected` = −κ̄·S: how far the level should move once the calculated A is adopted and the
+  chain is rerun. For tier 3 it shows what the calculated A *would* do; the row itself keeps
+  S = 0.
+- `n_flagged` and `flag_disagree`: Sugar's `*r`/`*v` lines of the level, and those whose sign
+  A_calc contradicts. D = S_upper − S_lower. The partner's A is its calculated one where the
+  table has none or is taking it, and otherwise the table's.
+- `wide_unflagged`: unflagged lines inside Sugar's flagged range, at least as intense as the
+  weakest tenth of his flagged lines, for which |D| ≥ 0.3 cm⁻¹.
+- `A_components`: A from the components Sugar printed for the level's lines (the patterns of
+  `hfs_A_fit.py`, with `SET_ASIDE` left out). Each partner is held at its table or calculated
+  A, and the partners' uncertainties are included.
+  - This replaces the column taken from `hfs_A_anchored.csv`. That column showed values for
+    levels the anchored fit marks "not determined": 000034, 000076 and 000078, whose two
+    printed positions cannot fix three constants.
+  - The A a level's own line positions give (`hfs_A_fit.lines_value`) is no longer shown. It
+    is driven by single outlying lines and moved from −0.19 to −0.10 for 000034 between two
+    tables.
+- `action` and the `proposed_*` columns: what `--write` does.
+- `notes`, which mark:
+  - a questionable level (status other than "firm" in `questionable_levels.txt`). Its
+    calculated A is welcome, because whether its lines then line up in IDEN2 tests the
+    identification;
+  - a resolved level;
+  - a `HOLD`;
+  - a user decision;
+  - a suspect eigenvector;
+  - a weight of configurations without parameters.
+
+**Running it.**
+
+```
+python eigenvector_check.py           # first: the intensity veto
+python hfs_A_candidates.py            # the review file only
+python hfs_A_candidates.py --write    # also the table and the superseded file
+```
+
+The levels' IDEN2 rows come from `iter_hfs/IDEN2/IDEN_level_ids.txt`. Without
+`eigenvector_check.csv` there is no veto, and the program says so.
+
+### Which eigenvectors the observations confirm: `eigenvector_check.py`
+
+A calculated A is only as good as the level's eigenvector. Two kinds of observation test an
+eigenvector (the user's idea, 2026-10-07):
+- **a)** the level's measured A agrees with the calculated one;
+- **b)** its line intensities agree with Icalc.
+
+**Why the population drops out.** Icalc = C·gA·(σ/10⁸)·exp(−E_up/kT) contains the population of
+the upper level. Within one upper level's *branch*, the set of its lines, that population is a
+common factor. The intensity *ratios* inside a branch therefore depend only on the gA, that is
+on the eigenvectors of the upper level and of each lower one. This works in two directions:
+- **Down:** if the lower levels are known to be good, a branch that keeps its ratios tests its
+  upper level.
+- **Up:** if the upper level is good, its line to a level X, set against the rest of its
+  branch, tests X.
+
+The second direction is needed for the lowest configurations. 4f³ has no lines going down at
+all, and 4f²5d goes down only to 4f³. Checked downward only, the recursion reached 16 of the
+218 levels that had no A. With both directions it reaches nearly all of them.
+
+**The recursion.**
+- **Seeds:** the levels whose measured A agrees with A_calc within |z| ≤ 2 (`Z_SEED`). Here z is
+  the column of `hfs_A_theory.csv`, which uses the measured uncertainty and the file's
+  precision. That made 67 seeds on 2026-10-07.
+- **Each round** tests every level that is not yet good, on two sets of lines:
+  - *down*: its own branch to good levels, with one free constant (its population). This needs
+    2 lines and gives n − 1 degrees of freedom;
+  - *up*: its line from each good upper level whose branch has at least 2 other lines to good
+    levels. The branch's constant comes from those other lines.
+- **Becoming good:** a level with at least 2 degrees of freedom and a χ² probability of at least
+  0.01 (`P_GOOD`) becomes good, and the next round can use it.
+- **Stopping:** the rounds stop when none is added. On 2026-10-07 five rounds added 128, 251,
+  100, 20 and 4 levels.
+
+**The noise model.** A line's residual is ln(I_obs/I_calc), with uncertainty
+√(u_calc² + s_obs²):
+- u_calc is Cowan's gA uncertainty, as the classification table carries it (median 0.55).
+- s_obs is the observational scatter, measured on every run. It is the robust standard
+  deviation of ln(I_obs/I_calc) about each branch's median (0.80, over branches of at least 4
+  lines), less the median u_calc in quadrature: 0.58.
+
+Only accepted lines with one classification and both intensities are used (4499). A blended
+line's intensity belongs to no single transition. I found no sign of self-absorption: lines
+ending on the lowest levels show no systematic deficit against their branches.
+
+**The verdict.** After the last round every level is tested once more against the final good
+set, itself left out:
+
+```
+good_A     67   a seed
+good_I    503   made good in round `round`
+fail       23   chi2/n > 2.4 (VETO): the intensities contradict the eigenvector
+doubtful    6   not good, chi2/n <= 2.4: mostly levels with many lines, where the
+                noise model rather than the eigenvector is the likelier fault
+untested   52   fewer than 2 degrees of freedom
+```
+
+`VETO` = 2.4 was the 90th percentile of χ²/n over the seeds when it was chosen; the log
+reports the current one (2.60 with 000642 among the seeds). The seeds' median is 1.35, so the
+noise model is slightly optimistic.
+
+**What the check can and cannot tell.**
+- **It is coarse.** One line's intensity scatters by a factor of about 2. The check finds gross
+  errors of a composition, not amplitude errors of 0.05–0.10.
+  - 000198 (A 4.9σ off) passes it; 000151 and 000190 pass it too.
+  - 000127, whose composition is known to be at fault, does not pass (χ²/n 2.10 over 40
+    degrees of freedom, p = 6·10⁻⁵), but it stays below the veto: "doubtful".
+- **Failures are telling.** Five of the 23 failing levels (000627, 000667, 000268, 000434 and
+  000647) lie more than 300 cm⁻¹ from their calculated energies, which is the other sign of a
+  suspect eigenvector.
+- **Not fully independent.** The plate intensity calibration was fitted with Cowan gA. It is
+  smooth in wavelength within each region, so it cannot absorb an error that belongs to one
+  level.
+
+`hfs_A_candidates.py` therefore uses only the veto: a level that fails goes to tier 3. Passing
+promotes nothing.
+
+**Output.**
+- `eigenvector_check.csv` has one row per level: `status`, `round`, `z_A`, `n_down`, `n_up`,
+  `dof`, `chi2_n`, `p`, and `mean_pull_up`, the mean pull of the lines ending on the level.
+- `eigenvector_check.log` has the summary and the failing levels.
+- `--lines` names another classification table (default `iter_hfs`); `--no-write` prints only.
 
 ## Transitions missing from `Icalc.xlsx`: the censoring correction
 

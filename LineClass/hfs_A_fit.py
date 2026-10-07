@@ -81,6 +81,7 @@ import os
 
 import numpy as np
 
+import hfs_A_theory
 import hfs_components
 import hfs_kappa
 import hfs_patterns
@@ -108,6 +109,11 @@ SET_ASIDE = {
                '(+1.06 to +1.20 predicted); rung 1 (+0.62) is not listed, so '
                'the ladder read as listed puts A(000274) 11 sigma off its '
                'other pattern',
+    29151.128: 'the listed companion (-0.579) would make A(000151) = -0.068, '
+               'a width no other line of this 4f2 5d level shows: its strong '
+               '18418.856 is unflagged and narrow, and the calculated A is '
+               '+0.023; the companion is taken to be another line (user, '
+               '2026-10-07)',
 }
 
 #: levels the fit determines but whose value is not adopted, with the reason.
@@ -120,6 +126,14 @@ HOLD = {
 #: values (SOURCE_PREFIX) are refreshed too, and FREED_SOURCES replaced.
 REPLACEABLE = ('not determined', 'flag interval')
 SOURCE_PREFIX = 'resolved components, '
+
+#: a calculated A (`hfs_A_theory.py`) and a measured one replace each other
+#: only when the newcomer is much more accurate - its uncertainty at most
+#: MUCH_MORE_ACCURATE times the other's - and agrees with it within
+#: AGREE_SIGMA combined standard uncertainties (user, 2026-10-07: neither
+#: always wins).  Between the two ratios the row in the table stays.
+MUCH_MORE_ACCURATE = 1.0 / 3.0
+AGREE_SIGMA = 3.0
 
 Fit = collections.namedtuple(
     'Fit', 'ids A u chi2 dof n_positions n_priors null pulls resid_rms')
@@ -314,11 +328,27 @@ def source_of(n_patterns, n_positions, date):
                '' if n_positions == 1 else 's', date))
 
 
+def much_more_accurate(A_new, u_new, A_old, u_old):
+    """True if (A_new, u_new) may replace (A_old, u_old) in the table."""
+    return (u_new <= MUCH_MORE_ACCURATE * u_old
+            and abs(A_new - A_old) <= AGREE_SIGMA * math.hypot(u_new, u_old))
+
+
+def fitted_u(result, lid):
+    """The uncertainty `--write-levels` writes: the fitted one with the
+    scale's added, since the values stand on the measured scale only
+    through the anchors."""
+    return math.hypot(result.u[lid], result.A[lid] * hfs_kappa.U_A_SCALE)
+
+
 def adoptable(lid, table, result):
     """True if `--write-levels` replaces the row of `lid`."""
     r = table.get(lid)
     if r is None or lid not in result.A or lid in result.null or lid in HOLD:
         return False
+    if r['source'].startswith(hfs_A_theory.CALC_SOURCE):
+        return much_more_accurate(result.A[lid], fitted_u(result, lid),
+                                  float(r['A_cm-1']), float(r['u_A']))
     return (r['source'] in REPLACEABLE or lid in CONTRADICTED
             or r['source'].startswith(SOURCE_PREFIX)
             or r['source'].startswith(FREED_SOURCES))
@@ -327,18 +357,16 @@ def adoptable(lid, table, result):
 def write_levels(table, result, counts, path, date):
     """Rewrite `A_hfs_levels.csv` with the adoptable fitted values.
 
-    The value is the fitted A; its uncertainty the fitted one with the
-    scale's uncertainty added in quadrature, since the values stand on the
-    measured scale only through the anchors.  Every other row is written
-    back unchanged.  Returns the list of level ids replaced."""
+    The value is the fitted A; its uncertainty `fitted_u`.  Every other
+    row is written back unchanged.  Returns the list of level ids
+    replaced."""
     with open(path, encoding='utf-8', newline='') as fh:
         fields = csv.DictReader(fh).fieldnames
     changed = []
     for lid, r in table.items():
         if not adoptable(lid, table, result):
             continue
-        A = result.A[lid]
-        u = math.hypot(result.u[lid], A * hfs_kappa.U_A_SCALE)
+        A, u = result.A[lid], fitted_u(result, lid)
         r['A_cm-1'] = '%+.4f' % A
         r['u_A'] = '%.4f' % u
         r['source'] = source_of(counts[lid][0], counts[lid][1], date)

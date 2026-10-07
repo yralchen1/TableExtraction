@@ -204,3 +204,26 @@ def test_a_second_run_refreshes_its_own_values_only():
                         resid_rms=0.0)
     assert hfs_A_fit.adoptable('F1', table, res)
     assert not hfs_A_fit.adoptable('C', table, res)
+
+
+def _fit_of(A, u):
+    return hfs_A_fit.Fit(ids=['K'], A={'K': A}, u={'K': u}, chi2=0.0, dof=1,
+                         n_positions=0, n_priors=0, null=set(), pulls={},
+                         resid_rms=0.0)
+
+
+def test_a_calculated_row_gives_way_only_to_a_much_better_fit():
+    """Neither a measurement nor a calculation always wins (user,
+    2026-10-07): the fit replaces a calculated row only when its uncertainty
+    is at most a third of the calculated one and the two agree."""
+    table = {'K': {'level_id': 'K', 'A_cm-1': '+0.0300', 'u_A': '0.0060',
+                   'source': 'calculated, hfs_A_theory 2026-10-07, tier 1'}}
+    assert hfs_A_fit.adoptable('K', table, _fit_of(0.031, 0.0015))
+    assert not hfs_A_fit.adoptable('K', table, _fit_of(0.031, 0.0030))
+    assert not hfs_A_fit.adoptable('K', table, _fit_of(0.060, 0.0015))
+
+
+def test_much_more_accurate():
+    assert hfs_A_fit.much_more_accurate(0.030, 0.001, 0.032, 0.003)
+    assert not hfs_A_fit.much_more_accurate(0.030, 0.0011, 0.032, 0.003)
+    assert not hfs_A_fit.much_more_accurate(0.050, 0.001, 0.032, 0.003)

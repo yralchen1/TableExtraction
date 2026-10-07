@@ -1,0 +1,33 @@
+eigenvector_check.py
+
+lines used (accepted, single, both intensities): 4499
+scatter of ln(Iobs/Icalc) about the branch median 0.80, median u_calc 0.55: s_obs 0.58
+seeds (|z| of A <= 2): 67
+rounds: 1: +128, 2: +251, 3: +100, 4: +20, 5: +4
+chi2/n of the seeds: median 1.35, 90th percentile 2.60 (VETO 2.4)
+status: doubtful 6, fail 23, good_A 67, good_I 503, untested 52
+
+failing levels (chi2/n > 2.4):
+  059003.000667   718  -56 fd6p (3H) 4H         dof   4  chi2/n  6.17  z_A -
+  059003.000428   383  -90 f28s (3F) 4F         dof   4  chi2/n  6.14  z_A -
+  059003.000627   914  -69 f5d6s (3D) 4D        dof  10  chi2/n  6.02  z_A -
+  059003.000650   672  -62 fd6p (1G) 2H         dof   5  chi2/n  5.55  z_A -
+  059003.000684   658                           dof   6  chi2/n  5.42  z_A -
+  059003.000268   995  -62 f5d2 (1D) 2G         dof   8  chi2/n  4.86  z_A -
+  059003.000395   725  -58 f25f (3F) 2D         dof   8  chi2/n  4.33  z_A -
+  059003.000674   983  57 f5d2 (3P) 4D          dof   4  chi2/n  4.12  z_A -
+  059003.000434  1020  74 f5d2 (3F) 4P          dof   3  chi2/n  4.04  z_A -
+  059003.000445   954  -66 f5d2 (3P) 2G         dof   5  chi2/n  3.93  z_A -
+  059003.000241  1032  -68 f5d2 (3F) 2I         dof  12  chi2/n  3.59  z_A -
+  059003.000271   990  -82 f5d2 (3P) 4F         dof   7  chi2/n  3.59  z_A -
+  059003.000310   909  -87 f5d6s (3H) 2H        dof  10  chi2/n  3.30  z_A -
+  059003.000573   519  -62 f27d (3H) 2H         dof   5  chi2/n  3.30  z_A -
+  059003.000307   916  -89 f5d6s (3H) 2H        dof  13  chi2/n  3.29  z_A -
+  059003.000647   998  -45 f5d2 (3P) 2D         dof   6  chi2/n  3.24  z_A -
+  059003.000496   628  -67 f25f (1G) 2G         dof   6  chi2/n  3.21  z_A -
+  059003.000311   907  -73 f5d2 (1S) 2F         dof  11  chi2/n  3.10  z_A -
+  059003.000630   747  72 f27p (3H) 4H          dof  10  chi2/n  3.03  z_A -
+  059003.000100  1181  74 f25d (3F) 4D          dof   5  chi2/n  3.02  z_A -
+  059003.000257  1009  72 f5d2 (3F) 2I          dof  16  chi2/n  2.71  z_A -
+  059003.000392   734  54 f25f (3F) 4G          dof  10  chi2/n  2.66  z_A -
+  059003.000173  1105  90 f25d (1I) 2H          dof  31  chi2/n  2.54  z_A -

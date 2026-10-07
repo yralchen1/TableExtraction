@@ -74,6 +74,36 @@ Two errors come from RCEOUT itself, and both are computed per level.
 
 The printed amplitudes are normalized to unit length before A is formed.
 
+HOW GOOD THE EIGENVECTOR IS
+===========================
+Both errors above measure only how well the file reproduces Cowan's own
+eigenvector, not how close that eigenvector is to the true one.  The
+amplitudes of a level-structure fit are themselves uncertain, by about
+0.05-0.10 in the user's experience (2026-10-07).  ``u_amp`` gives each
+printed amplitude an independent error of standard deviation ``--amp-sigma``
+(default ``AMP_SIGMA`` = 0.10) and propagates it to A to first order, exactly
+as ``u_round`` propagates the rounding: u_amp = u_round * amp_sigma /
+U_ROUND.  A Monte Carlo of the same model (random amplitudes, renormalized,
+A recomputed) agrees with the first-order value to about 10 per cent.  It is
+a lower bound on the real error: mixing with a state that is not printed is
+not in it.  u_amp is not part of ``z`` or of the fit weights.
+
+Two more terms come from the radial parameters, both set in
+``hfs_radial_params.toml``:
+
+* ``u_par``: the parameters' own uncertainties (``[uncertainty]``), taken
+  as independent, times dA/da;
+* ``u_cfg``: a configuration is *tested* when at least ``min_measured``
+  levels with a measured constant have it as their leading configuration
+  (column ``tested``).  Nothing checks that a parameter fitted in one
+  configuration holds in another, so the part of A the untested
+  configurations give is uncertain by ``fraction`` of itself.
+
+``u_total`` combines u_round, u_trunc, u_amp, u_par and u_cfg in
+quadrature.  It is the uncertainty to give a calculated A that is used
+(``hfs_A_candidates.py``); such rows of ``A_hfs_levels.csv`` carry a source
+beginning with CALC_SOURCE, and the fit here never uses them.
+
 LEVEL IDENTIFIERS
 =================
 RCEOUT carries no level identifier.  Its levels are paired with the levels of
@@ -92,9 +122,12 @@ USAGE
     python hfs_A_theory.py --fit 5d.a01,5d.a10
                                            also fit those radial parameters
                                            to the measured A constants
+    python hfs_A_theory.py --amp-sigma 0.05
+                                           u_amp for amplitude errors of 0.05
     python hfs_A_theory.py --no-write      print the report only
 
-Nothing else reads the output: no A constant used by the pipeline changes.
+Only hfs_A_candidates.py reads the output; no A constant used by the
+pipeline changes.
 """
 
 import argparse
@@ -120,6 +153,9 @@ KINDS = ('a01', 'a12', 'a10')
 LSYM = 'SPDFGHIKLMNOQRTUVWXYZABC'      # LSYMB of rcg11kd.f
 LETTER_L = {'s': 0, 'p': 1, 'd': 2, 'f': 3, 'g': 4, 'h': 5}
 U_ROUND = 0.005 / math.sqrt(3.0)        # sd of an amplitude printed to 0.01
+AMP_SIGMA = 0.10                        # sd of an amplitude of the fit itself
+CALC_SOURCE = 'calculated'              # source prefix of A_hfs_levels.csv
+                                        # rows taken from this program
 OBS_TOL = 0.5                           # cm^-1, observed-energy agreement
 SKIP = ('f4p5', 'p5f3d', 'p5f3s')
 MISSING_MAX = 0.05                      # weight without parameters that
@@ -582,6 +618,13 @@ class Params:
         v = self.table[key].get(kind)
         return None if v is None or isinstance(v, str) else float(v)
 
+    def stored(self, config, nl, kind):
+        """The (entry, kind) the value of `kind` of `nl` in `config` comes
+        from, or None where there is no value."""
+        if self.value(config, nl, kind) is None:
+            return None
+        return self.resolve(self.entry(config, nl), kind)
+
     def set(self, name, value):
         key, kind = name.rsplit('.', 1)
         self.table.setdefault(key, {})[kind] = float(value)
@@ -590,6 +633,27 @@ class Params:
         """Every stored (not tied) parameter as `"entry.kind"`."""
         return ['%s.%s' % (k, kind) for k, e in self.table.items()
                 for kind, v in e.items() if not isinstance(v, str)]
+
+
+def read_uncertainties(path=PARAMS_FILE):
+    """`(sigmas, fraction, min_measured)` from the parameter file.
+
+    `sigmas` is {(entry, kind): standard uncertainty} of the table
+    `[uncertainty]`; `fraction` and `min_measured` are those of `[untested]`
+    (0 and 1 when it is absent).
+    """
+    with open(path, 'rb') as fh:
+        doc = tomllib.load(fh)
+    sigmas = {}
+    for key, entry in doc.get('uncertainty', {}).items():
+        for kind, v in entry.items():
+            if kind not in KINDS:
+                raise ValueError('[uncertainty] %s: unknown kind %r'
+                                 % (key, kind))
+            sigmas[(key, kind)] = float(v)
+    untested = doc.get('untested', {})
+    return (sigmas, float(untested.get('fraction', 0.0)),
+            int(untested.get('min_measured', 1)))
 
 
 # ---------------------------------------------------------------------------
@@ -723,6 +787,32 @@ class LevelTheta:
         cancel = sum(terms) / abs(A) if A else float('inf')
         return u_round, bound, cancel
 
+    def u_params(self, params, sigmas):
+        """The uncertainty of A that the radial parameters' own give, to
+        first order, the parameters taken as independent: dA/da is the sum
+        of the thetas whose values a supplies, ties included."""
+        deriv = {}
+        for (conf, nl, kind), th in self.theta.items():
+            src = params.stored(conf, nl, kind)
+            if src is not None:
+                deriv[src] = deriv.get(src, 0.0) + th
+        return math.sqrt(sum((d * sigmas.get(src, 0.0)) ** 2
+                             for src, d in deriv.items()))
+
+    def untested_part(self, params, tested):
+        """The part of A that configurations outside `tested` give."""
+        total = 0.0
+        for (conf, nl, kind), th in self.theta.items():
+            v = params.value(conf, nl, kind)
+            if conf not in tested and v is not None:
+                total += th * v
+        return total
+
+    @property
+    def leading_config(self):
+        comps = self.level.components
+        return comps[0].configuration if comps else ''
+
     def truncated(self, k):
         """The same level computed from its first k components only."""
         level = copy.copy(self.level)
@@ -811,22 +901,42 @@ def attach_level_ids(levels, log=print):
 # ---------------------------------------------------------------------------
 # measured constants, and the fit
 # ---------------------------------------------------------------------------
+SUPERSEDED_NAME = 'A_hfs_levels_superseded.csv'
+
+
 def read_measured(path=A_LEVELS_FILE):
     """{level_id: (A, u_A, source)} of the measured constants.
 
     Semiempirical rows (composition, Reader & Sugar), undetermined ones,
-    hand estimates and rows marked CONFLICT are left out.
+    hand estimates, rows marked CONFLICT and rows taken from this program
+    (CALC_SOURCE) are left out.  A measured row that a calculated one has
+    replaced (`hfs_A_candidates.py --write`) is read back from
+    SUPERSEDED_NAME beside `path`, so that the parameters stay fitted to
+    every measurement; one the user dismissed (reason "dismissed ...") is
+    not.
     """
     import hfs_kappa
+
+    def usable(src):
+        return not (hfs_kappa.is_semiempirical(src)
+                    or src == 'not determined' or src.startswith('estimate')
+                    or 'CONFLICT' in src or src.startswith(CALC_SOURCE))
+
     out = {}
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
-            src = row['source']
-            if (hfs_kappa.is_semiempirical(src) or src == 'not determined'
-                    or src.startswith('estimate') or 'CONFLICT' in src):
-                continue
-            out[row['level_id']] = (float(row['A_cm-1']), float(row['u_A']),
-                                    src)
+            if usable(row['source']):
+                out[row['level_id']] = (float(row['A_cm-1']),
+                                        float(row['u_A']), row['source'])
+    old = os.path.join(os.path.dirname(os.path.abspath(path)),
+                       SUPERSEDED_NAME)
+    if os.path.isfile(old):
+        with open(old, encoding='utf-8', newline='') as fh:
+            for row in csv.DictReader(fh):
+                if (row['level_id'] not in out and usable(row['source'])
+                        and not row['reason'].startswith('dismissed')):
+                    out[row['level_id']] = (float(row['A_cm-1']),
+                                            float(row['u_A']), row['source'])
     return out
 
 
@@ -957,13 +1067,35 @@ def shell_columns(levels):
     return sorted(seen, key=lambda k: (order.get(k[0], 99), KINDS.index(k[1])))
 
 
-def rows_of(levels, params, measured, tail):
+def tested_configs(levels, measured, min_measured):
+    """{configuration: n} of the leading configurations of at least
+    `min_measured` levels with a measured constant."""
+    count = {}
+    for lv in levels:
+        if lv.level_id in measured and lv.J > 0:
+            c = lv.leading_config
+            count[c] = count.get(c, 0) + 1
+    return {c: n for c, n in count.items() if n >= min_measured}
+
+
+def rows_of(levels, params, measured, tail, amp_sigma=AMP_SIGMA,
+            sigmas=None, tested=None, untested_fraction=0.0):
+    """One output row per level.  `tested` None counts every configuration
+    as tested (no u_cfg)."""
     cols = shell_columns(levels)
     out = []
     for lv in levels:
         A, missing, w_missing = lv.A(params)
         u_round, bound, cancel = lv.uncertainties(params, A or 0.0)
         u_calc = math.hypot(u_round, tail * bound)
+        # the same first-order propagation as u_round, with sd amp_sigma
+        u_amp = u_round * amp_sigma / U_ROUND
+        u_par = lv.u_params(params, sigmas or {})
+        u_cfg = (0.0 if tested is None else
+                 untested_fraction * abs(lv.untested_part(params, tested)))
+        u_total = math.sqrt(u_calc ** 2 + u_amp ** 2 + u_par ** 2
+                            + u_cfg ** 2)
+        is_tested = tested is None or lv.leading_config in tested
         meas = measured.get(lv.level_id)
         th = lv.theta_by_shell()
         row = {
@@ -984,6 +1116,11 @@ def rows_of(levels, params, measured, tail):
             'A_calc': '' if A is None else '%+.4f' % A,
             'u_round': '%.4f' % u_round,
             'u_trunc': '%.4f' % (tail * bound),
+            'u_amp': '%.4f' % u_amp,
+            'u_par': '%.4f' % u_par,
+            'u_cfg': '%.4f' % u_cfg,
+            'u_total': '%.4f' % u_total,
+            'tested': 'yes' if is_tested else 'no',
             'trunc_bound': '%.4f' % bound,
             'cancel': '' if A is None or not math.isfinite(cancel)
                       else '%.1f' % cancel,
@@ -1019,6 +1156,9 @@ def main(argv=None):
     ap.add_argument('--all', action='store_true',
                     help='write every RCEOUT level, not only those with a '
                          'level_id')
+    ap.add_argument('--amp-sigma', type=float, default=AMP_SIGMA,
+                    help='standard deviation of an eigenvector amplitude, '
+                         'propagated to u_amp (default %(default)s)')
     ap.add_argument('--no-write', action='store_true')
     args = ap.parse_args(argv)
 
@@ -1076,7 +1216,14 @@ def main(argv=None):
         'is a median %.2f (90th percentile %.2f) of its bound; u_trunc is '
         'the bound times %.2f' % (n, TAIL_FROM + 1, median, p90, median))
 
-    rows = rows_of(levels if args.all else known, params, measured, median)
+    sigmas, fraction, min_measured = read_uncertainties(args.params)
+    tested = tested_configs(known, measured, min_measured)
+    say('tested configurations (leading configuration of >= %d measured '
+        'constants): %s; the part of A from the others is uncertain by %.0f%%'
+        % (min_measured, ', '.join('%s %d' % kv for kv in sorted(
+            tested.items(), key=lambda kv: -kv[1])), 100 * fraction))
+    rows = rows_of(levels if args.all else known, params, measured, median,
+                   args.amp_sigma, sigmas, tested, fraction)
     have = [r for r in rows if r['z']]
     if have:
         res = np.array([float(r['resid']) for r in have])
@@ -1100,6 +1247,19 @@ def main(argv=None):
             '90th percentile %.4f cm^-1'
             % (np.median(norms), np.percentile(norms, 5), norms.min(),
                np.median(u_rd), np.median(u_tr), np.percentile(u_tr, 90)))
+        with_A = [r for r in obs if r['A_calc']]
+        u_am = np.array([float(r['u_amp']) for r in with_A])
+        n_sign = sum(abs(float(r['A_calc'])) < float(r['u_amp'])
+                     for r in with_A)
+        say('amplitude error %.2f: u_amp median %.4f, 90th percentile %.4f, '
+            'largest %.4f cm^-1; |A_calc| < u_amp for %d of %d observed '
+            'levels' % (args.amp_sigma, np.median(u_am),
+                        np.percentile(u_am, 90), u_am.max(), n_sign,
+                        len(with_A)))
+        u_tot = np.array([float(r['u_total']) for r in with_A])
+        say('u_total (u_round, u_trunc, u_amp, u_par, u_cfg in quadrature): '
+            'median %.4f, 90th percentile %.4f cm^-1'
+            % (np.median(u_tot), np.percentile(u_tot, 90)))
 
     if not args.no_write:
         import output_files

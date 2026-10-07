@@ -1,35 +1,173 @@
 level_id,cfg,J,A_cm-1,u_A,source,n_flagged
+059003.000001,4f3,4.5,+0.0305,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000031,4f3,5.5,+0.0241,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000032,4f3,6.5,+0.0203,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000033,4f3,7.5,+0.0180,0.0011,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000034,4f3,1.5,+0.0342,0.0023,"calculated, hfs_A_theory 2026-10-07, tier 1",2
+059003.000035,4f3,4.5,+0.0260,0.0017,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000036,4f3,2.5,+0.0209,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000037,4f3,3.5,+0.0176,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000038,4f3,1.5,+0.0000,0.0012,not determined,1
+059003.000039,4f3,4.5,+0.0175,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000040,4f3,5.5,+0.0197,0.0014,"resolved components, 1 pattern, 4 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000041,f25d,4.5,+0.0372,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000042,f25d,5.5,+0.0402,0.0042,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000043,4f3,3.5,+0.0241,0.0022,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000055,4f3,4.5,+0.0214,0.0050,"rungs 1 and 2 of 1228-1116 (21962.950 and 21963.279), 2026-10-02",0
+059003.000044,4f3,2.5,+0.0326,0.0020,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000045,f25d,4.5,+0.0337,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000046,f25d,5.5,+0.0297,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000047,f25d,2.5,+0.0446,0.0047,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000048,4f3,3.5,+0.0219,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000049,f25d,6.5,+0.0305,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000050,f25d,5.5,+0.0281,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000051,4f3,4.5,+0.0196,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000052,4f3,6.5,+0.0247,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000053,f25d,3.5,+0.0350,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000054,f25d,3.5,+0.0370,0.0040,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000055,4f3,4.5,+0.0176,0.0011,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000056,4f3,1.5,+0.0191,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000057,f25d,6.5,+0.0234,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000058,4f3,5.5,+0.0169,0.0011,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000059,f25d,7.5,+0.0236,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000060,f25d,4.5,+0.0245,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000061,4f3,7.5,+0.0211,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000062,f25d,4.5,+0.0274,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000063,f25d,2.5,+0.0000,0.0342,not determined,0
+059003.000064,f25d,5.5,+0.0270,0.0030,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000065,4f3,0.5,+0.0531,0.0034,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000066,f25d,7.5,+0.0195,0.0021,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000067,f25d,3.5,+0.0404,0.0043,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000068,4f3,2.5,+0.0183,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000069,f25d,5.5,+0.0218,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000070,f25d,6.5,+0.0231,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000071,f25d,8.5,+0.0187,0.0020,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000072,f25d,5.5,+0.0214,0.0023,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000073,f25d,3.5,+0.0000,0.0252,not determined,0
+059003.000074,f25d,1.5,+0.0619,0.0069,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000075,f25d,4.5,+0.0293,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000076,f25d,2.5,+0.0351,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000077,4f3,1.5,+0.0181,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000078,f25d,1.5,+0.0000,0.0060,not determined,1
+059003.000079,f25d,6.5,+0.0196,0.0021,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000080,f25d,3.5,+0.0283,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000081,f25d,2.5,+0.0334,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000082,f25d,4.5,+0.0284,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000083,f25d,2.5,+0.0222,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000084,f25d,5.5,+0.0229,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000085,f25d,3.5,+0.0258,0.0028,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000086,f25d,1.5,+0.0000,0.0209,not determined,0
+059003.000087,f25d,3.5,+0.0315,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000088,f25d,4.5,+0.0204,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000089,f25d,1.5,+0.0312,0.0054,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000090,4f3,1.5,+0.0252,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000091,f25d,6.5,+0.0204,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000092,4f3,2.5,+0.0189,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000093,f25d,5.5,+0.0198,0.0022,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000094,4f3,0.5,+0.0608,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000095,f25d,2.5,+0.0262,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000096,f25d,6.5,+0.0279,0.0030,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000097,f25d,3.5,+0.0256,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000098,f25d,2.5,+0.0000,0.0152,not determined,0
+059003.000099,f25d,4.5,+0.0225,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000100,f25d,0.5,+0.0000,0.0663,not determined,0
+059003.000101,f25d,1.5,+0.0372,0.0053,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000102,f25d,1.5,+0.0395,0.0049,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000103,4f3,5.5,+0.0232,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000104,f25d,2.5,+0.0243,0.0033,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000105,f25d,3.5,+0.0170,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000106,f25d,4.5,+0.0236,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000107,4f3,3.5,+0.0106,0.0008,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000108,f25d,4.5,+0.0194,0.0022,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000109,4f3,7.5,+0.0233,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000110,4f3,6.5,+0.0217,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000111,f25d,3.5,+0.0000,0.0259,not determined,0
+059003.000112,f25d,2.5,+0.0273,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000113,f25d,7.5,+0.0245,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000114,f25d,5.5,+0.0187,0.0022,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000115,f25d,3.5,+0.0234,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000116,4f3,8.5,+0.0213,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000117,4f3,1.5,+0.0226,0.0020,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000118,4f3,4.5,+0.0236,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000119,f25d,3.5,+0.0295,0.0033,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000120,f25d,5.5,+0.0294,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000121,f25d,2.5,+0.0000,0.0206,not determined,0
+059003.000122,4f3,2.5,+0.0202,0.0017,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000123,f25d,4.5,+0.0180,0.0021,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000124,4f3,5.5,+0.0204,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000125,f26s,3.5,-0.0275,0.0023,"resolved components, 7 patterns, 11 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000126,f25d,4.5,+0.0291,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000127,f26s,4.5,+0.0777,0.0017,"resolved components, 13 patterns, 22 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000128,f25d,1.5,+0.0000,0.0385,not determined,0
+059003.000129,f25d,6.5,+0.0216,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000130,f25d,2.5,+0.0343,0.0037,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000131,f25d,4.5,+0.0260,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000132,f25d,5.5,+0.0275,0.0035,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000133,f26s,5.5,+0.0793,0.0013,"resolved components, 14 patterns, 41 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000134,f26s,4.5,-0.0206,0.0015,"resolved components, 15 patterns, 22 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000135,f25d,3.5,+0.0213,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000136,4f3,3.5,+0.0190,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000137,f25d,0.5,+0.0000,0.0160,not determined,0
+059003.000138,f25d,1.5,+0.0000,0.0137,not determined,0
 059003.000139,f26s,6.5,+0.0694,0.0012,"resolved components, 12 patterns, 29 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000140,f26s,1.5,-0.0893,0.0038,"resolved components, 8 patterns, 12 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000141,f26s,5.5,-0.0213,0.0012,"resolved components, 14 patterns, 31 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000142,f26s,2.5,+0.1293,0.0023,"resolved components, 15 patterns, 27 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000143,f25d,0.5,+0.0000,0.0133,not determined,0
+059003.000144,f25d,2.5,+0.0353,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000145,f26s,3.5,+0.0881,0.0019,"resolved components, 11 patterns, 17 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000146,f25d,3.5,+0.0418,0.0071,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000147,f25d,1.5,+0.0381,0.0050,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000148,f26s,4.5,+0.0934,0.0014,"resolved components, 15 patterns, 39 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000149,f26s,2.5,-0.0323,0.0023,"resolved components, 11 patterns, 15 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000150,f26s,3.5,-0.0249,0.0021,"resolved components, 10 patterns, 13 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000151,f25d,4.5,-0.0684,0.0057,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",3
+059003.000151,f25d,4.5,+0.0234,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000152,f25d,1.5,+0.0342,0.0054,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000153,f25d,3.5,+0.0215,0.0030,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000154,f25d,6.5,+0.0268,0.0028,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000155,f25d,2.5,+0.0205,0.0038,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000156,f25d,5.5,+0.0000,0.0313,not determined,0
+059003.000157,f25d,0.5,+0.0000,0.0088,not determined,0
+059003.000158,f25d,2.5,+0.0000,0.0094,not determined,0
+059003.000159,f25d,1.5,+0.0214,0.0047,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000160,f25d,3.5,+0.0000,0.0121,not determined,0
 059003.000161,f26s,4.5,+0.0921,0.0014,"resolved components, 13 patterns, 37 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000162,f25d,0.5,+0.0000,0.0228,not determined,0
+059003.000163,f25d,2.5,+0.0000,0.0098,not determined,0
+059003.000164,f25d,6.5,+0.0276,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000165,f26s,3.5,-0.0431,0.0015,"resolved components, 15 patterns, 29 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000166,f25d,7.5,+0.0271,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000167,f25d,4.5,+0.0173,0.0035,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000168,f25d,1.5,+0.0213,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000169,4f3,4.5,+0.0212,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000170,f25d,0.5,+0.0000,0.0389,not determined,0
+059003.000171,f25d,7.5,+0.0283,0.0030,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000172,f25d,5.5,+0.0252,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000173,f25d,4.5,+0.0000,0.0310,not determined,0
+059003.000174,4f3,3.5,+0.0232,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000175,f25d,2.5,+0.0162,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000176,f25d,1.5,+0.0000,0.0136,not determined,0
+059003.000177,f25d,3.5,+0.0000,0.0088,not determined,0
+059003.000178,f25d,8.5,+0.0229,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000179,f25d,3.5,+0.0242,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000180,f25d,2.5,+0.0226,0.0028,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000181,f25d,4.5,+0.0239,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000182,f26s,2.5,+0.1489,0.0049,"resolved components, 5 patterns, 11 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000183,f26s,1.5,-0.0991,0.0048,"resolved components, 6 patterns, 10 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000184,f25d,3.5,+0.0387,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000185,f25d,1.5,+0.0308,0.0040,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000186,f25d,2.5,+0.0200,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000187,f26s,1.5,+0.1993,0.0056,"resolved components, 5 patterns, 12 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000188,f26s,5.5,-0.0137,0.0022,"resolved components, 8 patterns, 16 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000189,f26s,6.5,+0.0716,0.0019,"resolved components, 6 patterns, 24 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000190,f26s,0.5,-0.1570,0.0100,"resolved F = 3/F = 2 pair 29294.7083/29294.2095 (IDEN2 1089-960), 4f26s_2P_0.5_hfs.md; adopted 2026-10-05 (semiempirical -0.0787)",0
 059003.000191,f26s,2.5,+0.1402,0.0043,"resolved components, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-05)",0
 059003.000192,f26s,1.5,-0.1010,0.0049,"resolved components, 5 patterns, 8 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000193,4f3,3.5,+0.0184,0.0012,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000194,f26p,3.5,+0.0296,0.0083,composition,5
 059003.000195,f26p,4.5,+0.0467,0.0080,composition,3
 059003.000196,f26p,4.5,+0.0223,0.0071,composition,5
 059003.000197,f26p,5.5,+0.0369,0.0070,composition,4
-059003.000198,f5d2,3.5,-0.0040,0.0090,"center of gravity of 21793.442 (1116-1081), 2026-10-02",1
+059003.000198,f5d2,3.5,+0.0409,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000199,f26p,4.5,+0.0314,0.0061,composition,4
 059003.000200,f26p,3.5,+0.0381,0.0062,composition,5
 059003.000201,f26p,2.5,+0.0479,0.0080,composition,3
@@ -59,18 +197,20 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000225,f5d2,6.5,+0.0210,0.0015,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000226,f5d2,6.5,+0.0221,0.0016,"resolved components, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-05)",3
 059003.000227,f26p,7.5,+0.0221,0.0055,composition,1
+059003.000228,f26p,0.5,+0.0000,0.0333,not determined,0
 059003.000229,f26p,2.5,+0.0297,0.0063,composition,2
 059003.000230,f5d2,6.5,+0.0223,0.0053,composition,2
 059003.000231,f5d2,3.5,+0.0172,0.0034,"resolved components, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",3
 059003.000232,f26p,1.5,+0.0329,0.0060,composition,1
 059003.000233,f5d2,2.5,+0.0181,0.0046,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-05)",3
-059003.000234,f5d2,4.5,+0.0285,0.0071,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",2
+059003.000234,f5d2,4.5,+0.0297,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",2
 059003.000235,f5d2,3.5,+0.0276,0.0056,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000236,f5d2,2.5,+0.0235,0.0072,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000237,f26p,4.5,+0.0261,0.0061,composition,3
 059003.000238,f26p,3.5,+0.0173,0.0080,composition,3
 059003.000239,f26p,4.5,+0.0254,0.0060,composition,6
 059003.000240,f26p,1.5,+0.0293,0.0088,composition,2
+059003.000241,f5d2,5.5,+0.0000,0.0294,not determined,0
 059003.000242,f5d2,7.5,+0.0151,0.0013,"resolved components, 1 pattern, 5 positions (Step 4 anchored fit, 2026-10-05)",1
 059003.000243,f5d2,3.5,+0.0211,0.0017,"resolved components, 2 patterns, 9 positions (Step 4 anchored fit, 2026-10-05)",4
 059003.000244,f26p,4.5,+0.0341,0.0069,composition,4
@@ -79,29 +219,40 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000247,f5d2,4.5,+0.0228,0.0025,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000248,f26p,3.5,+0.0251,0.0055,"composition, flags consistent (2026-09-29 review)",5
 059003.000249,f26p,2.5,+0.0244,0.0062,composition,1
-059003.000250,f5d2,3.5,+0.0380,0.0081,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",2
+059003.000250,f5d2,3.5,+0.0243,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",2
 059003.000251,f26p,4.5,+0.0243,0.0055,composition,5
 059003.000252,f5d2,5.5,+0.0200,0.0021,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
 059003.000253,f5d2,3.5,+0.0162,0.0023,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-05)",4
+059003.000254,f5d2,2.5,+0.0490,0.0022,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000255,f5d2,4.5,+0.0169,0.0016,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000256,f5d2,5.5,+0.0157,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000258,f5d2,4.5,+0.0000,0.0500,not determined,1
+059003.000257,f5d2,6.5,+0.0000,0.0205,not determined,0
+059003.000258,f5d2,4.5,+0.0223,0.0018,"calculated, hfs_A_theory 2026-10-07, tier 1",2
+059003.000259,f5d2,3.5,+0.0290,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000260,f5d2,1.5,+0.0013,0.0080,"companion 21273.954 of 1092-1000 (the F = 3 group), with A(000187) = +0.1979 (0.9638 x +0.2053), 2026-10-02, recomputed 2026-10-04",0
 059003.000261,f26p,2.5,+0.0299,0.0076,composition,2
 059003.000262,f26p,4.5,+0.0254,0.0056,composition,2
 059003.000263,f26p,5.5,+0.0251,0.0059,composition,2
 059003.000264,f26p,3.5,+0.0264,0.0055,composition,2
-059003.000267,f5d2,3.5,+0.0333,0.0086,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
-059003.000270,f5d2,2.5,+0.0385,0.0210,"center of gravity of 35378.125 (1116-991), 2026-10-02",0
+059003.000265,f5d2,2.5,+0.0236,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000266,f5d2,4.5,+0.0260,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000267,f5d2,3.5,+0.0274,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",1
+059003.000268,f5d2,4.5,+0.0000,0.0184,not determined,0
+059003.000269,f5d2,5.5,+0.0159,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000270,f5d2,2.5,+0.0239,0.0033,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000271,f5d2,1.5,+0.0000,0.0561,not determined,0
+059003.000272,f5d2,3.5,+0.0000,0.0147,not determined,0
 059003.000273,f26p,1.5,+0.0097,0.0116,composition,2
 059003.000274,f5d2,2.5,+0.0221,0.0052,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000275,f26p,2.5,+0.0464,0.0113,composition,2
-059003.000276,f5d2,5.5,+0.0204,0.0074,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
-059003.000277,f5d2,4.5,+0.0159,0.0084,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
+059003.000276,f5d2,5.5,+0.0230,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",1
+059003.000277,f5d2,4.5,+0.0210,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",1
+059003.000278,f5d2,1.5,+0.0000,0.0211,not determined,0
 059003.000279,f5d2,2.5,+0.0217,0.0055,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
 059003.000280,f26p,0.5,+0.0299,0.0118,composition,2
 059003.000281,f26p,3.5,+0.0251,0.0067,composition,1
 059003.000282,f5d2,5.5,+0.0260,0.0022,"resolved components, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000283,f26p,1.5,+0.0000,0.0235,not determined,0
 059003.000284,f5d2,6.5,+0.0251,0.0043,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
 059003.000285,f26p,2.5,+0.0251,0.0063,composition,2
 059003.000286,f5d2,3.5,+0.0259,0.0054,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
@@ -113,27 +264,90 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000292,f26p,2.5,+0.0386,0.0112,composition,2
 059003.000293,f5d2,1.5,+0.0144,0.0074,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-05)",2
 059003.000294,f26p,1.5,+0.0140,0.0089,composition,2
-059003.000295,f5d2,2.5,+0.0000,0.0500,not determined,1
+059003.000295,f5d2,2.5,+0.0255,0.0053,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000296,f26p,5.5,+0.0287,0.0057,composition,2
 059003.000297,f26p,6.5,+0.0293,0.0056,composition,1
+059003.000298,f5d6s,1.5,+0.0000,0.0452,not determined,0
 059003.000299,f26p,4.5,+0.0314,0.0067,composition,1
 059003.000300,f26p,3.5,+0.0190,0.0065,composition,1
 059003.000301,f26p,7.5,+0.0272,0.0057,composition,1
 059003.000302,f26p,2.5,+0.0184,0.0062,composition,2
+059003.000303,f5d6s,3.5,+0.0000,0.0243,not determined,0
+059003.000304,f5d6s,4.5,+0.0822,0.0098,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000305,f5d6s,4.5,+0.0615,0.0125,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000306,f5d6s,5.5,+0.0731,0.0076,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000307,f5d6s,4.5,+0.0000,0.0278,not determined,0
+059003.000308,f5d6s,3.5,+0.0000,0.0395,not determined,0
+059003.000309,f5d2,2.5,+0.0000,0.0243,not determined,0
+059003.000310,f5d6s,5.5,+0.0000,0.0120,not determined,0
+059003.000311,f5d2,3.5,+0.0000,0.0289,not determined,0
+059003.000312,f5d6s,4.5,+0.0000,0.0133,not determined,0
+059003.000313,f5d6s,3.5,+0.0000,0.0654,not determined,0
+059003.000430,4f3,2.5,+0.0255,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000431,f5d2,1.5,+0.0073,0.0113,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
-059003.000432,f5d2,1.5,+0.0416,0.0180,"center of gravity of the companion 32426.086 of 1140-1053, with A(000140) = -0.0796 (0.9638 x -0.0826), 2026-10-02, recomputed 2026-10-04",1
+059003.000432,f5d2,1.5,+0.0478,0.0033,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000433,f26p,2.5,+0.0260,0.0061,composition,2
+059003.000434,f5d2,1.5,+0.0000,0.0087,not determined,0
+059003.000435,f5d2,2.5,+0.0000,0.0156,not determined,0
+059003.000436,f5d2,3.5,+0.0172,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000437,f5d2,4.5,+0.0226,0.0039,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000438,f5d2,3.5,+0.0000,0.0144,not determined,0
 059003.000439,f5d2,5.5,+0.0172,0.0120,"center of gravity of 37682.867 (1118-980), with A(000161) = +0.0908 (0.9638 x +0.0942), 2026-10-02, recomputed 2026-10-04",0
 059003.000440,f5d2,2.5,+0.0110,0.0053,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
 059003.000441,f5d2,6.5,+0.0310,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000442,f5d2,4.5,+0.0000,0.0110,not determined,0
 059003.000443,f5d2,7.5,+0.0242,0.0019,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
 059003.000444,f26p,0.5,+0.0874,0.0344,composition,1
+059003.000445,f5d2,3.5,+0.0000,0.0257,not determined,0
+059003.000446,f5d6s,3.5,+0.0000,0.0228,not determined,0
 059003.000447,f26p,1.5,+0.0157,0.0092,composition,3
-059003.000448,f5d6s,4.5,+0.0000,0.0500,not determined,1
+059003.000448,f5d6s,4.5,+0.0806,0.0115,"calculated, hfs_A_theory 2026-10-07, tier 2",2
 059003.000449,f26p,1.5,+0.0065,0.0074,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000450,f5d6s,2.5,+0.0000,0.0401,not determined,0
 059003.000451,f5d6s,3.5,+0.1100,0.0100,estimate: unsplit lines (2026-10-01 review),0
+059003.000452,f5d6s,4.5,+0.0556,0.0137,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000453,f5d2,1.5,+0.0000,0.0500,not determined,1
+059003.000454,f5d6s,5.5,+0.0675,0.0103,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000455,f5d6s,6.5,+0.0649,0.0066,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000456,f5d6s,4.5,+0.0000,0.0235,not determined,0
+059003.000457,f5d6s,5.5,+0.0675,0.0091,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000539,f25d,0.5,+0.0000,0.0192,not determined,0
+059003.000540,f25d,0.5,+0.0000,0.0180,not determined,0
+059003.000563,fd6p,4.5,+0.0000,0.0455,not determined,0
+059003.000564,fd6p,3.5,+0.0000,0.0324,not determined,0
+059003.000565,fd6p,4.5,+0.0000,0.0278,not determined,0
+059003.000566,fd6p,5.5,+0.0000,0.0147,not determined,0
+059003.000567,fd6p,6.5,+0.0000,0.0215,not determined,0
+059003.000568,fd6p,6.5,+0.0000,0.0189,not determined,0
+059003.000569,fd6p,7.5,+0.0000,0.0180,not determined,0
+059003.000570,fd6p,5.5,+0.0000,0.0149,not determined,0
+059003.000626,f5d6s,3.5,+0.0000,0.0508,not determined,0
+059003.000627,f5d6s,2.5,+0.0000,0.0747,not determined,0
 059003.000629,f5d6s,3.5,+0.0155,0.0240,"center of gravity of 52033.827 (1118-918), with A(000161) = +0.0908 (0.9638 x +0.0942), 2026-10-02, recomputed 2026-10-04",0
+059003.000631,f5d2,1.5,+0.0000,0.0210,not determined,0
+059003.000633,f5d2,4.5,+0.0249,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000641,f26p,0.5,+0.0000,0.0331,not determined,0
+059003.000642,f26s,0.5,+0.5050,0.0070,"resolved F = 3/F = 2 pairs, mean of 4 separations 3A = 1.516 (IDEN2 1093), 4f26s_4P_0.5_hfs.md; adopted 2026-10-07 (calculated +0.509)",0
+059003.000643,f26p,0.5,+0.0474,0.0098,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000644,f5d6s,2.5,+0.0000,0.0153,not determined,0
+059003.000645,f5d2,0.5,+0.0743,0.0096,"calculated, hfs_A_theory 2026-10-07, tier 1",0
+059003.000646,f5d6s,2.5,+0.0000,0.0154,not determined,0
+059003.000647,f5d2,1.5,+0.0000,0.0232,not determined,0
+059003.000650,fd6p,5.5,+0.0000,0.0280,not determined,0
+059003.000653,f5d2,1.5,+0.0000,0.0189,not determined,0
 059003.000654,f5d2,2.5,+0.0229,0.0048,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",3
-059003.000656,f5d2,3.5,+0.0219,0.0052,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000655,fd6p,5.5,+0.0309,0.0043,"calculated, hfs_A_theory 2026-10-07, tier 2",1
+059003.000656,f5d2,3.5,+0.0193,0.0016,"calculated, hfs_A_theory 2026-10-07, tier 1",1
+059003.000657,f5d6s,2.5,+0.0745,0.0185,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000658,f5d6s,1.5,+0.0000,0.0536,not determined,0
+059003.000659,f5d6s,1.5,+0.0000,0.0742,not determined,0
+059003.000660,f5d6s,2.5,+0.0000,0.0512,not determined,0
+059003.000665,f5d6s,2.5,+0.0000,0.0816,not determined,0
+059003.000667,fd6p,3.5,+0.0000,0.0360,not determined,0
+059003.000670,fd6p,4.5,+0.0000,0.0171,not determined,0
+059003.000672,fd6p,3.5,+0.0000,0.0174,not determined,0
+059003.000674,f5d2,0.5,+0.0000,0.0644,not determined,0
+059003.000675,fd6p,4.5,+0.0334,0.0045,"calculated, hfs_A_theory 2026-10-07, tier 2",0
+059003.000676,f5d6s,3.5,+0.0000,0.0154,not determined,0
+059003.000681,fd6p,4.5,+0.0000,0.0275,not determined,0
+059003.000683,fd6p,4.5,+0.0000,0.0190,not determined,0

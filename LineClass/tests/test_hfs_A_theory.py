@@ -180,6 +180,46 @@ def test_every_printed_component_names_one_state():
     assert max(skipped) < 0.05
 
 
+@needs_cowan
+@needs_rceout
+def test_u_amp_is_the_first_order_propagation_of_amplitude_errors():
+    """u_amp = sigma * |dA/dp| over the printed amplitudes p, checked by
+    central differences of one unit (0.01) in each printed percentage."""
+    import copy
+    import dataclasses
+    params = H.Params.read()
+    sigma = 0.10
+    checked = 0
+    for lv in H.read_levels():
+        if (lv.J < 1 or lv.w_skipped > 0 or lv.unmatched
+                or len(lv.level.components) < 4):
+            continue
+        A = lv.A(params)[0]
+        if A is None or abs(A) < 0.01:
+            continue
+        u_round, _b, _c = lv.uncertainties(params, A)
+        u_amp = H.rows_of([lv], params, {}, 0.0, sigma)[0]['u_amp']
+        grad2 = 0.0
+        for i, c in enumerate(lv.level.components):
+            out = []
+            for step in (+1, -1):
+                level = copy.copy(lv.level)
+                level.components = list(lv.level.components)
+                level.components[i] = dataclasses.replace(
+                    c, percent=c.percent + step)
+                out.append(H.LevelTheta(level, lv.kset, lv.parity)
+                           .A(params)[0])
+            grad2 += ((out[0] - out[1]) / 0.02) ** 2
+        assert u_round * sigma / H.U_ROUND == pytest.approx(
+            sigma * math.sqrt(grad2), rel=0.02)
+        assert float(u_amp) == pytest.approx(sigma * math.sqrt(grad2),
+                                             abs=6e-5)
+        checked += 1
+        if checked == 8:
+            break
+    assert checked == 8
+
+
 # ---------------------------------------------------------------------------
 # parameters
 # ---------------------------------------------------------------------------
@@ -208,6 +248,64 @@ def test_params_reject_unknown_kinds():
         H.Params({'4f': {'b01': 1.0}})
     with pytest.raises(ValueError):
         H.Params({'4f': {'a12': 'b01'}})
+
+
+def test_u_params_follows_ties_and_overrides():
+    """dA/da collects every theta the parameter supplies: a12 tied to a01
+    adds to a01's derivative, and a configuration-specific entry is a
+    parameter of its own."""
+    p = _params()
+    stub = _Level(1, {('4f', 'a01'): 0.6, ('4f', 'a12'): 0.2,
+                      ('6s', 'a10'): 0.5})
+    sig = {('4f', 'a01'): 0.001, ('6s', 'a10'): 0.01,
+           ('4f3/4f', 'a01'): 0.1}
+    u = H.LevelTheta.u_params(stub, p, sig)
+    assert u == pytest.approx(math.hypot(0.8 * 0.001, 0.5 * 0.01))
+    stub3 = _Level(2, {('4f', 'a01'): 1.0}, conf='4f3')
+    assert H.LevelTheta.u_params(stub3, p, sig) == pytest.approx(0.1)
+
+
+def test_untested_part_counts_only_untested_configurations():
+    p = _params()
+    stub = _Level(1, {('4f', 'a01'): 0.5}, conf='f26s')
+    stub.theta[('f25d', '4f', 'a01')] = 0.25
+    assert H.LevelTheta.untested_part(stub, p, {'f26s': 22}) == \
+        pytest.approx(0.25 * 0.03)
+
+
+def test_read_uncertainties_of_the_parameter_file():
+    sig, fraction, min_measured = H.read_uncertainties()
+    assert sig[('4f', 'a01')] > 0 and sig[('6s', 'a10')] > 0
+    assert 0 < fraction < 1 and min_measured >= 1
+
+
+def test_read_measured_leaves_out_calculated_rows(tmp_path):
+    path = tmp_path / 'A.csv'
+    path.write_text(
+        'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
+        '059003.000001,4f3,4.5,+0.0200,0.0010,"resolved components, 1",0\n'
+        '059003.000002,4f3,4.5,+0.0210,0.0013,"%s, hfs_A_theory, tier 1",0\n'
+        % H.CALC_SOURCE, encoding='utf-8')
+    assert list(H.read_measured(str(path))) == ['059003.000001']
+
+
+def test_read_measured_reads_back_a_superseded_measurement(tmp_path):
+    """A measured row a calculated one replaced still counts in the fit of
+    the parameters; one the user dismissed does not."""
+    (tmp_path / 'A.csv').write_text(
+        'level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
+        '059003.000001,4f3,4.5,+0.0210,0.0013,"%s, hfs_A_theory, tier 1",0\n'
+        '059003.000002,4f3,4.5,+0.0230,0.0013,"%s, hfs_A_theory, tier 2",0\n'
+        % (H.CALC_SOURCE, H.CALC_SOURCE), encoding='utf-8')
+    (tmp_path / H.SUPERSEDED_NAME).write_text(
+        'level_id,cfg,J,A_cm-1,u_A,source,n_flagged,superseded_on,reason\n'
+        '059003.000001,4f3,4.5,+0.0200,0.0080,"resolved components, 1",0,'
+        '2026-10-07,replaced: the calculated A is much more accurate\n'
+        '059003.000002,4f3,4.5,-0.0600,0.0050,"resolved components, 1",0,'
+        '2026-10-07,dismissed by the user\n', encoding='utf-8')
+    got = H.read_measured(str(tmp_path / 'A.csv'))
+    assert list(got) == ['059003.000001']
+    assert got['059003.000001'][:2] == (0.02, 0.008)
 
 
 def test_prepare_free_copies_the_plain_entry():

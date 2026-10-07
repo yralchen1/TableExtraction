@@ -28,3 +28,22 @@
 # 2.4: a_6p(1/2) = 0.12 and a_6p(3/2) = 0.020, estimated from the 6s/6p
 # ratios of Cs I and Ba II, turned into a01 and a12 with a10 = 0.
 "6p" = { a01 = 0.04, a12 = 0.05, a10 = 0.0 }
+
+# Standard uncertainties of the parameters above, for u_par: the fitted ones
+# (scaled by sqrt(chi2/dof)); 50 per cent of the 6p estimates (a guess,
+# 2026-10-07).  A tied kind takes the uncertainty of the kind it names.
+# Correlations between the fitted parameters are neglected.
+[uncertainty]
+"4f" = { a01 = 0.00050 }
+"4f3/4f" = { a01 = 0.00135 }
+"5d" = { a01 = 0.00155, a10 = 0.00597 }
+"6s" = { a10 = 0.00454 }
+"6p" = { a01 = 0.02, a12 = 0.025 }
+
+# A configuration is tested when at least min_measured levels with a
+# measured constant have it as their leading configuration (in 2026-10-07:
+# 4f2 6s, 4f5d2 and 4f3).  The part of A that untested configurations give is
+# uncertain by `fraction` of itself, for u_cfg (a guess, 2026-10-07).
+[untested]
+fraction = 0.10
+min_measured = 3
