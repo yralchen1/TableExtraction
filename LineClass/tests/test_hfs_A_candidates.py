@@ -53,15 +53,21 @@ def test_a_calculated_row_is_used_unscaled_and_as_determined():
 def test_actions():
     assert C.action_of(1, 'calculated', False, True, False, False) \
         == 'in the table'
-    # a calculated row whose level has fallen to tier 3 is withdrawn
+    # a calculated row whose level has fallen to tier 3 becomes a test row
+    # (user, 2026-10-08; it was withdrawn to "not determined" before)
     assert C.action_of(3, 'calculated', False, True, False, False) \
-        == 'replace: not determined'
+        == 'replace as a test: tier 3'
     assert C.action_of(1, 'absent', False, True, False, False) == 'add'
+    # a tier-3 level without a row is adopted as a test (user, 2026-10-08),
+    # and its test row then stays
     assert C.action_of(3, 'absent', False, True, False, False) \
-        == 'add not determined'
+        == 'add as a test: tier 3'
+    assert C.action_of(3, 'calculated', False, True, False, False, True) \
+        == 'in the table'
     assert C.action_of(2, 'undetermined', False, True, False, False) \
         == 'replace'
-    assert C.action_of(3, 'undetermined', False, True, False, False) == 'keep'
+    assert C.action_of(3, 'undetermined', False, True, False, False) \
+        == 'replace as a test: tier 3'
     # a measured A: replaced only by a much more accurate, agreeing value
     assert C.action_of(1, 'measured', True, True, False, False) == 'replace'
     assert C.action_of(1, 'measured', False, True, False, False).startswith(
@@ -79,6 +85,29 @@ def test_actions():
         'keep')
     assert C.action_of(1, 'semiempirical', True, True, False, False) \
         .startswith('keep')
+
+
+def test_test_rows():
+    """A tier-3 test row: determined, unscaled, recognized by its source;
+    its u_A adds 10 per cent of the terms of A to u_total."""
+    src = '%s, hfs_A_theory %s, tier 3, %s' % (hfs_A_theory.CALC_SOURCE,
+                                               C.DATE, C.TEST_TAG)
+    assert C.is_test_row(src) and C.kind_of(src) == 'calculated'
+    assert hfs_correction.is_determined(src)
+    assert hfs_kappa.scaled_A(0.02, 0.004, src) == (0.02, 0.004)
+    assert not C.is_test_row('%s, hfs_A_theory %s, tier 2'
+                             % (hfs_A_theory.CALC_SOURCE, C.DATE))
+    assert C.test_u(0.02, 0.003, 2.5) == pytest.approx(
+        math.hypot(0.003, 0.1 * 2.5 * 0.02))
+
+
+def test_read_discarded(tmp_path):
+    path = tmp_path / 'discarded_levels.csv'
+    path.write_text('level_id,iden2_row,date,ln_R,reason\n'
+                    '059003.000513,436,2026-09-20,-3.887,"no support"\n',
+                    encoding='utf-8')
+    assert C.read_discarded(str(path)) == {'059003.000513'}
+    assert C.read_discarded(str(tmp_path / 'none.csv')) == set()
 
 
 def test_components_value_gives_back_the_constant():

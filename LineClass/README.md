@@ -3918,9 +3918,10 @@ evidence for each to `hfs_A_candidates.csv`. The rules were agreed with the user
   - the level's line intensities contradict its eigenvector (status "fail" of
     `eigenvector_check.py`, below).
 
-  The row is "not determined" with u_A = √(A² + u_total² + (0.1·Σ|θ·a|)²). That covers the
-  value, its uncertainty, and a 10% error in any one of the cancelling terms. The level's
-  lines then carry I·J·u_A in place of nothing.
+  Until 2026-10-08 the row was "not determined" with u_A = √(A² + u_total² + (0.1·Σ|θ·a|)²).
+  That covers the value, its uncertainty, and a 10% error in any one of the cancelling terms;
+  the level's lines then carried I·J·u_A in place of nothing. Since then a tier-3 level gets
+  a test row instead (*Tier 3 as a test*, below).
 
 The 300 cm⁻¹ criterion replaces any distinction between levels the Cowan fit used and levels
 found after it. A level left out of the fit still has its eigenvector shaped by the fitted
@@ -3973,6 +3974,24 @@ A second `--write` applied the intensity veto. It withdrew 9 calculated rows, wh
 calculated row whose level falls to tier 3 is always withdrawn in this way. The table now holds
 149 calculated rows and 79 "not determined" rows. The chain has to be rerun for any of this to
 reach LOPT.
+
+**Tier 3 as a test (user, 2026-10-08).** A tier-3 level is now adopted with its calculated A,
+not as "not determined". This holds whether it has no row, a "not determined" row, or a
+calculated row that has fallen to tier 3, which used to be withdrawn. A "not determined" row
+leaves S = 0, so the level's lines do not move and nothing tests the eigenvector. A calculated
+A moves them, and IDEN2 and LOPT then show whether they still fit; discordant assignments can
+be dropped. These rows are:
+- action "add as a test: tier 3" or "replace as a test: tier 3" in `hfs_A_candidates.csv`;
+- given u_A = √(u_total² + (0.1·Σ|θ·a|)²) (`test_u`), the calculated uncertainty plus a 10%
+  error in any one of the terms of A;
+- given a source ending in "tier 3, a test of the eigenvector" (`TEST_TAG`).
+
+A measured or semiempirical row is never replaced by a tier-3 value, and a resolved level never
+takes one. After the outer shells were added there were 109 such levels: 30 without a row
+(000630 and 000679 among them, 250 accepted lines) and the 79 "not determined" rows (1260
+lines), 38 of whose A are cancellation residues. A level of `discarded_levels.csv` is left out
+of `hfs_A_candidates.csv` altogether (000513 and 000561 on 2026-10-08): its position has been
+given up.
 
 **The evidence columns of `hfs_A_candidates.csv`.**
 - `A_table`, `u_table`, `z_table`: the row the level had, and A_calc's distance from it in

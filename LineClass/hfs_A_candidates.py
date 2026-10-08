@@ -18,14 +18,24 @@ the user on 2026-10-07, and writes the evidence for each one to
   4f3);
 * tier 2: the same, but the leading configuration is not tested (4f2 5d,
   4f5d6s, 4f5d6p, ...);
-* tier 3, not determined: A is a cancellation residue or too uncertain, or
-  the eigenvector is suspect: the level lies more than E_DEV_MAX from its
-  calculated energy, or its line intensities fail ``eigenvector_check.py``
-  (status "fail").  A calculated row already in the table whose level falls
-  to tier 3 is withdrawn.  The row proposed is "not determined", with
-  u_A = sqrt(A^2 + u_total^2 + (0.1 * sum|theta*a|)^2): it covers the value,
-  its uncertainty, and a 10 per cent error in any one of the terms that
-  cancel.
+* tier 3: A is a cancellation residue or too uncertain, or the eigenvector
+  is suspect: the level lies more than E_DEV_MAX from its calculated
+  energy, or its line intensities fail ``eigenvector_check.py`` (status
+  "fail").
+
+Until 2026-10-08 a tier-3 level got a "not determined" row, with
+u_A = sqrt(A^2 + u_total^2 + (0.1 * sum|theta*a|)^2) (``undetermined_u``),
+and a calculated row whose level fell to tier 3 was withdrawn to one.  Since
+then (user, 2026-10-08) a tier-3 level is adopted with its calculated A as
+a *test* row instead - whether it has no row, a "not determined" one, or a
+calculated one.  A "not determined" row leaves S = 0 and so tests nothing;
+a calculated A moves the level's lines, and IDEN2 and LOPT show whether
+they still fit, so that discordant assignments can be dropped.  A test
+row's u_A is ``test_u`` = sqrt(u_total^2 + (0.1 * sum|theta*a|)^2), and its
+source ends in TEST_TAG.  A measured or semiempirical row is never replaced
+by a tier-3 value, and a resolved level never takes one.  A level of
+``discarded_levels.csv`` (files.discarded_levels) is left out altogether: its
+position has been given up.
 
 Tiers 1 and 2 are adopted (user, 2026-10-07) where the table has no row or
 a "not determined" one, and in place of a measured A when the calculated one
@@ -106,6 +116,9 @@ E_DEV_MAX = 300.0          # cm^-1: a level further from its calculated
 WIDE_D = 0.3               # cm^-1
 W_NOTE = 0.01              # weight without parameters worth a note
 DATE = datetime.date.today().isoformat()   # stamped on the rows written
+DISCARDED = os.path.join(HERE, 'discarded_levels.csv')
+TEST_TAG = 'a test of the eigenvector'     # source suffix of tier-3 rows
+                                           # adopted as a test (2026-10-08)
 
 #: levels whose measured A the user has dismissed for the calculated one.
 USER_DECISIONS = {
@@ -134,6 +147,26 @@ def tier_of(A, u_total, cancel, tested, E_dev=None, eig_fail=False):
     return 1 if tested else 2
 
 
+def test_u(A, u_total, cancel):
+    """u_A of a tier-3 level adopted as a test: its calculated uncertainty
+    and a 10 per cent error in any one of the terms that make up A."""
+    terms = (cancel or 1.0) * abs(A or 0.0)
+    return math.hypot(u_total, 0.1 * terms)
+
+
+def is_test_row(source):
+    """True for a calculated row adopted from tier 3 as a test."""
+    return bool(source) and source.endswith(TEST_TAG)
+
+
+def read_discarded(path=DISCARDED):
+    """The level_ids of discarded_levels.csv (none if there is no file)."""
+    import classify_lines
+    if not os.path.isfile(path):
+        return set()
+    return {r['level_id'] for r in classify_lines.read_discarded_records(path)}
+
+
 def undetermined_u(A, u_total, cancel):
     """u_A of a tier-3 level's "not determined" row."""
     terms = (cancel or 0.0) * abs(A or 0.0)
@@ -157,19 +190,22 @@ def kind_of(source):
     return 'measured'
 
 
-def action_of(tier, kind, better, agrees, decided, resolved):
-    """What --write does: 'add', 'add not determined', 'replace', or a
-    reason for leaving the row alone."""
+def action_of(tier, kind, better, agrees, decided, resolved, test=False):
+    """What --write does: 'add', 'replace' (either possibly 'as a test:
+    tier 3'), or a reason for leaving the row alone.  `test`: the table's
+    row is a calculated one already adopted from tier 3 as a test
+    (is_test_row)."""
     if kind == 'calculated':
-        return 'in the table' if tier < 3 else 'replace: not determined'
+        return ('in the table' if tier < 3 or test
+                else 'replace as a test: tier 3')
     if decided:
         return 'replace (user decision)'
     if resolved:
         return 'keep: resolved level, its A is measured from the sublevels'
     if kind == 'absent':
-        return 'add' if tier < 3 else 'add not determined'
+        return 'add' if tier < 3 else 'add as a test: tier 3'
     if kind == 'undetermined':
-        return 'replace' if tier < 3 else 'keep'
+        return 'replace' if tier < 3 else 'replace as a test: tier 3'
     if kind == 'semiempirical':
         return 'keep: semiempirical prior of hfs_A_fit'
     if tier == 3:
@@ -329,9 +365,10 @@ def main(argv=None):
         e = _f(r['E_obs']) if r['E_obs'] else E_obs.get(lid)
         return None if e is None or not r['E_calc'] else e - float(r['E_calc'])
 
+    discarded = read_discarded()
     candidates, n_semi_better, keeps_table = {}, 0, set()
     for lid, r in theory.items():
-        if not r['A_calc']:
+        if not r['A_calc'] or lid in discarded:
             continue
         t = table.get(lid)
         kind = kind_of(t['source'] if t else None)
@@ -450,7 +487,15 @@ def main(argv=None):
                          % (float(r['w_missing']), r['missing']))
 
         decided = lid in USER_DECISIONS
-        if tier == 3 and not decided:
+        test = (tier == 3 and not decided and lid not in resolved
+                and kind in ('absent', 'undetermined', 'calculated'))
+        if test:
+            notes.append('tier 3 adopted as a test: its lines show whether '
+                         'the calculated A holds')
+            prop_A, prop_u = A, test_u(A, u_total, cancel)
+            prop_src = '%s, hfs_A_theory %s, tier 3, %s' % (
+                hfs_A_theory.CALC_SOURCE, DATE, TEST_TAG)
+        elif tier == 3 and not decided:
             prop_A, prop_u = 0.0, undetermined_u(A, u_total, cancel)
             prop_src = 'not determined'
         else:
@@ -489,7 +534,7 @@ def main(argv=None):
             'A_components': ('' if comp is None else '%+.4f +- %.4f (%d)'
                              % comp),
             'action': action_of(tier, kind, better, agrees, decided,
-                                lid in resolved),
+                                lid in resolved, test),
             'proposed_cfg': r['leading'].split()[1],
             'proposed_A': '%+.4f' % prop_A,
             'proposed_u_A': '%.4f' % prop_u,
@@ -498,7 +543,8 @@ def main(argv=None):
         })
     out.sort(key=lambda x: (x['tier'], -abs(float(x['dE_expected'] or 0))))
 
-    print('levels with a calculated A that has a use: %d' % len(out))
+    print('levels with a calculated A that has a use: %d (discarded levels '
+          'left out: %d)' % (len(out), len(discarded & set(theory))))
     for tier in (1, 2, 3):
         sel = [x for x in out if x['tier'] == tier]
         dE = [abs(float(x['dE_expected'])) for x in sel if x['dE_expected']]
