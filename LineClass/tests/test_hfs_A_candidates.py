@@ -87,17 +87,17 @@ def test_actions():
         .startswith('keep')
 
 
-def test_test_rows():
+def test_trial_rows():
     """A tier-3 test row: determined, unscaled, recognized by its source;
     its u_A adds 10 per cent of the terms of A to u_total."""
     src = '%s, hfs_A_theory %s, tier 3, %s' % (hfs_A_theory.CALC_SOURCE,
-                                               C.DATE, C.TEST_TAG)
-    assert C.is_test_row(src) and C.kind_of(src) == 'calculated'
+                                               C.DATE, C.TRIAL_TAG)
+    assert C.is_trial_row(src) and C.kind_of(src) == 'calculated'
     assert hfs_correction.is_determined(src)
     assert hfs_kappa.scaled_A(0.02, 0.004, src) == (0.02, 0.004)
-    assert not C.is_test_row('%s, hfs_A_theory %s, tier 2'
+    assert not C.is_trial_row('%s, hfs_A_theory %s, tier 2'
                              % (hfs_A_theory.CALC_SOURCE, C.DATE))
-    assert C.test_u(0.02, 0.003, 2.5) == pytest.approx(
+    assert C.trial_u(0.02, 0.003, 2.5) == pytest.approx(
         math.hypot(0.003, 0.1 * 2.5 * 0.02))
 
 

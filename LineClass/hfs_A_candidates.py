@@ -31,8 +31,8 @@ a *test* row instead - whether it has no row, a "not determined" one, or a
 calculated one.  A "not determined" row leaves S = 0 and so tests nothing;
 a calculated A moves the level's lines, and IDEN2 and LOPT show whether
 they still fit, so that discordant assignments can be dropped.  A test
-row's u_A is ``test_u`` = sqrt(u_total^2 + (0.1 * sum|theta*a|)^2), and its
-source ends in TEST_TAG.  A measured or semiempirical row is never replaced
+row's u_A is ``trial_u`` = sqrt(u_total^2 + (0.1 * sum|theta*a|)^2), and its
+source ends in TRIAL_TAG.  A measured or semiempirical row is never replaced
 by a tier-3 value, and a resolved level never takes one.  A level of
 ``discarded_levels.csv`` (files.discarded_levels) is left out altogether: its
 position has been given up.
@@ -117,7 +117,7 @@ WIDE_D = 0.3               # cm^-1
 W_NOTE = 0.01              # weight without parameters worth a note
 DATE = datetime.date.today().isoformat()   # stamped on the rows written
 DISCARDED = os.path.join(HERE, 'discarded_levels.csv')
-TEST_TAG = 'a test of the eigenvector'     # source suffix of tier-3 rows
+TRIAL_TAG = 'a test of the eigenvector'     # source suffix of tier-3 rows
                                            # adopted as a test (2026-10-08)
 
 #: levels whose measured A the user has dismissed for the calculated one.
@@ -147,16 +147,16 @@ def tier_of(A, u_total, cancel, tested, E_dev=None, eig_fail=False):
     return 1 if tested else 2
 
 
-def test_u(A, u_total, cancel):
+def trial_u(A, u_total, cancel):
     """u_A of a tier-3 level adopted as a test: its calculated uncertainty
     and a 10 per cent error in any one of the terms that make up A."""
     terms = (cancel or 1.0) * abs(A or 0.0)
     return math.hypot(u_total, 0.1 * terms)
 
 
-def is_test_row(source):
+def is_trial_row(source):
     """True for a calculated row adopted from tier 3 as a test."""
-    return bool(source) and source.endswith(TEST_TAG)
+    return bool(source) and source.endswith(TRIAL_TAG)
 
 
 def read_discarded(path=DISCARDED):
@@ -190,13 +190,13 @@ def kind_of(source):
     return 'measured'
 
 
-def action_of(tier, kind, better, agrees, decided, resolved, test=False):
+def action_of(tier, kind, better, agrees, decided, resolved, trial=False):
     """What --write does: 'add', 'replace' (either possibly 'as a test:
-    tier 3'), or a reason for leaving the row alone.  `test`: the table's
+    tier 3'), or a reason for leaving the row alone.  `trial`: the table's
     row is a calculated one already adopted from tier 3 as a test
-    (is_test_row)."""
+    (is_trial_row)."""
     if kind == 'calculated':
-        return ('in the table' if tier < 3 or test
+        return ('in the table' if tier < 3 or trial
                 else 'replace as a test: tier 3')
     if decided:
         return 'replace (user decision)'
@@ -487,14 +487,14 @@ def main(argv=None):
                          % (float(r['w_missing']), r['missing']))
 
         decided = lid in USER_DECISIONS
-        test = (tier == 3 and not decided and lid not in resolved
+        trial = (tier == 3 and not decided and lid not in resolved
                 and kind in ('absent', 'undetermined', 'calculated'))
-        if test:
+        if trial:
             notes.append('tier 3 adopted as a test: its lines show whether '
                          'the calculated A holds')
-            prop_A, prop_u = A, test_u(A, u_total, cancel)
+            prop_A, prop_u = A, trial_u(A, u_total, cancel)
             prop_src = '%s, hfs_A_theory %s, tier 3, %s' % (
-                hfs_A_theory.CALC_SOURCE, DATE, TEST_TAG)
+                hfs_A_theory.CALC_SOURCE, DATE, TRIAL_TAG)
         elif tier == 3 and not decided:
             prop_A, prop_u = 0.0, undetermined_u(A, u_total, cancel)
             prop_src = 'not determined'
@@ -534,7 +534,7 @@ def main(argv=None):
             'A_components': ('' if comp is None else '%+.4f +- %.4f (%d)'
                              % comp),
             'action': action_of(tier, kind, better, agrees, decided,
-                                lid in resolved, test),
+                                lid in resolved, trial),
             'proposed_cfg': r['leading'].split()[1],
             'proposed_A': '%+.4f' % prop_A,
             'proposed_u_A': '%.4f' % prop_u,

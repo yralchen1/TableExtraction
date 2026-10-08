@@ -67,6 +67,8 @@ DISCARDED = set()        # levels whose position was given up; see
                          #   drop_discarded_levels()
 LEVEL_REVISIONS = {}     # level_id -> (energy before, energy after, comment), from
                          #   the revised-energies file; see apply_energy_overrides()
+START_LEVELS = ''        # LOPT_output_levels.txt the levels start from, '' for the
+                         #   published energies; see apply_start_levels()
 HFS = None               # the hfs_correction.Model in force, None with [hfs] apply off
 HFS_MAX_D = 0.0          # cm^-1; the largest |D| any transition can have, set by apply_hfs_model()
 HFS_SATELLITES = ''      # the registry of resolved hfs companions; see attach_hfs_satellites()
@@ -84,7 +86,7 @@ def apply_config(cfg, policy: str = None) -> None:
     """
     global CFG, LEVELS_FILE, LINES_FILE, ICALC_FILE, OUTPUT_FILE, OUTPUT_CSV
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
-    global DISCARDED_LEVELS, INFLATED_UNC
+    global DISCARDED_LEVELS, INFLATED_UNC, START_LEVELS
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
     global HFS, HFS_MAX_D, HFS_SATELLITES
     CFG = cfg
@@ -99,6 +101,7 @@ def apply_config(cfg, policy: str = None) -> None:
     ICALC_EXTRA = cfg.icalc_extra
     DISCARDED_LEVELS = cfg.discarded_levels
     INFLATED_UNC = cfg.inflated_unc
+    START_LEVELS = cfg.start_levels
     WN_MIN = cfg.wn_min
     WN_MAX = cfg.wn_max
     MAX_FORCED_OFFSET = cfg.max_forced_offset
@@ -616,6 +619,10 @@ def read_energy_levels() -> tuple[dict[str, EnergyLevel], list[EnergyLevel]]:
     if LEVEL_OVERRIDES:
         apply_energy_overrides(levels_dict, LEVEL_OVERRIDES)
         set_level_provenance(levels_dict, LEVEL_OVERRIDES)
+    # Last: the warm start replaces the published and revised energies alike,
+    # and needs to know which levels were revised.
+    if START_LEVELS:
+        apply_start_levels(levels_dict, START_LEVELS)
     return levels_dict, levels_list
 
 
@@ -1130,6 +1137,89 @@ def apply_energy_overrides(levels_dict: dict, path: str) -> None:
               f"({e - lev.energy:+.4f} cm^-1)")
         LEVEL_REVISIONS[lid] = (lev.energy, e, notes.get(lid, ''))
         lev.energy = e
+
+
+def read_start_energies(path: str) -> dict:
+    """{level_id: energy} from a LOPT_output_levels.txt (tab-delimited,
+    columns Designation and Energy).  An empty file gives an empty dict: that
+    is what a failed LOPT run leaves behind."""
+    if os.path.getsize(path) == 0:
+        return {}
+    out = {}
+    with open(path, newline='', encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader(fh, delimiter='\t')
+        if not {'Designation', 'Energy'} <= set(rdr.fieldnames or []):
+            raise ValueError(f"{os.path.basename(path)}: needs the columns "
+                             f"Designation and Energy, has "
+                             f"{rdr.fieldnames}")
+        for row in rdr:
+            lid = (row['Designation'] or '').strip()
+            if lid:
+                out[lid] = float(row['Energy'])
+    return out
+
+
+def start_from_fit(e_fit: float, revision=None) -> bool:
+    """Whether a level starts from its energy in the last LOPT fit.
+
+    Every level does, except one revised by hand (`revision` = (published
+    energy, revised energy, comment), from LEVEL_REVISIONS) that the fit has
+    not seen yet: one whose fitted energy lies at least as near the
+    published energy as the revised one.  The revision is then newer than
+    the fit, and it is the start.
+    """
+    if revision is None:
+        return True
+    pub, rev = revision[0], revision[1]
+    return abs(e_fit - rev) < abs(e_fit - pub)
+
+
+def apply_start_levels(levels_dict: dict, path: str) -> int:
+    """Start the levels from the set's last LOPT fit (files.start_levels):
+    the warm start, agreed with the user 2026-10-08.
+
+    WHY.  The published energies are on another wavelength scale and in
+    another frame than the set's calibrated, head-frame lines, by 0.1-0.2
+    cm^-1 for many levels.  A level whose every line then fails its first
+    Ritz test can never move, since only accepted lines move a level, and it
+    loses all its lines at once - 000544 did, after the calculated A
+    constants were adopted (2026-10-08).  The last fit is where the lines put
+    the levels, so from it a small change of the calibration or the
+    hyperfine model moves the lines by that change only.
+
+    A level the fit does not hold (a new level not yet fitted, one without
+    accepted lines) keeps the energy it has; so does a revised level the fit
+    has not seen (start_from_fit).  A missing or empty file (a failed LOPT
+    run) leaves every energy as it is, with a warning.  Returns the number
+    of levels started from the fit.
+    """
+    name = os.path.basename(path)
+    if not os.path.isfile(path):
+        print(f"  WARNING: files.start_levels {path} not found; the levels "
+              f"start from their published energies.")
+        return 0
+    fit = read_start_energies(path)
+    if not fit:
+        print(f"  WARNING: {name} is empty (a failed LOPT run?); the levels "
+              f"start from their published energies.")
+        return 0
+    n, kept, moves = 0, [], []
+    for lid, lev in levels_dict.items():
+        if lid not in fit:
+            continue
+        revision = LEVEL_REVISIONS.get(lid)
+        if not start_from_fit(fit[lid], revision):
+            kept.append(lid)
+            continue
+        moves.append(abs(fit[lid] - lev.energy))
+        lev.energy = fit[lid]
+        n += 1
+    big = sum(1 for m in moves if m > 0.1)
+    print(f"  Warm start: {n} level(s) start from {name}; {big} of them "
+          f"more than 0.1 cm^-1 from the energy they had"
+          + (f"; {len(kept)} revised level(s) the fit has not seen keep "
+             f"their revision: {', '.join(kept)}" if kept else '') + '.')
+    return n
 
 
 def revision_note(level_id: str, indent: str = '        ') -> str:

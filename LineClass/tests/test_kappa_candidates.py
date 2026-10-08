@@ -46,8 +46,13 @@ def test_the_class_table_is_read(tmp_path):
     assert t[('other', 1969)] == (0.0, 0.3211)
     # the model value: the class's own, the pooled one, Sugar's stated one
     wn = 30000.0
+    assert K.model_unc(t, '', wn) == pytest.approx(
+        hfs_kappa.two_term(0.0022, 0.0192, wn))
+    # a w line measured as sharp as a plain one: the character floor, twice
+    # the plain value (2026-10-08)
+    assert hfs_kappa.two_term(0.0023, 0.0199, wn) < K.model_unc(t, 'w', wn)
     assert K.model_unc(t, 'w', wn) == pytest.approx(
-        hfs_kappa.two_term(0.0023, 0.0199, wn))
+        2.0 * hfs_kappa.two_term(0.0022, 0.0192, wn))
     assert K.model_unc(t, 'bl', 60000.0) == pytest.approx(0.3211)
     assert K.model_unc(t, 'zz', wn) == pytest.approx(max(
         hfs_kappa.stated_uncertainty('zz', 1974, wn), hfs_kappa.FLOOR))

@@ -194,9 +194,22 @@ def test_the_complex_lines_are_measured_near_the_center_of_gravity(fitted):
 
 
 def test_the_fit_is_rank_deficient_only_in_the_energy_zero(fitted):
-    _, _, _, _, fit = fitted
+    """chi2/dof is 1 over the lines whose uncertainty the residuals set, and
+    below 1 overall: the character floor (2026-10-08) holds the uncertainty
+    of a line with a character code above what its class's residuals ask."""
+    lines, _, _, table, fit = fitted
     assert fit['rank'] == fit['unknowns'] - 1
-    assert fit['chi2'] / fit['dof'] == pytest.approx(1.0, abs=0.05)
+    assert 0.8 < fit['chi2'] / fit['dof'] <= 1.05
+    chi2 = dof = 0.0
+    for i in fit['rows']:
+        ln = lines[i]
+        plain = table[('', ln.era)]
+        if hfs_kappa.character_floor(ln.char, ln.era, ln.wn,
+                                     (plain.a, plain.b)) > 0:
+            continue
+        chi2 += (fit['residual'][i] / fit['sigma'][i]) ** 2
+        dof += 1.0 - fit['leverage'][i]
+    assert chi2 / dof == pytest.approx(1.0, abs=0.05)
 
 
 def test_the_two_eras_disagree(fitted):
@@ -291,8 +304,9 @@ def test_the_wavelength_term_is_smaller_than_Sugar_stated(fitted):
 
 def test_a_registry_line_keeps_its_own_uncertainty(fitted):
     """A line listed in `inflated_unc_lines.txt` keeps the value entered
-    there, and is not set aside by the outlier filter either."""
-    lines, sigma, keep, _, _ = fitted
+    there, unless its character's floor is higher, and is not set aside by
+    the outlier filter either."""
+    lines, sigma, keep, table, _ = fitted
     fixed = hfs_kappa.read_inflated()
     if not fixed:
         pytest.skip('the registry is empty')
@@ -302,9 +316,65 @@ def test_a_registry_line_keeps_its_own_uncertainty(fitted):
         if want is None:
             continue
         seen += 1
-        assert sigma[i] == pytest.approx(want)
+        plain = table[('', ln.era)]
+        floor = hfs_kappa.character_floor(ln.char, ln.era, ln.wn,
+                                          (plain.a, plain.b))
+        assert sigma[i] == pytest.approx(max(want, floor))
         assert keep[i]
     assert seen
+
+
+def test_the_character_floor():
+    """A line with a character code is given at least twice the plain
+    uncertainty of its era at its wavenumber (user, 2026-10-08); plain lines,
+    the hyperfine flags and the multiple-classification mark are not."""
+    plain = (0.0022, 0.0208)
+    u = hfs_kappa.two_term(0.0022, 0.0208, 22727.65)
+    for char in ('w', 'd', 'c', 'ch', 'cl', 'bl', 'h', 'w**', 'cl**'):
+        assert hfs_kappa.character_floor(char, 1974, 22727.65, plain)             == pytest.approx(2.0 * u)
+    for char in ('', '*r', '*v', '**', ' '):
+        assert hfs_kappa.character_floor(char, 1974, 22727.65, plain) == 0.0
+    assert hfs_kappa.shape_of('w**') == 'w'
+    assert hfs_kappa.shape_of('**') == ''
+    # without a measured plain class, Sugar's stated plain value stands in
+    assert hfs_kappa.character_floor('w', 1974, 20000.0) == pytest.approx(
+        2.0 * hfs_kappa.stated_uncertainty('', 1974, 20000.0))
+
+
+def test_the_adopted_uncertainties_obey_the_character_floor(fitted):
+    lines, sigma, _, table, _ = fitted
+    n = 0
+    for ln, u in zip(lines, sigma):
+        plain = table[('', ln.era)]
+        floor = hfs_kappa.character_floor(ln.char, ln.era, ln.wn,
+                                          (plain.a, plain.b))
+        assert u >= floor - 1e-12
+        n += floor > 0
+    assert n
+
+
+def test_the_refit_obeys_the_character_floor():
+    """refit_uncertainties: a w class measured as sharp as the plain one is
+    still given twice the plain value."""
+    import random
+    rnd = random.Random(1)
+    lines, res, lev = [], [], []
+    for char in ('', 'w'):
+        for k in range(60):
+            wn = 15000.0 + 200.0 * k
+            lines.append(hfs_kappa.Line(wn=wn, char=char, era=1974,
+                                        cls='plain', ucls=(char, 1974),
+                                        low='a', upp='b', D=0.0, dJ=0))
+            res.append(rnd.gauss(0.0, 0.03))
+            lev.append(0.1)
+    sigma, table = hfs_kappa.refit_uncertainties(lines, res, lev)
+    p = table[('', 1974)]
+    for ln, u in zip(lines, sigma):
+        base = max(hfs_kappa.two_term(p.a, p.b, ln.wn), hfs_kappa.FLOOR)
+        if ln.char == 'w':
+            assert u >= 2.0 * base - 1e-12
+        else:
+            assert u == pytest.approx(base)
 
 
 def test_only_a_handful_of_lines_are_set_aside(fitted):

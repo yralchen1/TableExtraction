@@ -144,6 +144,27 @@ OUTLIER_SIGMA = 4.0
 #: residuals of a handful of lines happen to be.
 FLOOR = 0.0055
 
+#: a line with a character code is never given less than this many times the
+#: uncertainty of a plain line of its era at the same wavenumber (user,
+#: 2026-10-08).  A wide, diffuse or complex line cannot be set on as
+#: accurately as a sharp one recorded as strongly, whatever the residuals of
+#: its class say: the calibration of that day measured the 431 w lines of
+#: 1974 at 0.0392 cm^-1 against 0.0371 for the plain ones, which says that
+#: the hfs correction places a wide line well on average, not that one
+#: setting on it is as good as one on a sharp line.  `character_floor`.
+CHARACTER_FACTOR = 2.0
+
+#: the characters the floor leaves alone: plain, and Sugar's hyperfine flags,
+#: whose displaced strongest component is set on as sharply as a plain line
+#: and whose width the hfs model carries.
+CHARACTER_EXEMPT = ('', '*r', '*v')
+
+#: the suffix that marks a line classified to more than one transition.  It
+#: describes the classification, not the shape of the line, so it is
+#: stripped before the character is judged: `**` alone is a plain line,
+#: `w**` a wide one.
+MULTIPLE_MARK = '**'
+
 #: an uncertainty class needs this many lines before the residuals of that
 #: character and era are allowed to speak for themselves; below it the
 #: characters are pooled into one "other" class per era.
@@ -239,6 +260,28 @@ def stated_uncertainty(char, era, wn):
     """
     ang = STATED_PLAIN[era] if char == '' else STATED_OTHER
     return ang * 1e-8 * wn * wn
+
+
+def shape_of(char):
+    """The line-shape part of a character code: the code without the
+    multiple-classification mark."""
+    c = (char or '').strip()
+    return c[:-len(MULTIPLE_MARK)] if c.endswith(MULTIPLE_MARK) else c
+
+
+def character_floor(char, era, wn, plain=None):
+    """The least uncertainty a line of character `char` may be given, in
+    cm^-1: `CHARACTER_FACTOR` times that of a plain line of its era at the
+    same wavenumber, or 0 for a character the rule exempts.
+
+    `plain` is the `(a, b)` of the two-term model of the era's plain class;
+    without it Sugar's stated plain value stands in.
+    """
+    if shape_of(char) in CHARACTER_EXEMPT:
+        return 0.0
+    u = (two_term(plain[0], plain[1], wn) if plain
+         else stated_uncertainty('', era, wn))
+    return CHARACTER_FACTOR * max(u, FLOOR)
 
 
 #: the most decimals a registry key is matched on.  A key written with more
@@ -742,15 +785,16 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
     sigma = []
     for i, ln in enumerate(lines):
         if held[i] is not None:
-            sigma.append(held[i])
+            u = held[i]
         else:
             # a class too thin to measure itself falls back on the plain
             # lines of its own era, which are the bulk of the spectrum and
             # share its plates; Sugar's stated value is the last resort.
             ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
-            sigma.append(max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
-                         else max(stated_uncertainty(ln.char, ln.era, ln.wn),
-                                  FLOOR))
+            u = (max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
+                 else max(stated_uncertainty(ln.char, ln.era, ln.wn), FLOOR))
+        sigma.append(max(u, character_floor(ln.char, ln.era, ln.wn,
+                                            fitted.get(('', ln.era)))))
     table = {}
     for key, (a_ang, b_wn) in fitted.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
@@ -822,12 +866,17 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
                 moved = max(moved, abs(now - was) / max(now, 1e-12))
         table = new
         for i, ln in enumerate(lines):
-            if held[i] is not None:
-                continue
+            plain = table.get(('', ln.era))
+            floor = character_floor(ln.char, ln.era, ln.wn,
+                                    plain[:2] if plain else None)
             key = ucls[i]
-            if key in table:
+            if held[i] is None and key in table:
                 sigma[i] = max(two_term(table[key][0], table[key][1], ln.wn),
-                               FLOOR)
+                               FLOOR, floor)
+            else:
+                # the registry's value, or the stated one of a class that
+                # has not been measured: floored, never ratcheted.
+                sigma[i] = max(stated['sigma'][i], floor)
         if moved < tol:
             break
     # the mean adopted value and the mean stated value, for the report

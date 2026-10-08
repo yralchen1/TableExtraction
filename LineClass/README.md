@@ -270,6 +270,36 @@ A level in the file that is absent from the workbook raises an error rather
 than passing silently as "nothing was moved". Comment the `level_overrides`
 line out of the configuration to run on Wyart's energies unchanged.
 
+#### The warm start: starting from the set's last LOPT fit
+
+`files.start_levels` (2026-10-08; set in `iter_hfs/lineclass_config.toml` as
+`LOPT_output_levels.txt`) makes `classify_lines.py` start every level from the
+set's last LOPT fit, after the published and revised energies have been read
+(`apply_start_levels`).
+
+**Why.** The published energies are on another scale than the set's
+calibrated lines. In the iter_hfs table of 2026-10-08, 156 of 653 levels
+ended more than 0.1 cm⁻¹ from where they started, and 53 more than 0.2. Only
+accepted lines move a level. So a level whose every line fails its first Ritz
+test never moves, and it loses all its lines at once. 000544 (Wyart's
+105191.13; its five lines put it at 105190.84) did, after the calculated A
+constants were adopted.
+
+**The frame is the same.** LOPT is given `wn_obs + hfs_shift` (the head
+frame), and `classify_lines.py` compares a line with Ritz − (1 − κ)·D, which
+is the same comparison. Its own fitted energies (`low_E`, `upp_E`) are
+head-frame energies too. In the committed iter_hfs state they agree with
+LOPT's to a median 0.002 cm⁻¹ over 653 levels.
+
+**Rules.**
+- A level the fit does not hold (not yet fitted, or without accepted lines)
+  keeps the energy it has.
+- A level revised by hand starts from the fit once the fit lies nearer its
+  revised energy than its published one. Otherwise the revision is newer than
+  the fit, and the revision is the start.
+- A missing or empty file, which is what a failed LOPT run leaves, falls back
+  to the published energies with a warning.
+
 #### The comment column, and what becomes of the published identifications
 
 An identification taken from the published line list — the rows
@@ -2724,6 +2754,20 @@ calibration once with them, calls `hfs_kappa.refit_uncertainties` on the residua
 leaves behind, and remakes the fit; `UNC_ROUNDS` says how many times. The report's last table is
 the test, `chi2/dof = sum(r²/u²) / sum(1 − h)` per class, which must be close to 1.
 
+**The character floor (2026-10-08).** A line with a character code is never given less than
+twice the uncertainty of a plain line of its era at the same wavenumber
+(`hfs_kappa.character_floor`, `CHARACTER_FACTOR = 2`). The exceptions are plain lines and
+Sugar's hyperfine flags `*r` and `*v`. The `**` suffix marks a line classified to more than one
+transition, not a line shape, so it is stripped first: `**` alone counts as plain and `w**` as
+`w`. The residuals alone had put the 431 `w` lines of 1974 at 0.0392 cm⁻¹ against 0.0371 for
+the plain ones. That says the hfs correction places a wide line well on average. It does not
+say that one setting on a wide line is as good as one on a sharp line recorded as strongly,
+and it cannot be. The floor applies wherever a line's uncertainty is adopted: in both
+uncertainty fits, to a line in the registry below, in `u_stat_cm1`, and in
+`kappa_candidates.model_unc`. On the calibration of that day it raises 618 of the 639 `w` lines
+of 1974 (median ×1.9), all 60 `ch`, 11 of 95 `d`, and 101 of 107 `cl` of 1969. A class the floor
+holds shows a chi2/dof well below 1 in the report's table, since "after" is its residuals' rms.
+
 ## Lines whose uncertainty is set by hand: `inflated_unc_lines.txt`
 
 Some observed lines do not fit the smooth trend of their block and yet their classification is
@@ -3516,7 +3560,14 @@ on 2026-10-01 is 52919.206 (000148–000304, IDEN2 1131–925). Its shift is
   decimals keeps the measured value. The rows written away from the measured values are
   listed in **`IDEN2/dlv_shown.txt`** (`line, wn_key, wn_obs, u_obs, wn_shown, u_shown`).
   That file tells the next sync and `check_sync.py` which line each moved row is, and it
-  gives checks 9 and 11 the measured wavenumber of an identified line. The rows of
+  gives checks 9 and 11 the measured wavenumber of an identified line. That wavenumber is
+  the one of the last sync, so a calibration run since then would make every identified
+  line look like another line. `check_sync.py` therefore names each row by its line's
+  `wn_key` (`IDEN2/dlv_keys.txt`) and gives it the wavenumber the table has now
+  (`Iden2.follow`). Before that, 70349.067, rejected for 000076–000627 and still identified
+  in IDEN2, was reported as "elsewhere" in all three files, and 4841 unchanged
+  identifications as moved to another line. The rows of `dlv.dat` still showing the old scale
+  are reported by the dlv.dat checks. The rows of
   `dlv.dat` are kept in decreasing order of the wavenumber they show. A row that passes a
   neighbor changes place and keeps its own line number, as a line inserted on IDEN2's
   screen does. A sync in `"measured"` mode puts every row back and removes
@@ -3982,9 +4033,9 @@ leaves S = 0, so the level's lines do not move and nothing tests the eigenvector
 A moves them, and IDEN2 and LOPT then show whether they still fit; discordant assignments can
 be dropped. These rows are:
 - action "add as a test: tier 3" or "replace as a test: tier 3" in `hfs_A_candidates.csv`;
-- given u_A = √(u_total² + (0.1·Σ|θ·a|)²) (`test_u`), the calculated uncertainty plus a 10%
+- given u_A = √(u_total² + (0.1·Σ|θ·a|)²) (`trial_u`), the calculated uncertainty plus a 10%
   error in any one of the terms of A;
-- given a source ending in "tier 3, a test of the eigenvector" (`TEST_TAG`).
+- given a source ending in "tier 3, a test of the eigenvector" (`TRIAL_TAG`).
 
 A measured or semiempirical row is never replaced by a tier-3 value, and a resolved level never
 takes one. After the outer shells were added there were 109 such levels: 30 without a row

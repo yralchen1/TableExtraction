@@ -1298,6 +1298,17 @@ def main(argv=None):
     say('is what is left of its lines once the fitted level values have '
         'taken their share;')
     say('the floor of %.4f cm-1 is hfs_kappa.FLOOR.' % hfs_kappa.FLOOR)
+    say('A line with a character code other than %s is never given less '
+        'than %g times'
+        % (', '.join(c for c in hfs_kappa.CHARACTER_EXEMPT if c),
+           hfs_kappa.CHARACTER_FACTOR))
+    say('the plain uncertainty of its era at its own wavenumber '
+        '(hfs_kappa.character_floor; the')
+    say('mark %s of a multiply classified line is not a character).  '
+        '"adopted" includes that'
+        % hfs_kappa.MULTIPLE_MARK)
+    say('floor and "after" does not, so a class the floor holds shows a '
+        'chi2/dof well below 1.')
     say()
     say('a_A and b_cm1 are the two terms of the class model, '
         'u^2 = (a*1e-8*wn^2)^2 + b^2;')
@@ -1445,16 +1456,21 @@ def main(argv=None):
               % (hfs_kappa.INFLATED, ', '.join(unknown)))
 
     def u_stat(wn_value, char_value, key_value):
+        era_value = hfs_kappa.era_of(wn_value)
+        plain = table.get(('', era_value))
+        floor = hfs_kappa.character_floor(
+            char_value, era_value, wn_value,
+            (plain.a, plain.b) if plain else None)
         held = fixed_unc.lookup(key_value)
         if held is not None:
-            return held
-        era_value = hfs_kappa.era_of(wn_value)
+            return max(held, floor)
         key = key_of_char.get((char_value, era_value), ('other', era_value))
-        u = table.get(key) or table.get(('', era_value))
+        u = table.get(key) or plain
         if u is None:
             return max(hfs_kappa.stated_uncertainty(
-                char_value, era_value, wn_value), hfs_kappa.FLOOR)
-        return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR)
+                char_value, era_value, wn_value), hfs_kappa.FLOOR, floor)
+        return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR,
+                   floor)
 
     corr = []
     for wn, char, key in observed:

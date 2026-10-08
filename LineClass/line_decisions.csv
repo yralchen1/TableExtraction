@@ -779,3 +779,38 @@ wn_key,low_id,upp_id,decision,date,reason
 15487.2699,059003.000342,059003.000410,accept,10/8/2026,IDEN2/LOPT
 114824.6885,059003.000083,059003.000526,reject,10/8/2026,IDEN2/LOPT
 35094.4293,059003.000333,059003.000537,reject,10/8/2026,"Doubtful: negligible intensity in blend; Icalc very uncertain; if it is greater, it would improve both cg and Iobs/Icalc "
+41614.6995,059003.000209,059003.000544,accept,10/8/2026,IDEN2/LOPT: acceptt hfs shift
+38647.3112,059003.000228,059003.000544,accept,10/8/2026,IDEN2/LOPT: acceptt hfs shift
+38509.9103,059003.000229,059003.000544,accept,10/8/2026,IDEN2/LOPT: acceptt hfs shift
+38323.9397,059003.000232,059003.000544,accept,10/8/2026,IDEN2/LOPT: acceptt hfs shift
+37795.7105,059003.000236,059003.000544,accept,10/8/2026,IDEN2/LOPT: acceptt hfs shift
+92783.1239,059003.000114,059003.000407,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc"
+92783.1239,059003.000076,059003.000368,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc"
+51096.7134,059003.000108,059003.000439,accept,10/8/2026,IDEN2/LOPT: blend improves cg and Iobs/Icalc
+47562.6063,059003.000152,059003.000295,accept,10/8/2026,IDEN2/LOPT: blend improves cg and Iobs/Icalc
+47562.6063,059003.000144,059003.000445,accept,10/8/2026,IDEN2/LOPT: blend improves cg and Iobs/Icalc
+47562.6063,059003.000152,059003.000641,accept,10/8/2026,IDEN2/LOPT: blend improves cg and Iobs/Icalc
+32658.929,059003.000165,059003.000259,reject,10/8/2026,"Too small Icalc, too far from Ritz"
+57197.436,059003.000063,059003.000273,accept,10/8/2026,IDEN2/LOPT: deviates by 0.26 cm-1. Inflate?
+43480.7191,059003.000157,059003.000288,accept,10/8/2026,IDEN2/LOPT: deviates by 0.14 cm-1. Inflate?
+34042.6488,059003.000188,059003.000448,accept,10/8/2026,IDEN2/LOPT: deviates by 0.42 cm-1. Inflate?
+67957.0287,059003.000073,059003.000660,accept,10/8/2026,IDEN2/LOPT: deviates by 0.38 cm-1. Inflate?
+76345.7202,059003.000149,059003.000459,reject,10/8/2026,"Too small Icalc, too far from Ritz"
+90128.8127,059003.000135,059003.000411,reject,10/8/2026,"Too small Icalc, too far from Ritz, pulls cg in wrong direction"
+118547.7144,059003.000050,059003.000514,reject,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
+118547.7144,059003.000047,059003.000510,reject,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
+67489.8694,059003.000247,059003.000677,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
+23396.8679,059003.000364,059003.000593,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc; char w supports blend"
+23396.8679,059003.000378,059003.000612,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc; char w supports blend"
+22989.2427,059003.000368,059003.000602,accept,10/8/2026,IDEN2/LOPT: blend improves cg
+22727.631,059003.000373,059003.000603,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT? Move level?
+22560.4216,059003.000387,059003.000611,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Char w supports blend. Inflate?
+23546.5405,059003.000377,059003.000617,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Char w supports blend. Inflate?
+23083.6428,059003.000384,059003.000619,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate?
+23856.8295,059003.000164,059003.000205,accept,10/8/2026,"IDEN2/LOPT: char d supports blend, fair cg"
+37468.7585,059003.000633,059003.000650,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate?
+35094.4293,059003.000154,059003.000263,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate?
+70349.2703,059003.000076,059003.000627,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate?
+60483.2218,059003.000144,059003.000659,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate?
+23322.7072,059003.000381,059003.000614,accept,10/8/2026,IDEN2/LOPT
+23322.7072,059003.000381,059003.000613,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Inflate? Reject?

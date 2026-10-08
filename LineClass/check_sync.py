@@ -1380,7 +1380,8 @@ class Iden2(object):
     ``trans.dat`` names a line by the number of its row in it.
     """
 
-    def __init__(self, enlev, trans, row_of, dlv=None, shown=None):
+    def __init__(self, enlev, trans, row_of, dlv=None, shown=None,
+                 keys=None):
         self.enlev = enlev
         self.trans = trans
         self.row_of = row_of
@@ -1395,6 +1396,7 @@ class Iden2(object):
         # the measured one it gives.  A malformed row is left out here and
         # reported by check_dlv.
         self.wn_of_line = {}
+        self.key_of_line = {}
         for rec in dlv or []:
             try:
                 row = int(rec[_span(sync_IDEN2.DLV_ROW)])
@@ -1405,6 +1407,49 @@ class Iden2(object):
             if was is not None and abs(was[3] - wn) <= sync_IDEN2.DLV_MATCH:
                 wn = was[1]
             self.wn_of_line[row] = wn
+            # {line number: wn_key} - the line a row was written for
+            # (IDEN2/dlv_keys.txt), for a row that still shows what was
+            # written there; one edited in IDEN2 since is known by its
+            # wavenumber alone.
+            got = (keys or {}).get(row)
+            if got is not None and abs(got[1] - float(
+                    rec[_span(sync_IDEN2.DLV_WN)])) <= sync_IDEN2.DLV_MATCH:
+                self.key_of_line[row] = got[0]
+
+    def follow(self, cls):
+        """Name every keyed line by the wavenumber the classification gives
+        it now.
+
+        dlv_shown.txt records the measured wavenumber of each line as it was
+        when sync_IDEN2.py last ran.  A wavelength calibration run since then
+        moves every line - by 0.09 cm^-1 at 70349 in the run of 2026-10-08 -
+        and a line compared by that old number with the table's new one is
+        taken for a different line: an identification on it is reported as
+        "elsewhere" in all three files, or as moved to another line, when
+        nothing about it has changed but the scale.  The line's wn_key is
+        what does not move, so a row whose key the table holds is given the
+        table's wavenumber for it.  That the rows of dlv.dat themselves are
+        still on the old scale is a separate finding, made by check_dlv.
+
+        Returns the number of lines renamed.
+        """
+        if cls is None or not self.key_of_line or 'wn_key' not in cls:
+            return 0
+        now = {}
+        for key, wn in zip(cls['wn_key'], cls['wn_obs']):
+            try:
+                now.setdefault(round(float(key), 6), float(wn))
+            except (TypeError, ValueError):
+                continue
+        moved = 0
+        for row, key in self.key_of_line.items():
+            wn = now.get(round(key, 6))
+            if wn is None:
+                continue
+            if abs(wn - self.wn_of_line.get(row, wn)) > 1e-9:
+                moved += 1
+            self.wn_of_line[row] = wn
+        return moved
 
 
 def load_iden2(iden2_dir, rep):
@@ -1431,8 +1476,15 @@ def load_iden2(iden2_dir, rep):
                                    'are taken at the wavenumber they show'
                   % (sync_IDEN2.SHOWN_FILE, exc))
         shown = {}
+    try:
+        keys = sync_IDEN2.read_keys(iden2_dir)
+    except (KeyError, ValueError) as exc:
+        rep.error('IDEN2/dlv.dat', '%s cannot be read (%s); the lines of '
+                                   'dlv.dat are known by their wavenumbers '
+                                   'alone' % (sync_IDEN2.KEYS_FILE, exc))
+        keys = {}
     return Iden2(IDEN.Enlev(enlev_path), IDEN.Trans(trans_path),
-                 IDEN.read_map(map_path), dlv, shown)
+                 IDEN.read_map(map_path), dlv, shown, keys)
 
 
 def check_iden2(iden, cls, ctx, levels, rep, drift, gross, list_n):
@@ -2330,6 +2382,8 @@ def main(argv=None):
     lopt_in = (read_lopt_input(paths[LOPT_IN])
                if os.path.exists(paths[LOPT_IN]) else None)
     iden = load_iden2(iden2, rep)
+    if iden is not None:
+        iden.follow(cls)
     ctx = Context(cls, levels, lopt_in, iden, args.wn_tol)
 
     check_lopt_chain(cls, paths, ctx, rep, args.wn_tol)

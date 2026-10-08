@@ -95,6 +95,7 @@ _OPTIONAL = {'inherit', 'locked',
              'files.discarded_levels', 'files.inflated_unc',
              'files.hfs_A_levels', 'files.hfs_satellites',
              'files.kappa_exceptions', 'files.hfs_components',
+             'files.start_levels',
              'hfs.kappa.flag_unlisted',
              'decisions', 'decisions.max_forced_offset',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
@@ -108,7 +109,7 @@ _SCHEMA = {
               'icalc_extra': str, 'discarded_levels': str,
               'inflated_unc': str, 'hfs_A_levels': str,
               'hfs_satellites': str, 'kappa_exceptions': str,
-              'hfs_components': str},
+              'hfs_components': str, 'start_levels': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -249,6 +250,10 @@ class Config:
     # accepts may sit from the wavenumber of the line it is accepted on before
     # the run stops.  See classify_lines.check_forced_decisions().
     hfs: HfsSettings = HfsSettings()
+    # LOPT_output_levels.txt of the set's last fit, which classify_lines.py
+    # starts the levels from instead of their published energies (the warm
+    # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
+    start_levels: str = ''
 
 
 def _merge(base_tbl: dict, over: dict) -> dict:
@@ -503,6 +508,8 @@ def load(path: str = None) -> Config:
         max_forced_offset=float(
             raw.get('decisions', {}).get('max_forced_offset', 5.0)),
         hfs=hfs,
+        start_levels=(_p('start_levels')
+                      if raw['files'].get('start_levels') else ''),
     )
 
 

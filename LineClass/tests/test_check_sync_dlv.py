@@ -411,6 +411,47 @@ def test_identifications_that_agree_pass():
     assert 'all 1 identifications' in ' '.join(messages(rep, check_sync.OK))
 
 
+def keyed_iden2(wn_shown, wn_written, key=70349.27026812005,
+                wn_measured=70349.1541):
+    """An Iden2 of one dlv.dat row, line 1600, written by sync_IDEN2.py for
+    the line `key` (dlv_keys.txt) when it measured `wn_measured`
+    (dlv_shown.txt); `wn_shown` is what the row shows now."""
+    rec = dlv_record(wn_shown, 1e8 / wn_shown, 0.0046, 1600)
+    return check_sync.Iden2(
+        None, None, {}, [rec],
+        {1600: (key, wn_measured, 0.1374, wn_written, 0.2260)},
+        {1600: (key, wn_written)})
+
+
+def test_a_recalibrated_line_is_still_its_line():
+    """2026-10-08: a calibration run since the last sync moved 70349.154 to
+    70349.067.  Compared by the old number the identification on it read as
+    "elsewhere" in all three files; by its wn_key it is the table's line."""
+    iden = keyed_iden2(70349.070, 70349.070)
+    assert iden.wn_of_line[1600] == pytest.approx(70349.1541)
+    cls = pd.DataFrame({'wn_key': [70349.27026812005, 50000.0],
+                        'wn_obs': [70349.067, 50000.0]})
+    assert iden.follow(cls) == 1
+    assert iden.wn_of_line[1600] == pytest.approx(70349.067)
+    assert iden.follow(cls) == 0                    # nothing left to rename
+
+
+def test_a_row_edited_in_iden2_keeps_its_own_wavenumber():
+    """A row that no longer shows what sync_IDEN2.py wrote there is a line
+    edited on the screen, and its key may no longer name it."""
+    iden = keyed_iden2(70349.200, 70349.070)
+    cls = pd.DataFrame({'wn_key': [70349.27026812005], 'wn_obs': [70349.067]})
+    assert iden.follow(cls) == 0
+    assert iden.wn_of_line[1600] == pytest.approx(70349.200)
+
+
+def test_a_key_the_table_has_not_got_keeps_the_recorded_wavenumber():
+    iden = keyed_iden2(70349.070, 70349.070)
+    assert iden.follow(pd.DataFrame({'wn_key': [1.0], 'wn_obs': [1.0]})) == 0
+    assert iden.follow(None) == 0
+    assert iden.wn_of_line[1600] == pytest.approx(70349.1541)
+
+
 # ---------------------------------------------------------------------------
 # The real files
 # ---------------------------------------------------------------------------

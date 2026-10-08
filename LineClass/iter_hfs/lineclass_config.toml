@@ -23,6 +23,12 @@ inherit = "../iter/lineclass_config.toml"
 # (config.require_own_output).
 output     = "line_classifications.xlsx"
 output_csv = "line_classifications.csv"
+# The warm start (2026-10-08): the levels start from this set's last LOPT
+# fit, not from their published energies, which lie 0.1-0.2 cm^-1 off the
+# set's calibrated head-frame lines for many levels; a hand revision the fit
+# has not yet seen still wins (classify_lines.apply_start_levels).  An empty
+# file, as a failed LOPT run leaves, falls back to the published energies.
+start_levels = "LOPT_output_levels.txt"
 
 [hfs]
 # kappa, resolved_levels and files.hfs_A_levels are the baseline's.

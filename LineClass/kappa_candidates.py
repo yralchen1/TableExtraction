@@ -184,13 +184,17 @@ def model_unc(table, char, wn):
     """The calibration's statistical uncertainty of a line of character
     `char` at Sugar's wavenumber `wn`, ignoring the inflation registry: its
     class's two-term model, the pooled class `other` of its era for a
-    character without one, Sugar's stated value if neither is there."""
+    character without one, Sugar's stated value if neither is there; never
+    below `hfs_kappa.character_floor`."""
     era = hfs_kappa.era_of(wn)
+    plain = table.get(('', era))
+    floor = hfs_kappa.character_floor(char, era, wn,
+                                      (plain.a, plain.b) if plain else None)
     u = table.get((char, era)) or table.get(('other', era))
     if u is None:
         return max(hfs_kappa.stated_uncertainty(char, era, wn),
-                   hfs_kappa.FLOOR)
-    return max(hfs_kappa.two_term(u.a, u.b, wn), hfs_kappa.FLOOR)
+                   hfs_kappa.FLOOR, floor)
+    return max(hfs_kappa.two_term(u.a, u.b, wn), hfs_kappa.FLOOR, floor)
 
 
 # --- the test --------------------------------------------------------------
