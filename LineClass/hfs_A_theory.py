@@ -99,6 +99,21 @@ Two more terms come from the radial parameters, both set in
   configuration holds in another, so the part of A the untested
   configurations give is uncertain by ``fraction`` of itself.
 
+OUTER SHELLS NO MEASUREMENT REACHES
+===================================
+The measured constants test the 4f, 5d, 6s (and, by estimate, 6p)
+parameters only.  The outer electrons of the high configurations - 4f2 7s,
+8s, 6d, 7d, 7p, 5f, 6f, 5g, 6g - get theirs from the table ``[scaled]`` of
+the parameter file (2026-10-08): each is a copy of a fitted shell times a
+factor read from the Cowan fit itself, RCEOUT's parameter listing
+(``read_rceout_parameters``).  For an s shell the contact parameter goes as
+1/n*^3 (Fermi-Segre), with n* from the shell's E_av and the limit of the
+4f2 ns series (``s_series``: limit 186714 cm^-1, one quantum defect 3.405,
+fitted to 4f2 6s, 7s, 8s).  For l > 0 the factor is the ratio of the
+spin-orbit parameters zeta, which goes as <r^-3> just as a does.  The
+factor's relative uncertainty (``fraction``) enters u_par.  Without these
+the 271 observed levels of those configurations had no A at all.
+
 ``u_total`` combines u_round, u_trunc, u_amp, u_par and u_cfg in
 quadrature.  It is the uncertainty to give a calculated A that is used
 (``hfs_A_candidates.py``); such rows of ``A_hfs_levels.csv`` carry a source
@@ -581,9 +596,14 @@ class Params:
     number, or the name of another kind of the same entry (`a12 = "a01"`),
     which ties the two.  A kind not given has no value, and a level that
     needs it gets no A.
+
+    The table `[scaled]` adds outer shells no measured constant reaches,
+    each a copy of a shell of `[radial]` times a factor taken from the Cowan
+    fit (`scale_outer_shells`).  They are made again by `apply_scaling`
+    whenever a parameter they copy changes.
     """
 
-    def __init__(self, table):
+    def __init__(self, table, scalings=None):
         self.table = {k: dict(v) for k, v in table.items()}
         for key, entry in self.table.items():
             for kind, v in entry.items():
@@ -591,11 +611,33 @@ class Params:
                     raise ValueError('%s: unknown kind %r' % (key, kind))
                 if isinstance(v, str) and v not in KINDS:
                     raise ValueError('%s.%s: %r is not a kind' % (key, kind, v))
+        self.scaled = {}            # {nl: Scaling}
+        for sc in (scalings or []):
+            if sc.nl in self.table:
+                raise ValueError('[scaled] %s is also in [radial]' % sc.nl)
+            if sc.ref not in self.table:
+                raise ValueError('[scaled] %s: %s is not in [radial]'
+                                 % (sc.nl, sc.ref))
+            self.scaled[sc.nl] = sc
+        self.apply_scaling()
 
     @classmethod
-    def read(cls, path=PARAMS_FILE):
+    def read(cls, path=PARAMS_FILE, rceout=RCEOUT_FILE):
         with open(path, 'rb') as fh:
-            return cls(tomllib.load(fh).get('radial', {}))
+            doc = tomllib.load(fh)
+        scalings = None
+        if doc.get('scaled'):
+            scalings = scale_outer_shells(doc['scaled'],
+                                          read_rceout_parameters(rceout))
+        return cls(doc.get('radial', {}), scalings)
+
+    def apply_scaling(self):
+        """(Re)make every `[scaled]` entry from the shell it copies: numbers
+        times the factor, ties kept."""
+        for nl, sc in self.scaled.items():
+            self.table[nl] = {
+                kind: v if isinstance(v, str) else sc.factor * float(v)
+                for kind, v in self.table[sc.ref].items()}
 
     def entry(self, config, nl):
         key = '%s/%s' % (config, nl)
@@ -630,17 +672,168 @@ class Params:
         self.table.setdefault(key, {})[kind] = float(value)
 
     def names(self):
-        """Every stored (not tied) parameter as `"entry.kind"`."""
+        """Every stored (not tied, not scaled) parameter as
+        `"entry.kind"`."""
         return ['%s.%s' % (k, kind) for k, e in self.table.items()
+                if k not in self.scaled
                 for kind, v in e.items() if not isinstance(v, str)]
 
 
-def read_uncertainties(path=PARAMS_FILE):
+# ---------------------------------------------------------------------------
+# outer shells scaled from the Cowan fit
+# ---------------------------------------------------------------------------
+Z_CORE = 3                  # charge of the Pr IV core an outer electron sees
+RYDBERG = 109736.9          # cm^-1, for the mass of 141Pr
+
+
+class Scaling:
+    """An outer shell `nl` whose radial parameters are those of `ref` times
+    `factor`; `fraction` is the factor's relative uncertainty, `how` says
+    where the factor came from and `alt` is the n*^-3 estimate beside it
+    (None where there is none)."""
+
+    def __init__(self, nl, ref, factor, fraction, how, alt=None):
+        self.nl, self.ref, self.factor = nl, ref, factor
+        self.fraction, self.how, self.alt = fraction, how, alt
+
+
+def read_rceout_parameters(path=RCEOUT_FILE):
+    """{configuration: (E_av, {shell position: zeta})} from the parameter
+    listing of RCEOUT, in cm^-1 (RCEOUT prints 1000 cm^-1).  The position is
+    RCG's: the 1-based place of the shell on the configuration card
+    (`CONFIGS`), which ZETA's index gives.  A later listing replaces an
+    earlier one."""
+    out, conf = {}, None
+    eav = re.compile(r'EAV (\S+)\s+-?\d+\s+(-?\d+\.\d+)')
+    zeta = re.compile(r'ZETA\s*(\d+)\s+-?\d+\s+(-?\d+\.\d+)')
+    with open(path, encoding='ascii', errors='replace') as fh:
+        for line in fh:
+            m = eav.match(line)
+            if m:
+                conf = m.group(1)
+                out[conf] = (1000.0 * float(m.group(2)), {})
+                continue
+            m = zeta.match(line)
+            if m and conf is not None:
+                out[conf][1][int(m.group(1))] = 1000.0 * float(m.group(2))
+    return out
+
+
+def outer_config(nl):
+    """The configuration 4f2 nl of the deck: 4f2, a closed 5p6, nl once,
+    every other shell empty; None if there is none."""
+    for name, shells in CONFIGS.items():
+        occ = {s: w for s, _l, w in shells if w}
+        if occ == {'4f': 2, '5p': 6, nl: 1}:
+            return name
+    return None
+
+
+def _zeta(rce, conf, nl):
+    """zeta of shell `nl` in `conf`, cm^-1, or None."""
+    if conf not in rce:
+        return None
+    for pos, (s, _l, _w) in enumerate(CONFIGS[conf], start=1):
+        if s == nl:
+            return rce[conf][1].get(pos)
+    return None
+
+
+def s_series(rce):
+    """The 4f2 ns series of the deck: `(limit, delta, {nl: n*}, {nl:
+    residual})`, every E_av fitted by E_av = limit - Z_CORE^2 R/(n -
+    delta)^2 with one quantum defect delta (least squares; exact for two
+    members)."""
+    from scipy.optimize import minimize_scalar
+    E = {}
+    for nl in ('%ds' % n for n in range(5, 12)):
+        conf = outer_config(nl)
+        if conf in rce:
+            E[nl] = (int(nl[:-1]), rce[conf][0])
+    if len(E) < 2:
+        raise ValueError('RCEOUT has fewer than two 4f2 ns configurations')
+    zr = Z_CORE ** 2 * RYDBERG
+
+    def limit(d):
+        return float(np.mean([e + zr / (n - d) ** 2 for n, e in E.values()]))
+
+    def ss(d):
+        L = limit(d)
+        return sum((e - (L - zr / (n - d) ** 2)) ** 2 for n, e in E.values())
+
+    nmin = min(n for n, _e in E.values())
+    d = minimize_scalar(ss, bounds=(0.0, nmin - 0.5), method='bounded',
+                        options={'xatol': 1e-10}).x
+    L = limit(d)
+    return (L, d, {nl: math.sqrt(zr / (L - e)) for nl, (n, e) in E.items()},
+            {nl: e - (L - zr / (n - d) ** 2) for nl, (n, e) in E.items()})
+
+
+def nstar(rce, nl, series):
+    """n* of the outer electron of 4f2 nl, from its E_av and the limit of
+    the ns series, or None."""
+    conf = outer_config(nl)
+    if conf not in rce or series[0] <= rce[conf][0]:
+        return None
+    return math.sqrt(Z_CORE ** 2 * RYDBERG / (series[0] - rce[conf][0]))
+
+
+def scale_outer_shells(table, rce):
+    """`Scaling`s for the `[scaled]` table of the parameter file, each entry
+    `nl = {from = ref, fraction = f}`.
+
+    * An s shell: the contact parameter goes as 1/n*^3 (Fermi-Segre), so
+      factor = (n*_ref / n*_nl)^3, n* from the E_av of 4f2 ref and 4f2 nl
+      and the limit of the ns series (`s_series`).
+    * Any other shell: a01 and a10 go as <r^-3>, and so, nearly, does the
+      spin-orbit parameter zeta, so factor = zeta(nl) / zeta(ref), each in
+      its own 4f2 nl configuration; a ref of 4f takes the zeta of the 4f
+      core of 4f2 nl.  The n*^-3 ratio is kept in `alt` as a check where
+      ref is an outer shell too.
+    """
+    series = s_series(rce)
+    out = []
+    for nl, spec in table.items():
+        ref = spec['from']
+        fraction = float(spec.get('fraction', 0.0))
+        l_nl, l_ref = LETTER_L[nl[-1]], LETTER_L[ref[-1]]
+        if (l_nl == 0) != (l_ref == 0):
+            raise ValueError('[scaled] %s: an s shell scales only from an '
+                             's shell' % nl)
+        conf = outer_config(nl)
+        if conf is None or conf not in rce:
+            raise ValueError('[scaled] %s: RCEOUT has no 4f2 %s' % (nl, nl))
+        n_nl, n_ref = nstar(rce, nl, series), nstar(rce, ref, series)
+        alt = (n_ref / n_nl) ** 3 if n_nl and n_ref else None
+        if l_nl == 0:
+            if alt is None:
+                raise ValueError('[scaled] %s: no n* for %s or %s'
+                                 % (nl, nl, ref))
+            out.append(Scaling(nl, ref, alt, fraction,
+                               '(n* %s / n* %s)^3 = (%.3f / %.3f)^3'
+                               % (ref, nl, n_ref, n_nl)))
+            continue
+        conf_ref = conf if ref == '4f' else outer_config(ref)
+        z_nl, z_ref = _zeta(rce, conf, nl), _zeta(rce, conf_ref, ref)
+        if not z_nl or not z_ref:
+            raise ValueError('[scaled] %s: RCEOUT gives no zeta for %s in %s '
+                             'or %s in %s' % (nl, nl, conf, ref, conf_ref))
+        out.append(Scaling(nl, ref, z_nl / z_ref, fraction,
+                           'zeta %s (%s) / zeta %s (%s) = %.1f / %.1f'
+                           % (nl, conf, ref, conf_ref, z_nl, z_ref),
+                           None if ref == '4f' else alt))
+    return out
+
+
+def read_uncertainties(path=PARAMS_FILE, params=None):
     """`(sigmas, fraction, min_measured)` from the parameter file.
 
     `sigmas` is {(entry, kind): standard uncertainty} of the table
     `[uncertainty]`; `fraction` and `min_measured` are those of `[untested]`
-    (0 and 1 when it is absent).
+    (0 and 1 when it is absent).  With `params`, every scaled entry gets an
+    uncertainty too: the copied parameter's, times the factor, and the
+    factor's own `fraction` of the value, in quadrature (the two are taken
+    as independent, though the first is shared with the shell copied).
     """
     with open(path, 'rb') as fh:
         doc = tomllib.load(fh)
@@ -651,6 +844,13 @@ def read_uncertainties(path=PARAMS_FILE):
                 raise ValueError('[uncertainty] %s: unknown kind %r'
                                  % (key, kind))
             sigmas[(key, kind)] = float(v)
+    for nl, sc in (params.scaled if params is not None else {}).items():
+        for kind, v in params.table[nl].items():
+            if isinstance(v, str):
+                continue
+            sigmas[(nl, kind)] = math.hypot(
+                sc.factor * sigmas.get((sc.ref, kind), 0.0),
+                sc.fraction * float(v))
     untested = doc.get('untested', {})
     return (sigmas, float(untested.get('fraction', 0.0)),
             int(untested.get('min_measured', 1)))
@@ -1012,6 +1212,10 @@ def prepare_free(params, free):
         if kind not in KINDS:
             raise SystemExit('--fit %s: %r is not one of %s'
                              % (name, kind, ', '.join(KINDS)))
+        if key.split('/')[-1] in params.scaled:
+            raise SystemExit('--fit %s: %s is scaled from %s; fit that'
+                             % (name, key, params.scaled[
+                                 key.split('/')[-1]].ref))
         if key not in params.table:
             plain = key.split('/')[-1]
             params.table[key] = dict(params.table.get(plain, {}))
@@ -1049,6 +1253,7 @@ def fit(levels, params, free, measured, tail=0.0, rounds=3):
         sol = cov @ (X * w[:, None]).T @ y
         for name, v in zip(free, sol):
             params.set(name, v)
+        params.apply_scaling()      # the scaled shells follow their refs
     resid = y - X @ sol
     chi2 = float(np.sum(w * resid ** 2))
     return sol, np.sqrt(np.diag(cov)), chi2, len(y) - len(free), used
@@ -1136,6 +1341,22 @@ def rows_of(levels, params, measured, tail, amp_sigma=AMP_SIGMA,
     return out
 
 
+def say_scaling(say, rce, params):
+    """Report how the `[scaled]` shells were made."""
+    L, delta, ns, resid = s_series(rce)
+    say('')
+    say('scaled shells ([scaled] of the parameter file), factors from the '
+        'Cowan fit (RCEOUT):')
+    say('  4f2 ns series: limit %.0f cm^-1, quantum defect %.3f; n* %s; '
+        'E_av - fit %s cm^-1'
+        % (L, delta, ', '.join('%s %.3f' % kv for kv in ns.items()),
+           ', '.join('%s %+.0f' % kv for kv in resid.items())))
+    for nl, sc in params.scaled.items():
+        say('  %-3s from %-3s factor %.4f +- %.0f%%: %s%s'
+            % (nl, sc.ref, sc.factor, 100 * sc.fraction, sc.how,
+               '' if sc.alt is None else '; n*^-3 would give %.4f' % sc.alt))
+
+
 def _level_id(text):
     """`'151'` or `'000151'` -> `'059003.000151'`."""
     text = text.strip()
@@ -1169,7 +1390,7 @@ def main(argv=None):
         print(msg)
         report.append(msg)
 
-    params = Params.read(args.params)
+    params = Params.read(args.params, args.rceout)
     levels = read_levels(args.rceout)
     bad = attach_level_ids(levels)
     known = [lv for lv in levels if lv.level_id]
@@ -1206,9 +1427,13 @@ def main(argv=None):
     say('')
     say('radial parameters used (cm^-1):')
     for key, entry in params.table.items():
-        say('  %-8s %s' % (key, ', '.join(
+        say('  %-8s %s%s' % (key, ', '.join(
             '%s = %s' % (k, v if isinstance(v, str) else '%+.5f' % v)
-            for k, v in entry.items())))
+            for k, v in entry.items()),
+            '   (scaled from %s)' % params.scaled[key].ref
+            if key in params.scaled else ''))
+    if params.scaled:
+        say_scaling(say, read_rceout_parameters(args.rceout), params)
 
     median, p90, n = tail_calibration(known, params)
     say('')
@@ -1216,7 +1441,7 @@ def main(argv=None):
         'is a median %.2f (90th percentile %.2f) of its bound; u_trunc is '
         'the bound times %.2f' % (n, TAIL_FROM + 1, median, p90, median))
 
-    sigmas, fraction, min_measured = read_uncertainties(args.params)
+    sigmas, fraction, min_measured = read_uncertainties(args.params, params)
     tested = tested_configs(known, measured, min_measured)
     say('tested configurations (leading configuration of >= %d measured '
         'constants): %s; the part of A from the others is uncertain by %.0f%%'

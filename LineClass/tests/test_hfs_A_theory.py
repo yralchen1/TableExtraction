@@ -279,6 +279,123 @@ def test_read_uncertainties_of_the_parameter_file():
     assert 0 < fraction < 1 and min_measured >= 1
 
 
+# ---------------------------------------------------------------------------
+# outer shells scaled from the Cowan fit (2026-10-08)
+# ---------------------------------------------------------------------------
+_RCE_PARAMS = """\
+ PARAMETER FLAG      VALUE     MAX.VALUE      DENOM
+EAV f26s      0     40.000000      0.000000
+ZETA 1      -55      0.760000      0.000000
+EAV f27s      0    110.000000      0.000000
+ZETA 1      -55      0.762000      0.000000
+EAV f25d      0     30.000000      0.000000
+ZETA 1      -55      0.754000      0.000000
+ZETA 3      -54      0.800000      0.000000
+EAV f26d      0    112.000000      0.000000
+ZETA 1      -55      0.762000      0.000000
+ZETA 6      -54      0.200000      0.000000
+EAV f25f      0    121.000000      0.000000
+ZETA 1      -61      0.750000      0.000000
+ZETA 8      -61      0.030000      0.000000
+"""
+
+
+def _rce(tmp_path, text=_RCE_PARAMS):
+    path = tmp_path / 'RCEOUT'
+    path.write_text(text, encoding='ascii')
+    return H.read_rceout_parameters(str(path))
+
+
+def test_read_rceout_parameters_in_cm(tmp_path):
+    rce = _rce(tmp_path)
+    assert rce['f26s'] == (40000.0, {1: 760.0})
+    assert rce['f26d'][1] == {1: 762.0, 6: 200.0}
+
+
+def test_read_rceout_parameters_last_listing_wins(tmp_path):
+    rce = _rce(tmp_path, _RCE_PARAMS + 'EAV f26s      0     41.000000\n')
+    assert rce['f26s'] == (41000.0, {})
+
+
+def test_outer_config():
+    assert H.outer_config('7s') == 'f27s'
+    assert H.outer_config('6d') == 'f26d'
+    assert H.outer_config('5f') == 'f25f'
+    assert H.outer_config('9s') is None
+
+
+def test_s_series_of_two_members_is_exact(tmp_path):
+    """Two members, one quantum defect: n*(7s) = n*(6s) + 1 and both E_av
+    lie on the series."""
+    L, delta, ns, resid = H.s_series(_rce(tmp_path))
+    assert ns['7s'] - ns['6s'] == pytest.approx(1.0, abs=1e-6)
+    assert ns['6s'] == pytest.approx(6 - delta, abs=1e-6)
+    assert max(abs(r) for r in resid.values()) < 1e-3
+    zr = H.Z_CORE ** 2 * H.RYDBERG
+    assert L - 40000.0 == pytest.approx(zr / ns['6s'] ** 2)
+
+
+def test_scale_factors(tmp_path):
+    rce = _rce(tmp_path)
+    sc = {s.nl: s for s in H.scale_outer_shells(
+        {'7s': {'from': '6s', 'fraction': 0.1},
+         '6d': {'from': '5d', 'fraction': 0.3},
+         '5f': {'from': '4f'}}, rce)}
+    _L, _d, ns, _r = H.s_series(rce)
+    assert sc['7s'].factor == pytest.approx((ns['6s'] / ns['7s']) ** 3)
+    assert sc['6d'].factor == pytest.approx(200.0 / 800.0)
+    assert sc['6d'].alt is not None          # n*^-3 shown beside it
+    assert sc['5f'].factor == pytest.approx(30.0 / 750.0)   # 4f of 4f2 5f
+    assert sc['5f'].alt is None and sc['5f'].fraction == 0.0
+
+
+def test_scale_refuses_an_s_shell_from_a_d_shell(tmp_path):
+    with pytest.raises(ValueError):
+        H.scale_outer_shells({'7s': {'from': '5d'}}, _rce(tmp_path))
+
+
+def test_scaled_entries_copy_their_shell_and_follow_it():
+    sc = [H.Scaling('6d', '5d', 0.25, 0.3, 'test')]
+    p = H.Params({'5d': {'a01': 0.02, 'a12': 'a01', 'a10': -0.03}}, sc)
+    assert p.value('f26d', '6d', 'a01') == pytest.approx(0.005)
+    assert p.value('f26d', '6d', 'a12') == pytest.approx(0.005)   # tie kept
+    assert p.value('f26d', '6d', 'a10') == pytest.approx(-0.0075)
+    assert p.names() == ['5d.a01', '5d.a10']
+    p.set('5d.a01', 0.04)
+    p.apply_scaling()
+    assert p.value('f26d', '6d', 'a01') == pytest.approx(0.01)
+    with pytest.raises(ValueError):
+        H.Params({'5d': {'a01': 0.02}, '6d': {'a01': 0.01}}, sc)
+    with pytest.raises(SystemExit):
+        H.prepare_free(p, ['6d.a01'])
+
+
+def test_scaled_uncertainty(tmp_path):
+    path = tmp_path / 'p.toml'
+    path.write_text('[uncertainty]\n"5d" = { a01 = 0.002, a10 = 0.006 }\n',
+                    encoding='utf-8')
+    sc = [H.Scaling('6d', '5d', 0.25, 0.3, 'test')]
+    p = H.Params({'5d': {'a01': 0.02, 'a12': 'a01', 'a10': -0.03}}, sc)
+    sig, _f, _m = H.read_uncertainties(str(path), p)
+    assert sig[('6d', 'a01')] == pytest.approx(
+        math.hypot(0.25 * 0.002, 0.3 * 0.005))
+    assert sig[('6d', 'a10')] == pytest.approx(
+        math.hypot(0.25 * 0.006, 0.3 * 0.0075))
+    assert ('6d', 'a12') not in sig
+
+
+@needs_rceout
+def test_the_parameter_file_leaves_no_observed_shell_without_a_value():
+    """Every shell of a 4f2 nl configuration of the deck has a value."""
+    p = H.Params.read()
+    for name, shells in H.CONFIGS.items():
+        if name in H.SKIP:
+            continue
+        for nl, l, w in shells:
+            if w and nl != '5p':
+                assert p.entry(name, nl) is not None, (name, nl)
+
+
 def test_read_measured_leaves_out_calculated_rows(tmp_path):
     path = tmp_path / 'A.csv'
     path.write_text(

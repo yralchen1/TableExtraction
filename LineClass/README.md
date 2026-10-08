@@ -3768,6 +3768,36 @@ and the uncertainties in its comments. A plain `python hfs_A_theory.py` reproduc
 run. The results are in `hfs_A_theory.csv`, one row per identified level; the log is
 `hfs_A_theory.log`.
 
+**Outer shells, 2026-10-08.** The measured constants reach the 4f, 5d and 6s parameters only.
+Until this date the outer electrons of the high configurations had no parameters at all. So 271
+of the 593 observed levels got no A: those of 4f²7s, 8s, 6d, 7d, 7p, 5f, 6f and 5g. The
+table `[scaled]` of `hfs_radial_params.toml` now gives each of these shells a copy of a
+fitted shell, multiplied by a factor that `hfs_A_theory.py` reads from the Cowan fit itself
+(the parameter listing of `RCEOUT`):
+
+- **s shells** (7s, 8s from 6s): the contact parameter goes as 1/n*³ (Fermi–Segrè). n* comes
+  from the configuration's average energy E_av and the limit of the 4f² ns series. One
+  quantum defect is fitted to 4f²6s, 7s and 8s, giving a limit of 186714 cm⁻¹ and a defect of
+  3.405; the three E_av lie within 0.6 × 10³ cm⁻¹ of the series. Factors: 7s 0.372, 8s 0.182,
+  so a_7s = 0.240 and a_8s = 0.118 cm⁻¹. Uncertainty 10%.
+- **l > 0** (6d, 7d from 5d; 7p from 6p; 5f, 6f, 5g, 6g from 4f): the ratio of the
+  spin-orbit parameters ζ of the two 4f² nl configurations, since ζ and a both go as ⟨r⁻³⟩.
+  For a reference of 4f, the 4f core of the same configuration is used. Factors: 6d 0.211,
+  7d 0.094, 7p 0.399, 5f 0.029, 6f 0.015. The n*⁻³ law gives 6d 0.33 and 7p 0.41 instead.
+  These are HFR ratios, not ones the levels determine. In the fit (`RCEOUT`, the user's current
+  one), each of these ζ is linked to its reference in a group varied with fixed ratios:
+  flag −54 for 5d, 6d and 7d, −71 for 6p and 7p, −61 for 4f, 5f and 6f. ζ of 5g and 6g is held
+  fixed (flag 100).
+  The d and p factors are given 30%, which covers most of that gap. The f and g factors
+  are given 100%, but these shells add under 0.001 cm⁻¹.
+
+The A of these levels is mostly the 4f² core's, which uses the fitted a_4f; ζ_4f is the same
+within 1% in every 4f² nl configuration. All 593 observed levels now have an A_calc. For the
+271 new ones the median |A| is 0.020 cm⁻¹ and the median `u_total` 0.0024 (0.0049 at the 90th
+percentile). No earlier value moved by more than 0.0001 cm⁻¹. A scaled shell cannot be
+fitted (`--fit` refuses it); it follows its reference when that one is fitted. The
+derivation is printed in `hfs_A_theory.log`.
+
 By configuration (rms residual / median |z|):
 
 ```
@@ -3920,7 +3950,8 @@ Rows that are not replaced:
 A measured row that is replaced moves to `A_hfs_levels_superseded.csv`. That file has the
 table's columns plus `superseded_on` and `reason`. `hfs_A_theory.read_measured` reads it back.
 
-The source of an adopted row is "calculated, hfs_A_theory 2026-10-07, tier N". The prefix has
+The source of an adopted row is "calculated, hfs_A_theory <date of the `--write` run>, tier N".
+The prefix has
 three effects:
 - **No scaling:** the rows are already on the measured scale, because the radial parameters
   were fitted to measured constants.

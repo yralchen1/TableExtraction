@@ -29,6 +29,39 @@
 # ratios of Cs I and Ba II, turned into a01 and a12 with a10 = 0.
 "6p" = { a01 = 0.04, a12 = 0.05, a10 = 0.0 }
 
+# Outer shells of the high configurations (4f2 7s, 8s, 6d, 7d, 7p, 5f, 6f,
+# 5g, 6g), added 2026-10-08.  No measured constant reaches them, and without
+# them 271 observed levels had no A at all, although their 4f2 core alone
+# gives I*A*J of about 0.3 cm^-1.  Each is a copy of the shell named by
+# `from`, every number times a factor that hfs_A_theory.py takes from the
+# Cowan fit (RCEOUT) at run time; ties are kept:
+#   s shells   (n*_from / n*)^3 (Fermi-Segre), n* from the E_av of 4f2 ns
+#              and the limit of the ns series (one quantum defect, fitted
+#              to 4f2 6s, 7s, 8s);
+#   l > 0      zeta(nl) / zeta(from), the spin-orbit parameters of the two
+#              4f2 nl configurations (for from = 4f, the 4f core of 4f2 nl);
+#              both zeta and a go as <r^-3>.  In the fit each of these zetas
+#              is linked to its reference (flags -54 for 5d/6d/7d, -71 for
+#              6p/7p, -61 for 4f/5f/6f) or held fixed (100: 5g, 6g), so the
+#              ratios are the HFR ratios, not ones the levels determine
+#              (RCEOUT is the current fit; flags confirmed by the user,
+#              2026-10-08).
+# `fraction` is the relative uncertainty given to the factor; u_par adds
+# the copied shell's own uncertainty, times the factor.  The d and p
+# factors are uncertain by 30 per cent: the n*^-3 law gives 6d/5d 0.33
+# against the zeta ratio's 0.21 (hfs_A_theory.log prints both).  The f and
+# g shells are uncertain by 100 per cent, but give under 0.001 cm^-1.
+[scaled]
+"7s" = { from = "6s", fraction = 0.10 }
+"8s" = { from = "6s", fraction = 0.10 }
+"6d" = { from = "5d", fraction = 0.30 }
+"7d" = { from = "5d", fraction = 0.30 }
+"7p" = { from = "6p", fraction = 0.30 }
+"5f" = { from = "4f", fraction = 1.00 }
+"6f" = { from = "4f", fraction = 1.00 }
+"5g" = { from = "4f", fraction = 1.00 }
+"6g" = { from = "4f", fraction = 1.00 }
+
 # Standard uncertainties of the parameters above, for u_par: the fitted ones
 # (scaled by sqrt(chi2/dof)); 50 per cent of the 6p estimates (a guess,
 # 2026-10-07).  A tied kind takes the uncertainty of the kind it names.

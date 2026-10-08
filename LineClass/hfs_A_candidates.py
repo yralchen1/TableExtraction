@@ -82,6 +82,7 @@ USAGE
 
 import argparse
 import csv
+import datetime
 import math
 import os
 import tomllib
@@ -104,7 +105,7 @@ E_DEV_MAX = 300.0          # cm^-1: a level further from its calculated
                            # energy has a suspect eigenvector (user)
 WIDE_D = 0.3               # cm^-1
 W_NOTE = 0.01              # weight without parameters worth a note
-DATE = '2026-10-07'
+DATE = datetime.date.today().isoformat()   # stamped on the rows written
 
 #: levels whose measured A the user has dismissed for the calculated one.
 USER_DECISIONS = {
