@@ -10,7 +10,6 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 23792.49712	059003.000161	059003.000203	head		10/5/2026	Both the head and rung 1 components are well resolved and measured.
 40253.77989639465	059003.000127	059003.000251	cg		10/5/2026	"char w, cg of 1154-1017, not its head"
 37682.91076	059003.000161	059003.000439	cg		10/5/2026	"char w, cg of 1118-980, not its head"
-21793.44144	059003.000165	059003.000198	cg		10/5/2026	"cg of 1116-1081, not its head"
 36302.21094	059003.000148	059003.000262	cg		10/5/2026	"cg of 1131-1003, not its head (0.78 apart); char d"
 52033.79332	059003.000161	059003.000629	cg		10/5/2026	"cg of 1118-918, not its head"
 32572.76017	059003.000150	059003.000244	cg		10/5/2026	"cg of 1129-1027, not its head (0.67 apart); char d"
@@ -36,5 +35,5 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 22524.4601	059003.000182	059003.000433	head		10/6/2026	"head of 1098-1031 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
 22800.9719	059003.000037	059003.000142	head		10/6/2026	"head of 1246-1139 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
 23529.3109	059003.000039	059003.000148	head		10/6/2026	"head of 1244-1131 pattern; kappa_line 0.94; inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
-26314.7270	059003.000148	059003.000200	head		10/6/2026	head of 1131-1077 pattern
+26314.727	059003.000148	059003.000200	head		10/6/2026	head of 1131-1077 pattern
 28596.22183	059003.000141	059003.000202	head		10/6/2026	head of 1138-1076 pattern
