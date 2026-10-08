@@ -826,3 +826,13 @@ wn_key,low_id,upp_id,decision,date,reason
 93609.2963,059003.000105,059003.000401,reject,10/8/2026,Too small Icalc; could become legit if Icalc is much greater
 21244.6268,059003.000364,059003.000580,accept,10/8/2026,IDEN2/LOPT
 21773.8964,059003.000375,059003.000596,accept,10/8/2026,IDEN2/LOPT
+43043.3695,059003.000114,059003.000251,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+37037.9192,059003.000129,059003.000227,accept,10/8/2026,IDEN2/LOPT: fair cg and Iobs/Icalc; char w supports blend
+37037.9192,059003.000127,059003.000223,accept,10/8/2026,IDEN2/LOPT: fair cg and Iobs/Icalc; char w supports blend
+94414.705,059003.000096,059003.000400,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+98910.7971,059003.000070,059003.000403,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+97022.6817,059003.000080,059003.000404,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+34861.8898,059003.000448,059003.000650,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+38825.7505,059003.000234,059003.000549,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+12609.2196,059003.000325,059003.000469,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+39981.7215,059003.000188,059003.000307,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"

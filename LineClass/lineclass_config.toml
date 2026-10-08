@@ -391,10 +391,10 @@ resolved_levels = ["059003.000642", "059003.000190"]
 #   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974
 #   plain_1969  unflagged lines above it, measured in 1969
 #   c           lines Sugar marked complex
-# [wavelength_calibration.py] written 2026-10-08 16:42 from iter_hfs/line_classifications.csv (4497 lines);
-# [wavelength_calibration.py] the values before: plain_1974 0.751(31), plain_1969 0.500(48), c 0.097(40), flag_unlisted 0.900(25)
+# [wavelength_calibration.py] written 2026-10-08 18:49 from iter_hfs/line_classifications.csv (4493 lines);
+# [wavelength_calibration.py] the values before: plain_1974 0.751(32), plain_1969 0.500(48), c 0.097(40), flag_unlisted 0.900(25)
 flag          = [1.0, 0.0]
-plain_1974    = [0.751, 0.032]
-plain_1969    = [0.500, 0.048]
-c             = [0.097, 0.040]
-flag_unlisted = [0.900, 0.025]
+plain_1974    = [0.751, 0.038]
+plain_1969    = [0.440, 0.047]
+c             = [0.039, 0.038]
+flag_unlisted = [0.900, 0.024]
