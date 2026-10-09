@@ -1,14 +1,14 @@
 check_sync.py - are the files describing the same identification?
 working set: F:\UMD\AI\as-ai\LineClass\iter_hfs
 file                             last written
-line_classifications.csv         2026-10-08 23:23
-line_classifications.xlsx        2026-10-08 23:23
-LOPT_input_lines.txt             2026-10-08 23:23
-LOPT_output_lines.txt            2026-10-08 23:24
-LOPT_output_levels.txt           2026-10-08 23:24
-line_decisions.csv               2026-10-08 23:23
+line_classifications.csv         2026-10-09 12:22
+line_classifications.xlsx        2026-10-09 12:22
+LOPT_input_lines.txt             2026-10-09 12:22
+LOPT_output_lines.txt            2026-10-09 12:23
+LOPT_output_levels.txt           2026-10-09 12:23
+line_decisions.csv               2026-10-09 12:21
 revised_level_energies.csv       2026-09-21 20:21
-unstable_candidates.csv          2026-10-08 23:23
+unstable_candidates.csv          2026-10-09 12:22
 level_positions.csv              2026-09-22 21:25
 Pr3_lines.xlsx                   2026-09-24 11:58
 lineclass_config.toml            2026-10-08 18:17
@@ -19,9 +19,9 @@ IDEN2/dlv.dat                    2026-10-08 23:24
 Freshness
 ---------
   warn  level_positions.csv is older than what it is built from:
-         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 16.1 days)
-         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 16.1 days)
-         line_classifications.xlsx (line_classifications.xlsx newer by 16.1 days)
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 16.6 days)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 16.6 days)
+         line_classifications.xlsx (line_classifications.xlsx newer by 16.6 days)
 
 Classification
 --------------
@@ -52,18 +52,221 @@ IDEN2/dlv.dat
          line 6669 at record 4899 (31604.528)
     ok  all 5618 identifications in trans.dat name a line that dlv.dat has
     ok  the wavelength of each of the 6669 rows of dlv.dat is the standard one for its wavenumber
-    ok  all 6669 matched rows of dlv.dat carry the own_corr and the uncertainty the pipeline uses, or for the 4772 lines the fit uses what LOPT is given (38 of them differ in the last printed digit, by up to 0.0005 cm^-1)
+  warn  198 rows of dlv.dat are out of step with [hfs] iden2_display = 'lopt': each shows its line as measured, or as LOPT was given it before
+         line     dlv.dat now      to show
+         line     88    117125.959  u 0.3430 -> 0.3660
+         line    204    101510.407  u 0.2679 -> 0.2980
+         line    217    100643.986  u 0.2634 -> 0.2820
+         line    235    100088.387  u 0.2705 -> 0.2820
+         line    244     99796.944  u 0.8565 -> 0.9010
+         line    279     98910.854  u 0.2544 -> 0.3090
+         line    320     98089.904  u 0.2502 -> 0.3030
+         line    322     98074.773  u 0.2693 -> 0.2880
+         line    328     98015.100  u 0.2498 -> 0.2630
+         line    335     97879.610  u 0.2491 -> 0.2690
+         line    350     97687.824  u 0.4867 -> 0.5360
+         line    357     97588.562  u 0.6095 -> 0.6280
+         line    358     97566.375  u 0.6092 -> 0.6370
+         line    362     97471.158  u 0.2470 -> 0.2570
+         line    368     97426.601  u 0.2468 -> 0.2710
+         line    374     97324.798  u 0.6062 -> 0.6270
+         line    375     97317.182  u 0.8145 -> 0.8410
+         line    378     97250.225  u 0.2459 -> 0.2730
+         line    380     97191.177  u 0.2456 -> 0.2820
+         line    384     97155.052  u 0.6041 -> 0.6470
+         line    395     97022.807  u 0.2447 -> 0.2670
+         line    415     96783.202  u 0.4777 -> 0.5080
+         line    416     96774.685  u 0.2435 -> 0.2680
+         line    423     96728.090  u 0.2433 -> 0.2610
+         line    438     96547.139  u 0.8016 -> 0.8370
+         line    456     96306.216  u 0.2411 -> 0.2760
+         line    457     96297.425  u 0.2411 -> 0.2570
+         line    463     96223.109  u 0.4722 -> 0.4880
+         line    477     96061.403  u 0.2399 -> 0.2560
+         line    521     95592.175  u 0.2376 -> 0.2480
+         line    525     95538.518  u 0.2373 -> 0.2490
+         line    531     95479.049  u 0.4649 -> 0.4800
+         line    535     95437.197  u 0.2732 -> 0.2890
+         line    571     95038.919  u 0.4607 -> 0.5180
+         line    572     95033.515  u 0.4967 -> 0.5150
+         line    577     94979.492  u 0.4601 -> 0.5050
+         line    578     94965.015  u 0.2345 -> 0.3450
+         line    582     94935.915  u 0.2343 -> 0.2730
+         line    588     94841.829  u 0.2339 -> 0.2550
+         line    599     94678.175  u 0.2331 -> 0.2530
+         line    610     94537.457  u 0.2324 -> 0.2590
+         line    617     94472.580  u 0.2321 -> 0.2610
+         line    621     94414.813  u 0.2318 -> 0.2850
+         line    622     94406.530  u 0.4545 -> 0.4990
+         line    652     94127.334  u 0.4519 -> 0.4750
+         line    666     93959.541  u 0.2295 -> 0.2750
+         line    667     93950.616  u 0.2295 -> 0.2400
+         line    678     93850.644  u 0.2290 -> 0.2420
+         line    681     93827.133  u 0.2289 -> 0.2480
+         line    716     93436.610  u 0.2270 -> 0.2700
+         line    723     93341.698  u 0.2265 -> 0.2550
+         line    751     93035.941  u 0.2250 -> 0.2940
+         line    770     92783.171  u 0.2238 -> 0.2670
+         line    778     92660.867  u 0.2232 -> 0.2740
+         line    781     92618.521  u 0.2230 -> 0.2330
+         line    811     92266.704  u 0.2724 -> 0.2900
+         line    817     92228.647  u 0.7400 -> 0.7710
+         line    819     92176.728  u 0.2719 -> 0.2870
+         line    862     91681.044  u 0.2185 -> 0.2360
+         line    867     91634.423  u 0.2771 -> 0.3320
+         line    877     91530.806  u 0.2765 -> 0.3010
+         line    893     91281.460  u 0.2166 -> 0.2350
+         line    899     91210.383  u 0.5408 -> 0.5840
+         line    933     90616.116  u 0.5337 -> 0.5590
+         line    935     90607.299  u 0.2135 -> 0.2470
+         line    973     90016.954  u 0.2107 -> 0.2250
+         line   1014     89360.925  u 0.5190 -> 0.5410
+         line   1019     89314.440  u 0.2712 -> 0.2880
+         line   1028     89125.875  u 0.2065 -> 0.2330
+         line   1031     89043.581  u 0.2061 -> 0.2170
+         line   1042     88831.271  u 0.4971 -> 0.5130
+         line   1045     88799.432  u 0.5125 -> 0.5460
+         line   1056     88483.122  u 0.2036 -> 0.2180
+         line   1060     88417.894  u 0.2033 -> 0.2230
+         line   1088     87799.223  u 0.2004 -> 0.2110
+         line   1090     87777.024  u 0.2003 -> 0.2220
+         line   1097     87609.862  u 0.1996 -> 0.2270
+         line   1115     87269.579  u 0.1980 -> 0.2080
+         line   1137     86647.729  u 0.1952 -> 0.2280
+         line   1206     83549.293  u 0.1815 -> 0.1970
+         line   1250     82334.062  u 0.1763 -> 0.2190
+         line   1258     82020.341  u 0.1816 -> 0.1970
+         line   1313     79009.356  u 0.1685 -> 0.1760
+         line   1320     78780.983  u 0.1676 -> 0.1910
+         line   1533     71320.374  u 0.1628 -> 0.1730
+         line   1572     70834.791  u 0.3613 -> 0.3750
+         line   1612     70186.422  u 0.1330 -> 0.1730
+         line   1644     69496.193  u 0.1401 -> 0.1530
+         line   1646     69466.309  u 0.1448 -> 0.1620
+         line   1663     69225.473  u 0.3498 -> 0.3610
+         line   1681     68901.255  u 0.3513 -> 0.3640
+         line   1713     68558.240  u 0.3431 -> 0.3650
+         line   1915     66365.474  u 0.1233 -> 0.1370
+         line   1932     66011.114  u 0.4619 -> 0.4850
+         line   1935     65939.626  u 0.2826 -> 0.3050
+         line   1948     65783.774  u 0.1255 -> 0.1410
+         line   2000     59013.210  u 0.1184 -> 0.1410
+         line   2008     58745.338  u 0.1070 -> 0.1210
+         line   2023     58138.601  u 0.1048 -> 0.1160
+         line   2058     57291.072  u 0.2790 -> 0.2910
+         line   2081     56732.405  u 0.1030 -> 0.1120
+         line   2104     56290.410  u 0.2725 -> 0.2880
+         line   2167     55262.519  u 0.0947 -> 0.0990
+         line   2290     53772.911  u 0.2573 -> 0.2700
+         line   2325     53364.677  u 0.3702 -> 0.4080
+         line   2328     53334.092  u 0.0939 -> 0.0980
+         line   2378     52865.056  u 0.0894 -> 0.0930
+         line   2464     51791.698  u 0.0939 -> 0.1140
+         line   2467     51755.205  u 0.3696 -> 0.3950
+         line   2517     51096.772  u 0.1070 -> 0.1120
+         line   2524     51023.702  u 0.3619 -> 0.3740
+         line   2642     49761.772  u 0.0917 -> 0.0970
+         line   2658     49591.961  u 0.0910 -> 0.0990
+         line   2666     49467.228  u 0.0857 -> 0.0940
+         line   2758     48673.547  u 0.0829 -> 0.0880
+         line   2770     48561.608  u 0.0896 -> 0.1040
+         line   2792     48349.955  u 0.1006 -> 0.1060
+         line   2881     47562.691  u 0.0792 -> 0.0840
+         line   2984     45317.790  u 0.0514 -> 0.0540
+         line   3024     45062.866  u 0.1016 -> 0.1130
+         line   3239     43816.509  u 0.0480 -> 0.0510
+         line   3368     43174.813  u 0.0932 -> 0.0980
+         line   3394     43043.390  u 0.0482 -> 0.0640
+         line   3614     41473.822  u 0.0878 -> 0.1100
+         line   3626     41386.738  u 0.0805 -> 0.0870
+         line   3640     41260.623  u 0.0886 -> 0.1000
+         line   3693     40902.308  u 0.0435 -> 0.0530
+         line   3704     40805.460  u 0.0466 -> 0.0500
+         line   3705     40803.562  u 0.0483 -> 0.0570
+         line   3859     40048.585  u 0.0481 -> 0.0640
+         line   3874     39983.830  u 0.0448 -> 0.0530
+         line   3979     39447.462  u 0.0825 -> 0.0860
+         line   4003     39307.261  u 0.0819 -> 0.0880
+         line   4004     39303.174  u 0.0433 -> 0.0450
+         line   4077     38891.321  u 0.0454 -> 0.0480
+         line   4082     38867.450  u 0.0393 -> 0.0430
+         line   4089     38825.710  u 0.1704 -> 0.1810
+         line   4090     38824.548  u 0.0799 -> 0.0890
+         line   4098     38770.643  u 0.0406 -> 0.0710
+         line   4099     38768.072  u 0.0406 -> 0.0430
+         line   4109     38715.978  u 0.0810 -> 0.0850
+         line   4133     38599.946  u 0.0417 -> 0.0440
+         line   4149     38496.720  u 0.0786 -> 0.0910
+         line   4161     38411.349  u 0.0413 -> 0.0450
+         line   4162     38410.287  u 0.0443 -> 0.0480
+         line   4171     38333.531  u 0.0794 -> 0.0830
+         line   4216     38055.768  u 0.0406 -> 0.0430
+         line   4227     37992.811  u 0.1184 -> 0.1290
+         line   4237     37863.363  u 0.0789 -> 0.0930
+         line   4238     37842.462  u 0.0415 -> 0.0440
+         line   4242     37804.552  u 0.1215 -> 0.1290
+         line   4261     37641.251  u 0.0411 -> 0.0440
+         line   4275     37534.552  u 0.0395 -> 0.0420
+         line   4287     37452.823  u 0.0407 -> 0.0440
+         line   4301     37337.027  u 0.3026 -> 0.3180
+         line   4339     37037.837  u 0.2703 -> 0.1290
+         line   4361     36896.201  u 0.1266 -> 0.1400
+         line   4395     36638.921  u 0.0765 -> 0.0800
+         line   4412     36468.784  u 0.0745 -> 0.0810
+         line   4419     36418.262  u 0.1194 -> 0.1240
+         line   4445     36093.361  u 0.1342 -> 0.1430
+         line   4528     34952.204  u 0.1356 -> 0.1450
+         line   4537     34861.355  u 0.1337 -> 0.2270
+         line   4688     33602.600  u 0.1412 -> 0.1450
+         line   4703     33520.043  u 0.1326 -> 0.1380
+         line   4757     33158.786  u 0.1562 -> 0.1600
+         line   4763     33083.492  u 0.0602 -> 0.0650
+         line   4777     33015.656  u 0.0654 -> 0.0720
+         line   4865     32294.976  u 0.0595 -> 0.0730
+         line   4885     31856.085  u 0.1167 -> 0.1230
+         line   4914     31399.334  u 0.1144 -> 0.1360
+         line   4918     31288.760  u 0.1606 -> 0.1730
+         line   5118     28216.757  u 0.1139 -> 0.1180
+         line   5182     27237.352  u 0.0267 -> 0.0290
+         line   5368     24165.318  u 0.0841 -> 0.0940
+         line   5471     23569.971  u 0.0261 -> 0.0300
+         line   5488     23521.946  u 0.0481 -> 0.0620
+         line   5492     23484.555  u 0.0259 -> 0.0250
+         line   5506     23419.087  u 0.0252 -> 0.0300
+         line   5510     23396.860  u 0.0482 -> 0.0550
+         line   5533     23322.703  u 0.0250 -> 0.0290
+         line   5604     23063.204  u 0.0468 -> 0.0490
+         line   5615     22989.288  u 0.0259 -> 0.0290
+         line   5877     21269.050  u 0.0249 -> 0.0240
+         line   5926     20552.992  u 0.0262 -> 0.0250
+         line   6052     17461.499  u 0.0250 -> 0.0240
+         line   6066     17314.296  u 0.0231 -> 0.0240
+         line   6095     17018.873  u 0.0240 -> 0.0360
+         line   6096     17007.001  u 0.0240 -> 0.0250
+         line   6142     16569.387  u 0.0439 -> 0.0450
+         line   6161     16286.462  u 0.0440 -> 0.0470
+         line   6178     16106.028  u 0.0449 -> 0.0460
+         line   6247     15080.525  u 0.0221 -> 0.0210
+         line   6474     12609.287  u 0.1120 -> 0.1190
+         line   6526     12112.240  u 0.0420 -> 0.0430
+         line   6530     12046.245  u 0.0409 -> 0.0450
+         line   6610     11003.537  u 0.0220 -> 0.0260
+         line   6640     10541.271  u 0.0220 -> 0.0230
+  ERROR 1 uncertainties in dlv.dat are narrower than the ones the pipeline classifies and fits on, by more than their printing precision; IDEN2 judges every identification by this number
+         line   5737     22524.504  dlv    0.0228  pipeline    0.0240  cm-1  (LOPT 0.0240)
 
 Stability
 ---------
     ok  no assignment oscillated in the last run
-    ok  all 837 ledger verdicts are obeyed
+    ok  all 838 ledger verdicts are obeyed
 
 What to do
 ----------
-  1. Re-run level_positions.py (and level_shifts.py) last: their reports are built on everything above, and a report made before the fixes will recommend things that have already been done.
+  1. Run sync_IDEN2.py in this set: it writes each line the way [hfs] iden2_display says.
+  2. Run sync_IDEN2.py in this set: it writes the pipeline's uncertainty - the line list's, or the value in inflated_unc_lines.txt where that is larger - into dlv.dat.
+  3. Re-run level_positions.py (and level_shifts.py) last: their reports are built on everything above, and a report made before the fixes will recommend things that have already been done.
 
   They are in the order the pipeline runs.  Doing a later
   one first only means doing it again after the earlier one.
 
-0 error(s), 2 warning(s), 16 check(s) clean.
+1 error(s), 3 warning(s), 15 check(s) clean.
