@@ -111,7 +111,7 @@ factor read from the Cowan fit itself, RCEOUT's parameter listing
 4f2 ns series (``s_series``: limit 186714 cm^-1, one quantum defect 3.405,
 fitted to 4f2 6s, 7s, 8s).  For l > 0 the factor is the ratio of the
 spin-orbit parameters zeta, which goes as <r^-3> just as a does.  The
-factor's relative uncertainty (``fraction``) enters u_par.  Without these
+factor's relative uncertainty (``u_factor``) enters u_par.  Without these
 the 271 observed levels of those configurations had no A at all.
 
 ``u_total`` combines u_round, u_trunc, u_amp, u_par and u_cfg in
@@ -688,13 +688,13 @@ RYDBERG = 109736.9          # cm^-1, for the mass of 141Pr
 
 class Scaling:
     """An outer shell `nl` whose radial parameters are those of `ref` times
-    `factor`; `fraction` is the factor's relative uncertainty, `how` says
+    `factor`; `u_factor` is the factor's relative uncertainty, `how` says
     where the factor came from and `alt` is the n*^-3 estimate beside it
     (None where there is none)."""
 
-    def __init__(self, nl, ref, factor, fraction, how, alt=None):
+    def __init__(self, nl, ref, factor, u_factor, how, alt=None):
         self.nl, self.ref, self.factor = nl, ref, factor
-        self.fraction, self.how, self.alt = fraction, how, alt
+        self.u_factor, self.how, self.alt = u_factor, how, alt
 
 
 def read_rceout_parameters(path=RCEOUT_FILE):
@@ -780,7 +780,8 @@ def nstar(rce, nl, series):
 
 def scale_outer_shells(table, rce):
     """`Scaling`s for the `[scaled]` table of the parameter file, each entry
-    `nl = {from = ref, fraction = f}`.
+    `nl = {from = ref, u_factor = u}`, u the factor's relative
+    uncertainty (named `fraction` until 2026-10-09, which is refused).
 
     * An s shell: the contact parameter goes as 1/n*^3 (Fermi-Segre), so
       factor = (n*_ref / n*_nl)^3, n* from the E_av of 4f2 ref and 4f2 nl
@@ -795,7 +796,10 @@ def scale_outer_shells(table, rce):
     out = []
     for nl, spec in table.items():
         ref = spec['from']
-        fraction = float(spec.get('fraction', 0.0))
+        if 'fraction' in spec:
+            raise ValueError("[scaled] %s: the factor's relative uncertainty "
+                             "is now named u_factor, not fraction" % nl)
+        u_factor = float(spec.get('u_factor', 0.0))
         l_nl, l_ref = LETTER_L[nl[-1]], LETTER_L[ref[-1]]
         if (l_nl == 0) != (l_ref == 0):
             raise ValueError('[scaled] %s: an s shell scales only from an '
@@ -809,7 +813,7 @@ def scale_outer_shells(table, rce):
             if alt is None:
                 raise ValueError('[scaled] %s: no n* for %s or %s'
                                  % (nl, nl, ref))
-            out.append(Scaling(nl, ref, alt, fraction,
+            out.append(Scaling(nl, ref, alt, u_factor,
                                '(n* %s / n* %s)^3 = (%.3f / %.3f)^3'
                                % (ref, nl, n_ref, n_nl)))
             continue
@@ -818,7 +822,7 @@ def scale_outer_shells(table, rce):
         if not z_nl or not z_ref:
             raise ValueError('[scaled] %s: RCEOUT gives no zeta for %s in %s '
                              'or %s in %s' % (nl, nl, conf, ref, conf_ref))
-        out.append(Scaling(nl, ref, z_nl / z_ref, fraction,
+        out.append(Scaling(nl, ref, z_nl / z_ref, u_factor,
                            'zeta %s (%s) / zeta %s (%s) = %.1f / %.1f'
                            % (nl, conf, ref, conf_ref, z_nl, z_ref),
                            None if ref == '4f' else alt))
@@ -832,7 +836,7 @@ def read_uncertainties(path=PARAMS_FILE, params=None):
     `[uncertainty]`; `fraction` and `min_measured` are those of `[untested]`
     (0 and 1 when it is absent).  With `params`, every scaled entry gets an
     uncertainty too: the copied parameter's, times the factor, and the
-    factor's own `fraction` of the value, in quadrature (the two are taken
+    factor's own `u_factor` of the value, in quadrature (the two are taken
     as independent, though the first is shared with the shell copied).
     """
     with open(path, 'rb') as fh:
@@ -850,7 +854,7 @@ def read_uncertainties(path=PARAMS_FILE, params=None):
                 continue
             sigmas[(nl, kind)] = math.hypot(
                 sc.factor * sigmas.get((sc.ref, kind), 0.0),
-                sc.fraction * float(v))
+                sc.u_factor * float(v))
     untested = doc.get('untested', {})
     return (sigmas, float(untested.get('fraction', 0.0)),
             int(untested.get('min_measured', 1)))
@@ -1353,7 +1357,7 @@ def say_scaling(say, rce, params):
            ', '.join('%s %+.0f' % kv for kv in resid.items())))
     for nl, sc in params.scaled.items():
         say('  %-3s from %-3s factor %.4f +- %.0f%%: %s%s'
-            % (nl, sc.ref, sc.factor, 100 * sc.fraction, sc.how,
+            % (nl, sc.ref, sc.factor, 100 * sc.u_factor, sc.how,
                '' if sc.alt is None else '; n*^-3 would give %.4f' % sc.alt))
 
 

@@ -338,15 +338,21 @@ def test_s_series_of_two_members_is_exact(tmp_path):
 def test_scale_factors(tmp_path):
     rce = _rce(tmp_path)
     sc = {s.nl: s for s in H.scale_outer_shells(
-        {'7s': {'from': '6s', 'fraction': 0.1},
-         '6d': {'from': '5d', 'fraction': 0.3},
+        {'7s': {'from': '6s', 'u_factor': 0.1},
+         '6d': {'from': '5d', 'u_factor': 0.3},
          '5f': {'from': '4f'}}, rce)}
     _L, _d, ns, _r = H.s_series(rce)
     assert sc['7s'].factor == pytest.approx((ns['6s'] / ns['7s']) ** 3)
     assert sc['6d'].factor == pytest.approx(200.0 / 800.0)
     assert sc['6d'].alt is not None          # n*^-3 shown beside it
     assert sc['5f'].factor == pytest.approx(30.0 / 750.0)   # 4f of 4f2 5f
-    assert sc['5f'].alt is None and sc['5f'].fraction == 0.0
+    assert sc['5f'].alt is None and sc['5f'].u_factor == 0.0
+
+
+def test_scale_refuses_the_old_name_of_u_factor(tmp_path):
+    with pytest.raises(ValueError, match='u_factor'):
+        H.scale_outer_shells({'7s': {'from': '6s', 'fraction': 0.1}},
+                             _rce(tmp_path))
 
 
 def test_scale_refuses_an_s_shell_from_a_d_shell(tmp_path):

@@ -2788,6 +2788,13 @@ None of the plain blends spreads wider than about half the plate's two-line reso
 measured from the deficit of close pairs in the line list (0.06 Å below 1250 Å, rising to 0.13 Å
 at 3200 to 4500 Å).
 
+*A possible improvement, deliberately not made (2026-10-09).* The acceptance tests of
+`classify_lines.py` still judge a blend by its centroid without `u_I`: the Ritz test of the
+center of gravity and the 2.5-4σ thresholds. Adding `u_I` there would be consistent with the
+level fits, but it would loosen the tests for widely spread blends and so admit new
+assignments, each of which would have to be checked by hand. It is left for a later revision
+of the classification, not for the present workflow.
+
 ## Lines whose uncertainty is set by hand: `inflated_unc_lines.txt`
 
 Some observed lines do not fit the smooth trend of their block and yet their classification is
@@ -3898,6 +3905,9 @@ fitted shell, multiplied by a factor that `hfs_A_theory.py` reads from the Cowan
   fixed (flag 100).
   The d and p factors are given 30%, which covers most of that gap. The f and g factors
   are given 100%, but these shells add under 0.001 cm⁻¹.
+
+  The factor's relative uncertainty is the key `u_factor` of each `[scaled]` entry (named
+  `fraction` until 2026-10-09; the old name is refused rather than read as 0).
 
 The A of these levels is mostly the 4f² core's, which uses the fitted a_4f; ζ_4f is the same
 within 1% in every 4f² nl configuration. All 593 observed levels now have an A_calc. For the

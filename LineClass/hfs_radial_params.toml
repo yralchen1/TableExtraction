@@ -46,21 +46,21 @@
 #              ratios are the HFR ratios, not ones the levels determine
 #              (RCEOUT is the current fit; flags confirmed by the user,
 #              2026-10-08).
-# `fraction` is the relative uncertainty given to the factor; u_par adds
+# `u_factor` is the relative uncertainty given to the factor; u_par adds
 # the copied shell's own uncertainty, times the factor.  The d and p
 # factors are uncertain by 30 per cent: the n*^-3 law gives 6d/5d 0.33
 # against the zeta ratio's 0.21 (hfs_A_theory.log prints both).  The f and
 # g shells are uncertain by 100 per cent, but give under 0.001 cm^-1.
 [scaled]
-"7s" = { from = "6s", fraction = 0.10 }
-"8s" = { from = "6s", fraction = 0.10 }
-"6d" = { from = "5d", fraction = 0.30 }
-"7d" = { from = "5d", fraction = 0.30 }
-"7p" = { from = "6p", fraction = 0.30 }
-"5f" = { from = "4f", fraction = 1.00 }
-"6f" = { from = "4f", fraction = 1.00 }
-"5g" = { from = "4f", fraction = 1.00 }
-"6g" = { from = "4f", fraction = 1.00 }
+"7s" = { from = "6s", u_factor = 0.10 }
+"8s" = { from = "6s", u_factor = 0.10 }
+"6d" = { from = "5d", u_factor = 0.30 }
+"7d" = { from = "5d", u_factor = 0.30 }
+"7p" = { from = "6p", u_factor = 0.30 }
+"5f" = { from = "4f", u_factor = 1.00 }
+"6f" = { from = "4f", u_factor = 1.00 }
+"5g" = { from = "4f", u_factor = 1.00 }
+"6g" = { from = "4f", u_factor = 1.00 }
 
 # Standard uncertainties of the parameters above, for u_par: the fitted ones
 # (scaled by sqrt(chi2/dof)); 50 per cent of the 6p estimates (a guess,
