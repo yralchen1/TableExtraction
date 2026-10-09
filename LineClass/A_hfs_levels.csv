@@ -9,10 +9,10 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000037,4f3,3.5,+0.0176,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000038,4f3,1.5,+0.0006,0.0011,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",1
 059003.000039,4f3,4.5,+0.0175,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000040,4f3,5.5,+0.0197,0.0014,"resolved components, 1 pattern, 4 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000040,4f3,5.5,+0.0204,0.0014,"resolved components, 1 pattern, 4 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000041,f25d,4.5,+0.0372,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000042,f25d,5.5,+0.0402,0.0042,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000043,4f3,3.5,+0.0241,0.0022,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000043,4f3,3.5,+0.0251,0.0022,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000044,4f3,2.5,+0.0326,0.0020,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000045,f25d,4.5,+0.0337,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000046,f25d,5.5,+0.0297,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
@@ -94,32 +94,32 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000122,4f3,2.5,+0.0202,0.0017,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000123,f25d,4.5,+0.0180,0.0021,"calculated, hfs_A_theory 2026-10-07, tier 2",1
 059003.000124,4f3,5.5,+0.0204,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000125,f26s,3.5,-0.0275,0.0023,"resolved components, 7 patterns, 11 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000125,f26s,3.5,-0.0262,0.0023,"resolved components, 7 patterns, 11 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000126,f25d,4.5,+0.0291,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000127,f26s,4.5,+0.0777,0.0017,"resolved components, 13 patterns, 22 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000127,f26s,4.5,+0.0787,0.0017,"resolved components, 13 patterns, 22 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000128,f25d,1.5,+0.0374,0.0093,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000129,f25d,6.5,+0.0216,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000130,f25d,2.5,+0.0343,0.0037,"calculated, hfs_A_theory 2026-10-07, tier 2",1
 059003.000131,f25d,4.5,+0.0260,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000132,f25d,5.5,+0.0275,0.0035,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000133,f26s,5.5,+0.0793,0.0013,"resolved components, 14 patterns, 41 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000134,f26s,4.5,-0.0206,0.0015,"resolved components, 15 patterns, 22 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000133,f26s,5.5,+0.0800,0.0014,"resolved components, 14 patterns, 41 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000134,f26s,4.5,-0.0198,0.0015,"resolved components, 15 patterns, 22 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000135,f25d,3.5,+0.0213,0.0024,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000136,4f3,3.5,+0.0190,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000137,f25d,0.5,-0.0101,0.0124,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000138,f25d,1.5,+0.0129,0.0045,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000139,f26s,6.5,+0.0694,0.0012,"resolved components, 12 patterns, 29 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000140,f26s,1.5,-0.0893,0.0038,"resolved components, 8 patterns, 12 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000141,f26s,5.5,-0.0213,0.0012,"resolved components, 14 patterns, 31 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000142,f26s,2.5,+0.1293,0.0023,"resolved components, 15 patterns, 27 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000139,f26s,6.5,+0.0700,0.0012,"resolved components, 12 patterns, 29 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000140,f26s,1.5,-0.0888,0.0038,"resolved components, 8 patterns, 12 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000141,f26s,5.5,-0.0206,0.0012,"resolved components, 14 patterns, 31 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000142,f26s,2.5,+0.1296,0.0023,"resolved components, 15 patterns, 27 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000143,f25d,0.5,+0.0079,0.0107,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000144,f25d,2.5,+0.0353,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000145,f26s,3.5,+0.0881,0.0019,"resolved components, 11 patterns, 17 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000145,f26s,3.5,+0.0890,0.0020,"resolved components, 11 patterns, 17 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000146,f25d,3.5,+0.0418,0.0071,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000147,f25d,1.5,+0.0381,0.0050,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000148,f26s,4.5,+0.0934,0.0014,"resolved components, 15 patterns, 39 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000149,f26s,2.5,-0.0323,0.0023,"resolved components, 11 patterns, 15 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000150,f26s,3.5,-0.0249,0.0021,"resolved components, 10 patterns, 13 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000148,f26s,4.5,+0.0942,0.0014,"resolved components, 15 patterns, 39 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000149,f26s,2.5,-0.0315,0.0023,"resolved components, 11 patterns, 15 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000150,f26s,3.5,-0.0206,0.0022,"resolved components, 9 patterns, 11 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000151,f25d,4.5,+0.0234,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",1
 059003.000152,f25d,1.5,+0.0342,0.0054,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000153,f25d,3.5,+0.0215,0.0030,"calculated, hfs_A_theory 2026-10-07, tier 2",0
@@ -130,11 +130,11 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000158,f25d,2.5,+0.0087,0.0034,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000159,f25d,1.5,+0.0214,0.0047,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000160,f25d,3.5,+0.0114,0.0041,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000161,f26s,4.5,+0.0921,0.0014,"resolved components, 13 patterns, 37 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000161,f26s,4.5,+0.0929,0.0015,"resolved components, 13 patterns, 37 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000162,f25d,0.5,+0.0194,0.0120,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000163,f25d,2.5,+0.0092,0.0033,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000164,f25d,6.5,+0.0276,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000165,f26s,3.5,-0.0431,0.0015,"resolved components, 15 patterns, 29 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000165,f26s,3.5,-0.0420,0.0016,"resolved components, 15 patterns, 29 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000166,f25d,7.5,+0.0271,0.0029,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000167,f25d,4.5,+0.0173,0.0035,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000168,f25d,1.5,+0.0213,0.0039,"calculated, hfs_A_theory 2026-10-07, tier 2",0
@@ -151,89 +151,89 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000179,f25d,3.5,+0.0242,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000180,f25d,2.5,+0.0226,0.0028,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000181,f25d,4.5,+0.0239,0.0027,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000182,f26s,2.5,+0.1489,0.0049,"resolved components, 5 patterns, 11 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000183,f26s,1.5,-0.0991,0.0048,"resolved components, 6 patterns, 10 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000182,f26s,2.5,+0.1492,0.0049,"resolved components, 5 patterns, 11 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000183,f26s,1.5,-0.0983,0.0048,"resolved components, 6 patterns, 10 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000184,f25d,3.5,+0.0387,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000185,f25d,1.5,+0.0308,0.0040,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000186,f25d,2.5,+0.0200,0.0026,"calculated, hfs_A_theory 2026-10-07, tier 2",0
-059003.000187,f26s,1.5,+0.1993,0.0056,"resolved components, 5 patterns, 12 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000188,f26s,5.5,-0.0137,0.0022,"resolved components, 8 patterns, 16 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000189,f26s,6.5,+0.0716,0.0019,"resolved components, 6 patterns, 24 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000187,f26s,1.5,+0.1988,0.0056,"resolved components, 5 patterns, 12 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000188,f26s,5.5,-0.0134,0.0023,"resolved components, 8 patterns, 16 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000189,f26s,6.5,+0.0719,0.0019,"resolved components, 6 patterns, 24 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000190,f26s,0.5,-0.1570,0.0100,"resolved F = 3/F = 2 pair 29294.7083/29294.2095 (IDEN2 1089-960), 4f26s_2P_0.5_hfs.md; adopted 2026-10-05 (semiempirical -0.0787)",0
-059003.000191,f26s,2.5,+0.1402,0.0043,"resolved components, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-05)",0
-059003.000192,f26s,1.5,-0.1010,0.0049,"resolved components, 5 patterns, 8 positions (Step 4 anchored fit, 2026-10-05)",0
+059003.000191,f26s,2.5,+0.1401,0.0043,"resolved components, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",0
+059003.000192,f26s,1.5,-0.1010,0.0049,"resolved components, 5 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",0
 059003.000193,4f3,3.5,+0.0184,0.0012,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000194,f26p,3.5,+0.0262,0.0020,"resolved components with composition prior, 5 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000195,f26p,4.5,+0.0493,0.0020,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000196,f26p,4.5,+0.0214,0.0017,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000197,f26p,5.5,+0.0368,0.0014,"resolved components with composition prior, 4 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000194,f26p,3.5,+0.0268,0.0020,"resolved components with composition prior, 5 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000195,f26p,4.5,+0.0503,0.0020,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000196,f26p,4.5,+0.0221,0.0018,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000197,f26p,5.5,+0.0374,0.0014,"resolved components with composition prior, 4 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",4
 059003.000198,f5d2,3.5,+0.0409,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",1
-059003.000199,f26p,4.5,+0.0298,0.0018,"resolved components with composition prior, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",4
-059003.000200,f26p,3.5,+0.0358,0.0023,"resolved components with composition prior, 4 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000201,f26p,2.5,+0.0443,0.0034,"resolved components with composition prior, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000202,f5d2,4.5,+0.0346,0.0020,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",3
-059003.000203,f26p,5.5,+0.0271,0.0013,"resolved components with composition prior, 5 patterns, 12 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000204,f5d2,4.5,+0.0324,0.0023,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000205,f26p,5.5,+0.0205,0.0013,"resolved components with composition prior, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000206,f26p,6.5,+0.0281,0.0013,"resolved components with composition prior, 3 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000207,f26p,1.5,+0.0087,0.0038,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000208,f5d2,3.5,+0.0355,0.0024,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",6
-059003.000209,f26p,2.5,+0.0562,0.0027,"resolved components with composition prior, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",4
-059003.000210,f26p,4.5,+0.0265,0.0015,"resolved components with composition prior, 5 patterns, 10 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000211,f26p,3.5,+0.0314,0.0020,"resolved components with composition prior, 5 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",7
-059003.000212,f26p,5.5,+0.0283,0.0014,"resolved components, 4 patterns, 10 positions (Step 4 anchored fit, 2026-10-05)",4
-059003.000213,f5d2,5.5,+0.0282,0.0019,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000214,f26p,6.5,+0.0282,0.0012,"resolved components with composition prior, 2 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000215,f5d2,4.5,+0.0237,0.0020,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-05)",5
-059003.000216,f26p,2.5,+0.0122,0.0038,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000217,f5d2,2.5,+0.0337,0.0033,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000218,f26p,4.5,+0.0359,0.0015,"resolved components with composition prior, 4 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",6
-059003.000219,f5d2,5.5,+0.0200,0.0021,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000220,f26p,3.5,+0.0167,0.0028,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000221,f26p,3.5,+0.0317,0.0024,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",4
-059003.000222,f5d2,2.5,+0.0295,0.0036,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",3
-059003.000223,f26p,5.5,+0.0233,0.0013,"resolved components with composition prior, 4 patterns, 11 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000224,f5d2,3.5,+0.0202,0.0018,"resolved components, 3 patterns, 8 positions (Step 4 anchored fit, 2026-10-05)",5
-059003.000225,f5d2,6.5,+0.0210,0.0015,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000226,f5d2,6.5,+0.0221,0.0016,"resolved components, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-05)",3
-059003.000227,f26p,7.5,+0.0224,0.0022,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000199,f26p,4.5,+0.0306,0.0018,"resolved components with composition prior, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000200,f26p,3.5,+0.0366,0.0023,"resolved components with composition prior, 4 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000201,f26p,2.5,+0.0448,0.0034,"resolved components with composition prior, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000202,f5d2,4.5,+0.0371,0.0021,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000203,f26p,5.5,+0.0278,0.0013,"resolved components with composition prior, 5 patterns, 12 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000204,f5d2,4.5,+0.0332,0.0023,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000205,f26p,5.5,+0.0211,0.0013,"resolved components with composition prior, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000206,f26p,6.5,+0.0287,0.0013,"resolved components with composition prior, 3 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000207,f26p,1.5,+0.0091,0.0038,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000208,f5d2,3.5,+0.0365,0.0024,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",6
+059003.000209,f26p,2.5,+0.0566,0.0027,"resolved components with composition prior, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000210,f26p,4.5,+0.0273,0.0015,"resolved components with composition prior, 5 patterns, 10 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000211,f26p,3.5,+0.0318,0.0020,"resolved components with composition prior, 5 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",7
+059003.000212,f26p,5.5,+0.0289,0.0014,"resolved components, 4 patterns, 10 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000213,f5d2,5.5,+0.0289,0.0019,"resolved components, 3 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000214,f26p,6.5,+0.0288,0.0012,"resolved components with composition prior, 2 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000215,f5d2,4.5,+0.0248,0.0020,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000216,f26p,2.5,+0.0132,0.0038,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000217,f5d2,2.5,+0.0344,0.0033,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000218,f26p,4.5,+0.0371,0.0015,"resolved components with composition prior, 4 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",6
+059003.000219,f5d2,5.5,+0.0207,0.0021,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000220,f26p,3.5,+0.0174,0.0028,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000221,f26p,3.5,+0.0325,0.0025,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000222,f5d2,2.5,+0.0302,0.0036,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000223,f26p,5.5,+0.0240,0.0013,"resolved components with composition prior, 4 patterns, 11 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000224,f5d2,3.5,+0.0211,0.0018,"resolved components, 3 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000225,f5d2,6.5,+0.0216,0.0015,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000226,f5d2,6.5,+0.0227,0.0016,"resolved components, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000227,f26p,7.5,+0.0228,0.0022,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000228,f26p,0.5,+0.0282,0.0177,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000229,f26p,2.5,+0.0297,0.0063,composition,2
-059003.000230,f5d2,6.5,+0.0185,0.0031,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000231,f5d2,3.5,+0.0172,0.0034,"resolved components, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",3
+059003.000229,f26p,2.5,+0.0270,0.0051,"resolved components with composition prior, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-09)",2
+059003.000230,f5d2,6.5,+0.0188,0.0031,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000231,f5d2,3.5,+0.0176,0.0034,"resolved components, 3 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",3
 059003.000232,f26p,1.5,+0.0329,0.0060,composition,1
-059003.000233,f5d2,2.5,+0.0181,0.0046,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-05)",3
+059003.000233,f5d2,2.5,+0.0185,0.0046,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",3
 059003.000234,f5d2,4.5,+0.0297,0.0015,"calculated, hfs_A_theory 2026-10-07, tier 1",2
-059003.000235,f5d2,3.5,+0.0276,0.0056,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000236,f5d2,2.5,+0.0235,0.0072,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000237,f26p,4.5,+0.0227,0.0020,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000238,f26p,3.5,+0.0145,0.0019,"resolved components with composition prior, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000239,f26p,4.5,+0.0260,0.0031,"resolved components with composition prior, 3 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",6
-059003.000240,f26p,1.5,+0.0210,0.0045,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000235,f5d2,3.5,+0.0281,0.0056,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000236,f5d2,2.5,+0.0238,0.0072,"resolved components, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000237,f26p,4.5,+0.0238,0.0020,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000238,f26p,3.5,+0.0155,0.0019,"resolved components with composition prior, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000239,f26p,4.5,+0.0273,0.0031,"resolved components with composition prior, 3 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",6
+059003.000240,f26p,1.5,+0.0214,0.0045,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000241,f5d2,5.5,+0.0292,0.0032,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000242,f5d2,7.5,+0.0151,0.0013,"resolved components, 1 pattern, 5 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000243,f5d2,3.5,+0.0211,0.0017,"resolved components, 2 patterns, 9 positions (Step 4 anchored fit, 2026-10-05)",4
-059003.000244,f26p,4.5,+0.0307,0.0016,"resolved components with composition prior, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",4
-059003.000245,f26p,3.5,+0.0213,0.0018,"resolved components with composition prior, 4 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",4
-059003.000246,f26p,5.5,+0.0164,0.0018,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
-059003.000247,f5d2,4.5,+0.0228,0.0025,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000248,f26p,3.5,+0.0278,0.0019,"resolved components with composition prior, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000242,f5d2,7.5,+0.0156,0.0013,"resolved components, 1 pattern, 5 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000243,f5d2,3.5,+0.0221,0.0017,"resolved components, 2 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000244,f26p,4.5,+0.0315,0.0016,"resolved components with composition prior, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000245,f26p,3.5,+0.0222,0.0018,"resolved components with composition prior, 4 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",4
+059003.000246,f26p,5.5,+0.0171,0.0018,"resolved components with composition prior, 3 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",3
+059003.000247,f5d2,4.5,+0.0236,0.0025,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000248,f26p,3.5,+0.0288,0.0019,"resolved components with composition prior, 3 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",5
 059003.000249,f26p,2.5,+0.0244,0.0062,composition,1
 059003.000250,f5d2,3.5,+0.0243,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",2
-059003.000251,f26p,4.5,+0.0256,0.0016,"resolved components with composition prior, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",5
-059003.000252,f5d2,5.5,+0.0200,0.0021,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000253,f5d2,3.5,+0.0162,0.0023,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-05)",4
+059003.000251,f26p,4.5,+0.0265,0.0016,"resolved components with composition prior, 5 patterns, 9 positions (Step 4 anchored fit, 2026-10-09)",5
+059003.000252,f5d2,5.5,+0.0207,0.0021,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000253,f5d2,3.5,+0.0171,0.0023,"resolved components, 4 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",4
 059003.000254,f5d2,2.5,+0.0490,0.0022,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000255,f5d2,4.5,+0.0169,0.0016,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000256,f5d2,5.5,+0.0157,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000255,f5d2,4.5,+0.0177,0.0016,"resolved components, 2 patterns, 6 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000256,f5d2,5.5,+0.0164,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000257,f5d2,6.5,+0.0203,0.0029,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000258,f5d2,4.5,+0.0223,0.0018,"calculated, hfs_A_theory 2026-10-07, tier 1",2
 059003.000259,f5d2,3.5,+0.0290,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000260,f5d2,1.5,+0.0013,0.0080,"companion 21273.954 of 1092-1000 (the F = 3 group), with A(000187) = +0.1979 (0.9638 x +0.2053), 2026-10-02, recomputed 2026-10-04",0
-059003.000261,f26p,2.5,+0.0216,0.0034,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000262,f26p,4.5,+0.0246,0.0027,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000263,f26p,5.5,+0.0227,0.0021,"resolved components with composition prior, 2 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000264,f26p,3.5,+0.0237,0.0026,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000261,f26p,2.5,+0.0224,0.0034,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000262,f26p,4.5,+0.0253,0.0027,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000263,f26p,5.5,+0.0230,0.0021,"resolved components with composition prior, 2 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000264,f26p,3.5,+0.0245,0.0026,"resolved components with composition prior, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000265,f5d2,2.5,+0.0236,0.0036,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000266,f5d2,4.5,+0.0260,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",0
 059003.000267,f5d2,3.5,+0.0274,0.0014,"calculated, hfs_A_theory 2026-10-07, tier 1",1
@@ -243,30 +243,30 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000271,f5d2,1.5,+0.0556,0.0072,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000272,f5d2,3.5,+0.0143,0.0034,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000273,f26p,1.5,+0.0097,0.0116,composition,2
-059003.000274,f5d2,2.5,+0.0221,0.0052,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",2
-059003.000275,f26p,2.5,+0.0421,0.0044,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000274,f5d2,2.5,+0.0227,0.0052,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000275,f26p,2.5,+0.0426,0.0044,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000276,f5d2,5.5,+0.0230,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000277,f5d2,4.5,+0.0210,0.0013,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000278,f5d2,1.5,+0.0206,0.0046,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000279,f5d2,2.5,+0.0217,0.0055,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000280,f26p,0.5,+0.0140,0.0074,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000281,f26p,3.5,+0.0239,0.0040,"resolved components with composition prior, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
-059003.000282,f5d2,5.5,+0.0260,0.0022,"resolved components, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000279,f5d2,2.5,+0.0220,0.0055,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000280,f26p,0.5,+0.0142,0.0074,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000281,f26p,3.5,+0.0241,0.0040,"resolved components with composition prior, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000282,f5d2,5.5,+0.0263,0.0022,"resolved components, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000283,f26p,1.5,+0.0219,0.0085,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000284,f5d2,6.5,+0.0251,0.0043,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
-059003.000285,f26p,2.5,+0.0307,0.0044,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000286,f5d2,3.5,+0.0259,0.0054,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000284,f5d2,6.5,+0.0254,0.0043,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-09)",1
+059003.000285,f26p,2.5,+0.0309,0.0044,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000286,f5d2,3.5,+0.0261,0.0054,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000287,f26p,0.5,-0.0067,0.0052,"resolved components with composition prior, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-09)",3
 059003.000288,f26p,1.5,+0.0261,0.0067,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000289,f26p,5.5,+0.0238,0.0022,"resolved components with composition prior, 2 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000289,f26p,5.5,+0.0241,0.0022,"resolved components with composition prior, 2 patterns, 7 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000290,f26p,1.5,-0.0001,0.0106,composition,2
-059003.000291,f26p,6.5,+0.0333,0.0019,"resolved components with composition prior, 2 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000291,f26p,6.5,+0.0336,0.0019,"resolved components with composition prior, 2 patterns, 8 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000292,f26p,2.5,+0.0395,0.0045,"resolved components with composition prior, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000293,f5d2,1.5,+0.0144,0.0074,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000293,f5d2,1.5,+0.0109,0.0077,"resolved components, 2 patterns, 3 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000294,f26p,1.5,+0.0118,0.0057,"resolved components with composition prior, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000295,f5d2,2.5,+0.0255,0.0053,"calculated, hfs_A_theory 2026-10-07, tier 1",1
-059003.000296,f26p,5.5,+0.0327,0.0024,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",2
-059003.000297,f26p,6.5,+0.0297,0.0028,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000296,f26p,5.5,+0.0330,0.0024,"resolved components with composition prior, 2 patterns, 5 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000297,f26p,6.5,+0.0299,0.0028,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000298,f5d6s,1.5,-0.0409,0.0193,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000299,f26p,4.5,+0.0314,0.0067,composition,1
 059003.000300,f26p,3.5,+0.0208,0.0041,"resolved components with composition prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
@@ -400,25 +400,25 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000428,f28s,3.5,+0.0376,0.0056,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000429,f28s,4.5,+0.0365,0.0040,"calculated, hfs_A_theory 2026-10-08, tier 2",0
 059003.000430,4f3,2.5,+0.0255,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000431,f5d2,1.5,+0.0073,0.0113,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-05)",1
+059003.000431,f5d2,1.5,+0.0078,0.0113,"resolved components, 1 pattern, 1 position (Step 4 anchored fit, 2026-10-09)",1
 059003.000432,f5d2,1.5,+0.0478,0.0033,"calculated, hfs_A_theory 2026-10-07, tier 1",1
-059003.000433,f26p,2.5,+0.0186,0.0044,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
+059003.000433,f26p,2.5,+0.0200,0.0044,"resolved components with composition prior, 2 patterns, 2 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000434,f5d2,1.5,-0.0064,0.0060,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000435,f5d2,2.5,+0.0148,0.0049,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000436,f5d2,3.5,+0.0172,0.0025,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000437,f5d2,4.5,+0.0226,0.0039,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000437,f5d2,4.5,+0.0235,0.0039,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000438,f5d2,3.5,+0.0140,0.0032,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000439,f5d2,5.5,+0.0172,0.0120,"center of gravity of 37682.867 (1118-980), with A(000161) = +0.0908 (0.9638 x +0.0942), 2026-10-02, recomputed 2026-10-04",0
-059003.000440,f5d2,2.5,+0.0110,0.0053,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
-059003.000441,f5d2,6.5,+0.0310,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",2
+059003.000440,f5d2,2.5,+0.0116,0.0053,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
+059003.000441,f5d2,6.5,+0.0313,0.0022,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",2
 059003.000442,f5d2,4.5,+0.0105,0.0033,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000443,f5d2,7.5,+0.0242,0.0019,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000443,f5d2,7.5,+0.0245,0.0019,"resolved components, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000444,f26p,0.5,+0.0874,0.0344,composition,1
 059003.000445,f5d2,3.5,+0.0253,0.0047,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000446,f5d6s,3.5,-0.0188,0.0129,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000447,f26p,1.5,+0.0161,0.0058,"resolved components with composition prior, 1 pattern, 3 positions (Step 4 anchored fit, 2026-10-09)",3
 059003.000448,f5d6s,4.5,+0.0806,0.0115,"calculated, hfs_A_theory 2026-10-07, tier 2",2
-059003.000449,f26p,1.5,+0.0065,0.0074,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-05)",1
+059003.000449,f26p,1.5,+0.0065,0.0074,"resolved components, 1 pattern, 2 positions (Step 4 anchored fit, 2026-10-09)",1
 059003.000450,f5d6s,2.5,-0.0373,0.0147,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000451,f5d6s,3.5,+0.1100,0.0100,estimate: unsplit lines (2026-10-01 review),0
 059003.000452,f5d6s,4.5,+0.0556,0.0137,"calculated, hfs_A_theory 2026-10-07, tier 2",0
@@ -621,7 +621,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000651,f27d,4.5,+0.0312,0.0034,"calculated, hfs_A_theory 2026-10-08, tier 2",0
 059003.000652,f27d,2.5,+0.0471,0.0050,"calculated, hfs_A_theory 2026-10-08, tier 2",0
 059003.000653,f5d2,1.5,+0.0177,0.0068,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000654,f5d2,2.5,+0.0229,0.0048,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-05)",3
+059003.000654,f5d2,2.5,+0.0226,0.0048,"resolved components, 2 patterns, 4 positions (Step 4 anchored fit, 2026-10-09)",3
 059003.000655,fd6p,5.5,+0.0309,0.0043,"calculated, hfs_A_theory 2026-10-07, tier 2",1
 059003.000656,f5d2,3.5,+0.0193,0.0016,"calculated, hfs_A_theory 2026-10-07, tier 1",1
 059003.000657,f5d6s,2.5,+0.0745,0.0185,"calculated, hfs_A_theory 2026-10-07, tier 2",0

@@ -68,9 +68,9 @@ spacings would be counted twice, once in the table's value and once as
 positions.  A second run recomputes every combined value from the priors and
 the current patterns.  A combined row is on the measured scale - it is not
 multiplied by A_SCALE again - and is no pure measurement: hfs_A_theory.py
-leaves it out of the fit of its radial parameters.  Levels whose prior the
-spacings contradict are left as they are (NOT_COMBINED) for the user to
-decide.
+leaves it out of the fit of its radial parameters.  A level whose prior the
+spacings contradict can be left as it is (NOT_COMBINED) for the user to
+decide; none is now.
 
 THE CHECKS
 ==========
@@ -119,12 +119,12 @@ PRIORS = 'A_hfs_priors.csv'
 COMBINED_PREFIX = 'resolved components %s, ' % hfs_kappa.COMBINED_TAG
 
 #: priors the spacings contradict, not combined (--combine-priors) but left
-#: in the table as they are, with the reason.
-NOT_COMBINED = {
-    '059003.000229': 'the spacings without the prior give +0.0568(43), the '
-                     'prior +0.0286(61): 3.8 sigma (u_A check, 2026-10-09); '
-                     'for the user to decide',
-}
+#: in the table as they are, with the reason.  Empty since 000229 was
+#: combined (2026-10-09): its prior had been held because 30879.98 *r gave
+#: +0.0568(43) against +0.0286(61), until the user dismissed that line's two
+#: printed components as misidentified (hfs_components.DISMISSED); its other
+#: pattern, 33021.15 *v, agrees with the prior.
+NOT_COMBINED = {}
 
 #: Sugar's precision on one tabulated wavelength, in cm (0.003 A).
 DLAM = 0.003e-8

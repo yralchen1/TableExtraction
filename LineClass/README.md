@@ -3073,8 +3073,9 @@ whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once.
     centroid uncertainty spreads the components by, and for a single line exactly
     `wn_obs − rwn`.
 * `set3_report.txt`: the counts, and every line a rule could not settle.
-* `IDEN2/`: a copy of `iter_hfs/IDEN2` without its backups, made only while `final/` has none,
-  with the merged lines' rows removed. `sync_IDEN2.py` then brings it to the Set 3 fit;
+* `IDEN2/`: a fresh copy of `iter_hfs/IDEN2` on every run, without its backups and with the
+  merged lines' rows removed (since 2026-10-09: a line inserted in `iter_hfs/IDEN2` reaches
+  Set 3 only through a new copy). IDEN2 must be closed. `sync_IDEN2.py` then brings it to the Set 3 fit;
   `iden2_display = "lopt"` is inherited. Use the `--cutoff` you use for `iter_hfs/`: at the
   default, -41, a scratch sync grew `trans.dat` from 67981 transitions to 104649.
   `final/IDEN2` is for looking. An assignment is changed in `iter_hfs/`, and Set 3 is made
@@ -3356,10 +3357,30 @@ priors would count the spacings twice. A table row whose source says `with compo
 It is no pure measurement either, so `hfs_A_theory.read_measured` leaves it out. A second run
 recomputes every combined value from the priors and the current patterns.
 
-One prior is not combined (`hfs_A_fit.NOT_COMBINED`): 000229 (J = 5/2), whose spacings alone
-give +0.0568 ± 0.0043 against its prior +0.0286 ± 0.0061, 3.8σ apart. It is left for the user
-to decide, possibly to be freed as 000127 was. The 7 composition levels no pattern reaches
-also keep their priors.
+**000229 and the components of 30879.98 (2026-10-09).** 000229 (IDEN2 1044, J = 5/2) was held
+out of the combination at first. Its spacings gave +0.0568 ± 0.0043 against its prior
++0.0286 ± 0.0061, 3.8σ apart. The disagreement was between its two patterns:
+
+* **30879.98 `*r` (1129–1044, intensity 9768).** Sugar printed two components, at −0.430 and
+  −0.820 cm⁻¹. Both rungs asked for A(229) = +0.063 ± 0.004, given A(000150) from its other
+  patterns.
+* **33021.15 `*v` (1139–1044, seven times stronger).** Its one component gives
+  +0.024 ± 0.009, in line with the prior and with the eigenvector calculation, +0.0280 ± 0.0040.
+
+No identified level has a transition near 3237.455 or 3237.496 Å. The user dismissed the two
+components as misidentified: probably lines of an unidentified transition, whose intensities
+made them look like rungs. `hfs_components.DISMISSED` leaves them out of `hfs_components.csv`
+(496 components), so 30879.98 is now a flagged line without printed components
+(`flag_unlisted`). They are lines 30879.549 and 30879.159 of `Pr3_lines.xlsx`, with Icor and
+Iorig estimated from the predicted rung-1 and rung-2 shares of the pattern (0.725 and 0.504 of
+30879.98). The fit then gives:
+
+* **000229:** +0.0270 ± 0.0051 (pull −0.3σ), combined like the others; the fit's chi²/dof falls
+  from 0.54 to 0.46;
+* **000150:** moves from −0.0249 to −0.0206 ± 0.0022, since the dismissed rungs had pulled it;
+* **all other levels:** move by 0.6σ or less, apart from 000202 at 1.3σ.
+
+`NOT_COMBINED` is empty now. The 7 composition levels no pattern reaches keep their priors.
 
 **Reader and Sugar's values replaced (2026-10-05).** Their 20 semiempirical values of
 4f<sup>2</sup>6s were priors of that fit too. Reader and Sugar (1965) calculated only the

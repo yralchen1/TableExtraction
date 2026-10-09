@@ -837,3 +837,6 @@ wn_key,low_id,upp_id,decision,date,reason
 12609.2196,059003.000325,059003.000469,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
 39981.7215,059003.000188,059003.000307,accept,10/8/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
 27150.9884,059003.000191,059003.000281,accept,10/9/2026,"IDEN2/LOPT: blend, fair cg and Iobs/Icalc"
+28477.5676,059003.000148,059003.000211,accept,10/9/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg"
+17961.7519,059003.000182,059003.000211,reject,10/9/2026,IDEN2/LOPT: too far from Ritz
+34350.0584,059003.000156,059003.000258,accept,10/9/2026,"IDEN2/LOPT: char d supports blend, fair Iobs/Icalc; improves cg"

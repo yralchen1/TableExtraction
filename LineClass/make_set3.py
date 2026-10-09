@@ -70,10 +70,11 @@ line_classifications    iter_hfs/'s table row for row, every row of a line
                         of a merged line are left out.
 set3_report.txt         the counts, and every line a rule could not settle
                         or that the user should see.
-IDEN2/                  a copy of iter_hfs/IDEN2, made only while the set
-                        has none; sync_IDEN2.py brings it to the new fit.
-                        Every run takes the merged lines' rows out of its
-                        dlv.dat (remove_merged_from_iden2).
+IDEN2/                  a fresh copy of iter_hfs/IDEN2 on every run
+                        (refresh_iden2), without the merged lines' rows
+                        (remove_merged_from_iden2); sync_IDEN2.py brings it
+                        to the new fit.  It is for looking only: a line or an
+                        identification is entered in iter_hfs/IDEN2.
 
 After LOPT has been run on the set, `python make_set3.py --levels` writes
 
@@ -775,6 +776,26 @@ def write_report(path, report, lines, n_rows, args):
 
 
 # ---------------------------------------------------------------------------
+def refresh_iden2(src, dst):
+    """Make `dst` a fresh copy of the source set's IDEN2 `src`, without the
+    backups sync_IDEN2.py leaves beside its files.
+
+    The set's IDEN2 is derived like the rest of it, and is for looking only:
+    a line inserted, or an identification made, in the source set's IDEN2
+    reaches it only through a new copy, so every run makes one.  The files
+    it replaces are checked first (IDEN2 must be closed: it rewrites its
+    files from memory when it exits), and git keeps the previous ones."""
+    import output_files
+    if os.path.isdir(dst):
+        present = [os.path.join(dst, f) for f in os.listdir(dst)
+                   if os.path.isfile(os.path.join(dst, f))]
+        output_files.require_writable(present)
+        for f in present:
+            os.remove(f)
+    shutil.copytree(src, dst, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns('*.presync', '*.old'))
+
+
 def build(source, out_dir, components_csv=None, copy_iden2=True):
     """Write the derived set `out_dir` from the set `source`; returns the
     report's lines."""
@@ -817,14 +838,8 @@ def build(source, out_dir, components_csv=None, copy_iden2=True):
                         n_rows, argparse.Namespace(source=source))
     iden2 = os.path.join(out_dir, 'IDEN2')
     if copy_iden2:
-        if not os.path.isdir(iden2) or not os.listdir(iden2):
-            # its files, without the backups sync_IDEN2.py left beside them
-            shutil.copytree(os.path.join(source, 'IDEN2'), iden2,
-                            dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns('*.presync',
-                                                          '*.old'))
-            text.append('IDEN2 copied from %s'
-                        % os.path.join(source, 'IDEN2'))
+        refresh_iden2(os.path.join(source, 'IDEN2'), iden2)
+        text.append('IDEN2 copied from %s' % os.path.join(source, 'IDEN2'))
         remove_merged_from_iden2(iden2, lines, report)
         gone = report['iden2_removed']
         text.append('IDEN2: %d merged line(s) removed from dlv.dat%s'
@@ -889,7 +904,8 @@ def main(argv=None):
                    help='the derived set written (its lineclass_config.toml '
                         'must say derived_from)')
     p.add_argument('--no-iden2', action='store_true',
-                   help='do not copy the source IDEN2 into an empty one')
+                   help='leave the IDEN2 of the set alone (no fresh copy, '
+                        'no rows removed)')
     p.add_argument('--levels', action='store_true',
                    help='after LOPT has been run on the set: write '
                         'levels_set3.csv from its fit, and nothing else')

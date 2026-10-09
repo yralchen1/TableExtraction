@@ -1,13 +1,13 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6671 lines, 9174 table rows; moved 5031
-rows of merged lines left out of the table: 28
+6673 lines, 9139 table rows; moved 5031
+rows of merged lines left out of the table: 29
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-  rule class kappa   4759
-  rule head-D         251
-  rule none          1640
+  rule class kappa   4760
+  rule head-D         250
+  rule none          1642
   rule resolved        21
-  |cg_shift| median 0.0394, 90% 0.1837, max 1.0951 cm^-1
+  |cg_shift| median 0.0404, 90% 0.1856, max 1.0910 cm^-1
 
 Merged companions (hfs_satellites.txt): 24
   20972.0992      -> 20971.7476     
@@ -44,42 +44,42 @@ Companions whose head is not observed (kept, char hfs): 2
   21963.2509     
 
 Resolved levels: F = 2 partners merged: 4
-  21847.1970      (059003.000642) partner 21848.7448, predicted 21848.7238
-  29724.6026      (059003.000642) partner 29726.0993, predicted 29726.0992
-  30088.5807      (059003.000642) partner 30090.1171, predicted 30090.0734
-  33372.1081 w    (059003.000642) partner 33373.5781, predicted 33373.6390
+  21847.1970      (059003.000642) partner 21848.7485, predicted 21848.7275
+  29724.6026      (059003.000642) partner 29726.1066, predicted 29726.1065
+  30088.5807      (059003.000642) partner 30090.1150, predicted 30090.0713
+  33372.1081 w    (059003.000642) partner 33373.5918, predicted 33373.6527
   lines whose partner is in hfs_satellites.txt: 2
   no partner, or more than one: 15
-  20897.9067      (059003.000190) predicted 20897.4591: none
-  28019.7124 c    (059003.000190) predicted 28019.2191: none
-  28508.8216 d    (059003.000190) predicted 28508.3306: none
-  28658.9908      (059003.000642) predicted 28660.4856: none
-  28873.1623 *r   (059003.000190) predicted 28872.6873: none
-  31243.9493      (059003.000642) predicted 31245.4537: none
-  31623.1012 *r   (059003.000190) predicted 31622.6184: none
-  32156.5523 *r   (059003.000190) predicted 32156.0668: none
-  32556.6902 c    (059003.000190) predicted 32556.2293: none
-  33401.3293      (059003.000190) predicted 33400.8742: none
-  33722.4702 w    (059003.000190) predicted 33722.0241: none
-  33772.3202      (059003.000642) predicted 33773.8602: none
-  35150.3212      (059003.000642) predicted 35151.8065: none
-  40667.1510      (059003.000642) predicted 40668.6434: none
-  44134.0401      (059003.000190) predicted 44133.5835: none
+  20897.9067      (059003.000190) predicted 20897.4640: none
+  28019.7124 c    (059003.000190) predicted 28019.2238: none
+  28508.8216 d    (059003.000190) predicted 28508.3363: none
+  28658.9908      (059003.000642) predicted 28660.4914: none
+  28873.1623 *r   (059003.000190) predicted 28872.6784: none
+  31243.9493      (059003.000642) predicted 31245.4644: none
+  31623.1012 *r   (059003.000190) predicted 31622.6249: none
+  32156.5523 *r   (059003.000190) predicted 32156.0666: none
+  32556.6902 c    (059003.000190) predicted 32556.2267: none
+  33401.3293      (059003.000190) predicted 33400.8879: none
+  33722.4702 w    (059003.000190) predicted 33722.0297: none
+  33772.3202      (059003.000642) predicted 33773.8658: none
+  35150.3212      (059003.000642) predicted 35151.8170: none
+  40667.1510      (059003.000642) predicted 40668.6522: none
+  44134.0401      (059003.000190) predicted 44133.5908: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 
 Flags whose side disagrees with the sign of D: 2
-  36667.3188 *r   D -0.0376
-  29151.1276 *r   D -0.1511
+  36667.3188 *r   D -0.0297
+  29151.1276 *r   D -0.1110
 
-Characters changed: 398
+Characters changed: 400
   ''   -> hfs,l      4  (companions)
   ''   -> hfs,s      3  (F = 2 partner)
   ''   -> hfs,s     14  (companions)
   *r   -> hfs,l    151  (flag)
   *v   -> hfs,s    145  (flag)
   c    -> hfs,l      9  (width)
-  c    -> hfs,s     17  (width)
+  c    -> hfs,s     18  (width)
   ch   -> hfs,l     11  (width)
   ch   -> hfs,s     13  (width)
   cl   -> hfs,s      1  (companions)
@@ -87,7 +87,7 @@ Characters changed: 398
   d    -> hfs,s      1  (companions)
   d    -> hfs,s      5  (width)
   h    -> hfs,s      1  (width)
-  w    -> hfs,l     11  (width)
+  w    -> hfs,l     12  (width)
   w    -> hfs,s      1  (F = 2 partner)
   w    -> hfs,s      8  (width)
   the wide characters made hfs (|D| >= one line width):
@@ -132,65 +132,54 @@ Characters changed: 398
     16007.8025 w    -> hfs,l  D +0.1886  width 0.1593
     16041.2169 w    -> hfs,l  D +0.1921  width 0.1597
     16180.9425 d    -> hfs,l  D +0.1793  width 0.1615
+    18303.9525 w    -> hfs,l  D +0.2216  width 0.1908
     20866.0038 d    -> hfs,s  D -0.9281  width 0.2295
-    22630.6621 d    -> hfs,l  D +0.6211  width 0.2584
-    26409.0895 d    -> hfs,s  D -0.6718  width 0.3267
-    28596.2218 c    -> hfs,l  D +0.6821  width 0.3704
+    22630.6621 d    -> hfs,l  D +0.6193  width 0.2584
+    26409.0895 d    -> hfs,s  D -0.6277  width 0.3267
+    28596.2218 c    -> hfs,l  D +0.7006  width 0.3704
     29164.2576 c    -> hfs,s  D -0.4028  width 0.3823
-    30126.3092 c    -> hfs,l  D +0.6106  width 0.4028
-    30251.5994 c    -> hfs,l  D +0.5241  width 0.4055
-    30260.0502 c    -> hfs,l  D +0.5897  width 0.4057
-    31177.3707 c    -> hfs,s  D -0.5149  width 0.4260
+    30126.3092 c    -> hfs,l  D +0.5904  width 0.4028
+    30251.5994 c    -> hfs,l  D +0.5145  width 0.4055
+    30260.0502 c    -> hfs,l  D +0.5801  width 0.4057
+    31177.3707 c    -> hfs,s  D -0.4986  width 0.4260
     31398.8710 c    -> hfs,l  D +0.4929  width 0.4309
-    31636.6609 c    -> hfs,s  D -0.5206  width 0.4363
-    32572.7602 d    -> hfs,l  D +0.5876  width 0.4578
-    33207.6503 c    -> hfs,s  D -0.7671  width 0.4728
-    33491.8879 c    -> hfs,s  D -0.8519  width 0.4795
-    33650.9814 c    -> hfs,s  D -0.5096  width 0.4834
+    31636.6609 c    -> hfs,s  D -0.5256  width 0.4363
+    32572.7602 d    -> hfs,l  D +0.5346  width 0.4578
+    33207.6503 c    -> hfs,s  D -0.7675  width 0.4728
+    33491.8879 c    -> hfs,s  D -0.8512  width 0.4795
+    33650.9814 c    -> hfs,s  D -0.5119  width 0.4834
     34141.4997 c    -> hfs,l  D +0.5403  width 0.4952
-    34350.0584 d    -> hfs,s  D -0.6255  width 0.5003
+    34350.0584 d    -> hfs,s  D -0.5625  width 0.5003
     34395.4816 w    -> hfs,s  D -0.8606  width 0.5014
-    34581.8595 w    -> hfs,s  D -0.6650  width 0.5060
+    34581.8595 w    -> hfs,s  D -0.6730  width 0.5060
     34757.5489 w    -> hfs,s  D -0.6413  width 0.5103
-    34861.8898 c    -> hfs,s  D -0.5577  width 0.5129
+    34861.8898 c    -> hfs,s  D -0.5571  width 0.5129
     35206.6198 c    -> hfs,s  D -0.5853  width 0.5215
-    35327.7691 c    -> hfs,s  D -0.5955  width 0.5246
-    35980.6308 c    -> hfs,s  D -0.5991  width 0.5411
-    36002.9702 c    -> hfs,s  D -0.7411  width 0.5417
-    36302.2109 d    -> hfs,s  D -0.7753  width 0.5494
-    36316.3719 d    -> hfs,s  D -0.6683  width 0.5498
-    36411.2208 c    -> hfs,s  D -0.5866  width 0.5522
+    35327.7691 c    -> hfs,s  D -0.5974  width 0.5246
+    35980.6308 c    -> hfs,s  D -0.6008  width 0.5411
+    36002.9702 c    -> hfs,s  D -0.7945  width 0.5417
+    36302.2109 d    -> hfs,s  D -0.7751  width 0.5494
+    36316.3719 d    -> hfs,s  D -0.6941  width 0.5498
+    36411.2208 c    -> hfs,s  D -0.6010  width 0.5522
     36773.8798 c    -> hfs,s  D -0.8566  width 0.5616
-    36887.6208 c    -> hfs,l  D +0.6566  width 0.5646
-    36914.5611 c    -> hfs,l  D +0.6227  width 0.5653
-    37050.9996 c    -> hfs,s  D -0.6974  width 0.5689
-    37243.1807 c    -> hfs,l  D +0.6332  width 0.5740
-    37622.2493 c    -> hfs,s  D -0.7979  width 0.5840
-    37682.9108 w    -> hfs,s  D -0.7996  width 0.5857
-    37968.4191 c    -> hfs,s  D -0.7236  width 0.5933
-    38355.8597 c    -> hfs,s  D -0.6326  width 0.6038
+    36887.6208 c    -> hfs,l  D +0.6338  width 0.5646
+    36914.5611 c    -> hfs,l  D +0.6131  width 0.5653
+    37050.9996 c    -> hfs,s  D -0.7007  width 0.5689
+    37243.1807 c    -> hfs,l  D +0.6242  width 0.5740
+    37622.2493 c    -> hfs,s  D -0.8076  width 0.5840
+    37682.9108 w    -> hfs,s  D -0.8086  width 0.5857
+    37968.4191 c    -> hfs,s  D -0.7314  width 0.5933
+    38164.6091 c    -> hfs,s  D -0.6176  width 0.5986
+    38355.8597 c    -> hfs,s  D -0.6395  width 0.6038
 
-Printed components against head - D: 228 lines; |cg difference| median 0.0211, 90% 0.0618 cm^-1; beyond 3 sigma: 20
+Printed components against head - D: 227 lines; |cg difference| median 0.0093, 90% 0.0448 cm^-1; beyond 3 sigma: 7
   line            n      D       s   head-sD - (head-D)   z
-  29151.1276 *r    1 -0.1511  -6.661   -1.1575     22.2
-  29753.5924 *v    1 -0.7925   1.874   +0.6926    -18.5
-  30879.9787 *r    2 +0.3968   1.526   -0.2086     10.6
-  33234.5514 *v    3 -0.7446   1.122   +0.0908     -6.4
-  33481.8906 *v    5 -0.6738   0.925   -0.0508      6.0
-  32105.4086 *v    3 -0.8528   0.895   -0.0897      5.6
-  32294.9185 *r    1 +0.6280   0.603   +0.2491     -5.5
+  29151.1276 *r    1 -0.1110  -9.744   -1.1926     21.3
+  29753.5924 *v    1 -0.7906   1.878   +0.6945    -18.5
+  32105.4086 *v    3 -0.8529   0.895   -0.0895      5.6
+  32294.9185 *r    1 +0.6184   0.613   +0.2393     -5.3
   28477.5676 *v    5 -0.7556   0.949   -0.0385      4.4
-  32948.6320 *v    3 -0.7832   0.913   -0.0685      4.2
-  29916.4488 *v    3 -0.5015   0.900   -0.0503      4.2
-  29561.1977 *v    3 -0.7387   1.069   +0.0506     -4.2
-  29702.0500 *v    5 -0.8720   0.959   -0.0359      4.1
-  32959.9881 *r    2 +0.5687   1.169   -0.0963      4.0
-  29774.9501 *r    3 +0.7470   1.068   -0.0504      3.6
-  30353.3197 *v    4 -0.8245   0.955   -0.0375      3.5
-  29936.2619 *v    2 -0.6046   1.078   +0.0471     -3.4
-  31945.1479 *v    3 -0.6284   1.080   +0.0501     -3.4
-  26130.8126 *r    3 +0.7414   1.058   -0.0433      3.1
-  33355.6812 *v    2 -0.5309   0.871   -0.0684      3.1
-  34626.9793 *r    2 +0.4408   0.904   +0.0425     -3.0
+  33185.8488 *r    1 +0.3929   1.401   -0.1576      3.6
+  31945.1479 *v    3 -0.6336   1.071   +0.0448     -3.0
 
 IDEN2: 28 merged line(s) removed from dlv.dat (line 2064 57127.7778, 2182 54967.4317, 4617 34140.3907, 4722 33373.5622, 4850 32426.0902, 4980 30090.1394, 5020 29726.1177, 5062 29294.2095, 5123 28086.3315, 5124 28085.7491, 5170 27350.8376, 5271 25787.7794, 5372 24111.1521, 5373 24110.7219, 5381 24087.7004, 5430 23792.9207, 5583 23133.4479, 5584 23133.0573, 5692 22685.9497, 5729 22545.9883, 5745 22486.1899, 5825 21872.7340, 5831 21848.7330, 5875 21273.9335, 5902 20972.0992, 6094 17019.5411, 6670 11477.6693, 6671 33540.4279)

@@ -47,7 +47,20 @@ its intensity (4) and character (``c``) as an unclassified line.  Were it ever
 zeroed again it would be dropped, not kept: it is 6.9 cm^-1 from the nearest
 flagged line and belongs to no pattern.
 
-So 498 rows carry ``Intens = 0``, all of them Sugar's own, and all 498 are
+So 498 rows carry ``Intens = 0``, all of them Sugar's own.
+
+COMPONENTS DISMISSED AS MISIDENTIFIED
+=====================================
+A row Sugar printed as a component may be no component of its line.  The
+user dismisses such rows by their sheet row (DISMISSED, with the reason), and
+they are not written: their line then counts as a flagged line whose
+components were not printed (`flag_unlisted`).  Two are dismissed, the two
+components of 30879.98 *r (000150-000229), sheet rows 1987 and 1988
+(2026-10-09): at -0.430 and -0.820 cm^-1 they asked for A(000229) = +0.063,
+against +0.024 from 33021.15 *v, a line seven times stronger, and +0.028 from
+the level's composition.  They are taken to be lines of some unidentified
+transition, and are in Pr3_lines.xlsx as such, with intensities estimated
+from the rung shares that made them look like components.  So 496 rows are
 written here.
 
 HOW A COMPONENT IS PAIRED WITH ITS LINE
@@ -114,6 +127,15 @@ LINE_JOIN_WINDOW = 0.006
 
 # The curation's own marker on a row whose intensity it zeroed by hand.
 VOIDED = re.compile(r'int\s+\d+\s+changed to 0')
+
+#: Sugar's component rows the user dismissed as misidentified, by sheet row
+#: (see the module docstring); they are not written.
+DISMISSED = {
+    1987: '30879.158606 (-0.8201 from 30879.98 *r, 000150-000229): taken to '
+          'be a line of an unidentified transition (user, 2026-10-09)',
+    1988: '30879.549155 (-0.4296 from 30879.98 *r, 000150-000229): taken to '
+          'be a line of an unidentified transition (user, 2026-10-09)',
+}
 
 FIELDS = ['wn_line', 'char', 'wn_component', 'dwn', 'n_components',
           'low_id', 'upp_id', 'wl_line', 'wl_component', 'n_class',
@@ -247,6 +269,8 @@ def build(path=None, line_list=None):
     """Do the whole extraction; return (records, report)."""
     rows = read_table1(path)
     components, voided = split_zero_intensity(rows)
+    dismissed = [c for c in components if c['xl_row'] in DISMISSED]
+    components = [c for c in components if c['xl_row'] not in DISMISSED]
     kept_voided, dropped = pair_with_flagged(voided, rows)
     kept_voided = [c for c, _, _ in kept_voided]
 
@@ -287,8 +311,10 @@ def build(path=None, line_list=None):
         })
 
     report = {'rows': len(rows),
-              'zero_intensity': len(components) + len(voided),
+              'zero_intensity': (len(components) + len(dismissed)
+                                 + len(voided)),
               'sugar_components': len(components),
+              'dismissed': dismissed,
               'curated_kept': len(kept_voided),
               'curated_dropped': dropped,
               'orphans': orphans,
@@ -317,6 +343,10 @@ def _report(report, records):
           % report['zero_intensity'])
     print("   Sugar's own component rows            %5d"
           % report['sugar_components'])
+    print('   dismissed as misidentified (DISMISSED) %4d'
+          % len(report['dismissed']))
+    for c in report['dismissed']:
+        print('      sheet row %d: %s' % (c['xl_row'], DISMISSED[c['xl_row']]))
     print('   curation zeroed, kept as components   %5d'
           % report['curated_kept'])
     print('   curation zeroed, dropped              %5d'
