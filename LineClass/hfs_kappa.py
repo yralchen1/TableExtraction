@@ -497,7 +497,8 @@ def read_levels():
     return {lid: lev.J_val for lid, lev in levels.items()}
 
 
-def read_lines(path=None, constants=None, J_of=None, raw=False, model=None):
+def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
+               chars=None):
     """The accepted, singly assigned lines, with their displacement D.
 
     A line accepted for more than one transition is a blend: its measured
@@ -517,6 +518,11 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None):
     of resolved companions - is an anchor-class line with D multiplied by
     that kappa, and votes on no class's kappa.  `constants` is then not
     used: the model reads its own table of A constants.
+
+    With `chars`, `{wn_key rounded to 4 decimals: character}`, a line's
+    character is taken from there rather than from the table, which carries
+    the character of the line list the classification was run on - one
+    round behind an edit of the list (wavelength_calibration.list_characters).
     """
     path = path or os.path.join(HERE, LINES)
     constants = read_A_constants() if constants is None else constants
@@ -540,6 +546,8 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None):
             if raw:
                 wn = key
             char = row['char']
+            if chars is not None:
+                char = chars.get(round(key, 4), char)
             era = era_of(wn)
             jl, ju = J_of.get(low), J_of.get(upp)
             dJ = None if jl is None or ju is None else ju - jl

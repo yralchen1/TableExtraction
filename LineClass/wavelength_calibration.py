@@ -451,7 +451,7 @@ def hfs_model_of(cfg_path):
     return hfs_correction.Model(settings)
 
 
-def observed_wavenumbers(path=None):
+def observed_wavenumbers(path=None, chars=None):
     """Every distinct observed wavenumber of the line list, with its character
     and its wn_key (Sugar's value, which names it in the hand-kept files).
 
@@ -462,7 +462,8 @@ def observed_wavenumbers(path=None):
 
     The wavenumber is Sugar's own, the wn_key, as in `hfs_kappa.read_lines`
     with `raw`: a working set's wn_obs has been calibrated already, and the
-    correction is added to what he published.
+    correction is added to what he published.  With `chars`
+    (list_characters) the character is the line list's, else the table's.
     """
     path = path or os.path.join(hfs_kappa.HERE, hfs_kappa.LINES)
     seen = {}
@@ -470,39 +471,59 @@ def observed_wavenumbers(path=None):
         for row in csv.DictReader(fh):
             key = (row.get('wn_key') or '').strip()
             key = float(key) if key else float(row['wn_obs'])
-            seen.setdefault(round(key, 6), (key, row['char'], key))
+            char = row['char']
+            if chars is not None:
+                char = chars.get(round(key, 4), char)
+            seen.setdefault(round(key, 6), (key, char, key))
     return [seen[k] for k in sorted(seen)]
 
 
-def with_unclassified(observed, source=None):
-    """`observed` (observed_wavenumbers) with every line of the line list
-    `source` (default Pr3_lines.xlsx) that the classification table does not
-    hold yet added, in the same form, its character from the `Ch.` column.
-
-    A line just entered in the line list - a resolved hfs companion, say -
-    is in no classification table until classify_lines.py has run on the
-    corrected list, and that list has to carry it first, calibrated like
-    every other line recorded on the same plate."""
+def read_line_list(source=None):
+    """`[(wn, character)]` of the line list `source` (default
+    Pr3_lines.xlsx), its `own` and `Ch.` columns: one entry per line, the
+    first row's where a line has a row per identification, as
+    classify_lines.py reads it.  A blank character is ''."""
     import openpyxl
 
     source = source or os.path.join(hfs_kappa.HERE, 'Pr3_lines.xlsx')
-    have = {round(key, 4) for _, _, key in observed}
     wb = openpyxl.load_workbook(source, read_only=True, data_only=True)
     ws = wb[wb.sheetnames[0]]
     rows = ws.iter_rows(values_only=True)
     header = [str(h).strip() if h is not None else '' for h in next(rows)]
     i_wn, i_ch = header.index('own'), header.index('Ch.')
-    added = {}
+    out, seen = [], set()
     for rec in rows:
         wn = rec[i_wn]
-        if not isinstance(wn, (int, float)) or round(wn, 4) in have:
+        if not isinstance(wn, (int, float)) or round(wn, 6) in seen:
             continue
+        seen.add(round(wn, 6))
         char = rec[i_ch]
-        added.setdefault(round(wn, 6), (float(wn),
-                                        '' if char is None else str(char).strip(),
-                                        float(wn)))
+        out.append((float(wn), '' if char is None else str(char).strip()))
     wb.close()
-    return sorted(list(observed) + list(added.values()))
+    return out
+
+
+def list_characters(listed):
+    """`{wn rounded to 4 decimals: character}` of `read_line_list`'s
+    result.  The line list is where a character is edited; a classification
+    table carries the character of the list it was classified from, which is
+    one round behind such an edit, so the calibration takes it from here."""
+    return {round(wn, 4): char for wn, char in listed}
+
+
+def with_unclassified(observed, listed):
+    """`observed` (observed_wavenumbers) with every line of the line list
+    (`listed`, read_line_list) that the classification table does not hold
+    yet added, in the same form.
+
+    A line just entered in the line list - a resolved hfs companion, say -
+    is in no classification table until classify_lines.py has run on the
+    corrected list, and that list has to carry it first, calibrated like
+    every other line recorded on the same plate."""
+    have = {round(key, 4) for _, _, key in observed}
+    added = [(wn, char, wn) for wn, char in listed
+             if round(wn, 4) not in have]
+    return sorted(list(observed) + added)
 
 
 def group_bins(blocks, lam, keep):
@@ -809,7 +830,10 @@ def main(argv=None):
 
     blocks = read_blocks()
     model = hfs_model_of(cfg_path)
-    lines = hfs_kappa.read_lines(table_path, raw=True, model=model)
+    listed = read_line_list()
+    chars = list_characters(listed)
+    lines = hfs_kappa.read_lines(table_path, raw=True, model=model,
+                                 chars=chars)
     fixed = collections.Counter(ln.fixed for ln in lines if ln.fixed)
     print('hfs model of %s: kappa held for %d line(s) (%s)'
           % (os.path.relpath(cfg_path, HERE), sum(fixed.values()),
@@ -1480,9 +1504,9 @@ def main(argv=None):
     for i, ln in enumerate(lines):
         key_of_char[(ln.char, ln.era)] = ucls[i]
     fixed_unc = hfs_kappa.read_inflated()
-    observed = observed_wavenumbers(table_path)
+    observed = observed_wavenumbers(table_path, chars)
     if args.set_dir:
-        observed = with_unclassified(observed)
+        observed = with_unclassified(observed, listed)
     unknown =fixed_unc.check([key for _, _, key in observed])
     if unknown:
         print('  %s: no observed line has the wn_key of %s'

@@ -155,7 +155,7 @@ def test_no_share_without_calculated_intensities(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # wavelength_calibration: a line the table does not hold yet
 # ---------------------------------------------------------------------------
-def test_the_calibration_takes_lines_no_table_holds(tmp_path):
+def line_list(tmp_path):
     path = str(tmp_path / 'lines.xlsx')
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -163,8 +163,41 @@ def test_the_calibration_takes_lines_no_table_holds(tmp_path):
     ws.append([30000.1234, 0.01, 100.0, '*r'])
     ws.append([30000.5, 0.3, 50.0, 'c'])
     ws.append([31000.0, 0.01, 10.0, None])
+    ws.append([31000.0, 0.01, 10.0, '**'])     # its second identification
     wb.save(path)
+    return path
+
+
+def test_the_line_list_is_read_once_per_line(tmp_path):
+    listed = W.read_line_list(line_list(tmp_path))
+    # the first row of a line with two, as classify_lines.py reads it
+    assert listed == [(30000.1234, '*r'), (30000.5, 'c'), (31000.0, '')]
+
+
+def test_the_calibration_takes_lines_no_table_holds(tmp_path):
+    listed = W.read_line_list(line_list(tmp_path))
     observed = [(30000.1234, '*r', 30000.1234)]
-    got = W.with_unclassified(observed, path)
+    got = W.with_unclassified(observed, listed)
     assert got == [(30000.1234, '*r', 30000.1234), (30000.5, 'c', 30000.5),
                    (31000.0, '', 31000.0)]
+
+
+TABLE = ('wn_obs,wn_key,char,low_id,upp_id,accepted,n_accepted\n'
+         '30000.14,30000.1234,bl,059003.000100,059003.000300,1.0,1\n'
+         '30000.52,30000.5,c,,,,0\n')
+
+
+def test_the_calibration_takes_the_character_from_the_line_list(tmp_path):
+    # the table was classified before the list's 'bl' was deleted
+    table = tmp_path / 'lc.csv'
+    table.write_text(TABLE, encoding='utf-8', newline='\n')
+    chars = W.list_characters([(30000.1234, ''), (30000.5, 'c')])
+    assert W.observed_wavenumbers(str(table), chars) == [
+        (30000.1234, '', 30000.1234), (30000.5, 'c', 30000.5)]
+    assert W.observed_wavenumbers(str(table))[0][1] == 'bl'
+    import hfs_kappa
+    got = hfs_kappa.read_lines(str(table), constants={}, J_of={}, raw=True,
+                               chars=chars)
+    assert [ln.char for ln in got] == ['']
+    assert [ln.char for ln in hfs_kappa.read_lines(
+        str(table), constants={}, J_of={}, raw=True)] == ['bl']

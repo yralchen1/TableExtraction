@@ -28,15 +28,18 @@ column is 0.
 THE ROWS THAT LOOK LIKE COMPONENTS AND ARE NOT
 ==============================================
 ``Intens = 0`` is overloaded.  Besides Sugar's own component rows, the
-curation of the workbook set the intensity of two rows to zero by hand, each
-with a note of the form ``int 20 changed to 0``:
+curation of the workbook can set the intensity of a row to zero by hand,
+with a note of the form ``int 20 changed to 0``.  Such a row is kept as a
+component if a flagged line lies within the window on the right side,
+marked ``origin = curated_duplicate`` so that nothing downstream mistakes it
+for a row Sugar printed without an intensity, and dropped otherwise.
 
-* rows 80 and 2389 - lines Sugar printed with an intensity (20 and 5) whose
-  classification duplicated that of the neighboring flagged line, merged into
-  it by the curation.  Each lies about 0.1-0.3 cm^-1 on the flagged side of
-  its parent, which is to say it behaves exactly like a resolved component;
-  they are kept, and marked ``origin = curated_duplicate`` so that nothing
-  downstream mistakes them for rows Sugar printed without an intensity.
+There is none at present.  Rows 80 and 2389 (11477.67 and 33540.43) were two
+until 2026-10-09: lines Sugar printed with an intensity (20 and 5) and the
+classification of the neighboring flagged line.  They were given their
+intensities back and entered in ``hfs_satellites.txt`` as companions of that
+line: rung 3 of 000034-000076, and the F = 2 group of 000190-000447, whose
+position (-0.270 against about -0.5 predicted) is no measurement of A.
 
 A third, row 2053 (31604.539 cm^-1, a 45.7 cm^-1 Ritz mismatch in Sugar's
 table), was zeroed the same way until the curation of 2026-09-23 gave it back
@@ -44,8 +47,8 @@ its intensity (4) and character (``c``) as an unclassified line.  Were it ever
 zeroed again it would be dropped, not kept: it is 6.9 cm^-1 from the nearest
 flagged line and belongs to no pattern.
 
-So 500 rows carry ``Intens = 0``, all 500 are written here, and 498 of those
-are Sugar's own.
+So 498 rows carry ``Intens = 0``, all of them Sugar's own, and all 498 are
+written here.
 
 HOW A COMPONENT IS PAIRED WITH ITS LINE
 =======================================
@@ -54,15 +57,17 @@ rounded key.  Two independent checks say the pairing is right:
 
 * the side.  Every component of an ``*r`` line comes out at LOWER wavenumber
   than the tabulated line and every component of a ``*v`` line at higher, in
-  500 cases out of 500, without a single exception.  Nothing in the pairing
+  498 cases out of 498, without a single exception.  Nothing in the pairing
   rule enforces that, so it is a test of both the extraction and the reading
   of the flags.
 * the alternative rule.  Requiring the flagged side first and only then taking
-  the nearest candidate gives the same parent for all 500 rows, although 17
+  the nearest candidate gives the same parent for all 498 rows, although 17
   components have a second flagged line within the 3 cm^-1 window.
 
-The parent line is then joined to the pipeline's own line list,
-``line_classifications.csv``, by nearest wavenumber within 0.006 cm^-1 - the
+The parent line is then joined to the pipeline's own line list, the working
+set's ``iter_hfs/line_classifications.csv`` (``--line-list`` names another;
+the baseline's table at the top of LineClass/ has been stale since
+2026-09-24), by nearest wavenumber within 0.006 cm^-1 - the
 same tolerance the rest of the project joins on.  All 296 flagged lines match
 one.  Where that line has exactly one accepted classification its two level
 identifiers are written; where it has two or three - a blend - no single pair
@@ -92,7 +97,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 WORKBOOK = 'Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm'
 SHEET = 'Table 1'
-LINE_LIST = 'line_classifications.csv'
+LINE_LIST = os.path.join('iter_hfs', 'line_classifications.csv')
 OUTPUT = 'hfs_components.csv'
 
 # Columns of the sheet, 1-based, as the header row names them.

@@ -1,20 +1,20 @@
 check_sync.py - are the files describing the same identification?
 working set: F:\UMD\AI\as-ai\LineClass\iter_hfs
 file                             last written
-line_classifications.csv         2026-10-09 14:34
-line_classifications.xlsx        2026-10-09 14:34
-LOPT_input_lines.txt             2026-10-09 14:34
-LOPT_output_lines.txt            2026-10-09 14:35
-LOPT_output_levels.txt           2026-10-09 14:35
+line_classifications.csv         2026-10-09 15:02
+line_classifications.xlsx        2026-10-09 15:02
+LOPT_input_lines.txt             2026-10-09 15:02
+LOPT_output_lines.txt            2026-10-09 15:03
+LOPT_output_levels.txt           2026-10-09 15:03
 line_decisions.csv               2026-10-09 12:21
 revised_level_energies.csv       2026-09-21 20:21
-unstable_candidates.csv          2026-10-09 14:34
+unstable_candidates.csv          2026-10-09 15:02
 level_positions.csv              2026-09-22 21:25
 Pr3_lines.xlsx                   2026-10-09 13:40
 lineclass_config.toml            2026-10-08 18:17
-IDEN2/enlev.dat                  2026-10-09 13:33
-IDEN2/trans.dat                  2026-10-09 13:33
-IDEN2/dlv.dat                    2026-10-09 14:09
+IDEN2/enlev.dat                  2026-10-09 15:04
+IDEN2/trans.dat                  2026-10-09 15:04
+IDEN2/dlv.dat                    2026-10-09 15:04
 
 Freshness
 ---------
@@ -54,7 +54,7 @@ IDEN2/dlv.dat
          line 6670 at record 6593 (11477.687)
     ok  all 5618 identifications in trans.dat name a line that dlv.dat has
     ok  the wavelength of each of the 6671 rows of dlv.dat is the standard one for its wavenumber
-    ok  all 6671 matched rows of dlv.dat carry the own_corr and the uncertainty the pipeline uses, or for the 4772 lines the fit uses what LOPT is given (146 of them differ in the last printed digit, by up to 0.0008 cm^-1)
+    ok  all 6671 matched rows of dlv.dat carry the own_corr and the uncertainty the pipeline uses, or for the 4773 lines the fit uses what LOPT is given (39 of them differ in the last printed digit, by up to 0.0005 cm^-1)
 
 Stability
 ---------

@@ -34,15 +34,16 @@ def written():
 
 # --- the extraction ---------------------------------------------------------
 def test_counts(extracted):
-    """500 rows carry Intens = 0; two of them are the curation's own.
+    """498 rows carry Intens = 0, all of them Sugar's own.
 
-    Row 2053 was a third until the curation of 2026-09-23 restored its
-    intensity, so nothing is dropped any more.
+    Rows 80 and 2389 were the curation's own zeroed rows until 2026-10-09,
+    when they were given back their intensities and entered in
+    hfs_satellites.txt; row 2053 was a third until 2026-09-23.
     """
     _, report = extracted
-    assert report['zero_intensity'] == 500
+    assert report['zero_intensity'] == 498
     assert report['sugar_components'] == 498
-    assert report['curated_kept'] == 2
+    assert report['curated_kept'] == 0
     assert report['curated_dropped'] == []
 
 
@@ -60,7 +61,7 @@ def test_the_side_is_right_in_every_case(extracted):
     """
     records, report = extracted
     assert report['side_violations'] == []
-    assert len(records) == 500
+    assert len(records) == 498
 
 
 def test_pairing_does_not_depend_on_the_rule(extracted):
@@ -86,10 +87,10 @@ def test_written_file_matches_the_workbook(extracted, written):
 
 # --- the file itself --------------------------------------------------------
 def test_flag_populations(written):
-    """193 components on `*r` lines and 307 on `*v`, over 248 lines."""
-    assert sum(1 for r in written if r['char'] == '*r') == 193
+    """191 components on `*r` lines and 307 on `*v`, over 246 lines."""
+    assert sum(1 for r in written if r['char'] == '*r') == 191
     assert sum(1 for r in written if r['char'] == '*v') == 307
-    assert len({r['wn_line'] for r in written}) == 248
+    assert len({r['wn_line'] for r in written}) == 246
 
 
 def test_displacements_have_the_sign_of_the_flag(written):
@@ -178,7 +179,7 @@ def test_the_calculated_constants_reproduce_the_measurements():
     tested = hfs_patterns.with_both_A(patterns)
     assert len(tested) == 152
     t = hfs_patterns.scale_tests(tested)
-    assert t['n'] == 309
+    assert t['n'] == 310
     assert t['rms_none'] == pytest.approx(0.087, abs=0.004)
     assert t['scale'] == pytest.approx(0.958, abs=0.010)
     assert t['rms_scale'] == pytest.approx(0.080, abs=0.004)
@@ -197,10 +198,16 @@ def test_kappa_one_is_what_the_pipeline_already_applies():
     with open(path, encoding='utf-8', newline='') as fh:
         corrections = {r['wn_obs']: r for r in csv.DictReader(fh)}
     patterns, _ = hfs_patterns.read_patterns()
-    checked = stale = 0
+    checked = stale = moved = 0
     for p in hfs_patterns.with_both_A(patterns):
         row = corrections.get('%.3f' % p.wn)
         if row is None or row['class'] != 'flag':
+            continue
+        if (row['low_id'], row['upp_id']) != (p.low_id, p.upp_id):
+            # the component file follows the working set's classification,
+            # the correction file the baseline's of its day: 28322.699 has
+            # been 000165-000237 since, not 000131-000194
+            moved += 1
             continue
         assert float(row['kappa']) == 1.0
         if {row['low_id'], row['upp_id']} & ZEROED_IN_CORRECTIONS:
@@ -216,7 +223,7 @@ def test_kappa_one_is_what_the_pipeline_already_applies():
         assert float(row['delta_cm-1']) == pytest.approx(
             hfs_patterns.head_displacement(p.J1, p.A1, p.J2, p.A2), abs=1e-4)
         checked += 1
-    assert (checked, stale) == (145, 7)
+    assert (checked, stale, moved) == (144, 7, 1)
 
 
 def test_no_level_is_labeled_as_conflicting_any_more():

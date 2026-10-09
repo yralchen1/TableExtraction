@@ -2892,7 +2892,12 @@ Sugar's own workbook with `own` and `unc_own` untouched and two columns added,
 The corrections are made for every line of the classification table, and since 2026-10-09
 also for a line of `Pr3_lines.xlsx` that no table holds yet (`with_unclassified`): a line just
 entered in the line list is calibrated on its first run, not left on Sugar's value until
-`classify_lines.py` has put it into a table.
+`classify_lines.py` has put it into a table. For the same reason a line's character, which
+sets its uncertainty class and its κ class, is taken from `Pr3_lines.xlsx`, where it is
+edited, and not from the table, which carries the character of the list it was classified
+from (`read_line_list`, `list_characters`; `hfs_kappa.read_lines(chars=...)`).
+`hfs_components.py` joins Sugar's components to `iter_hfs/line_classifications.csv` by
+default since 2026-10-09; the baseline's table at the top of `LineClass/` is stale.
 
 **`wn_key` is the name of an observed line, and it never changes.** The files kept by hand are
 not copied per set: there is one `line_decisions.csv`, one `new_levels.txt`, one
