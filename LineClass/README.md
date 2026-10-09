@@ -918,7 +918,7 @@ After weeding, each non-ground level (`energy != 0`) is re-estimated as the **we
 - from a transition *from* the level (it is the upper level): `E = E_lower + wn_obs`,
 - from a transition *to* the level (it is the lower level): `E = E_upper − wn_obs`.
 
-Weights come from `calc_weights`: for each accepted transition on a line, `BF = I_calc / Σ I_calc` over the line's accepted set (or `1/n` when any intensity is missing), and `w = BF² / σ_wn²` — the LOPT "centroid" weighting that shares a blend's weight among its components. Lines with a single accepted transition get `BF = 1` → `w = 1/σ²`. Iteration runs up to `MAX_IT = 50`, stopping when the maximum energy change `< TOL = 0.001 cm⁻¹`. The function returns the *first-iteration* maximum change, which the outer cycle uses as its convergence signal.
+Weights come from `calc_weights`: for each accepted transition on a line, `BF = I_calc / Σ I_calc` over the line's accepted set (or `1/n` when any intensity is missing), and `w = BF² / σ_wn²` — the LOPT "centroid" weighting that shares a blend's weight among its components. For a blend, `σ_wn²` also includes `u_I²`, the uncertainty of its centroid (see "The centroid of a blend"). Lines with a single accepted transition get `BF = 1` → `w = 1/σ²`. Iteration runs up to `MAX_IT = 50`, stopping when the maximum energy change `< TOL = 0.001 cm⁻¹`. The function returns the *first-iteration* maximum change, which the outer cycle uses as its convergence signal.
 
 > This optimization is intentionally minimalistic — it exists only to sharpen the Ritz wavenumbers that drive assignment decisions. **Final** level optimization is deferred to **LOPT (v ≥ 5)**, fed by the accepted rows and their `BF` values.
 
@@ -2767,6 +2767,26 @@ uncertainty fits, to a line in the registry below, in `u_stat_cm1`, and in
 `kappa_candidates.model_unc`. On the calibration of that day it raises 618 of the 639 `w` lines
 of 1974 (median ×1.9), all 60 `ch`, 11 of 95 `d`, and 101 of 107 `cl` of 1969. A class the floor
 holds shows a chi2/dof well below 1 in the report's table, since "after" is its residuals' rms.
+
+**The centroid of a blend (2026-10-09).** A line classified to several transitions never enters
+the plate calibration, which fits only singly classified lines. Its uncertainty matters in the
+level fits, where it is fitted as the centroid `x_cg = Σ w_i·x_i` of its components, `w_i` the
+share of the calculated intensity and `x_i` the predicted wavenumber. The `w_i` are not exact, so
+the centroid is uncertain too. If each ln I_calc is uncertain by `u_ln`, the centroid is
+uncertain by `u_I = u_ln · sqrt(Σ (w_i·(x_i − x_cg))²)`. For two equal components δ apart that
+is `u_ln·δ/√8`, and a lopsided pair gives less. `classify_lines.calc_weights` (its level fit,
+`w = BF²/(σ² + u_I²)`) and `make_LOPT_input.py` (the shared uncertainty of a blend's records) add
+`u_I` in quadrature. `review_mismatches.py` does the same when it rewrites a line's records.
+The `unc_wn_obs` and `BF` columns of the table are unchanged. The term is defined in
+`blend_centroid.py` and set by `[blends] u_ln_intensity` (0.33; 0 turns it off). The value
+was measured from the leave-one-out LOPT residuals of the 515 blends of `iter_hfs` that had no
+registry row. Their scatter grew with the spread of the components: rms(residual/σ) was 0.83
+where δ/4 < u and 1.06 where δ/4 > 2u. Maximum likelihood gave 0.24 (68 %: 0.14 to 0.33).
+The upper end was adopted because only blends whose centroid fitted were accepted. On that table
+it widens 378 of the 536 blends by more than the written precision: median ×1.04, largest ×1.68.
+None of the plain blends spreads wider than about half the plate's two-line resolution, as
+measured from the deficit of close pairs in the line list (0.06 Å below 1250 Å, rising to 0.13 Å
+at 3200 to 4500 Å).
 
 ## Lines whose uncertainty is set by hand: `inflated_unc_lines.txt`
 

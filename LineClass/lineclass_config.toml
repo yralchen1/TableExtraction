@@ -320,6 +320,20 @@ verify_tolerance = 0.01
 # rather than by raising the limit for every row.
 max_forced_offset = 5.0
 
+[blends]
+# A line classified to several transitions is fitted as the centroid of its
+# components, weighted by their calculated intensities, and those weights are
+# not exact.  If each component's ln(Icalc) is uncertain by u_ln_intensity,
+# the centroid is uncertain by
+#     u_I = u_ln_intensity * sqrt( sum_i (w_i * (x_i - x_cg))^2 ),
+# which classify_lines.py (its level fit) and make_LOPT_input.py (LOPT's
+# input) add to the line's uncertainty in quadrature (blend_centroid.py).
+# Two equal components delta apart get u_I = 0.117 * delta at 0.33.
+# 0.33 is the upper end of the 68 % interval measured from the LOPT residuals
+# of the blends of iter_hfs on 2026-10-09 (maximum likelihood 0.24); 0 or
+# leaving the key out turns the term off.
+u_ln_intensity = 0.33
+
 [hfs]
 # The head-frame hyperfine correction (Work_on_hfs_plan.md, Step 5, agreed
 # 2026-09-29).  141Pr has nuclear spin I = 5/2, so a level of angular momentum

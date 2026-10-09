@@ -99,6 +99,17 @@ reports the correction as dEcent; k(n) measures the spread of the components
 about that centroid, which LOPT has thus already removed, and adding it would
 charge the same effect twice.  --no-hfs turns the hyperfine term off.
 
+What the centroid model does not know is that its weights are uncertain.
+The calculated intensities that set them are not exact, and a blend whose
+components lie far apart has a centroid that moves with them.  Its shared
+uncertainty is therefore widened in quadrature by
+
+    u_I = u_ln * sqrt( sum_i (w_i * (x_i - x_cg))^2 ),
+
+u_ln being [blends] u_ln_intensity of the configuration (blend_centroid.py,
+centroid_unc).  classify_lines.py weights the blend the same way in its own
+level fit.
+
 The hyperfine correction.  With `apply = true` in the `[hfs]` section of the
 set's configuration (the `lineclass_config.toml` beside the classification
 table, or the project's), the levels are fitted in the head frame of
@@ -148,6 +159,7 @@ import csv
 import math
 import os
 
+import blend_centroid
 import config
 import hfs_correction
 import output_files
@@ -466,6 +478,26 @@ def blend_weights(rows):
     return {id(r): c / total for r, c in zip(rows, calc)}
 
 
+def centroid_unc(rows, weights, u_ln):
+    """u_I of one observed line: the uncertainty of its centroid owed to the
+    calculated intensities of the components LOPT fits (blend_centroid.py).
+
+    `rows` are the line's records and `weights` blend_weights' result; the
+    components are the rows with a weight, at the positions their dif_wn_O-C
+    puts them (wn_obs - dif_wn_O-C, the wavenumber classify_lines.py
+    predicted the transition at).  0 for a line with fewer than two of them
+    or with `u_ln` 0.
+    """
+    comps = []
+    for r in rows:
+        w = weights.get(id(r), 0.0)
+        dif = (r.get('dif_wn_O-C') or '').strip()
+        if w > 0 and dif and dif.lower() != 'nan':
+            comps.append((w, -float(dif)))
+    return blend_centroid.intensity_unc([w for w, _ in comps],
+                                        [x for _, x in comps], u_ln)
+
+
 def accepted_share(rows, other):
     """The share of one observed line that its accepted rows `rows` carry,
     when a part of it of calculated intensity `other` is not given to LOPT:
@@ -530,7 +562,8 @@ def hfs_line_unc(unc_obs, widths_absent, widths_undet, u_shift, u_undet,
 
 
 def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
-                     hfs_stats=None, components=None):
+                     hfs_stats=None, components=None, u_ln_blend=0.0,
+                     blend_stats=None):
     """Write the LOPT transitions file.
 
     Returns (written, accepted, flagged, widened, dropped).  `w_hfs` is
@@ -553,6 +586,12 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
     stood for both.  `components` is read_hfs_components' result: the hfs
     components of blended companions, whose share of the line widens the
     uncertainty of its records (accepted_share).
+
+    `u_ln_blend` is [blends] u_ln_intensity: a blend's shared uncertainty
+    is widened in quadrature by the uncertainty of its centroid that its
+    calculated intensities leave (centroid_unc), and `blend_stats`, if
+    given, gets the number of lines so widened ('widened') and the largest
+    u_I ('largest').
     """
     w_hfs = w_hfs or {}
     components = components or {}
@@ -620,6 +659,14 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
             shared[key] = blend_uncertainty(
                 [per_row[id(r)] for r in group],
                 [weights.get(id(r), 0.0) for r in group])
+            # and the centroid's own uncertainty, which the weights carry
+            u_I = centroid_unc(group, weights, u_ln_blend)
+            if u_I > 0:
+                shared[key] = math.hypot(shared[key], u_I)
+                if blend_stats is not None:
+                    blend_stats['widened'] = blend_stats.get('widened', 0) + 1
+                    blend_stats['largest'] = max(
+                        blend_stats.get('largest', 0.0), u_I)
 
     records = []
     n_accepted_rows = 0
@@ -869,11 +916,13 @@ def main(argv=None):
                   f"file and keep Sugar's wavenumber and uncertainty; "
                   f'the first is {unknown[0]:.4f}')
     w_hfs = {} if args.no_hfs else read_hfs_widths(hfs_widths)
-    shifts, hfs_stats = [], {}
+    shifts, hfs_stats, blend_stats = [], {}, {}
+    u_ln_blend = config.load(cfg_path).blend_u_ln
     written, accepted, flagged, widened, dropped = write_lines_file(
         rows, lines_out, w_hfs, hfs=hfs, shifts_out=shifts,
         hfs_stats=hfs_stats,
-        components=read_hfs_components(args.classifications))
+        components=read_hfs_components(args.classifications),
+        u_ln_blend=u_ln_blend, blend_stats=blend_stats)
     # The record of the shifts describes the transitions file just written,
     # so one left from an earlier run with the correction on is removed
     # when the correction is off: it would describe a file that is gone.
@@ -899,6 +948,14 @@ def main(argv=None):
     if dropped:
         print(f'  {dropped} repeated record(s) of a transition already '
               f'written were dropped')
+    if u_ln_blend > 0:
+        print(f"  blends ([blends] u_ln_intensity = {u_ln_blend:g}): "
+              f"{blend_stats.get('widened', 0)} observed lines widened by "
+              f"the uncertainty of their centroid, largest "
+              f"{blend_stats.get('largest', 0.0):.4f} cm-1")
+    else:
+        print('  blends: the uncertainty of their centroid is left out '
+              '([blends] u_ln_intensity = 0)')
     if w_hfs:
         print(f'  hyperfine widths from {hfs_widths}: {len(w_hfs)} levels '
               f'carry one; {widened} transitions had their uncertainty '

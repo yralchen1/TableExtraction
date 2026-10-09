@@ -28,6 +28,7 @@ import pandas as pd
 import openpyxl
 from openpyxl.utils import get_column_letter
 import config
+import blend_centroid
 import gA_imputation
 import hfs_correction
 import hfs_kappa
@@ -72,6 +73,7 @@ START_LEVELS = ''        # LOPT_output_levels.txt the levels start from, '' for 
 HFS = None               # the hfs_correction.Model in force, None with [hfs] apply off
 HFS_MAX_D = 0.0          # cm^-1; the largest |D| any transition can have, set by apply_hfs_model()
 HFS_SATELLITES = ''      # the registry of resolved hfs companions; see attach_hfs_satellites()
+BLEND_U_LN = 0.0         # ln-intensity uncertainty of a blend's components; see blend_intensity_unc()
 MAX_FORCED_OFFSET = 5.0  # cm^-1; how far a ledger-accepted pair's Ritz wavenumber
                          #   may sit from its own line; see check_forced_decisions()
 OFFSET_OK = 'offset-ok'  # written in a ledger row's reason column, exempts that one
@@ -88,7 +90,7 @@ def apply_config(cfg, policy: str = None) -> None:
     global LEVEL_OVERRIDES, LINE_DECISIONS, NEW_LEVELS, ICALC_EXTRA
     global DISCARDED_LEVELS, INFLATED_UNC, START_LEVELS
     global WN_MIN, WN_MAX, MISSING_POLICY, _IMPUTED, MAX_FORCED_OFFSET
-    global HFS, HFS_MAX_D, HFS_SATELLITES
+    global HFS, HFS_MAX_D, HFS_SATELLITES, BLEND_U_LN
     CFG = cfg
     LEVELS_FILE = cfg.levels_file
     LINES_FILE = cfg.lines_file
@@ -113,6 +115,7 @@ def apply_config(cfg, policy: str = None) -> None:
     HFS = hfs_correction.Model(cfg.hfs) if cfg.hfs.apply else None
     HFS_MAX_D = 0.0
     HFS_SATELLITES = cfg.hfs.satellites
+    BLEND_U_LN = cfg.blend_u_ln
 
 
 apply_config(config.load())
@@ -292,7 +295,7 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
            if t is not UNASSIGNED and t.accepted == 1]
     if not acc:
         return 0.0, 0.0, HFS.kappa_of(line.line_character, line.wn_key)[0]
-    bfs = [math.sqrt(weights[id(t)]) * line.wn_uncertainty for t in acc]
+    bfs = [math.sqrt(weights[id(t)]) * fit_uncertainty(line) for t in acc]
     # A blended companion's hfs component takes a share of the line but is
     # not one of the transitions LOPT is given, so it does not move them: the
     # shift is that of the line without it.
@@ -2741,7 +2744,8 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                 # weight. The LOPT weight is BF**2 (the factor by which LOPT multiplies its
                 # own 1/u_own**2); writing BF here avoids accidentally pasting BF**2 into
                 # LOPT's "weight" input column. LOPT (centroid model) squares BF internally.
-                bf = math.sqrt(weights[id(tr)] * (u_own**2)) if tr.accepted is not None and tr.accepted == 1 else 0.0
+                # (weights carry a blend's u_I as well: fit_uncertainty)
+                bf = math.sqrt(weights[id(tr)] * fit_uncertainty(obs_line) ** 2) if tr.accepted is not None and tr.accepted == 1 else 0.0
 
                 output_rows.append({
                     'wn_obs': obs_line.wavenumber,
@@ -4561,24 +4565,51 @@ def line_intensity_split(line):
     return accepted, sum(t.calc_intensity for t in accepted) + rung_i, rung_i
 
 
+def blend_intensity_unc(line, accepted, any_none) -> float:
+    """u_I of `line`, the uncertainty its centroid owes to the calculated
+    intensities of its `accepted` transitions (blend_centroid.py); 0 for a
+    line with one.  The components are weighted as calc_weights weighs
+    them, equally when `any_none`; the hfs component of a blended companion
+    is not one of them, as it is not one of LOPT's records."""
+    if len(accepted) < 2 or BLEND_U_LN <= 0:
+        return 0.0
+    return blend_centroid.intensity_unc(
+        [1.0 if any_none else t.calc_intensity for t in accepted],
+        [t.predicted_for(line) for t in accepted], BLEND_U_LN)
+
+
+def fit_uncertainty(line) -> float:
+    """The uncertainty `line` was weighted with in the last calc_weights:
+    its own, with a blend's u_I added in quadrature."""
+    return line.fit_uncertainty or line.wn_uncertainty
+
+
 def calc_weights(lines: dict) -> dict:
     """Calculate weights for energy levels based on accepted transitions.
 
     The hfs component of a blended companion (attach_hfs_satellites) takes
     its share of the line, so the line's accepted transitions divide only
-    the rest between them."""
+    the rest between them.
+
+    A blend's uncertainty is widened by u_I, the uncertainty of its centroid
+    that comes from the calculated intensities (blend_intensity_unc); the
+    value used is kept as the line's `fit_uncertainty`, from which the
+    branching fractions are read back (fit_uncertainty)."""
     weights = {}
     for line in lines:
+        line.fit_uncertainty = 0.0
         all_accepted, sum_i, _ = line_intensity_split(line)
         if not all_accepted: continue
         any_none = any(t.calc_intensity is None for t in line.assigned_transitions)
+        u_I = blend_intensity_unc(line, all_accepted, any_none)
+        line.fit_uncertainty = math.hypot(line.wn_uncertainty, u_I)
         for t in all_accepted:
             intens = 1.0 if any_none else t.calc_intensity
             bf = intens / sum_i
             # Weight components of a blend by square of branching fraction to approximate the "centroid"
             # model in LOPT v. >= 5. Note that the "component" model used in earlier versions of LOPT
             # treats each blend component as an independent observation, which is not appropriate for blended lines.
-            w = bf**2 / (t.assigned_to.wn_uncertainty ** 2)
+            w = bf**2 / (t.assigned_to.wn_uncertainty ** 2 + u_I ** 2)
             weights[id(t)] = w
     return weights
 

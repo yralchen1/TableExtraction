@@ -98,6 +98,11 @@ class SpectralLine:
     # (inflated_unc_lines.txt) widened it and [hfs] apply is on, so that the
     # widening can be withdrawn once the correction accounts for the line's
     # hfs (classify_lines.release_hfs_allowances).  0.0 = not widened so.
+    fit_uncertainty: float = 0.0
+    # The uncertainty the last level fit weighted this line with: its own,
+    # and for a blend the uncertainty of the centroid owed to the calculated
+    # intensities in quadrature (classify_lines.calc_weights,
+    # blend_centroid.py).  0.0 = not weighted (no accepted transition).
     legacy_keys: Optional[set] = None
     # The (lower_id, upper_id) pairs this line holds a published
     # identification for, as classify_lines.retag_legacy_identifications()

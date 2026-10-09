@@ -124,6 +124,7 @@ import math
 import os
 import sys
 
+import config
 import hfs_correction
 import hfs_kappa
 import make_LOPT_input
@@ -903,7 +904,7 @@ def append_inflated(path, wanted, log):
 
 
 def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
-                      log, dry_run):
+                      log, dry_run, u_ln_blend=0.0):
     """Carry the decisions into the set's own LOPT transitions file.
 
     Every record of an observed line is rewritten together, because the three
@@ -921,7 +922,9 @@ def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
       widened value where the decision widens it, the level widths added in
       quadrature by ``make_LOPT_input.total_unc``, and then the
       weight-weighted mean across the line by
-      ``make_LOPT_input.blend_uncertainty`` - the same three steps, in the
+      ``make_LOPT_input.blend_uncertainty``, widened in quadrature by the
+      uncertainty of the blend's centroid, ``make_LOPT_input.centroid_unc``
+      with ``u_ln_blend`` ([blends] u_ln_intensity) - the same steps, in the
       same order, that wrote the file in the first place.
 
     A transition that has no record here cannot be given one, because the
@@ -972,6 +975,8 @@ def update_lopt_input(path, by_line, by_pair, verdicts, inflations, w_hfs,
             shared = make_LOPT_input.blend_uncertainty(
                 [per_row[id(r)] for r in group],
                 [weights.get(id(r), 0.0) for r in group])
+            shared = math.hypot(shared, make_LOPT_input.centroid_unc(
+                group, weights, u_ln_blend))
         share = make_LOPT_input.accepted_share(accepted, other)
 
         for r in group:
@@ -1166,8 +1171,11 @@ def apply_worksheet(paths, worksheet, log, dry_run):
         append_inflated(paths['inflated'], inflations, log)
 
     log('LOPT_input_lines.txt')
+    # a directory without a configuration (a test's) has no [blends] term
+    u_ln_blend = (config.load(paths['config']).blend_u_ln
+                  if os.path.isfile(paths['config']) else 0.0)
     update_lopt_input(paths['set_lopt'], by_line, by_pair, verdicts, line_unc,
-                      w_hfs, log, dry_run)
+                      w_hfs, log, dry_run, u_ln_blend=u_ln_blend)
 
     log('IDEN2/dlv.dat')
     update_dlv(paths['dlv'], dlv_changes, log, dry_run)
@@ -1201,6 +1209,7 @@ def resolve(set_name):
         'dlv': os.path.join(iden2, 'dlv.dat'),
         'trans': os.path.join(iden2, 'trans.dat'),
         'worksheet': os.path.join(set_dir, NAME_WORKSHEET),
+        'config': working_path(config.CONFIG_NAME, cwd=set_dir),
     }
 
 

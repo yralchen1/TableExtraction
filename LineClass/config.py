@@ -98,6 +98,7 @@ _OPTIONAL = {'inherit', 'locked',
              'files.start_levels',
              'hfs.kappa.flag_unlisted',
              'decisions', 'decisions.max_forced_offset',
+             'blends', 'blends.u_ln_intensity',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
 
 _SCHEMA = {
@@ -119,6 +120,7 @@ _SCHEMA = {
                    'self_consistent': bool, 'fit_range_decades': _FloatPair},
     'intensity_model': {'C': float, 'kT': float, 'verify_tolerance': float},
     'decisions': {'max_forced_offset': float},
+    'blends': {'u_ln_intensity': float},
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES}},
 }
@@ -250,6 +252,10 @@ class Config:
     # accepts may sit from the wavenumber of the line it is accepted on before
     # the run stops.  See classify_lines.check_forced_decisions().
     hfs: HfsSettings = HfsSettings()
+    # The uncertainty of each component's calculated intensity, in natural-log
+    # units, that makes a blend's centroid uncertain (blend_centroid.py);
+    # 0.0 leaves it out.
+    blend_u_ln: float = 0.0
     # LOPT_output_levels.txt of the set's last fit, which classify_lines.py
     # starts the levels from instead of their published energies (the warm
     # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
@@ -508,6 +514,8 @@ def load(path: str = None) -> Config:
         max_forced_offset=float(
             raw.get('decisions', {}).get('max_forced_offset', 5.0)),
         hfs=hfs,
+        blend_u_ln=float(
+            raw.get('blends', {}).get('u_ln_intensity', 0.0)),
         start_levels=(_p('start_levels')
                       if raw['files'].get('start_levels') else ''),
     )
