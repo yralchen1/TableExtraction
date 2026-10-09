@@ -64,7 +64,7 @@ The fit
 -------
 lines 4491, unknowns 803, rank 802, chi2/dof 0.900, rms 0.1349 cm-1
 calibration parameters 152, levels 651, kappa 3
-hfs model of iter_hfs\lineclass_config.toml; kappa held, not fitted, for 53 line(s): cg 17, head 30, partial:0-1 3, partial:0-2 2, partial:0-3 1
+hfs model of iter_hfs\lineclass_config.toml; kappa held, not fitted, for 57 line(s): cg 17, head 34, partial:0-1 3, partial:0-2 2, partial:0-3 1
 with every calibration parameter free: rank 802
 with one of them held at zero:          rank 805
 the rank falls by one when a parameter is held, so every parameter is determined
@@ -537,4 +537,4 @@ the lines whose leaving out would move each class most:
   c              33491.8879 -0.015  37050.9996 +0.014  31636.6609 +0.010  37243.1807 -0.009  29164.2576 -0.009
   flag_unlisted  34346.9784 -0.008  27440.7886 +0.007  34161.5193 -0.006  33594.1823 +0.006  33862.5988 -0.005
 
-kappa written into [hfs.kappa] of lineclass_config.toml
+kappa not written into the configuration (--keep-kappa)

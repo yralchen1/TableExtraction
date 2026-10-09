@@ -93,6 +93,12 @@ class SpectralLine:
     # with transitions of its own (column blend): it is classified as any
     # other line, and the hfs component takes its share of the line's
     # calculated intensity (classify_lines.calc_weights).  None otherwise.
+    intensity_from_companions: float = 0.0
+    # The part of `intensity` that is the light of this line's resolved hfs
+    # companions (files.hfs_satellites), added to what was measured on the
+    # line itself so that the intensity tests compare the whole transition
+    # with its calculated intensity (classify_lines.attach_hfs_satellites).
+    # 0.0 for every line that is not a main line of the registry.
     unc_before_hfs_allowance: float = 0.0
     # The line list's own uncertainty, kept when a registry row tagged hfs
     # (inflated_unc_lines.txt) widened it and [hfs] apply is on, so that the

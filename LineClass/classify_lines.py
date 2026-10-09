@@ -339,7 +339,7 @@ def hfs_allowance_kept(line) -> bool:
 
 
 def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
-                          path: str) -> int:
+                          path: str, calc_trans_index: dict = None) -> int:
     """Mark the lines of the registry of resolved hfs companions `path`
     (files.hfs_satellites; see hfs_correction.py).
 
@@ -359,8 +359,10 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
     holds a published identification or an accepted row of the decision
     ledger: the line cannot be only the companion and that too, and which
     it is is the analyst's to settle.  A published identification the
-    ledger rejects is withdrawn, and does not count.  Returns the number of
-    companions marked.
+    ledger rejects is withdrawn, and does not count.  Each companion's light
+    is then added to its main line's intensity (add_companion_intensities;
+    a blended companion's share needs `calc_trans_index`).  Returns the
+    number of companions marked.
     """
     sats = hfs_correction.read_satellites(path)
     name = os.path.basename(path)
@@ -422,7 +424,78 @@ def attach_hfs_satellites(observed_lines: list, levels_dict: dict,
           f"{sum(len(p) for p in (l.hfs_head_pairs for l in observed_lines))} "
           f"transition(s) on {sum(1 for l in observed_lines if l.hfs_head_pairs)} "
           f"main line(s).")
+    add_companion_intensities(observed_lines, calc_trans_index or {})
     return n
+
+
+def companion_light(line, calc_trans_index: dict) -> float:
+    """The part of the observed intensity of the registered companion `line`
+    that is the light of its main line's transition (0.0 if none can be
+    given it).
+
+    An unblended companion is that transition's light and nothing else: all
+    of it.  A blended one shares its light with its own identifications, and
+    the hfs component's part is the component's calculated intensity (the
+    main transition's Icalc times hfs_correction.rung_share) over the sum of
+    that and the Icalc of each of the line's own identifications: the
+    published ones the ledger does not reject, and the ledger's accepts.  The
+    split is made once, from the identifications, not from the acceptances
+    weeding arrives at, so that the main line's intensity does not move while
+    its own candidates are being decided.  A blended companion one of whose
+    identifications has no calculated intensity gives nothing."""
+    entry = line.hfs_companion or line.hfs_blend_companion
+    if entry is None or entry[0] is None or not line.intensity > 0:
+        return 0.0
+    if line.hfs_companion is not None:
+        return line.intensity
+    _main, low, upp, rung = entry
+    main_i = (calc_trans_index.get((low.level_id, upp.level_id))
+              or {}).get('calc_intensity')
+    if not main_i:
+        return 0.0
+    rung_i = main_i * hfs_correction.rung_share(low.J_val, upp.J_val, rung)
+    own = {(t.lower_level.level_id, t.upper_level.level_id): t.calc_intensity
+           for t in line.original_assignments
+           if t.lower_level is not None and t.upper_level is not None}
+    pairs = [p for p in own
+             if line.decisions.get(p, ('',))[0] != 'reject']
+    pairs += [p for p, (verdict, _) in line.decisions.items()
+              if verdict == 'accept' and p not in own]
+    own_i = 0.0
+    for pair in pairs:
+        i = (calc_trans_index.get(pair) or {}).get('calc_intensity')
+        if i is None:
+            i = own.get(pair)
+        if i is None:
+            return 0.0
+        own_i += i
+    return line.intensity * rung_i / (rung_i + own_i) if rung_i > 0 else 0.0
+
+
+def add_companion_intensities(observed_lines: list,
+                              calc_trans_index: dict) -> float:
+    """Add the light of every registered hfs companion to its main line
+    (companion_light), so that the main line's intensity is that of the
+    whole transition, as the calculated intensity it is tested against is.
+    Sugar estimated a resolved part of a pattern separately where he gave
+    it an intensity; leaving it out compared part of a transition with all
+    of it.  The companion keeps its own value: an unblended one is never
+    tested, and a blended one is tested on its own identifications as
+    before.  The amount is kept as `intensity_from_companions` and written
+    in the table's column obs_intens_hfs.  Returns the total added."""
+    total, n = 0.0, 0
+    for line in observed_lines:
+        part = companion_light(line, calc_trans_index)
+        if part > 0:
+            main = (line.hfs_companion or line.hfs_blend_companion)[0]
+            main.intensity += part
+            main.intensity_from_companions += part
+            total += part
+            n += 1
+    if n:
+        print(f"  Added the light of {n} hfs companion(s) to their main "
+              f"lines' intensities.")
+    return total
 
 
 def _names(key: str, wn: float) -> bool:
@@ -2778,6 +2851,12 @@ def build_output(observed_lines: list, weights: dict) -> pd.DataFrame:
                 })
 
     df = pd.DataFrame(output_rows)
+    # The part of obs_intens that is the light of the line's registered hfs
+    # companions (add_companion_intensities): what was measured on the line
+    # itself is obs_intens less this.
+    from_companions = {l.wn_key: l.intensity_from_companions
+                       for l in observed_lines}
+    df['obs_intens_hfs'] = df['wn_key'].map(from_companions).fillna(0.0)
 
     # Sort: decreasing wavenumber, then increasing grade for ties
     df['_sort_grade'] = df['grade'].apply(lambda g: g if g else 'ZZZZZ')
@@ -2860,6 +2939,7 @@ def write_output(df: pd.DataFrame):
         'wn_key':  '0.0000',
         'unc_wn_obs': '0.000',
         'obs_intens': '0.000',
+        'obs_intens_hfs': '0.000',
         'calc_intens': '0.000',
         'orig_calc_intens': '0.000',
         'u_calc': '0.000',
@@ -5003,7 +5083,8 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     # The resolved hfs companions are identifications made by hand as well,
     # and are left out of the calibration runs for the same reason.
     if HFS_SATELLITES and wn_shift == 0.0 and decoy_shift == 0.0:
-        attach_hfs_satellites(observed_lines, levels_dict, HFS_SATELLITES)
+        attach_hfs_satellites(observed_lines, levels_dict, HFS_SATELLITES,
+                              calc_trans_index)
 
     # Step 4: Generate all possible transitions
     all_possible = generate_all_possible_transitions(levels_list, calc_trans_index)

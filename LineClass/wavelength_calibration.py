@@ -474,6 +474,37 @@ def observed_wavenumbers(path=None):
     return [seen[k] for k in sorted(seen)]
 
 
+def with_unclassified(observed, source=None):
+    """`observed` (observed_wavenumbers) with every line of the line list
+    `source` (default Pr3_lines.xlsx) that the classification table does not
+    hold yet added, in the same form, its character from the `Ch.` column.
+
+    A line just entered in the line list - a resolved hfs companion, say -
+    is in no classification table until classify_lines.py has run on the
+    corrected list, and that list has to carry it first, calibrated like
+    every other line recorded on the same plate."""
+    import openpyxl
+
+    source = source or os.path.join(hfs_kappa.HERE, 'Pr3_lines.xlsx')
+    have = {round(key, 4) for _, _, key in observed}
+    wb = openpyxl.load_workbook(source, read_only=True, data_only=True)
+    ws = wb[wb.sheetnames[0]]
+    rows = ws.iter_rows(values_only=True)
+    header = [str(h).strip() if h is not None else '' for h in next(rows)]
+    i_wn, i_ch = header.index('own'), header.index('Ch.')
+    added = {}
+    for rec in rows:
+        wn = rec[i_wn]
+        if not isinstance(wn, (int, float)) or round(wn, 4) in have:
+            continue
+        char = rec[i_ch]
+        added.setdefault(round(wn, 6), (float(wn),
+                                        '' if char is None else str(char).strip(),
+                                        float(wn)))
+    wb.close()
+    return sorted(list(observed) + list(added.values()))
+
+
 def group_bins(blocks, lam, keep):
     """Assign every line to a fitted group, or to none.
 
@@ -1450,7 +1481,9 @@ def main(argv=None):
         key_of_char[(ln.char, ln.era)] = ucls[i]
     fixed_unc = hfs_kappa.read_inflated()
     observed = observed_wavenumbers(table_path)
-    unknown = fixed_unc.check([key for _, _, key in observed])
+    if args.set_dir:
+        observed = with_unclassified(observed)
+    unknown =fixed_unc.check([key for _, _, key in observed])
     if unknown:
         print('  %s: no observed line has the wn_key of %s'
               % (hfs_kappa.INFLATED, ', '.join(unknown)))

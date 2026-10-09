@@ -691,7 +691,7 @@ Rows are sorted by **decreasing observed wavenumber** (`wn_obs`), then decreasin
 |----|--------------------|----------------------------------------------------------------------------|
 | 1  | `wn_obs`           | Observed wavenumber (cm⁻¹)                                                 |
 | 2  | `unc_wn_obs`       | Wavenumber uncertainty σ (cm⁻¹)                                            |
-| 3  | `obs_intens`       | Observed intensity (`Icor`)                                                |
+| 3  | `obs_intens`       | Observed intensity (`Icor`); on a main line of `hfs_satellites.txt` it includes its companions' light, the amount in the column `obs_intens_hfs` (last column, since 2026-10-09) |
 | 4  | `char`             | Line character (`h`, `w`, `bl`, …)                                         |
 | 5  | `low_id`           | Lower energy level id                                                      |
 | 6  | `upp_id`           | Upper energy level id                                                      |
@@ -2889,6 +2889,10 @@ intensity, the line character and the published identification. `Pr3_lines_corre
 Sugar's own workbook with `own` and `unc_own` untouched and two columns added,
 `own_corr = own + own_correction` and `unc_own_corr = u_stat_cm1`
 (`wavelength_calibration.write_corrected_lines`, written by `--set iter`).
+The corrections are made for every line of the classification table, and since 2026-10-09
+also for a line of `Pr3_lines.xlsx` that no table holds yet (`with_unclassified`): a line just
+entered in the line list is calibrated on its first run, not left on Sugar's value until
+`classify_lines.py` has put it into a table.
 
 **`wn_key` is the name of an observed line, and it never changes.** The files kept by hand are
 not copied per set: there is one `line_decisions.csv`, one `new_levels.txt`, one
@@ -3274,14 +3278,42 @@ classified as any companion, grade `hfs`, never accepted, with the note "the hea
 observed"; no line takes κ = 1 for the transition. It cannot be marked `blend` = 1, because a
 blended companion's share of the line is taken from the calculated intensity the head carries.
 
-The file holds 19 active companions (2 of them blended, 2 without an observed head) and the
+**The intensity of a main line includes its companions' light** (2026-10-09). The calculated
+intensity a main line is tested against is that of the whole transition, but where Sugar gave a
+resolved part of the pattern an intensity of its own, the main line's printed intensity is only
+the rest. `classify_lines.add_companion_intensities` therefore adds to the main line's
+intensity, once, when the registry is read:
+- an unblended companion's whole intensity;
+- for a blended companion, the hfs component's share of the line's intensity: the component's
+  calculated intensity (as in its `hfs` row) over the sum of that and the calculated
+  intensities of the line's own identifications (published ones the ledger does not reject,
+  and the ledger's accepts). The split is made from the identifications, not from what weeding
+  accepts, so the main line's intensity does not move while its candidates are decided. A
+  blended companion one of whose identifications has no calculated intensity gives nothing.
+
+A companion keeps its own value, and a companion whose head is not observed gives nothing. The
+amount added is the table's column `obs_intens_hfs`; `obs_intens` less it is what was measured
+on the main line itself. As with the companions themselves, the chance-coincidence and decoy
+runs do not do it. On the registry of 2026-10-09 it concerns 25 main lines; 17 of them move
+closer to their calculated intensity, and the median ln(I_obs/I_calc) of the 25 goes from
+-0.63 to -0.05. The pair 29294.708/29294.210 of 000190 shows it best: 11911 + 10206 = 22117
+against I_calc = 22376.
+
+The file holds 30 active companions (4 of them blended, 2 without an observed head) and the
 comment row of 1129: eight of seven main lines found on 2026-09-30 beside the lines of IDEN2
 rows 1138, 1131, 1118 and 1091, one of row 1154 on 2026-10-01, seven of rows 1098, 1088, 1087
 and 1141 on 2026-10-02, and on the same day rungs 1 and 2 of 1228-1116 (21962.950 and
 21963.279), whose head at 21962.569 is not in the line list, and 32426.086 of 1140-1053, which
 is not one rung but the unresolved lower part of a J = 3/2 to 3/2 pattern (rungs 1 to 3 with
 their off-diagonal components), listed as a double line. The row of 1129 is a comment
-because its satellite may be rung 2 with rung 1 blended into the main line.
+because its satellite may be rung 2 with rung 1 blended into the main line. Four rows came from a
+review of Sugar's table on 2026-10-09: 11477.669 (rung 3 of 000034-000076, printed with I = 20 and
+the main line's classification), 33540.428 (the F = 2 group of 000190-000447, printed with I = 5,
+`c` and the main line's classification; at -0.270 it is compressed against about -0.5, as
+31622.73 is), and two blended ones that Sugar printed with I = 0 and a classification of
+their own: 30624.569, rung 3 of 000133-000199 under 000160-000247, and 32947.149 (restored),
+the rung-1 group of 000149-000433 under the much weaker 000148-000241. The first two were
+added to `Pr3_lines.xlsx` with Sugar's intensities; 30624.569 was given I = 4 in place of 2.
 
 **Lines measured otherwise than their class** (added 2026-10-05). A class's κ is where Sugar
 measured its lines on the whole. Some single lines were measured elsewhere:
