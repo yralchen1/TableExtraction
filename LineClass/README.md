@@ -2834,7 +2834,7 @@ sets, in three directories, because LOPT is run as `lopt.bat LOPT.par` from a di
 |---|---|---|---|
 | baseline | `LineClass/` | `line_classifications.csv` | Sugar's wavenumbers, exactly as measured. The assignment pipeline reads and writes this set and nothing else, so a calibration iteration can never disturb the assignments being made by hand, and a rebuild from scratch is always one command away |
 | iteration | `LineClass/iter/` | the above, plus `wavelength_calibration_corrections.csv`, as `iter/Pr3_lines_corrected.xlsx` | the corrected wavenumbers and the statistical uncertainties that go with them. LOPT is run here. A further pass does not take LOPT's levels: `wavelength_calibration.py` fits its own level energies together with the calibration. What it takes from the set is the assignments, `--classifications iter/line_classifications.csv` (or `iter_hfs/`), read on Sugar's wavenumbers; the corrections are remade and the set is rewritten from them |
-| final | `LineClass/final/` | the converged iteration set | the hyperfine components merged to centers of gravity, the systematic uncertainties of the calibration entered as LOPT group functions, and the final wavenumbers and uncertainties. This is what the published line list and the paper are cut from |
+| final | `LineClass/final/` | `iter_hfs/`, by `make_set3.py` (2026-10-09) | Set 3: levels and lines at their centers of gravity, the hyperfine components merged, with the assignments and the fit of `iter_hfs/` unchanged. It is *derived*, never classified (below). This is what the published line list and the paper are cut from |
 
 Each of the two derived directories has its own `IDEN2/` subdirectory, because a decision to
 exclude or to inflate a line is made by looking at IDEN2, and IDEN2 has to be showing the set the
@@ -2961,6 +2961,136 @@ write the baseline's IDEN2 either. The hand-kept files (`line_decisions.csv`, `n
 `revised_level_energies.csv`, `discarded_levels.csv`, and the rest) lie in the baseline's
 directory but are shared by every set, and they stay writable. `check_sync.py` writes only its
 report and does not ask. `config.require_unlocked` does the checking.
+
+### Set 3, the published set: `make_set3.py`
+
+`final/` holds Set 3 (`Work_on_hfs_plan.md`, Step 7b): every level at its center of gravity
+(cg), every line at the cg of its hyperfine pattern, the resolved components merged into the
+lines they belong to. Its configuration says, at the top,
+
+```toml
+derived_from = "make_set3.py"
+```
+
+and that makes it a **derived set**: its classification table, its line list and its report
+are written by `make_set3.py` from `iter_hfs/`, and nothing classifies it.
+`classify_lines.py` stops on it (`config.require_own_output`, through
+`config.require_not_derived`), and so do `insert_new_level.py`, `move_level.py` and
+`discard_level.py`, `--unlock` or not. No assignment can therefore differ from the ones reviewed
+in `iter_hfs/`, and `classify_lines.py` is not involved. The mark is not inherited. The chain
+downstream of the table runs on `final/` as on any set:
+
+```
+python make_set3.py                    # from LineClass/: writes final/ from iter_hfs/
+cd final
+python ../make_LOPT_input.py --classifications line_classifications.csv
+lopt.bat LOPT.par
+python ../check_sync.py
+python ../sync_IDEN2.py
+cd ..
+python make_set3.py --levels           # final/levels_set3.csv from final's fit
+```
+
+After any change in `iter_hfs/` (a rerun of its chain, a new A constant) the whole of it is
+run again; `final/` is never edited by hand.
+
+**The move of a line.** A line with accepted transitions i (their shares BF_i of the line,
+normalized over its own transitions) was measured at wn_cg + kappa_i·D_i, so it is moved by
+
+    cg_shift = −Σ BF_i · (kappa_i·D_i + R_i)
+
+with every kappa exactly as `iter_hfs/` has it: the class kappas, the flag's and the
+companions' kappa = 1, the rows of `kappa_exceptions.txt`. R_i takes off, in full, the S of a
+level of `[hfs] resolved_levels` (000190, 000642), whose lines end on its F = I + J sublevel; a
+row naming the level `unresolved` keeps R = 0. `hfs_correction.Model.cg_shift` computes it, and
+`make_set3.py` checks the identity hfs_shift − cg_shift = Σ BF_i·(D_i + R_i) against the
+table's own hfs_shift on every line, stopping if any line fails it (the table and the model then
+disagree). A line with no accepted transition is not moved, and a level without a determined A
+has S = 0 and keeps its allowance.
+
+Decisions of 2026-10-09:
+
+* **head − D for every line.** A flagged line's cg is its head less D from the A table, also
+  where Sugar printed its components. The A constants are fitted to those components already;
+  line by line, the cg they give differs from head − D by 0.021 cm⁻¹ at the median (90 % under
+  0.062) over 228 lines. The 20 beyond 3σ are listed in the report with their scale s,
+  29151.13 (s = −6.7) and 29753.59 (s = 1.87) first.
+* **The character hfs.** `*r` becomes `hfs,l`, `*v` becomes `hfs,s`: the pattern shaded to
+  longer or shorter wavelengths. A main line of resolved companions, a line that absorbs an
+  F = 2 partner, and a `c`, `cl`, `w`, `d`, `h` or `ch` line whose |D| is at least one
+  effective line width get `hfs,l` or `hfs,s` by the sign of D: shaded to longer wavelengths
+  for D > 0. The width is `level_shifts.INSTR_FWHM_A` (0.035 Å) combined with the Doppler width
+  at the line's wavelength. Every other character stays as Sugar printed it.
+* **Resolved levels.** The F = 2 partner of a line of a resolved J = 1/2 level is sought
+  A·(I + J) from it. It must be an observed line with no accepted transition and no other role,
+  within 3σ. One candidate is merged, and none or several are listed. `hfs_satellites.txt` is
+  not changed.
+
+**Merged lines and their intensity.** An unblended companion of `hfs_satellites.txt` is merged
+into its main line, whose intensity already includes its light (`obs_intens_hfs`). A blended
+companion stays a line of its own transitions, with the light it gave away taken off. A
+companion whose head is not observed stays as it is, with the character `hfs`. A merged F = 2
+partner adds its intensity to its F = 3 line, in the list's `Icor_set3` and the table's
+`obs_intens`.
+
+A merged line is no line of Set 3 (2026-10-09, at the user's request). Its rows leave the table,
+its row of the list moves to the sheet `merged` (with `merged_into` naming the line it went
+into), and its row leaves `final/IDEN2/dlv.dat`, `dlv_keys.txt` and `dlv_shown.txt`. Its line
+number goes with it and is never reused. IDEN2 leaves such gaps itself when a line is deleted on
+its screen, and a number, once given, is how `trans.dat` names a line. None of these lines may
+be identified in `trans.dat`; one that is stops the run before anything is written. Every run
+of `make_set3.py` does this, so a fresh copy of the IDEN2 loses them too. A second run finds
+nothing left to remove.
+
+**The uncertainties.** An error dS in a level's S moves every line of the level the same way,
+and the fit takes it up into the level. A line moved by kappa·D_est stands at
+(E_cg + dS)(upper) − (E_cg + dS)(lower) − (1 − kappa)·dD, so only (1 − kappa)·u_D is scatter
+between lines. That is the head frame's u_hfs_shift, which the table keeps. The fit of Set 3 is
+therefore the fit of `iter_hfs/` moved by −S level by level. In a scratch run on 2026-10-09 the
+two agreed within 0.001 cm⁻¹ on all 653 levels, LOPT's rounding, with the same 8034 records and
+uncertainties and RSS/dof 0.76. u_S belongs to a level's cg energy, and `levels_set3.csv` gives
+it beside LOPT's uncertainty and their sum. Energies are measured from the ground level's cg,
+whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once. The line list's
+`u_cg` is the other quantity: the uncertainty of one line's cg on its own,
+Σ BF·(kappa·u_D + u_R) with the kappa term, which a published line carries.
+
+**What is written in `final/`:**
+
+* `Pr3_lines_set3.xlsx`: every row of `iter/Pr3_lines_corrected.xlsx`, plus `own_cg` (the line's
+  wavenumber in Set 3), `cg_shift`, `u_cg`, `D_line` (Σ BF·(D + R)), `kappa_line`, `cg_rule`
+  (`class kappa`, `head-D`, `resolved` or `none`), `char_set3`, `Icor_set3` and `merged_into`.
+  The merged lines are on the sheet `merged`.
+  `lineclass_config.toml` reads it on `own_cg`, `unc_own_corr` and `own`, so the shared ledger
+  and registries still name lines by Sugar's values.
+* `line_classifications.csv`/`.xlsx`: `iter_hfs/`'s table row for row, without the merged lines:
+  - every row of a line moved by its cg_shift (`wn_obs`), Sugar's measured value kept as
+    `wn_measured`;
+  - `hfs_shift` = 0, so `make_LOPT_input.py` gives LOPT the lines where they stand and writes an
+    empty `LOPT_hfs_shifts.txt`;
+  - u_hfs_shift kept, as is the D13 handling of the widths, since `[hfs] apply` stays on;
+  - `low_E`/`upp_E`/`rwn` taken to the cg;
+  - `dif_wn_O-C` kept: the line against where the component is measured, which the blend
+    centroid uncertainty spreads the components by, and for a single line exactly
+    `wn_obs − rwn`.
+* `set3_report.txt`: the counts, and every line a rule could not settle.
+* `IDEN2/`: a copy of `iter_hfs/IDEN2` without its backups, made only while `final/` has none,
+  with the merged lines' rows removed. `sync_IDEN2.py` then brings it to the Set 3 fit;
+  `iden2_display = "lopt"` is inherited. Use the `--cutoff` you use for `iter_hfs/`: at the
+  default, -41, a scratch sync grew `trans.dat` from 67981 transitions to 104649.
+  `final/IDEN2` is for looking. An assignment is changed in `iter_hfs/`, and Set 3 is made
+  again.
+
+The first run (2026-10-09) gives these counts:
+
+* 6671 lines, 5031 moved (median |cg_shift| 0.039 cm⁻¹, 90 % 0.184, largest 1.095);
+* 251 by head − D, 21 with a resolved level, 4759 by a class kappa;
+* 24 companions merged, 4 blended companions kept, 2 headless ones kept;
+* 4 F = 2 partners of 000642 merged; 15 lines of 000190/000642 found no partner (the F = 2 groups
+  of 000190 are among Sugar's printed components, which are not lines);
+* so 28 lines left Set 3: 28 rows of the table and 28 rows of dlv.dat. After the chain, a scratch
+  check_sync found 0 errors;
+* 398 characters changed, 78 of them by width (c 26, ch 24, w 19, d 8, h 1);
+* 2 flags disagree with the sign of D: 36667.32 and 29151.13, both `*r` with D < 0.
 
 ### Choosing the set from the command line
 

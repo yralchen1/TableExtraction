@@ -1,0 +1,75 @@
+check_sync.py - are the files describing the same identification?
+working set: F:\UMD\AI\as-ai\LineClass\final
+file                             last written
+line_classifications.csv         2026-10-09 17:31
+line_classifications.xlsx        2026-10-09 17:31
+LOPT_input_lines.txt             2026-10-09 17:34
+LOPT_output_lines.txt            2026-10-09 17:35
+LOPT_output_levels.txt           2026-10-09 17:35
+line_decisions.csv               2026-10-09 12:21
+revised_level_energies.csv       2026-09-21 20:21
+unstable_candidates.csv          2026-09-25 12:46
+level_positions.csv              2026-09-22 21:25
+Pr3_lines.xlsx                   2026-10-09 13:40
+lineclass_config.toml            2026-10-09 15:45
+IDEN2/enlev.dat                  2026-10-09 17:36
+IDEN2/trans.dat                  2026-10-09 17:36
+IDEN2/dlv.dat                    2026-10-09 17:36
+
+Freshness
+---------
+  warn  level_positions.csv is older than what it is built from:
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 16.8 days)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 16.8 days)
+         line_classifications.xlsx (line_classifications.xlsx newer by 16.8 days)
+
+Classification
+--------------
+    ok  the csv and the workbook hold the same 8039 classified transitions, on the same lines and with the same verdicts
+
+LOPT
+----
+    ok  every observed line in LOPT_input_lines.txt carries one uncertainty
+    ok  every transition in LOPT_input_lines.txt is written once
+  warn  6 rejected candidates are in the classification and nowhere else: absent from LOPT_input_lines.txt and unassigned in IDEN2. They are counted, not listed - carrying no weight and no line, they say the same thing in all three files, and the rebuild that puts them on paper belongs at the end of the analysis.
+    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (8033 of them), weighted as accepted
+    ok  the fit was made on the transitions file that is on disk now (8033 lines)
+    ok  the line output and the level output agree about every level energy
+
+Revisions
+---------
+    ok  all 26 recorded revisions are in the fit
+
+IDEN2
+-----
+    ok  trans.dat follows from enlev.dat: 1207 level headers and 67981 transitions all consistent
+    ok  all 653 levels agree with the fit to within 0.5 cm^-1
+    ok  IDEN2 and the classification agree about all 5618 identified transitions
+
+IDEN2/dlv.dat
+-------------
+    ok  dlv.dat holds 6643 rows, one line number and one wavenumber each, in decreasing order; 7 of them inserted in IDEN2 under a later line number
+         line 4367 at record 4364 (36875.720)
+         line 4788 at record 4783 (32947.604)
+         line 6669 at record 4894 (31604.527)
+         line 5093 at record 5085 (28659.575)
+         line 5335 at record 5323 (24671.491)
+         line 5600 at record 5582 (23083.823)
+         line 5659 at record 5641 (22800.456)
+    ok  all 5618 identifications in trans.dat name a line that dlv.dat has
+    ok  the wavelength of each of the 6643 rows of dlv.dat is the standard one for its wavenumber
+    ok  all 6643 matched rows of dlv.dat carry the own_cg and the uncertainty the pipeline uses, or for the 4529 lines the fit uses what LOPT is given (166 of them differ in the last printed digit, by up to 0.0005 cm^-1)
+
+Stability
+---------
+    ok  no assignment oscillated in the last run
+    ok  all 838 ledger verdicts are obeyed
+
+What to do
+----------
+  1. Re-run level_positions.py (and level_shifts.py) last: their reports are built on everything above, and a report made before the fixes will recommend things that have already been done.
+
+  They are in the order the pipeline runs.  Doing a later
+  one first only means doing it again after the earlier one.
+
+0 error(s), 2 warning(s), 16 check(s) clean.

@@ -592,14 +592,16 @@ def require_unlocked(paths, program: str, unlock: bool, shared=()) -> None:
     discard_level.py (`shared`) - are left out: they are the project's single
     copies, shared by every set, and lie in the baseline's directory whatever
     set the run is on.  With `unlock` the programs of the chain are told so
-    through the environment (run).
+    through the environment (run).  A derived set (final/, written by
+    make_set3.py) is refused whatever `unlock` says
+    (config.require_not_derived): its assignments are its parent's.
     """
     global UNLOCK
     keep = {os.path.normcase(os.path.abspath(p))
             for p in (NEW_LEVELS, LINE_DECISIONS) + tuple(shared)}
-    config.require_unlocked(
-        [p for p in paths if os.path.normcase(os.path.abspath(p)) not in keep],
-        program, unlock)
+    own = [p for p in paths if os.path.normcase(os.path.abspath(p)) not in keep]
+    config.require_not_derived(own, program)
+    config.require_unlocked(own, program, unlock)
     UNLOCK = unlock
 
 

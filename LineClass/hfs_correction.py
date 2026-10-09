@@ -85,7 +85,9 @@ sum_i BF_i * kappa_i; the two forms agree whenever the D_i do.
 IDEN2 needs nothing: `enlev.dat` holds the head-frame energies LOPT fits, and
 `dlv.dat` the lines as measured.  The centers of gravity, E_cg = E_head - S,
 are computed once at the end, for the published level list and the fit of the
-Cowan parameters; that is the only place the absolute A values enter.
+Cowan parameters; that is the only place the absolute A values enter.  Set 3
+(final/, make_set3.py) is that step: the same fit with every line moved to
+the center of gravity of its pattern (`Model.cg_shift`).
 
 THE A CONSTANTS, AND WHAT IS MISSING FROM THEM
 ==============================================
@@ -541,6 +543,88 @@ class Model(object):
                                            r.unresolved if r else ())
                         for (low, upp, bf), k, r
                         in zip(components, kappas, rows)])
+
+    # --- Set 3: the line at its center of gravity ----------------------------
+    def cg_shift(self, char, wn_key, components):
+        """`CgShift` of one observed line: what moves its measured wavenumber
+        to the center of gravity of its pattern (Set 3, make_set3.py).
+
+        `components` are `(low_id, upp_id, BF)` of the line's accepted
+        transitions, as for `line_shift`, and each takes the same kappa_i.
+        The line was measured at wn_cg + kappa_i * D_i, so
+
+            cg_shift = - sum_i BF_i * (kappa_i * D_i + R_i)
+
+        where D_i is `D` (a level of `resolved_levels` counted with S = 0)
+        and R_i = S(upper) - S(lower) over the transition's levels of
+        `resolved_levels` that its exception row does not name
+        `unresolved`.  The line ends on one sublevel of such a level, the
+        F = I + J one its energy stands at in the head frame, so that
+        level's own S is taken off in full.  Hence the identity
+
+            hfs_shift - cg_shift = sum_i BF_i * (D_i + R_i)
+
+        with `line_shift`'s hfs_shift, which make_set3.py checks line by line.
+
+        The uncertainty follows `combine`: the A constants linearly,
+        sum BF_i * (kappa_i * u_D_i + u_R_i), and kappa linearly,
+        sum BF_i * u_kappa_i * D_i, added in quadrature.  `u_undet` is the
+        part of it owed to levels without a determined A, the quadrature
+        difference from the same with their u_S left out
+        (classify_lines.hfs_undetermined_part does the same in the head
+        frame).  A line with no accepted transition is not moved.
+        """
+        if not components:
+            return CgShift(0.0, 0.0, 0.0, self.kappa_of(char, wn_key)[0],
+                           0.0, 0.0)
+        heads = self.satellites.head_pairs(wn_key)
+        rows = [self.exception(wn_key, low, upp) for low, upp, _ in components]
+        kappas = self.component_kappas(
+            char, wn_key, [bf for _, _, bf in components],
+            [(low, upp) in heads for low, upp, _ in components],
+            [self.row_kappa(r) if r else None for r in rows])
+
+        def terms(known_only):
+            shift = D_line = R_line = u_A = u_k = 0.0
+            for (low, upp, bf), (kappa, u_kappa), r in zip(components, kappas,
+                                                           rows):
+                unres = r.unresolved if r else ()
+                d = u_d_l = u_d_u = r_i = u_r = 0.0
+                for lid, sign in ((low, -1.0), (upp, 1.0)):
+                    if lid in self.resolved and lid not in unres:
+                        s, u = self.S(lid, pattern=True)
+                        r_i += sign * s
+                        u_r += u
+                    else:
+                        s, u = self.S(lid, lid in unres)
+                        if known_only and self.is_undetermined(lid):
+                            u = 0.0
+                        d += sign * s
+                        if sign < 0:
+                            u_d_l = u
+                        else:
+                            u_d_u = u
+                u_d = math.hypot(u_d_l, u_d_u)
+                shift -= bf * (kappa * d + r_i)
+                D_line += bf * d
+                R_line += bf * r_i
+                u_A += bf * (kappa * u_d + u_r)
+                u_k += bf * u_kappa * d
+            return shift, math.hypot(u_A, u_k), D_line, R_line
+
+        shift, u, D_line, R_line = terms(False)
+        u_known = terms(True)[1]
+        total = sum(bf for _, _, bf in components)
+        kappa = (sum(bf * k for (_, _, bf), (k, _) in zip(components, kappas))
+                 / total if total else kappas[0][0])
+        return CgShift(shift, u, math.sqrt(max(u * u - u_known * u_known, 0.0)),
+                       kappa, D_line, R_line)
+
+
+#: `Model.cg_shift`'s result, cm^-1: the shift to the center of gravity, its
+#: uncertainty, the part of that owed to levels without a determined A, the
+#: line's kappa (BF-weighted), and sum BF_i * D_i and sum BF_i * R_i.
+CgShift = collections.namedtuple('CgShift', 'shift u u_undet kappa D R')
 
 
 def combine(parts):

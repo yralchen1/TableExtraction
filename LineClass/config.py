@@ -89,7 +89,7 @@ HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c', 'flag_unlisted')
 
 # Keys the configuration file may leave out; they take the default written
 # into load() below.
-_OPTIONAL = {'inherit', 'locked',
+_OPTIONAL = {'inherit', 'locked', 'derived_from',
              'files.level_overrides', 'files.line_decisions',
              'files.new_levels', 'files.icalc_extra',
              'files.discarded_levels', 'files.inflated_unc',
@@ -104,6 +104,7 @@ _OPTIONAL = {'inherit', 'locked',
 _SCHEMA = {
     'inherit': str,
     'locked': bool,
+    'derived_from': str,
     'files': {'levels': str, 'lines': str, 'icalc': str,
               'output': str, 'output_csv': str, 'level_overrides': str,
               'line_decisions': str, 'new_levels': str,
@@ -316,8 +317,10 @@ def _read(path: str, seen=()) -> dict:
     p_base = os.path.dirname(os.path.abspath(os.path.join(here, parent_name)))
     # A lock belongs to the directory whose file says it, not to the sets
     # that inherit from that file: iter/ inherits the locked baseline and is
-    # where the work is done.
+    # where the work is done.  So does the mark of a derived set (final/,
+    # written by make_set3.py from iter_hfs/).
     parent.pop('locked', None)
+    parent.pop('derived_from', None)
     for name, value in (parent.get('files') or {}).items():
         if isinstance(value, str) and value:
             parent['files'][name] = os.path.normpath(
@@ -621,6 +624,52 @@ def require_unlocked(paths, program: str, unlock: bool = False) -> list:
     raise SystemExit('\n'.join(lines))
 
 
+# --- a derived set -------------------------------------------------------------
+# A set whose configuration says `derived_from = "<program>"` is written by
+# that program from another set, never by the classification: final/ (Set 3,
+# the published set at the centers of gravity) is iter_hfs/'s fit and
+# assignments re-expressed by make_set3.py.  A classification run there would
+# judge candidates against lines already moved to their centers of gravity,
+# move them again, and could change assignments that were reviewed in
+# iter_hfs.  The programs downstream of the table - make_LOPT_input.py, LOPT,
+# check_sync.py, sync_IDEN2.py - run on such a set as on any other.
+def derived_from(set_dir: str) -> str:
+    """The program that writes the set `set_dir` (its own configuration's
+    `derived_from`), or '' if the set is classified as usual.  Only that
+    file is read, as for `is_locked`."""
+    path = os.path.join(set_dir, CONFIG_NAME)
+    try:
+        with open(path, 'rb') as fh:
+            raw = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ConfigError(f"{path}: {exc}") from None
+    value = raw.get('derived_from', '')
+    if not isinstance(value, str):
+        raise ConfigError(f"{path}: 'derived_from' must be a string")
+    return value
+
+
+def require_not_derived(paths, program: str) -> None:
+    """Stop the run if any of `paths` belongs to a derived set.  There is no
+    override: such a set is rewritten by the program that derives it."""
+    hits = {}
+    for path in paths:
+        home = set_of(path)
+        if home is not None:
+            maker = derived_from(home)
+            if maker:
+                hits[home] = maker
+    if not hits:
+        return
+    lines = ['', f'{program}: this run would write a derived set.']
+    for home, maker in sorted(hits.items()):
+        lines.append(f'  {home}   is written by {maker} ({CONFIG_NAME} there '
+                     f'has derived_from = "{maker}")')
+    lines += ['Make the change in the set it is derived from, then run that '
+              'program again.', '']
+    raise SystemExit('\n'.join(lines))
+
+
 def require_own_output(config_path: str, paths, program: str) -> None:
     """Stop the run if any of `paths` belongs to another set than the
     configuration `config_path` does.
@@ -634,7 +683,12 @@ def require_own_output(config_path: str, paths, program: str) -> None:
     lineclass_config.toml (set_of); the configuration file to the set of its
     own directory, or the nearest above it.  There is no override: a table
     meant for another set is written by that set's configuration.
+
+    A classification run on a derived set is stopped first
+    (require_not_derived): only the program named there writes its table.
     """
+    require_not_derived([config_path] + list(paths), program)
+
     def key(d):
         return None if d is None else os.path.normcase(d)
 

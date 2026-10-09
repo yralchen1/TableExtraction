@@ -1,0 +1,35 @@
+# Set 3, the published set (Work_on_hfs_plan.md, Step 7b; README, "Set 3").
+#
+# Levels and lines at their centers of gravity.  This set is DERIVED: its
+# table, line list and report are written by make_set3.py from iter_hfs/,
+# whose fit and assignments it re-expresses at the centers of gravity, and
+# it is never classified (classify_lines.py, insert_new_level.py,
+# move_level.py and discard_level.py refuse it; config.require_not_derived).
+# After a change in iter_hfs/, run make_set3.py again, then the chain from
+# here: make_LOPT_input.py, lopt.bat LOPT.par, check_sync.py, sync_IDEN2.py.
+#
+# Everything not written here is iter_hfs/'s, and through it iter/'s and the
+# baseline's.  [hfs] apply stays on: make_LOPT_input.py then leaves out the
+# level widths the correction replaces (D13) exactly as in iter_hfs/, and
+# adds each line's u_hfs_shift - which make_set3.py writes as the
+# uncertainty of the move to the center of gravity - while hfs_shift is 0:
+# the lines are already where LOPT is to see them.
+derived_from = "make_set3.py"
+inherit = "../iter_hfs/lineclass_config.toml"
+
+[files]
+# make_set3.py's line list: iter/'s corrected list with the Set 3 columns
+# beside Sugar's (own_cg, cg_shift, u_cg, char_set3, Icor_set3, merged_into).
+lines      = "Pr3_lines_set3.xlsx"
+output     = "line_classifications.xlsx"
+output_csv = "line_classifications.csv"
+start_levels = "LOPT_output_levels.txt"
+
+[lines.layout.columns]
+# The wavenumber of a line is its center of gravity; its uncertainty here is
+# the measurement's - the move's own is u_cg (u_hfs_shift in the table),
+# added by make_LOPT_input.py.  A line is still named by Sugar's value, so
+# the shared ledger and registries go on naming it.
+wn     = "own_cg"
+u_wn   = "unc_own_corr"
+wn_key = "own"
