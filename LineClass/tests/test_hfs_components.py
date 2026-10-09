@@ -239,8 +239,11 @@ def test_no_level_is_labeled_as_conflicting_any_more():
               newline='') as fh:
         rows = {r['level_id']: r for r in csv.DictReader(fh)}
     assert not [k for k, r in rows.items() if 'CONFLICT' in r['source']]
+    # the composition value, or since 2026-10-09 that prior combined with the
+    # resolved components (hfs_A_fit.py --combine-priors)
     for lid in ZEROED_IN_CORRECTIONS:
-        assert rows[lid]['source'].startswith('composition')
+        src = rows[lid]['source']
+        assert src.startswith('composition') or 'with composition prior' in src
 
 
 def test_no_pattern_is_wider_than_its_predicted_span():

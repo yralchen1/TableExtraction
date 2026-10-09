@@ -227,3 +227,102 @@ def test_much_more_accurate():
     assert hfs_A_fit.much_more_accurate(0.030, 0.001, 0.032, 0.003)
     assert not hfs_A_fit.much_more_accurate(0.030, 0.0011, 0.032, 0.003)
     assert not hfs_A_fit.much_more_accurate(0.050, 0.001, 0.032, 0.003)
+
+
+# ---------------------------------------------------------------------------
+# --combine-priors (2026-10-09)
+# ---------------------------------------------------------------------------
+TABLE = ('level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
+         'C1,f26p,2.5,+0.0251,0.0055,composition,5\n'
+         'C2,f26p,3.5,+0.0300,0.0060,composition,2\n'
+         'C3,f26p,1.5,+0.0200,0.0070,composition,0\n'
+         'K,f26s,4.5,+0.0900,0.0020,"resolved components, 2 patterns, 3 '
+         'positions (Step 4 anchored fit, 2026-10-05)",0\n')
+
+
+def combine_setup(tmp_path):
+    path = tmp_path / 'A.csv'
+    path.write_text(TABLE, encoding='utf-8', newline='\n')
+    table = hfs_A_fit.read_A_table(str(path))
+    res = hfs_A_fit.Fit(
+        ids=['C1', 'C2', 'K'], A={'C1': 0.0270, 'C2': 0.0310, 'K': 0.0890},
+        u={'C1': 0.0020, 'C2': 0.0015, 'K': 0.0010}, chi2=0.0, dof=1,
+        n_positions=5, n_priors=2, null=set(), pulls={}, resid_rms=0.0)
+    return path, table, res
+
+
+def test_combining_keeps_the_prior_and_writes_the_combined_value(tmp_path):
+    import hfs_kappa
+    path, table, res = combine_setup(tmp_path)
+    priors_path = tmp_path / 'priors.csv'
+    anchors = hfs_A_fit.anchors_of(table)
+    assert set(anchors) == {'C1', 'C2', 'C3'}
+    saved = hfs_A_fit.NOT_COMBINED
+    hfs_A_fit.NOT_COMBINED = {'C2': 'test'}
+    try:
+        changed = hfs_A_fit.write_combined(
+            table, {}, res, anchors, {'C1': (2, 3)}, str(path),
+            str(priors_path), '2026-10-09')
+    finally:
+        hfs_A_fit.NOT_COMBINED = saved
+    # C2 is held, C3 is met by no pattern, K has no prior
+    assert changed == ['C1']
+    rows = hfs_A_fit.read_A_table(str(path))
+    assert rows['C1']['A_cm-1'] == '+0.0270'
+    assert rows['C1']['u_A'] == '%.4f' % hfs_A_fit.fitted_u(res, 'C1')
+    assert hfs_kappa.is_combined(rows['C1']['source'])
+    assert rows['C2']['source'] == 'composition'
+    priors = hfs_A_fit.read_priors(str(priors_path))
+    assert list(priors) == ['C1']
+    assert priors['C1']['A_cm-1'] == '+0.0251'
+    assert priors['C1']['source'] == 'composition'
+    assert priors['C1']['moved'] == '2026-10-09'
+    # the next fit takes the prior, never the combined value
+    again = hfs_A_fit.anchors_of(rows, priors=priors)
+    assert again['C1'] == pytest.approx(hfs_kappa.scaled_A(0.0251, 0.0055,
+                                                           'composition'))
+    assert b'\r' not in path.read_bytes()
+
+
+def test_a_second_combination_keeps_the_first_prior(tmp_path):
+    path, table, res = combine_setup(tmp_path)
+    priors_path = tmp_path / 'priors.csv'
+    hfs_A_fit.write_combined(table, {}, res, hfs_A_fit.anchors_of(table),
+                             {'C1': (2, 3), 'C2': (1, 1)}, str(path),
+                             str(priors_path), '2026-10-09')
+    table = hfs_A_fit.read_A_table(str(path))
+    priors = hfs_A_fit.read_priors(str(priors_path))
+    res2 = res._replace(A={'C1': 0.0265, 'C2': 0.0312, 'K': 0.089})
+    anchors = hfs_A_fit.anchors_of(table, priors=priors)
+    changed = hfs_A_fit.write_combined(
+        table, priors, res2, anchors, {'C1': (2, 3), 'C2': (1, 1)},
+        str(path), str(priors_path), '2026-10-10')
+    assert changed == ['C1', 'C2']
+    priors = hfs_A_fit.read_priors(str(priors_path))
+    assert priors['C1']['A_cm-1'] == '+0.0251'      # the original
+    assert priors['C1']['moved'] == '2026-10-09'    # moved once
+    assert hfs_A_fit.read_A_table(str(path))['C1']['A_cm-1'] == '+0.0265'
+
+
+def test_a_combined_row_without_its_prior_stops_the_fit():
+    table = {'C1': {'A_cm-1': '+0.0270', 'u_A': '0.0020',
+                    'source': hfs_A_fit.combined_source(2, 3, '2026-10-09')}}
+    with pytest.raises(SystemExit, match='no prior'):
+        hfs_A_fit.anchors_of(table)
+
+
+def test_a_combined_value_is_measured_scale_and_no_pure_measurement(tmp_path):
+    import hfs_A_theory
+    import hfs_correction
+    import hfs_kappa
+    src = hfs_A_fit.combined_source(2, 3, '2026-10-09')
+    assert not hfs_kappa.is_semiempirical(src)
+    assert hfs_kappa.scaled_A(0.02, 0.002, src) == (0.02, 0.002)
+    assert hfs_correction.is_determined(src)
+    path = tmp_path / 'A.csv'
+    path.write_text('level_id,cfg,J,A_cm-1,u_A,source,n_flagged\n'
+                    'C1,f26p,2.5,+0.0270,0.0020,"%s",5\n'
+                    'K,f26s,4.5,+0.0900,0.0020,"resolved components, 2 '
+                    'patterns, 3 positions (Step 4 anchored fit, '
+                    '2026-10-05)",0\n' % src, encoding='utf-8', newline='\n')
+    assert set(hfs_A_theory.read_measured(str(path))) == {'K'}

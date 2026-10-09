@@ -50,6 +50,28 @@ positions: sigma = sqrt(2) * 0.003e-8 * sigma_line^2 cm^-1.
 A free level tied to no prior, even through other free levels, sits on a
 singular direction of its own and is reported as not determined.
 
+THE PRIORS COMBINED WITH THE SPACINGS (--combine-priors, 2026-10-09)
+====================================================================
+The fit's value for a level with a prior is the prior and the spacings
+combined, and is better than either: on the 52 composition levels the
+patterns reach, it brings the median u_A from 0.0062 to 0.0024 cm^-1.  The
+table held the prior alone until the user had the combined values adopted
+(2026-10-09); a leave-one-out test had shown the priors' u_A realistic (rms
+z 0.82 against the spacings without them), so the combination is a fair one.
+
+`--combine-priors` writes the fitted value and `fitted_u` into the level's
+row of `A_hfs_levels.csv`, under a source that says so (COMBINED_PREFIX,
+hfs_kappa.COMBINED_TAG), and moves the composition row it replaces into
+`A_hfs_priors.csv` (PRIORS) the first time.  From then on the prior is read
+from there (`anchors_of`): the fit must go on using the prior alone, or the
+spacings would be counted twice, once in the table's value and once as
+positions.  A second run recomputes every combined value from the priors and
+the current patterns.  A combined row is on the measured scale - it is not
+multiplied by A_SCALE again - and is no pure measurement: hfs_A_theory.py
+leaves it out of the fit of its radial parameters.  Levels whose prior the
+spacings contradict are left as they are (NOT_COMBINED) for the user to
+decide.
+
 THE CHECKS
 ==========
 * per pattern: each free level's A from each of its patterns alone, the
@@ -68,6 +90,7 @@ Usage
     python hfs_A_fit.py                       # report only
     python hfs_A_fit.py --out hfs_A_anchored.csv
     python hfs_A_fit.py --write-levels        # adopt the values (see adoptable)
+    python hfs_A_fit.py --combine-priors      # priors combined with the spacings
 
 The classification table defaults to the hfs working set's,
 `iter_hfs/line_classifications.csv`; it is read, never written.
@@ -90,6 +113,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LINES = os.path.join('iter_hfs', 'line_classifications.csv')
 A_LEVELS = 'A_hfs_levels.csv'
 OUT = 'hfs_A_anchored.csv'
+PRIORS = 'A_hfs_priors.csv'
+
+#: the source of a prior combined with the spacings (--combine-priors)
+COMBINED_PREFIX = 'resolved components %s, ' % hfs_kappa.COMBINED_TAG
+
+#: priors the spacings contradict, not combined (--combine-priors) but left
+#: in the table as they are, with the reason.
+NOT_COMBINED = {
+    '059003.000229': 'the spacings without the prior give +0.0568(43), the '
+                     'prior +0.0286(61): 3.8 sigma (u_A check, 2026-10-09); '
+                     'for the user to decide',
+}
 
 #: Sugar's precision on one tabulated wavelength, in cm (0.003 A).
 DLAM = 0.003e-8
@@ -152,17 +187,41 @@ def read_A_table(path=None):
             (r['level_id'], r) for r in csv.DictReader(fh))
 
 
-def anchors_of(table, contradicted=CONTRADICTED):
+def read_priors(path=None):
+    """`{level_id: row}` of `A_hfs_priors.csv` (PRIORS): the composition rows
+    `--combine-priors` replaced in the table, as they were.  Empty if there
+    is no such file."""
+    path = path or os.path.join(HERE, PRIORS)
+    if not os.path.exists(path):
+        return collections.OrderedDict()
+    with open(path, encoding='utf-8', newline='') as fh:
+        return collections.OrderedDict(
+            (r['level_id'], r) for r in csv.DictReader(fh))
+
+
+def anchors_of(table, contradicted=CONTRADICTED, priors=None):
     """`{level_id: (A, u_A)}` of the confirmed semiempirical constants, on the
-    measured scale: the priors of the fit."""
+    measured scale: the priors of the fit.  A level whose table row is a
+    prior combined with the spacings takes its prior from `priors`
+    (`read_priors`), never the combined value; such a row without its prior
+    stops the run."""
+    priors = priors or {}
     out = {}
     for lid, r in table.items():
+        src = r['source']
+        if lid in priors and (hfs_kappa.is_combined(src)
+                              or hfs_kappa.is_semiempirical(src)):
+            r = priors[lid]
+            src = r['source']
+        elif hfs_kappa.is_combined(src):
+            raise SystemExit('hfs_A_fit.py: %s is a combined value (%s) but '
+                             '%s has no prior for it' % (lid, src, PRIORS))
         if (lid in contradicted
-                or not hfs_kappa.is_semiempirical(r['source'])
-                or r['source'].startswith(FREED_SOURCES)):
+                or not hfs_kappa.is_semiempirical(src)
+                or src.startswith(FREED_SOURCES)):
             continue
         out[lid] = hfs_kappa.scaled_A(float(r['A_cm-1']), float(r['u_A']),
-                                      r['source'])
+                                      src)
     return out
 
 
@@ -354,6 +413,58 @@ def adoptable(lid, table, result):
             or r['source'].startswith(FREED_SOURCES))
 
 
+def combinable(lid, table, result, anchors):
+    """True if `--combine-priors` writes the level's combined value: a
+    composition prior (or an earlier combination of it) that the patterns
+    reach and determine, not in NOT_COMBINED or HOLD."""
+    r = table.get(lid)
+    if (r is None or lid not in anchors or lid not in result.A
+            or lid in result.null or lid in NOT_COMBINED or lid in HOLD):
+        return False
+    return (hfs_kappa.is_combined(r['source'])
+            or r['source'].startswith('composition'))
+
+
+def combined_source(n_patterns, n_positions, date):
+    return (COMBINED_PREFIX + '%d pattern%s, %d position%s '
+            '(Step 4 anchored fit, %s)'
+            % (n_patterns, '' if n_patterns == 1 else 's', n_positions,
+               '' if n_positions == 1 else 's', date))
+
+
+def write_combined(table, priors, result, anchors, counts, path, priors_path,
+                   date):
+    """`--combine-priors`: write the combined values into `path` and keep the
+    composition rows they replace in `priors_path`.  Returns the level ids
+    written.  The priors file is written first, so that no prior is ever
+    lost."""
+    with open(path, encoding='utf-8', newline='') as fh:
+        fields = csv.DictReader(fh).fieldnames
+    changed = []
+    for lid, r in table.items():
+        if not combinable(lid, table, result, anchors):
+            continue
+        if lid not in priors:
+            priors[lid] = dict(r)
+            priors[lid]['moved'] = date
+        changed.append(lid)
+    pfields = list(fields) + ['moved']
+    with open(priors_path, 'w', encoding='utf-8', newline='\n') as fh:
+        w = csv.DictWriter(fh, fieldnames=pfields, lineterminator='\n')
+        w.writeheader()
+        w.writerows(priors.values())
+    for lid in changed:
+        r = table[lid]
+        r['A_cm-1'] = '%+.4f' % result.A[lid]
+        r['u_A'] = '%.4f' % fitted_u(result, lid)
+        r['source'] = combined_source(counts[lid][0], counts[lid][1], date)
+    with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator='\n')
+        w.writeheader()
+        w.writerows(table.values())
+    return changed
+
+
 def write_levels(table, result, counts, path, date):
     """Rewrite `A_hfs_levels.csv` with the adoptable fitted values.
 
@@ -387,11 +498,21 @@ def main(argv=None):
                     help='write every fitted level to this csv')
     ap.add_argument('--write-levels', action='store_true',
                     help='adopt the values into the A table')
+    ap.add_argument('--priors', default=None,
+                    help='the composition priors replaced in the table '
+                         '(default: %s beside --levels)' % PRIORS)
+    ap.add_argument('--combine-priors', action='store_true',
+                    help='write each composition prior the patterns reach, '
+                         'combined with the spacings, into the A table, and '
+                         'keep the prior in --priors')
     args = ap.parse_args(argv)
 
     table = read_A_table(args.levels)
+    priors_path = args.priors or os.path.join(
+        os.path.dirname(os.path.abspath(args.levels)), PRIORS)
+    priors = read_priors(priors_path)
     J_of = hfs_kappa.read_levels()
-    anchors = anchors_of(table)
+    anchors = anchors_of(table, priors=priors)
     patterns, skipped = read_patterns(args.lines, table, J_of)
     print('patterns used %d' % len(patterns))
     for k, v in sorted(skipped.items()):
@@ -485,6 +606,24 @@ def main(argv=None):
         date = datetime.date.today().isoformat()
         changed = write_levels(table, res, counts, args.levels, date)
         print('\nwrote %s: %d levels replaced' % (args.levels, len(changed)))
+    combine = [x for x in res.ids if combinable(x, table, res, anchors)]
+    print('\npriors the spacings tighten: %d' % len(combine))
+    for x in combine:
+        p = anchors[x]
+        print('   %s J %.1f  prior %+.4f(%.4f) -> combined %+.4f(%.4f)  '
+              'u_S %.4f -> %.4f'
+              % (x, J_of[x], p[0], p[1], res.A[x], fitted_u(res, x),
+                 2.5 * J_of[x] * p[1], 2.5 * J_of[x] * fitted_u(res, x)))
+    for x, why in NOT_COMBINED.items():
+        print('not combined: %s - %s' % (x, why))
+    if args.combine_priors:
+        import output_files
+        output_files.require_writable([args.levels, priors_path])
+        date = datetime.date.today().isoformat()
+        changed = write_combined(table, priors, res, anchors, counts,
+                                 args.levels, priors_path, date)
+        print('\nwrote %s: %d priors combined with the spacings; the priors '
+              'are kept in %s' % (args.levels, len(changed), priors_path))
     return 0
 
 

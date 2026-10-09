@@ -450,6 +450,20 @@ def is_semiempirical(source):
         'Reader & Sugar')
 
 
+#: what the source of a row of `A_hfs_levels.csv` says when its A is a
+#: composition prior combined with Sugar's resolved components
+#: (`hfs_A_fit.py --combine-priors`, 2026-10-09).  Such a value is on the
+#: measured scale, and is no pure measurement: the prior, kept in
+#: `A_hfs_priors.csv`, is in it.
+COMBINED_TAG = 'with composition prior'
+
+
+def is_combined(source):
+    """True if a row with this source holds a composition prior combined
+    with the resolved components (COMBINED_TAG)."""
+    return COMBINED_TAG in source
+
+
 def scaled_A(A, u_A, source):
     """`(A, u_A)` on the measured scale: a semiempirical constant multiplied by
     `A_SCALE`, with the scale's own uncertainty added in quadrature; any

@@ -3338,6 +3338,29 @@ constant could be added to every A almost unseen. The fit (440 positions, 218 pa
 of the 39 levels that had none, replaces the 7 flag intervals, and replaces the semiempirical A of
 `059003.000127`, which the spacings contradict.
 
+**The composition priors combined with the spacings (2026-10-09, `hfs_A_fit.py
+--combine-priors`).** The fit's value for a level that has a prior is the prior and the
+spacings combined, which is better than either. Until 2026-10-09 the table nonetheless kept
+the prior alone. After Set 3 showed that u_S, not the fit, limits most published cg energies,
+the user had the combined values adopted for the 51 composition levels the patterns reach.
+Their median u_A falls from 0.0062 to 0.0024 cm⁻¹, and u_S from about 0.064 to 0.021 cm⁻¹.
+
+Before that, the priors' u_A were tested by leave-one-out: each prior freed in turn, against
+the value the spacings give without it. The result, rms z = 0.82 over 52 levels, says they are
+realistic and slightly conservative, so the combination is a fair one.
+
+The composition rows replaced are kept in `A_hfs_priors.csv` (with the date they moved), and
+the fit reads its priors from there (`hfs_A_fit.anchors_of`). Using the combined values as
+priors would count the spacings twice. A table row whose source says `with composition prior`
+(`hfs_kappa.is_combined`) is on the measured scale and is not multiplied by `A_SCALE` again.
+It is no pure measurement either, so `hfs_A_theory.read_measured` leaves it out. A second run
+recomputes every combined value from the priors and the current patterns.
+
+One prior is not combined (`hfs_A_fit.NOT_COMBINED`): 000229 (J = 5/2), whose spacings alone
+give +0.0568 ± 0.0043 against its prior +0.0286 ± 0.0061, 3.8σ apart. It is left for the user
+to decide, possibly to be freed as 000127 was. The 7 composition levels no pattern reaches
+also keep their priors.
+
 **Reader and Sugar's values replaced (2026-10-05).** Their 20 semiempirical values of
 4f<sup>2</sup>6s were priors of that fit too. Reader and Sugar (1965) calculated only the
 angular factors θ<sub>4f</sub> and θ<sub>6s</sub>; their radial parameters a<sub>4f</sub> and
