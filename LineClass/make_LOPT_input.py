@@ -777,14 +777,38 @@ def replace_par_name(line, new_name):
     return new_name + ' ' * pad + comment
 
 
+#: LOPT's key for the kind of line uncertainty in the transitions file, and
+#: the value it is given (see write_par_file).
+PAR_UNC_KIND_KEY = 'KIND OF MEASUREMENT UNCERTAINTY GIVEN'
+PAR_UNC_KIND = 'stat'
+
+
+def unc_kind_line(line=None):
+    """The parameter-file line saying the line uncertainties are statistical:
+    `line` with its value replaced, or a new line if `line` is None."""
+    if line is None:
+        return (f'{PAR_UNC_KIND:<8}; {PAR_UNC_KIND_KEY} in the transitions-'
+                f'input file [tot/stat]')
+    semi = line.find(';')
+    return f'{PAR_UNC_KIND:<8}' + line[semi:]
+
+
 def write_par_file(sample, path, lines_name, fixlev_name,
                    lev_out_name, lin_out_name):
-    """Copy the sample parameter file, replacing only the four file names.
+    """Copy the sample parameter file, replacing only the four file names,
+    and saying that the line uncertainties are statistical.
 
     The first four lines of a LOPT parameter file are, in order, the
     transitions input, the fixed levels input, the levels output and the
     transitions output.  Everything below them - the options and the column
-    positions - is copied unchanged.
+    positions - is copied unchanged, except the kind of the line
+    uncertainties, which is always `stat`: unc_own_corr is the statistical
+    uncertainty alone (wavelength_calibration.write_corrected_lines), and
+    what this program adds to it (the hfs width rules, the blend centroid
+    terms, the inflations) is line by line too.  LOPT's default, `tot`,
+    would subtract each group's systematic uncertainty from it in
+    quadrature.  The key is replaced where the sample has it and appended
+    where it does not.
     """
     with open(sample, encoding='utf-8') as fh:
         par = fh.read().splitlines()
@@ -795,6 +819,13 @@ def write_par_file(sample, path, lines_name, fixlev_name,
     for i, name in enumerate((lines_name, fixlev_name,
                               lev_out_name, lin_out_name)):
         par[i] = replace_par_name(par[i], name)
+
+    kind = [i for i, text in enumerate(par)
+            if ';' in text and PAR_UNC_KIND_KEY in text.upper()]
+    for i in kind:
+        par[i] = unc_kind_line(par[i])
+    if not kind:
+        par.append(unc_kind_line())
 
     with open(path, 'w', newline='', encoding='utf-8') as fh:
         for text in par:

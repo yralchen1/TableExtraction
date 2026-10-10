@@ -123,7 +123,17 @@ What comes out
 `wavelength_calibration.txt`  the report: the blocks, the fitted curve, the
                               diagnostics, and the calibration uncertainty.
 `wavelength_calibration.csv`  the same curve, one row per group, machine
-                              readable.
+                              readable; `group` is the group's name, as in
+                              the corrections file.
+`wavelength_calibration_cov.csv`
+                              (`--model groups` only) the covariance matrix
+                              of the groups' d_lambda, in angstrom^2, one
+                              row and one column per group in the order of
+                              the curve.  The groups are fitted together
+                              with the level energies, so they are not
+                              independent; this is what tells how far
+                              treating them as independent systematic
+                              groups in LOPT is from the truth.
 `wavelength_calibration_corrections.csv`
                               the deliverable: the correction to add to
                               every observed wavenumber of the list, with
@@ -228,6 +238,7 @@ OUT_CURVE = os.path.join(HERE, 'wavelength_calibration.csv')
 OUT_POINTS = os.path.join(HERE, 'wavelength_calibration_points.csv')
 OUT_CORR = os.path.join(HERE, 'wavelength_calibration_corrections.csv')
 OUT_POLY = os.path.join(HERE, 'wavelength_calibration_poly.csv')
+OUT_COV = os.path.join(HERE, 'wavelength_calibration_cov.csv')
 
 #: the calibrated working set, and the line list written into it.
 DEF_SET = 'iter'
@@ -822,6 +833,8 @@ def main(argv=None):
         outputs = [OUT_REPORT, OUT_CURVE, OUT_POINTS, OUT_CORR]
         if args.model == 'poly':
             outputs.append(OUT_POLY)
+        else:
+            outputs.append(OUT_COV)
         if args.set_dir:
             outputs.append(os.path.join(HERE, args.set_dir, OUT_LINES))
         if kappa_path:
@@ -1577,11 +1590,25 @@ def main(argv=None):
         w2 = csv.writer(fh, lineterminator='\n')
         w2.writerow(['block', 'lambda_lo_A', 'lambda_hi_A', 'lambda_mid_A',
                      'n_lines', 'd_lambda_A', 'u_d_lambda_A',
-                     'shift_cm-1', 'u_shift_cm-1'])
+                     'shift_cm-1', 'u_shift_cm-1', 'group'])
         for c in curve:
             w2.writerow([c[0], '%.3f' % c[1], '%.3f' % c[2], '%.3f' % c[3],
                          c[4], '%+.5f' % c[5], '%.5f' % c[6],
-                         '%+.4f' % c[7], '%.4f' % c[8]])
+                         '%+.4f' % c[7], '%.4f' % c[8],
+                         '%.0f-%.0f' % (c[1], c[2])])
+    if args.model == 'groups':
+        names = ['%.0f-%.0f' % (c[1], c[2]) for c in curve]
+        if len(set(names)) != len(names):
+            raise SystemExit('two groups share a name: %s' % sorted(
+                n for n in names if names.count(n) > 1))
+        gmat = np.array(gvec)
+        gcov = gmat.dot(cov).dot(gmat.T)
+        gcov = 0.5 * (gcov + gcov.T)
+        with open(OUT_COV, 'w', encoding='utf-8', newline='') as fh:
+            w2 = csv.writer(fh, lineterminator='\n')
+            w2.writerow(['group'] + names)
+            for name, row in zip(names, gcov):
+                w2.writerow([name] + ['%+.6e' % x for x in row])
     with open(OUT_POINTS, 'w', encoding='utf-8', newline='') as fh:
         w2 = csv.DictWriter(fh, list(points[0]), lineterminator='\n')
         w2.writeheader()
@@ -1640,6 +1667,9 @@ def main(argv=None):
     if args.model == 'poly':
         print('written: %s (%d coefficients)'
               % (os.path.basename(OUT_POLY), ncal))
+    else:
+        print('written: %s (%d by %d)'
+              % (os.path.basename(OUT_COV), len(curve), len(curve)))
     return 0
 
 

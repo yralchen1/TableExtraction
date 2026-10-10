@@ -274,3 +274,41 @@ def test_the_set_own_copy_wins(tmp_path):
                    str(set_dir / 'line_classifications.csv')]) == 0
     assert (set_dir / 'LOPT_fixlev.txt').read_text(
         encoding='utf-8') == 'this set only\n'
+
+
+# ---------------------------------------------------------------------------
+# The parameter file says the line uncertainties are statistical
+# ---------------------------------------------------------------------------
+def par_sample(tmp_path, extra=()):
+    text = ['a.txt  ; TRANSITIONS input file name',
+            'b.txt  ; FIXED LEVELS input file name',
+            'c.txt  ; Levels OUTPUT file name',
+            'd.txt  ; Transitions OUTPUT file name',
+            'Y      ; TUNE single-line levels (Y/N)?'] + list(extra)
+    path = tmp_path / 'sample.par'
+    path.write_text('\n'.join(text) + '\n', encoding='utf-8')
+    return str(path)
+
+
+def kind_lines(path):
+    with open(path, encoding='utf-8') as fh:
+        return [t.rstrip('\n') for t in fh
+                if M.PAR_UNC_KIND_KEY in t.upper()]
+
+
+def test_the_par_file_gets_stat_where_the_sample_has_no_kind(tmp_path):
+    out = str(tmp_path / 'LOPT.par')
+    M.write_par_file(par_sample(tmp_path), out, 'l', 'f', 'lo', 'li')
+    kinds = kind_lines(out)
+    assert len(kinds) == 1 and kinds[0].split(';')[0].strip() == 'stat'
+
+
+def test_the_par_file_turns_a_sample_tot_into_stat(tmp_path):
+    sample = par_sample(tmp_path, [
+        'tot     ; Kind of measurement uncertainty given in the lines input '
+        'file [tot/stat] (default tot)'])
+    out = str(tmp_path / 'LOPT.par')
+    M.write_par_file(sample, out, 'l', 'f', 'lo', 'li')
+    kinds = kind_lines(out)
+    assert len(kinds) == 1 and kinds[0].split(';')[0].strip() == 'stat'
+    assert kinds[0].endswith('(default tot)')

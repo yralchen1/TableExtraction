@@ -2104,7 +2104,8 @@ signature in wavenumber goes as `wn^2`, which no level shift can imitate.
 | file | contents |
 |---|---|
 | `wavelength_calibration.txt` | the report: blocks, curve, diagnostics, how large the error is, the common mode, the post-correction uncertainties |
-| `wavelength_calibration.csv` | the curve, one row per group: `block, lambda_lo_A, lambda_hi_A, lambda_mid_A, n_lines, d_lambda_A, u_d_lambda_A, shift_cm-1, u_shift_cm-1` |
+| `wavelength_calibration.csv` | the curve, one row per group: `block, lambda_lo_A, lambda_hi_A, lambda_mid_A, n_lines, d_lambda_A, u_d_lambda_A, shift_cm-1, u_shift_cm-1, group` (`group` is the name the corrections file uses) |
+| `wavelength_calibration_cov.csv` | (`--model groups` only) the covariance matrix of the groups' `d_lambda`, Å², one row and one column per group in the curve's order (since 2026-10-10) |
 | `wavelength_calibration_points.csv` | the fit's input, one row per line (columns below) |
 | `wavelength_calibration_corrections.csv` | the correction of every observed wavenumber of the list, with its uncertainty |
 | `wavelength_calibration_poly.csv` | (`--model poly` only) the fitted coefficients and their full covariance |
@@ -2180,6 +2181,25 @@ line's own row of the calibration part of the design matrix, so the correlation 
 calibration parameter and the next, and between the calibration and the level energies, is
 carried. `u_own_correction` is a **systematic**: it does not average down over the lines of a
 level, and belongs in LOPT separately from the statistical uncertainty of the line.
+
+**The groups are not independent.** They are fitted together with the level energies, and
+`wavelength_calibration_cov.csv` holds their covariance. On 2026-10-10 (a scratch run on
+`iter_hfs/`), the correlations between the 151 groups were all positive: median +0.32, with
+121 pairs above +0.7. 23% of the total variance sits in one mode, close to `d_lambda ∝
+lambda` (R² = 0.93 against a straight line through the groups). That mode is a scale error
+of the whole wavelength scale. Such an error is nearly indistinguishable from multiplying
+every level energy by the same factor, so the Ritz combinations hardly constrain it. Its
+uncertainty is a relative u_s = 3.1e-7, which moves an energy E by u_s·E: 0.03 cm⁻¹ at
+100000 cm⁻¹. The fitted curve contains s = +5.3e-7 of it, 1.7 sigma. With that direction
+removed, the remaining correlations are moderate (median |r| 0.16, 90th percentile 0.41).
+LOPT's systematic groups (one random amplitude per group, the groups independent) cannot
+represent this covariance. How the calibration's systematic uncertainty reaches the
+energies and the Ritz wavenumbers is being settled (Work_on_hfs_plan.md, Step 9).
+
+`make_LOPT_input.py` always writes `stat` for LOPT's "KIND OF MEASUREMENT UNCERTAINTY GIVEN"
+(since 2026-10-10), whatever the sample parameter file says. `unc_own_corr` is the statistical
+uncertainty alone, and so is everything added to it line by line. LOPT's default, `tot`, would
+subtract each group's systematic uncertainty from it in quadrature.
 
 A line the fit never saw — an unclassified one, or one in a 25 Å bin holding no accepted line
 — has no group of its own. It is given the nearest group of its own block, since it was
@@ -3081,6 +3101,23 @@ whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once.
   default, -41, a scratch sync grew `trans.dat` from 67981 transitions to 104649.
   `final/IDEN2` is for looking. An assignment is changed in `iter_hfs/`, and Set 3 is made
   again.
+
+  **Never take a new assignment from `final/IDEN2`, however well it lines up.** Each Set 3
+  line stands at the center of gravity (cg) of the pattern of *its own* accepted transitions,
+  and every other candidate is shown at *its* cg Ritz value. The two are comparable only when
+  the candidate's pattern is as narrow as the line's. A candidate with a wide pattern (|D|
+  well above a line width, D being the distance from the cg to the head) would be measured
+  about kappa·D from its cg, not at it: a sharp line cannot sit at the cg of a pattern whose
+  light is spread over several line widths. Such a candidate can look like a match in
+  `final/IDEN2` and be several sigma off where the classification compares it, in the head
+  frame of `iter_hfs/` (`iter_hfs/IDEN2` shows that comparison). The example (2026-10-10):
+  39353.4396, assigned to 000201-000319 (D = +0.031), stands in `final/IDEN2` at 39353.401,
+  0.09 cm⁻¹ from the cg Ritz value 39353.491 of 000127-000241 (IDEN2 1154-1032, Icalc
+  comparable). But that transition has D = −0.484 (A(000127) = +0.0787 from 13 resolved
+  patterns). With kappa = 0.75 it would be measured at 39353.13, 0.30 cm⁻¹ (about 6 sigma)
+  below the line, outside the matching window. Its head, at 39353.01, would be a feature of
+  its own, and no line is observed there. The pipeline was right not to propose it. Candidates
+  are judged, and assignments made, only in `iter_hfs/`.
 * `inflated_unc_lines.txt`: the shared registry of hand-set uncertainties without the rows of
   the merged lines (since 2026-10-10). A merged line is no line of Set 3: `sync_IDEN2.py`
   refuses an entry that names no line of the list, and `check_sync.py` warns; `final/lineclass_config.toml`
@@ -3097,6 +3134,49 @@ The first run (2026-10-09) gives these counts:
   check_sync found 0 errors;
 * 398 characters changed, 78 of them by width (c 26, ch 24, w 19, d 8, h 1);
 * 2 flags disagree with the sign of D: 36667.32 and 29151.13, both `*r` with D < 0.
+
+### The calibration's systematic uncertainty: `lopt_perturb.py`
+
+The calibration (`wavelength_calibration.py`) leaves each of its 151 groups a d_lambda with an
+uncertainty, and the groups are strongly correlated (`wavelength_calibration_cov.csv`; see
+"The groups are not independent" above). LOPT's systematic groups take one random amplitude
+per group, independent of the others, so they cannot carry that covariance. `lopt_perturb.py`
+propagates it exactly, using LOPT itself:
+
+1. The covariance is split into its eigenvectors: 151 independent patterns, pattern k
+   shifting group g by `a_kg = sqrt(lambda_k)·v_kg` Å.
+2. For each pattern, every LOPT record of a line in group g is moved by
+   `−a_kg·wn²·1e-8` cm⁻¹, and LOPT is run on the moved input.
+3. Each level's shift, less the base run's energy, is that pattern's 1-sigma effect. A level's
+   calibration uncertainty `u_cal` is the quadrature sum over the patterns. A Ritz
+   wavenumber's is the quadrature sum of its two levels' differences (`ritz_unc`), since the
+   two levels of one pattern move together.
+
+The fit is linear in the measured wavenumbers, so this is the derivative LOPT's own
+Eqs. 23–26 take, with the full covariance in place of independent groups, and no Monte Carlo
+is needed. Two details:
+- A small pattern would vanish in the 3-decimal input, so each pattern is scaled to move its
+  largest record by 1 cm⁻¹, written with every decimal the 12-character field holds, and its
+  effect divided back. The largest pattern is also run at half size, as a check of linearity.
+- The scale of the calibration is kept as fitted (user, 2026-10-10). The scale pattern is one
+  of the 151.
+
+Each record finds its line through the set's table and `LOPT_hfs_shifts.txt`, and the line
+finds its group in `wavelength_calibration_corrections.csv` by its `wn_key`. The corrections
+and the covariance must come from one calibration run: each group's `u_d_lambda_A` is checked
+against its variance.
+
+The runs are made `--jobs` at a time (16 by default, one per physical core), each in its own directory of a temporary
+directory. A run takes about 28 s, so the 153 runs (151 patterns, the base and the half-size
+check) take about 5 minutes. The set's files are only read. Written into the set's directory
+(or `--out`):
+- `calibration_sys_levels.csv`: the energy, D1, `u_cal`, and the largest pattern's part of it;
+- `calibration_sys_modes.csv`: every level's shift in every pattern;
+- `calibration_sys_report.txt`.
+
+```
+python lopt_perturb.py --set final            # after the final chain
+```
 
 ### Choosing the set from the command line
 
