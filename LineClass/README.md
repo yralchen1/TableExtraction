@@ -3075,11 +3075,16 @@ whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once.
 * `set3_report.txt`: the counts, and every line a rule could not settle.
 * `IDEN2/`: a fresh copy of `iter_hfs/IDEN2` on every run, without its backups and with the
   merged lines' rows removed (since 2026-10-09: a line inserted in `iter_hfs/IDEN2` reaches
-  Set 3 only through a new copy). IDEN2 must be closed. `sync_IDEN2.py` then brings it to the Set 3 fit;
+  Set 3 only through a new copy). Save and close IDEN2 first: it holds no lock, so unsaved edits
+  would be lost or written back over the copy. `sync_IDEN2.py` then brings it to the Set 3 fit;
   `iden2_display = "lopt"` is inherited. Use the `--cutoff` you use for `iter_hfs/`: at the
   default, -41, a scratch sync grew `trans.dat` from 67981 transitions to 104649.
   `final/IDEN2` is for looking. An assignment is changed in `iter_hfs/`, and Set 3 is made
   again.
+* `inflated_unc_lines.txt`: the shared registry of hand-set uncertainties without the rows of
+  the merged lines (since 2026-10-10). A merged line is no line of Set 3: `sync_IDEN2.py`
+  refuses an entry that names no line of the list, and `check_sync.py` warns; `final/lineclass_config.toml`
+  points `inflated_unc` here. The registry is edited in `LineClass/`, never in `final/`.
 
 The first run (2026-10-09) gives these counts:
 

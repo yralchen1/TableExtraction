@@ -1,15 +1,15 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6673 lines, 9139 table rows; moved 5031
-rows of merged lines left out of the table: 29
+6673 lines, 9136 table rows; moved 5030
+rows of merged lines left out of the table: 30
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-  rule class kappa   4760
+  rule class kappa   4759
   rule head-D         250
-  rule none          1642
+  rule none          1643
   rule resolved        21
-  |cg_shift| median 0.0404, 90% 0.1856, max 1.0910 cm^-1
+  |cg_shift| median 0.0404, 90% 0.1855, max 1.0910 cm^-1
 
-Merged companions (hfs_satellites.txt): 24
+Merged companions (hfs_satellites.txt): 25
   20972.0992      -> 20971.7476     
   34140.3907      -> 34139.9601     
   25787.7794      -> 25787.2879     
@@ -25,6 +25,7 @@ Merged companions (hfs_satellites.txt): 24
   27350.8376 d    -> 27351.4799     
   54967.4317      -> 54966.4344     
   32426.0902 d    -> 32426.7924     
+  32947.1485      -> 32947.5182 *r  
   23133.4479      -> 23133.9187     
   23133.0573      -> 23133.9187     
   22486.1899      -> 22487.0296     
@@ -34,10 +35,9 @@ Merged companions (hfs_satellites.txt): 24
   29294.2095      -> 29294.7083 *r  
   11477.6693      -> 11477.7734 *r  
   33540.4279 c    -> 33540.6980 *r  
-Blended companions, kept as lines: 4
+Blended companions, kept as lines: 3
   23083.6428      gave 51.2 of 139.8 to 23082.9190     
   24671.3726      gave 85.5 of 187.1 to 24670.6422     
-  32947.1485      gave 35123.2 of 35720.9 to 32947.5182 *r  
   30624.5690      gave 8894.0 of 12109.8 to 30623.5477 *v  
 Companions whose head is not observed (kept, char hfs): 2
   21962.9225     
@@ -45,26 +45,26 @@ Companions whose head is not observed (kept, char hfs): 2
 
 Resolved levels: F = 2 partners merged: 4
   21847.1970      (059003.000642) partner 21848.7485, predicted 21848.7275
-  29724.6026      (059003.000642) partner 29726.1066, predicted 29726.1065
+  29724.6026      (059003.000642) partner 29726.1067, predicted 29726.1066
   30088.5807      (059003.000642) partner 30090.1150, predicted 30090.0713
   33372.1081 w    (059003.000642) partner 33373.5918, predicted 33373.6527
   lines whose partner is in hfs_satellites.txt: 2
   no partner, or more than one: 15
-  20897.9067      (059003.000190) predicted 20897.4640: none
-  28019.7124 c    (059003.000190) predicted 28019.2238: none
-  28508.8216 d    (059003.000190) predicted 28508.3363: none
-  28658.9908      (059003.000642) predicted 28660.4914: none
-  28873.1623 *r   (059003.000190) predicted 28872.6784: none
-  31243.9493      (059003.000642) predicted 31245.4644: none
-  31623.1012 *r   (059003.000190) predicted 31622.6249: none
+  20897.9067      (059003.000190) predicted 20897.4630: none
+  28019.7124 c    (059003.000190) predicted 28019.2237: none
+  28508.8216 d    (059003.000190) predicted 28508.3362: none
+  28658.9908      (059003.000642) predicted 28660.4913: none
+  28873.1623 *r   (059003.000190) predicted 28872.6781: none
+  31243.9493      (059003.000642) predicted 31245.4640: none
+  31623.1012 *r   (059003.000190) predicted 31622.6250: none
   32156.5523 *r   (059003.000190) predicted 32156.0666: none
   32556.6902 c    (059003.000190) predicted 32556.2267: none
-  33401.3293      (059003.000190) predicted 33400.8879: none
-  33722.4702 w    (059003.000190) predicted 33722.0297: none
-  33772.3202      (059003.000642) predicted 33773.8658: none
-  35150.3212      (059003.000642) predicted 35151.8170: none
-  40667.1510      (059003.000642) predicted 40668.6522: none
-  44134.0401      (059003.000190) predicted 44133.5908: none
+  33401.3293      (059003.000190) predicted 33400.8880: none
+  33722.4702 w    (059003.000190) predicted 33722.0300: none
+  33772.3202      (059003.000642) predicted 33773.8661: none
+  35150.3212      (059003.000642) predicted 35151.8165: none
+  40667.1510      (059003.000642) predicted 40668.6524: none
+  44134.0401      (059003.000190) predicted 44133.5910: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 
@@ -182,4 +182,6 @@ Printed components against head - D: 227 lines; |cg difference| median 0.0093, 9
   33185.8488 *r    1 +0.3929   1.401   -0.1576      3.6
   31945.1479 *v    3 -0.6336   1.071   +0.0448     -3.0
 
-IDEN2: 28 merged line(s) removed from dlv.dat (line 2064 57127.7778, 2182 54967.4317, 4617 34140.3907, 4722 33373.5622, 4850 32426.0902, 4980 30090.1394, 5020 29726.1177, 5062 29294.2095, 5123 28086.3315, 5124 28085.7491, 5170 27350.8376, 5271 25787.7794, 5372 24111.1521, 5373 24110.7219, 5381 24087.7004, 5430 23792.9207, 5583 23133.4479, 5584 23133.0573, 5692 22685.9497, 5729 22545.9883, 5745 22486.1899, 5825 21872.7340, 5831 21848.7330, 5875 21273.9335, 5902 20972.0992, 6094 17019.5411, 6670 11477.6693, 6671 33540.4279)
+F:\UMD\AI\as-ai\LineClass\final\inflated_unc_lines.txt: written without the rows of 1 merged line(s) (32947.1485)
+
+IDEN2: 29 merged line(s) removed from dlv.dat (line 2064 57127.7778, 2182 54967.4317, 4617 34140.3907, 4722 33373.5622, 4788 32947.1485, 4850 32426.0902, 4980 30090.1394, 5020 29726.1177, 5062 29294.2095, 5123 28086.3315, 5124 28085.7491, 5170 27350.8376, 5271 25787.7794, 5372 24111.1521, 5373 24110.7219, 5381 24087.7004, 5430 23792.9207, 5583 23133.4479, 5584 23133.0573, 5692 22685.9497, 5729 22545.9883, 5745 22486.1899, 5825 21872.7340, 5831 21848.7330, 5875 21273.9335, 5902 20972.0992, 6094 17019.5411, 6670 11477.6693, 6671 33540.4279)

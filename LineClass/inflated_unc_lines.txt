@@ -86,7 +86,7 @@ wn_key	unc_wn	date	reason
 83315.6988	0.5	10/4/2026	"center of gravity of 1141-747, not its head"
 46162.9	0.4	10/5/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
 112448.4995	0.7	10/5/2026	"outlier in IDEN2/LOPT, OK with inflated unc"
-32947.1485	0.22	10/8/2026	"blend of 000148-000241 and theoretically much stronger rung 1 of 000149-000433 (was 0.1, raised in the audit of 10/8/2026)"
+32947.1485	0.22	10/8/2026	"rung 1 of 000149-000433, much stronger than the withdrawn 000148-000241 (withdrawn 10/10/2026; was 0.1, raised in the audit of 10/8/2026)"
 22800.9719	0.05	10/6/2026	head class in kappa_exceptions.txt; residual at the head +0.047
 15084.3664	0.075	10/6/2026	"outlier in IDEN2/LOPT, reason unknown"
 67563.3182	0.7	10/6/2026	char h and too high Iobs indicate possible blend

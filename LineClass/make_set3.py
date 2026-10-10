@@ -75,6 +75,12 @@ IDEN2/                  a fresh copy of iter_hfs/IDEN2 on every run
                         (remove_merged_from_iden2); sync_IDEN2.py brings it
                         to the new fit.  It is for looking only: a line or an
                         identification is entered in iter_hfs/IDEN2.
+inflated_unc_lines.txt  the source set's registry of hand-set uncertainties
+                        without the rows of the merged lines, which are no
+                        lines of Set 3 (write_inflated): sync_IDEN2.py
+                        refuses an entry that names no line of the list,
+                        and check_sync.py warns.  The shared registry is
+                        the one edited.
 
 After LOPT has been run on the set, `python make_set3.py --levels` writes
 
@@ -120,6 +126,7 @@ SOURCE_SET = os.path.join(HERE, 'iter_hfs')
 OUT_SET = os.path.join(HERE, 'final')
 LIST_NAME = 'Pr3_lines_set3.xlsx'
 REPORT_NAME = 'set3_report.txt'
+INFLATED_NAME = 'inflated_unc_lines.txt'
 LOPT_LEVELS = 'LOPT_output_levels.txt'
 GROUND = '059003.000001'
 I_SPIN = hfs_correction.I_SPIN
@@ -675,6 +682,47 @@ def remove_merged_from_iden2(iden2, lines, report):
             fh.writelines(kept)
 
 
+def write_inflated(src_path, dst_path, lines):
+    """Write `dst_path`, the registry of hand-set uncertainties `src_path`
+    (inflated_unc_lines.txt) without the rows of the lines merged into
+    others; returns the merged lines whose rows were left out.
+
+    A merged line is no line of Set 3, and sync_IDEN2.py refuses an entry
+    that names no line of the list (check_sync.py warns).  Every other
+    row, comments included, is copied as it is, so an entry that names no
+    line at all is still caught downstream.  A first comment row says where
+    the file comes from: the registry is edited in `src_path`, never here."""
+    import hfs_kappa
+    registry = hfs_kappa.read_inflated(src_path)
+    merged = {}
+    for line in lines.values():
+        if line.merged_into is not None:
+            k = registry.key_of(line.wn_key)
+            if k is not None:
+                merged[k] = line
+    with open(src_path, encoding='utf-8', newline='') as fh:
+        reader = csv.reader(fh, delimiter='\t')
+        header = next(reader)
+        rows = list(reader)
+    note = ['#'] + [''] * (len(header) - 1)
+    note[-1] = ('written by make_set3.py from %s without the rows of the '
+                'merged lines; edit that file, not this one' % src_path)
+    out = [note]
+    for row in rows:
+        wn = row[0].strip() if row else ''
+        if wn and not wn.startswith('#') \
+                and hfs_kappa.registry_key(wn) in merged:
+            continue
+        out.append(row)
+    import output_files
+    output_files.require_writable([dst_path])
+    with open(dst_path, 'w', encoding='utf-8', newline='') as fh:
+        w = csv.writer(fh, delimiter='\t', lineterminator='\n')
+        w.writerow(header)
+        w.writerows(out)
+    return sorted(merged.values(), key=lambda l: l.wn_key)
+
+
 def write_report(path, report, lines, n_rows, args):
     def f(ln):
         return '%.4f %-4s' % (ln.wn_key, ln.char or '')
@@ -824,18 +872,36 @@ def build(source, out_dir, components_csv=None, copy_iden2=True):
                     else getattr(src_cfg.hfs, 'components', ''), report)
 
     out_list = dst_cfg.lines_file
-    for p in (out_list, dst_cfg.output_csv, dst_cfg.output_file):
+    outputs = [out_list, dst_cfg.output_csv, dst_cfg.output_file]
+    if src_cfg.inflated_unc:
+        if os.path.normcase(dst_cfg.inflated_unc or '') == \
+                os.path.normcase(src_cfg.inflated_unc):
+            raise SystemExit('make_set3.py: %s must name its own '
+                             'inflated_unc (inflated_unc = "%s" under '
+                             '[files]); the shared registry names lines '
+                             'this set merges' % (out_cfg, INFLATED_NAME))
+        outputs.append(dst_cfg.inflated_unc)
+    for p in outputs:
         if config.set_of(p) is None or os.path.normcase(config.set_of(p)) \
                 != os.path.normcase(os.path.abspath(out_dir)):
             raise SystemExit('make_set3.py: %s is not in %s' % (p, out_dir))
     import output_files
-    output_files.require_writable([out_list, dst_cfg.output_csv,
-                                   dst_cfg.output_file])
+    output_files.require_writable(outputs)
     write_list(header, list_rows, lines, cols, out_list)
     n_rows = write_table(fields, rows, lines, model, dst_cfg.output_csv,
                          dst_cfg.output_file, report)
     text = write_report(os.path.join(out_dir, REPORT_NAME), report, lines,
                         n_rows, argparse.Namespace(source=source))
+    if src_cfg.inflated_unc:
+        gone = write_inflated(src_cfg.inflated_unc, dst_cfg.inflated_unc,
+                              lines)
+        text.append('%s: written without the rows of %d merged line(s)%s'
+                    % (dst_cfg.inflated_unc, len(gone),
+                       (' (' + ', '.join('%.4f' % l.wn_key for l in gone)
+                        + ')') if gone else ''))
+        with open(os.path.join(out_dir, REPORT_NAME), 'a', encoding='utf-8',
+                  newline='\n') as fh:
+            fh.write('\n' + text[-1] + '\n')
     iden2 = os.path.join(out_dir, 'IDEN2')
     if copy_iden2:
         refresh_iden2(os.path.join(source, 'IDEN2'), iden2)

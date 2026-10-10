@@ -1,0 +1,101 @@
+wn_key	unc_wn	date	reason
+#			written by make_set3.py from F:\UMD\AI\as-ai\LineClass\inflated_unc_lines.txt without the rows of the merged lines; edit that file, not this one
+94650.5226	1.2542	9/19/2026	Sugar's own value doubled; the classification 000164 - 000424 is retained
+44652.5408	0.1948	9/23/2026	outlier of the block fit; 4 x the class value, not de-classified
+40150.6097	0.1461	9/23/2026	outlier of the block fit; 3 x the class value, not de-classified
+38825.7505	0.17	10/8/2026	Sugar measured the position badly; 1170 - 1062 is not in doubt (was 0.0844, raised in the audit of 10/8/2026)
+38873.0195	0.1917	9/25/2026	outlier of the block fit; 4 x the class value, not de-classified
+52321.7549	0.5	9/25/2026	outlier of the block fit; 5 x the class value, not de-classified
+57582.2533	0.5	9/25/2026	outlier in IDEN2/LOPT, retained.
+56820.89	0.36	9/25/2026	head of 1139-918 pattern
+60205.3864	0.5	9/25/2026	outlier of the block fit; 4 x the class value, not de-classified
+93576.7973	0.5	9/25/2026	outlier in IDEN2/LOPT, retained.
+54434.39	0.4	9/25/2026	outlier in IDEN2/LOPT, retained.
+97636.21	0.5	9/25/2026	outlier in IDEN2/LOPT, retained.
+12609.2196	0.11	10/8/2026	outlier in IDEN2/LOPT, retained (was 0.0397, raised in the audit of 10/8/2026)
+100548.5	0.5	9/25/2026	blend
+100444.8853	0.5	9/25/2026	blend
+88831.6258	0.5	9/26/2026	blend
+41386.719	0.08	9/26/2026	blend
+24991.6901	0.12	9/26/2026	outlier in IDEN2/LOPT, retained.
+53657.57	0.5	9/26/2026	outlier in IDEN2/LOPT, retained.
+58215.0102	0.5	9/26/2026	outlier in IDEN2/LOPT, retained.
+11397.5807	0.08	9/26/2026	outlier in IDEN2/LOPT, retained.
+56639.7988	0.5	9/26/2026	outlier in IDEN2/LOPT, OK with inflated unc; fds
+85804.0749	0.5	9/26/2026	outlier in IDEN2/LOPT, OK with inflated unc
+98068.1768	0.5	9/26/2026	outlier in IDEN2/LOPT, OK with inflated unc
+87425.1129	0.5	9/26/2026	outlier in IDEN2/LOPT, OK with inflated unc
+17331.44354164608	0.0718	9/26/2026	outlier in IDEN2/LOPT, OK with inflated unc
+95033.3814	0.5	9/27/2026	blend
+94081.2304	0.5	9/27/2026	blend
+47252.2896	0.22	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+42117.349	0.12	9/27/2026	blend
+38940.38	0.084	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+37336.7713	0.3	9/27/2026	blend
+68213.5741	0.5	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+56993.5991	0.5	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+43594.5694	0.14	9/27/2026	head of 1129-961 pattern
+25555.9702	0.09	10/3/2026	head of 1129-1079 pattern
+22372.6908	0.06	10/3/2026	blend of head and rung 1 components; questionable because no char was given
+50210.3292	0.3	9/27/2026	hfs of f26s
+29056.1776	0.17	9/27/2026	hfs of f26s
+39768.8314	0.2	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+44690.3295	0.2	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+37374.7104	0.18	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+42564.3613	0.25	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
+45334.941	0.23	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+38038.6285	0.115	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+32105.4086	0.35	9/28/2026	blend
+24866.9222	0.08	9/28/2026	head of 1116-1067 pattern
+26937.8332	0.3	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+33818.0984	0.1	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+59111.2243	0.3	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+96710.6875	1	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+67195.1827	0.5	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+44840.8392	0.3	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+51766.8259	0.4	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+55805.502	0.5	9/28/2026	hfs of fds
+49399.839	0.5	9/28/2026	hfs of fds
+53957.0443	0.3	9/28/2026	hfs of fds
+40402.9389	0.14	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+55224.9751	0.5	9/28/2026	hfs of fds
+45604.9993	0.15	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
+33602.5509	0.14	10/8/2026	blend of 4 transitions, residual -0.15 at the centroid (was 0.4, lowered in the audit of 10/8/2026)
+59829.1143	0.5	9/30/2026	hfs of f26s
+33722.4702	0.3	9/30/2026	hfs of f26s
+28508.8216	0.25	10/3/2026	char d: 1089-964 unresolved from its partner from the F = 2 sublevel of 1089, 0.50 lower; measured between the two
+44134.0401	0.4	9/30/2026	hfs of f26s
+38425.7687	0.3	9/30/2026	hfs of f26s
+34406.941	0.2	9/30/2026	outlier in IDEN2/LOPT, OK with inflated unc
+31664.7593	0.12	9/30/2026	outlier in IDEN2/LOPT, OK with inflated unc
+38052.9185	0.12	9/30/2026	outlier in IDEN2/LOPT, OK with inflated unc
+54936.1186	0.4	9/30/2026	hfs of f26s
+35972.5687	0.5	10/1/2026	measured near c.g., char d
+44494.0809	0.23	10/1/2026	near (0.22 cm-1 past) the cg of the pattern
+40790.2001	0.35	10/1/2026	measured near c.g.
+58102.308	0.7	10/2/2026	hfs of f26s
+43105.9493	0.18	10/2/2026	outlier in IDEN2/LOPT, OK with inflated unc
+37509.34	0.29	10/2/2026	center of gravity of 1156-1052, not its head
+57611.7558	0.5	10/2/2026	center of gravity of 1156-932, not its head
+30074.3894	0.19	10/2/2026	center of gravity of 1116-1021, not its head
+35378.1493	0.5	10/2/2026	center of gravity of 1116-991, blended with 1175-1082
+36833.56	0.5	10/2/2026	center of gravity of 1116-984, blended with 1048-878
+36316.3719	0.5	10/2/2026	center of gravity of 1148-1039, blended with 1161-1065
+47379.9004	0.2	10/3/2026	outlier in IDEN2/LOPT, OK with inflated unc
+72368.5277	0.3	10/3/2026	outlier in IDEN2/LOPT, OK with inflated unc
+75218.5745	0.3	10/3/2026	outlier in IDEN2/LOPT, OK with inflated unc
+83315.6988	0.5	10/4/2026	center of gravity of 1141-747, not its head
+46162.9	0.4	10/5/2026	outlier in IDEN2/LOPT, OK with inflated unc
+112448.4995	0.7	10/5/2026	outlier in IDEN2/LOPT, OK with inflated unc
+22800.9719	0.05	10/6/2026	head class in kappa_exceptions.txt; residual at the head +0.047
+15084.3664	0.075	10/6/2026	outlier in IDEN2/LOPT, reason unknown
+67563.3182	0.7	10/6/2026	char h and too high Iobs indicate possible blend
+40075.8501	0.15	10/6/2026	outlier in IDEN2/LOPT, OK with inflated unc
+71062.4984	0.35	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+90666.9166	0.7	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+85862.0272	0.65	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+79495.3002	0.6	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+70780.1796	0.5	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+60109.195	0.35	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+47540.8301	0.25	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+27312.1523	0.5	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc

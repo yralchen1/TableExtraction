@@ -407,6 +407,25 @@ def test_the_table_leaves_out_a_merged_line(tmp_path):
     assert keys == [30000.0, 25000.0] and report['rows_dropped'] == 1
 
 
+def test_the_registry_of_the_set_leaves_out_a_merged_line(tmp_path):
+    import hfs_kappa
+    m, lines, report = merged_lines(tmp_path)
+    src = tsv(tmp_path, 'inflated.txt', 'wn_key\tunc_wn\tdate\treason\n',
+              [('29999.7', '0.2', '10/8/2026', '"rung 1, of a stronger line"'),
+               ('#25000.0', '0.5', '', 'a comment row'),
+               ('25000.0', '0.3', '10/8/2026', 'outlier')])
+    dst = str(tmp_path / 'set_inflated.txt')
+    gone = M3.write_inflated(src, dst, lines)
+    assert [l.wn_key for l in gone] == [29999.7]
+    reg = hfs_kappa.read_inflated(dst)
+    assert dict(reg) == {'25000.0': 0.3}
+    assert reg.check([30000.0, 25000.0]) == []
+    with open(dst, encoding='utf-8', newline='') as fh:
+        text = fh.read()
+    assert '\r' not in text and 'a comment row' in text \
+        and 'edit that file' in text
+
+
 def test_the_list_puts_a_merged_line_on_its_own_sheet(tmp_path):
     import openpyxl
     m, lines, report = merged_lines(tmp_path)

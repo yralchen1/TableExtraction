@@ -717,7 +717,7 @@ wn_key,low_id,upp_id,decision,date,reason
 90388.0269,059003.000134,059003.000411,reject,10/3/2026,insignificant intensity in blend
 97030.8296,059003.000067,059003.000386,accept,10/3/2026,"IDEN2/LOPT: acceptable cg, significant intensity"
 32947.5182,059003.000148,059003.000241,reject,10/3/2026,Wrong assignment
-32947.1485,059003.000148,059003.000241,accept,10/3/2026,Blended by rung 1 of a stronger  hfs structure of 000149-000433
+,,,,,
 58745.2228,059003.000041,059003.000262,accept,10/4/2026,IDEN2/LOPT: improves cg
 83315.6988,059003.000139,059003.000630,accept,10/4/2026,cg of hfs of 000139
 96798.8796,059003.000086,059003.000491,accept,10/4/2026,IDEN2/LOPT: improves cg
@@ -840,3 +840,4 @@ wn_key,low_id,upp_id,decision,date,reason
 28477.5676,059003.000148,059003.000211,accept,10/9/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg"
 17961.7519,059003.000182,059003.000211,reject,10/9/2026,IDEN2/LOPT: too far from Ritz
 34350.0584,059003.000156,059003.000258,accept,10/9/2026,"IDEN2/LOPT: char d supports blend, fair Iobs/Icalc; improves cg"
+32947.1485,059003.000148,059003.000241,reject,10/10/2026,Masked by rung 1 of a stronger  hfs structure of 000149-000433

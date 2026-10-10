@@ -24,6 +24,10 @@ lines      = "Pr3_lines_set3.xlsx"
 output     = "line_classifications.xlsx"
 output_csv = "line_classifications.csv"
 start_levels = "LOPT_output_levels.txt"
+# The shared registry of hand-set uncertainties less the rows of the lines
+# merged into others, which are no lines of this set (make_set3.py writes it
+# on every run; the registry is edited in LineClass/, not here).
+inflated_unc = "inflated_unc_lines.txt"
 
 [lines.layout.columns]
 # The wavenumber of a line is its center of gravity; its uncertainty here is
