@@ -1729,7 +1729,8 @@ constants of `level_positions.py`, is still open. Making
 `level_positions.py` subtract the correction would allow it on iter_hfs (see
 *Not yet hfs-aware* under Step 5). The user's Set 3 (Step 7b) removes that
 need: its lines are already at their centers of gravity. So the constants
-are refitted on Set 3.
+are refitted on Set 3. (Withdrawn 2026-10-11: no level analysis in Set 3; see the end
+of Step 7b.)
 
 *Pass 4, 2026-10-03, after decision D14.* Run by the user on
 `iter_hfs/line_classifications.csv`, with only the semiempirical A constants
@@ -1815,24 +1816,20 @@ lines still have their widths, though: a center of gravity estimated from an
 unresolved pattern is not a sharp line. The width model has to be refitted
 on Set 3 (the rest of Step 7) before their verdicts mean anything. Most of
 the per-level widths of `level_hfs_widths.csv` should then shrink toward zero.
+(Superseded 2026-10-11, next paragraph: none of these runs on Set 3.)
 
-*Done 2026-10-11: the width model refitted on Set 3.*
-- The constants are per set: the `[widths]` table of a set's `lineclass_config.toml`, adopted
-  by `level_positions.apply_widths`. The user chose this (2026-10-11). The other sets keep the
-  program's constants, fitted on the baseline.
-- `final/` has its own, fitted by maximum likelihood on its LOPT residuals; the README has the
-  values ("A set's own width model").
-- The per-level widths are off. In their place:
-  - a width for the flagged lines, 0.041 cm^-1;
-  - a per-line spread of kappa about its class, s·|D|, with s = 0.048 (1974) and 0.262 (1969).
-- The fitted floor is 0.0125 cm^-1 against the baseline's 0.0055. It is flat over 20000–47500
-  cm^-1 and of unknown cause: an empirical trend.
-- Single bands stay off by up to 20 % in sigma, as they are in iter_hfs against the table's own
-  uncertainties. The user chose not to add constants for this (option (a)).
-- A check run of `level_positions.py --set final` (written to the scratchpad) gives rms
-  residual/sigma 1.009 over the 5619 accepted lines and 0.90–1.15 per class.
-- Open: in `final/` a line with no accepted transition was not moved to a center of gravity,
-  so a wide-pattern candidate on it is judged too harshly (README).
+*2026-10-11: no width model for Set 3; level analyses only in iter_hfs.* A width model was
+refitted on final/'s LOPT residuals (per-set `[widths]` constants for `level_positions.py`) and
+withdrawn the same day at the user's call. final/ is the container of the reported quantities,
+for judging overall agreement and internal consistency only. Its accepted lines were moved by
+their own assignments, through D and kappa, which carry large systematic errors, and the other
+lines were not moved, so its residuals mix the measurement errors with the hfs correction's. No
+level is searched for, and no assignment judged, in final/. `level_positions.py --set` refuses a
+derived set. What the fit found is kept for the calibration's refit (README, "No level analysis
+in `final/`"):
+- a floor of about 0.0125 cm^-1, flat over 20000–47500 cm^-1, of unknown cause;
+- bands off by up to 20 % in sigma, the same in iter_hfs against the table's own uncertainties;
+- a per-line spread of kappa about its class of about 0.05·|D| (1974) and 0.26·|D| (1969).
 
 *After the user's conference (user, 2026-10-11): refit the kappas in the calibration
 accounting for the newly found trend.* The per-line spread of kappa grows with |D|, strongly
@@ -1840,6 +1837,7 @@ in 1969, and the floor is not understood; both are to be explained as empirical 
 calibration and its uncertainties are not to be changed before then. Still open, the user's
 decision: whether the 1969 kappa spread, an independent per-line error, also goes into
 final/'s LOPT line uncertainties. That would change the weights, and so every rerun after it.
+If so, the spread is to be measured on iter_hfs's head-frame residuals, not on final/'s.
 
 **Step 8 - regenerate the tracked outputs and the documentation.**
 `level_positions.csv` and `.xlsx`, `line_classifications.*`, `README.md`.

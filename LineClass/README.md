@@ -5692,42 +5692,27 @@ by k(n), the second by w_hfs. `level_hfs_widths.csv` holds the fitted widths and
 `make_LOPT_input.py` reads the same column, so the uncertainties LOPT is given and the ones the
 scan uses cannot drift apart.
 
-**A set's own width model: `[widths]` (2026-10-11).** The constants above were fitted on the
-baseline and stay the program's defaults. A set whose lines differ in kind gives its own in a
-`[widths]` table of its `lineclass_config.toml`, which `level_positions.apply_widths` adopts
-(with `--set`, or for the configuration in use). Each key replaces only what it names:
-- `unc_floor`;
-- `reading` (Å, per era);
-- `char_dlam` (Å) and `char_dwn` (cm⁻¹), keyed `"era/code"`. A code given in one form is taken
-  out of the other;
-- `level_hfs_widths = false`, which turns the per-level widths off;
-- `kappa_scatter`, s per era, which gives every line of a transition (s·|D|)² more variance, D
-  coming from the set's hfs model.
+**No level analysis in `final/` (2026-10-11).** Set 3 is the container of the reported
+quantities, used only to judge the overall agreement and internal consistency of the results
+(obs − Ritz against the statistical uncertainties, LOPT's RSS/dof). Its accepted lines were moved
+to their centers of gravity by their own assignments, through D and kappa, which carry large
+systematic errors; a line with no accepted transition was not moved. A level search or an
+alternate position would compare candidates against both kinds of line at once, and a verdict on
+an accepted assignment would only restate its obs − Ritz. So `level_positions.py --set` refuses a
+derived set, and levels are analyzed only in `iter_hfs/` (see "Never take a new assignment from
+`final/IDEN2`"). A width model refitted on Set 3's residuals was tried and withdrawn the same day:
+it mixed the measurement errors with those of the hfs correction.
 
-`final/` (Set 3) has one, refitted on its own LOPT residuals by maximum likelihood (4046 features
-with a firm Ritz value). The fit includes the anomalous-position mixture, and each residual's
-variance includes the Ritz value's own: (1 − h)²σ² + (1 − h)·u_Ritz², with h the line's leverage
-in the fit. The values:
-- reading errors 0.0022 Å (1974) and 0.0024 Å (1969); floor 0.0125 cm⁻¹;
-- `c` 0.0104 Å (from 0.0337), `ch` 0.0124, `d` 0.0097, `cl` 0.0026, `h` 0.0058, `bl` 0.0067,
-  `w` (1969) 0.0064 Å; `w` (1974) 0.0273 cm⁻¹;
-- the flagged lines, now at head − D, 0.041 cm⁻¹;
-- no per-level widths: the lines are at their centers of gravity. In their place goes the spread
-  of kappa about its class, s = 0.048 (1974) and 0.262 (1969), times |D|.
-
-Every character class then lies between 0.9 and 1.1 in rms residual/σ. Bands of wavenumber stay
-off by up to about 20 %, the same in `iter_hfs/` against the table's own uncertainties: the 1974
-lines below 20000 cm⁻¹ and the 1969 ones at 47500–52000 cm⁻¹ are better than the model says, and
-those at 52000–80000 cm⁻¹ worse. The user accepted this rather than add constants. The floor is
-about twice the baseline's and flat over 20000–47500 cm⁻¹. Its cause is not known: neither the
-calibration's correction uncertainty nor a Doppler-like term proportional to the wavenumber
-accounts for it, so it stands as an empirical trend.
-
-One limit on Set 3 remains. An accepted line there sits at its center of gravity, but a line
-with no accepted transition was not moved. A candidate transition with a wide pattern would be
-found about kappa·D from its center-of-gravity Ritz value, not at it, so `level_positions.py`
-judges such a candidate too harshly in `final/` (see "Never take a new assignment from
-`final/IDEN2`").
+What that fit found is kept for the calibration's refit after the user's conference, as
+empirical trends whose cause is not known:
+- a floor of about 0.0125 cm⁻¹ (twice the constant above), flat over 20000–47500 cm⁻¹. Neither
+  the calibration's correction uncertainty nor a term proportional to the wavenumber explains it;
+- wavenumber bands off by up to about 20 %, the same in `iter_hfs/` against the table's own
+  uncertainties: the 1974 lines below 20000 cm⁻¹ and the 1969 ones at 47500–52000 cm⁻¹ are better
+  than their uncertainties say, those at 52000–80000 cm⁻¹ worse;
+- a line-to-line spread of kappa about its class of about 0.05·|D| (1974) and 0.26·|D| (1969),
+  D the transition's pattern half-width from its center of gravity. Remeasured, it should come
+  from the head-frame residuals of `iter_hfs/`.
 
 **One observed line, one uncertainty.** `w_hfs(low)² + w_hfs(upp)²` is a property of the
 *transition*, and one observed line may be assigned to several of them, sitting on levels of

@@ -909,16 +909,6 @@ CHAR_DWN = {         # cm^-1, the WAVENUMBER-constant excess of a character:
 # set's own copies before anything is read, so every reader below looks them
 # up here at call time rather than taking them as default arguments.
 HFS_FILE = os.path.join(HERE, 'level_hfs_widths.csv')
-# A set's own width model (its [widths] table, apply_widths).  KAPPA_SCATTER
-# is s per era, the line-to-line spread of kappa about its class: a line of
-# a transition whose pattern reaches D from its center of gravity gains
-# s*|D| (a set at the centers of gravity, Set 3).  LEVEL_HFS false turns
-# the per-level hyperfine widths of level_hfs_widths.csv off.  HFS_MODEL is
-# the hfs model that gives D, built only when KAPPA_SCATTER is set.
-KAPPA_SCATTER = {}
-LEVEL_HFS = True
-HFS_MODEL = None
-_D_CACHE = {}        # {(low, upp): |D|} under HFS_MODEL
 LEVEL_IDS = os.path.join(HERE, 'IDEN2', 'IDEN_level_ids.txt')
 ENLEV = li.ENLEV
 HFS_APPLY = 0.02     # cm^-1: a fitted width below this is noise of the fit
@@ -1291,11 +1281,6 @@ def read_hfs_widths(path=None, log=None):
     zero.  Files written before that column existed are read the old way, so
     an old level_hfs_widths.csv still works.
     """
-    if not LEVEL_HFS:
-        if log:
-            log("  per-level hyperfine widths off ([widths] level_hfs_widths "
-                "= false)")
-        return {}
     path = path or HFS_FILE
     if not os.path.exists(path):
         if log:
@@ -1319,69 +1304,6 @@ def read_hfs_widths(path=None, log=None):
             f"structure; {n_cfg} of them are the typical width of the level's "
             f"configuration, the fit having too few lines to measure its own")
     return out
-
-
-def apply_widths(cfg, log=print):
-    """Adopt the set's own width model, the [widths] table of its
-    configuration (config.Config.widths_of); a configuration without one
-    keeps the constants above, which were fitted on the baseline.
-
-    A code given in one of char_dlam and char_dwn is taken out of the
-    other: each code has one form (section 4)."""
-    global UNC_FLOOR, LEVEL_HFS, HFS_MODEL
-    w = cfg.widths_of
-    if not w:
-        return
-    UNC_FLOOR = w.get('unc_floor', UNC_FLOOR)
-    DLAM_ERA.update(w.get('reading', {}))
-    for name, table, other in (('char_dlam', CHAR_DLAM, CHAR_DWN),
-                               ('char_dwn', CHAR_DWN, CHAR_DLAM)):
-        for k, v in w.get(name, {}).items():
-            key = tuple(k.split('/', 1))
-            table[key] = v
-            other.pop(key, None)
-    KAPPA_SCATTER.clear()
-    KAPPA_SCATTER.update(w.get('kappa_scatter', {}))
-    LEVEL_HFS = w.get('level_hfs_widths', True)
-    HFS_MODEL = None
-    _D_CACHE.clear()
-    if KAPPA_SCATTER:
-        if not cfg.hfs.apply:
-            raise SystemExit('level_positions.py: [widths] kappa_scatter '
-                             'needs [hfs] apply = true, for the D of each '
-                             'transition')
-        import hfs_correction
-        HFS_MODEL = hfs_correction.Model(cfg.hfs)
-    log(f"  the set's width model ([widths]): u_F {UNC_FLOOR:.4f} cm^-1, "
-        f"reading {DLAM_ERA}, kappa scatter {dict(KAPPA_SCATTER)}, "
-        f"per-level hyperfine widths {'on' if LEVEL_HFS else 'off'}")
-
-
-def abs_D(low, upp):
-    """|D| of each transition (arrays of level identifiers), cm^-1; 0
-    without HFS_MODEL."""
-    low, upp = np.atleast_1d(low), np.atleast_1d(upp)
-    if HFS_MODEL is None:
-        return np.zeros(len(low))
-    out = np.empty(len(low))
-    for i, (a, b) in enumerate(zip(low, upp)):
-        key = (str(a), str(b))
-        d = _D_CACHE.get(key)
-        if d is None:
-            d = _D_CACHE[key] = abs(HFS_MODEL.D(*key)[0])
-        out[i] = d
-    return out
-
-
-def kappa_scatter_var(wn, d_abs):
-    """(s(era) |D|)^2 of each line: the spread of kappa about its class
-    times the width of its pattern (KAPPA_SCATTER; 0 where the set has
-    none)."""
-    if not KAPPA_SCATTER:
-        return np.zeros(len(np.atleast_1d(d_abs)))
-    era = era_of(wn)
-    s = np.array([KAPPA_SCATTER.get(e, 0.0) for e in np.atleast_1d(era)])
-    return (s * np.asarray(d_abs, dtype=float)) ** 2
 
 
 def hfs_pair(w_hfs, low, upp):
@@ -2161,11 +2083,8 @@ def build(args, log=print):
     meas = meas_sigma(a['wn_obs'].to_numpy(),
                       a['char'].fillna('').astype(str).to_numpy(),
                       a['unc_wn_obs'].to_numpy(dtype=float))
-    v_hfs = (hfs_pair(ctx.w_hfs, a['low_id'].astype(str),
-                      a['upp_id'].astype(str))
-             + kappa_scatter_var(a['wn_obs'].to_numpy(),
-                                 abs_D(a['low_id'].astype(str).to_numpy(),
-                                       a['upp_id'].astype(str).to_numpy())))
+    v_hfs = hfs_pair(ctx.w_hfs, a['low_id'].astype(str),
+                     a['upp_id'].astype(str))
     # k(n) is what is left over once the width of the feature is accounted
     # for, hyperfine part included: measured without it, it would charge the
     # blending for a width that belongs to the level
@@ -2267,27 +2186,23 @@ def group_predictions(ctx):
     with np.errstate(divide='ignore', invalid='ignore'):
         sl = (np.log10(p['S'].to_numpy(dtype=float)) if 'S' in p.columns
               else np.full(len(p), np.nan))
-    dd = abs_D(lo, up)
     rows = {}
     for i in range(len(p)):
-        rows.setdefault(up[i], []).append((lo[i], +1.0, ip[i], uc[i], sl[i],
-                                           dd[i]))
-        rows.setdefault(lo[i], []).append((up[i], -1.0, ip[i], uc[i], sl[i],
-                                           dd[i]))
+        rows.setdefault(up[i], []).append((lo[i], +1.0, ip[i], uc[i], sl[i]))
+        rows.setdefault(lo[i], []).append((up[i], -1.0, ip[i], uc[i], sl[i]))
     for lid, rr in rows.items():
         partner = np.array([x[0] for x in rr])
         sign = np.array([x[1] for x in rr])
         i_pred = np.array([x[2] for x in rr])
         u_calc = np.array([x[3] for x in rr])
         ls10 = np.array([x[4] for x in rr])
-        d_abs = np.array([x[5] for x in rr])
         e_m = np.array([ctx.e_final.get(x, np.nan) for x in partner])
         u_m = np.array([ctx.u_M.get(x, 0.0) for x in partner])
         n_p = np.array([ctx.n_acc_level.get(x, 0) for x in partner])
         sh = np.array([ctx.shared.get((x, lid), 0) + ctx.shared.get((lid, x), 0)
                        for x in partner])
         out[lid] = dict(partner=partner, sign=sign, i_pred=i_pred, e_m=e_m,
-                        u_m=u_m, u_calc=u_calc, ls10=ls10, d_abs=d_abs,
+                        u_m=u_m, u_calc=u_calc, ls10=ls10,
                         degenerate=(n_p - sh) <= 0)
     return out
 
@@ -2322,12 +2237,6 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
     # level being scanned contributes its own to every one of its lines
     v_hfs = (ctx.w_hfs.get(str(level_id), 0.0) ** 2
              + np.array([ctx.w_hfs.get(str(x), 0.0) ** 2 for x in partner]))
-    # and the spread of kappa over the width of each transition's pattern,
-    # in the era of the line at the level's present energy
-    if KAPPA_SCATTER:
-        e0 = ctx.e_final.get(level_id, np.nan)
-        nu0 = sign * (e0 - e_m) if np.isfinite(e0) else e_m * 0.0
-        v_hfs = v_hfs + kappa_scatter_var(nu0, g['d_abs'][keep])
 
     total = np.zeros(len(e_grid))
     rows = None
@@ -2634,8 +2543,7 @@ def run_digest(ctx):
     # the width model: a changed constant changes every level's sigma
     h.update(repr((UNC_FLOOR, ERA_SPLIT, sorted(DLAM_ERA.items()),
                    sorted(CHAR_DLAM.items()),
-                   sorted(CHAR_DWN.items()), sorted(KAPPA_SCATTER.items()),
-                   LEVEL_HFS)).encode())
+                   sorted(CHAR_DWN.items()))).encode())
     # the unrelated-line background: it enters every matched free row
     for a in (ctx.rho_bg_o, ctx.bg_mu_f, ctx.bg_sd_f, ctx.unk_mu_o,
               ctx.unk_sd_o):
@@ -4765,10 +4673,16 @@ def use_set(args, log=print):
     if not os.path.isdir(set_dir):
         raise SystemExit(f"level_positions.py: --set {args.set_dir} is not a "
                          f"directory")
+    # A derived set (final/) is the container of the reported quantities: its
+    # accepted lines were moved by their own assignments and the others were
+    # not, so a level search or a verdict there would measure nothing.
+    maker = config.derived_from(set_dir)
+    if maker:
+        raise SystemExit(f"level_positions.py: {set_dir} is written by "
+                         f"{maker}; analyze levels in the set it is derived "
+                         f"from (iter_hfs)")
     cfg_path = working_path('lineclass_config.toml', cwd=set_dir)
-    cfg = config.load(cfg_path)
-    cl.apply_config(cfg)
-    apply_widths(cfg, log)
+    cl.apply_config(config.load(cfg_path))
     iden2 = working_path('IDEN2', cwd=set_dir)
     ENLEV = os.path.join(iden2, 'enlev.dat')
     LEVEL_IDS = os.path.join(iden2, 'IDEN_level_ids.txt')
@@ -4796,8 +4710,6 @@ def main(argv=None):
     args = parse_args(argv)
     if args.set_dir:
         use_set(args)
-    else:
-        apply_widths(config.load())
     if args.drop_questionable and not args.unknown:
         raise SystemExit('--drop-all-questionable only has a meaning with '
                          '--unknown: it frees the lines of the questionable '

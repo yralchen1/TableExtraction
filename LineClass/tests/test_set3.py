@@ -383,6 +383,14 @@ def test_the_level_tools_refuse_a_derived_set(tmp_path):
                              'insert_new_level.py', unlock=True)
 
 
+def test_the_level_analysis_refuses_a_derived_set(tmp_path):
+    import types
+    import level_positions as LP
+    d = derived_set(tmp_path)
+    with pytest.raises(SystemExit, match='make_set3.py'):
+        LP.use_set(types.SimpleNamespace(set_dir=str(d)), log=lambda *a: None)
+
+
 def test_derived_from_is_not_inherited(tmp_path):
     d = derived_set(tmp_path)
     child = tmp_path / 'child.toml'
