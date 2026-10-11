@@ -74,6 +74,10 @@ class _StrList:
     """A list of strings, possibly empty."""
 
 
+class _FloatMap:
+    """A table whose keys are strings and whose values are all numbers."""
+
+
 _ENUMS = {
     'missing_gA.policy': ('none', 'impute'),
     'missing_gA.u_ln_estimator': ('rms', 'mean', 'median'),
@@ -99,7 +103,15 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'hfs.kappa.flag_unlisted',
              'decisions', 'decisions.max_forced_offset',
              'blends', 'blends.u_ln_intensity',
-             'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
+             'hfs', 'hfs.resolved_levels', 'hfs.iden2_display',
+             'widths', 'widths.unc_floor', 'widths.level_hfs_widths',
+             'widths.reading', 'widths.char_dlam', 'widths.char_dwn',
+             'widths.kappa_scatter'}
+
+#: The eras of Sugar's measurements, which the keys of [widths] name: a
+#: table of eras (`reading`, `kappa_scatter`) is keyed by the era, one of
+#: characters (`char_dlam`, `char_dwn`) by "era/code", e.g. "1974/c".
+WIDTH_ERAS = ('1974', '1969')
 
 _SCHEMA = {
     'inherit': str,
@@ -124,6 +136,9 @@ _SCHEMA = {
     'blends': {'u_ln_intensity': float},
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES}},
+    'widths': {'unc_floor': float, 'level_hfs_widths': bool,
+               'reading': _FloatMap, 'char_dlam': _FloatMap,
+               'char_dwn': _FloatMap, 'kappa_scatter': _FloatMap},
 }
 
 
@@ -155,6 +170,13 @@ def _validate(node, schema, path=''):
                                and not isinstance(v, bool) for v in val)):
                 raise ConfigError(f"'{full}' must be a list of two numbers")
             node[key] = [float(v) for v in val]
+        elif expected is _FloatMap:
+            if not isinstance(val, dict) or not all(
+                    isinstance(k, str) and isinstance(v, (int, float))
+                    and not isinstance(v, bool) for k, v in val.items()):
+                raise ConfigError(
+                    f"'{full}' must be a table of  name = number  pairs")
+            node[key] = {k: float(v) for k, v in val.items()}
         elif expected is _StrList:
             if (not isinstance(val, list)
                     or not all(isinstance(v, str) for v in val)):
@@ -261,6 +283,15 @@ class Config:
     # starts the levels from instead of their published energies (the warm
     # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
     start_levels: str = ''
+    # The [widths] table: level_positions.py's width model fitted on this
+    # set, as keys of `widths_of` (apply_widths); empty keeps the program's
+    # own constants, which were fitted on the baseline.
+    widths: tuple = ()
+
+    @property
+    def widths_of(self) -> dict:
+        """The [widths] table as a dict (empty if the file has none)."""
+        return dict(self.widths)
 
 
 def _merge(base_tbl: dict, over: dict) -> dict:
@@ -521,7 +552,35 @@ def load(path: str = None) -> Config:
             raw.get('blends', {}).get('u_ln_intensity', 0.0)),
         start_levels=(_p('start_levels')
                       if raw['files'].get('start_levels') else ''),
+        widths=_widths(raw.get('widths', {})),
     )
+
+
+def _widths(tbl: dict) -> tuple:
+    """The [widths] table, checked: eras and "era/code" keys, no negative
+    width.  Returned as sorted (key, value) pairs, as [hfs.kappa] is; a
+    map's value is a dict."""
+    out = {}
+    for key, val in tbl.items():
+        if isinstance(val, dict):
+            for k, v in val.items():
+                era = k.split('/')[0]
+                coded = key in ('char_dlam', 'char_dwn')
+                if era not in WIDTH_ERAS or (coded != ('/' in k)) or (
+                        coded and not k.split('/', 1)[1]):
+                    raise ConfigError(
+                        f"'widths.{key}.{k}': a key must be "
+                        + ('"era/code"' if coded else 'an era')
+                        + f", the era one of {', '.join(WIDTH_ERAS)}")
+                if v < 0:
+                    raise ConfigError(f"'widths.{key}.{k}' must not be "
+                                      f"negative")
+            out[key] = dict(val)
+        else:
+            if key == 'unc_floor' and val < 0:
+                raise ConfigError("'widths.unc_floor' must not be negative")
+            out[key] = val
+    return tuple(sorted(out.items()))
 
 
 def resolve_columns(header_row, columns: dict, source: str) -> dict:
