@@ -11,9 +11,9 @@
 # Everything not written here is iter_hfs/'s, and through it iter/'s and the
 # baseline's.  [hfs] apply stays on: make_LOPT_input.py then leaves out the
 # level widths the correction replaces (D13) exactly as in iter_hfs/, and
-# adds each line's u_hfs_shift - which make_set3.py writes as the
-# uncertainty of the move to the center of gravity - while hfs_shift is 0:
-# the lines are already where LOPT is to see them.
+# adds each line's u_hfs_shift - which make_set3.py cuts to the part owed to
+# levels without a determined A; lopt_perturb.py carries the rest - while
+# hfs_shift is 0: the lines are already where LOPT is to see them.
 derived_from = "make_set3.py"
 inherit = "../iter_hfs/lineclass_config.toml"
 

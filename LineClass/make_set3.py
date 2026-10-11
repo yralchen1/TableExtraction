@@ -63,8 +63,8 @@ Pr3_lines_set3.xlsx     every row of iter/'s corrected line list, with the
                         gives the `own` of the line it went into.
 line_classifications    iter_hfs/'s table row for row, every row of a line
   .csv / .xlsx          moved by the line's cg_shift (wn_obs), with
-                        hfs_shift = 0 and u_hfs_shift, u_hfs_undet as they
-                        were; low_E, upp_E and rwn taken to the centers of
+                        hfs_shift = 0, u_hfs_shift only its part owed to
+                        undetermined levels (u_hfs_undet, kept); low_E, upp_E and rwn taken to the centers of
                         gravity, dif_wn_O-C as it was (write_table); and the
                         columns wn_measured, cg_shift, merged_into.  The rows
                         of a merged line are left out.
@@ -82,30 +82,105 @@ inflated_unc_lines.txt  the source set's registry of hand-set uncertainties
                         and check_sync.py warns.  The shared registry is
                         the one edited.
 
-After LOPT has been run on the set, `python make_set3.py --levels` writes
+After LOPT has been run on the set, and lopt_perturb.py on its fit (both
+sources), `python make_set3.py --levels` writes the totals (THE TOTALS):
 
-levels_set3.csv         every level of the set's fit: E_cg and LOPT's
-                        uncertainty, the level's S and u_S, the total, and
-                        the source set's E_head - S + S(ground) beside it,
-                        which the fit must reproduce.
+levels_set3.csv         every level of the set's fit: E_cg; LOPT's D1 and
+                        D2stat and u_stat; u_cal, u_hfs, u_kappa; their
+                        total D2tot*; the level's S and u_S (its head is at
+                        E_cg + S, for reference only); the source set's
+                        E_head - S + S(ground), which the fit must
+                        reproduce, and the difference.
+ritz_set3.csv           every record of LOPT_output_lines.txt: its levels,
+                        LOPT's observed and Ritz wavenumbers, uWnCstat,
+                        u_cal, u_hfs, u_kappa and u_ritz.
+levels_set3_report.txt  the medians of each part, the ground level's common
+                        part, and any lopt_perturb output missing or made
+                        from another fit (its columns are then left empty).
 
 THE UNCERTAINTIES
 =================
-An error dS in a level's S (from its A) moves every line of the level the
-same way, and the fit takes it up into the level: a line measured at
-wn_cg + kappa*D and moved by kappa*D_est stands at
-(E_cg + dS)(upper) - (E_cg + dS)(lower) - (1 - kappa)*dD.  Only
-(1 - kappa)*u_D is scatter between the lines - the head frame's u_hfs_shift
-- and u_S belongs to the level's center of gravity.  So the table keeps the
-source set's u_hfs_shift, the fit of Set 3 is the fit of iter_hfs/ moved by
--S level by level (to LOPT's rounding), and levels_set3.csv adds u_S to each
-level.  A level's energy is measured from the ground level's center of
-gravity, whose u_S (0.021 cm^-1 for A = +0.0305(19)) is common to all of
-them and is given once, not added to each.
+The error of an A constant or of a kappa is not given to the lines.  In
+the table u_hfs_shift keeps only u_hfs_undet, the part owed to levels
+without a determined A (user, 2026-10-10); make_LOPT_input.py carries that
+part, or the level's width, as before.  Model.line_shift_terms rebuilds the
+source set's u_hfs_shift from its two terms, and the report says how
+closely.
+
+* The kappa term, |sum BF * u_kappa * D|: the kappa of a class is one
+  number for all its lines, a systematic error.
+* The determined-A term, sum BF * (1 - kappa) * u_D, the head frame's: an
+  error dS of a level moves all its lines together, and the fit takes it
+  up into the level.  Only the differences of kappa between the lines of a
+  level make scatter, and that scatter is not independent from line to
+  line.  In the frame of Set 3 the head-frame (1 - kappa) is the wrong
+  factor anyway: a c line, kappa near 0, is hardly moved by an error of A
+  here, and was given most of u_D.
+
+lopt_perturb.py --source hfs carries both into the levels exactly, by one
+LOPT run per pattern of the A constants and per kappa class, the
+differences between the lines included.  Left in the lines as well, they
+would be counted twice: once as scatter, in LOPT's D1 and D2, and once by
+the perturbation runs.  A scratch fit without the two terms (2026-10-10)
+bore this out: the residuals of the lines do not grow with the size of the
+determined-A term taken out (rms z 0.87, 0.84 and 0.79 for that term at
+0.14, 0.33 and 0.60 of the line's uncertainty, where independent scatter
+would give 0.88, 0.92 and 1.02); the 22 lines where it was larger hold
+three outliers of about 0.3 cm^-1 that are there with it or without it;
+the levels moved by 0.0006 cm^-1 at the median, 0.98 D2 at most.
+iter_hfs/, the set of the assignments, keeps both terms.
+
+A level's energy is measured from the ground level's center of gravity:
+the part of its uncertainty from the ground level's own A is common to all
+of them and is given once, as the ground level's own (THE TOTALS).
 
 The line list's u_cg is the other quantity: the uncertainty of one line's
 center of gravity on its own, sum BF*(kappa*u_D + u_R) and the kappa term
 (hfs_correction.Model.cg_shift), which a published line carries.
+
+THE TOTALS
+==========
+Every number is written unrounded; the user rounds in Excel (LOPT.par's
+rounding rule is 99999).  An excited level's uncertainty is relative to the
+ground level (user, 2026-10-10 and 2026-10-11):
+
+    u_stat = max(D1, D2stat)      LOPT's (0 for the ground level, which
+                                  is fixed): D2stat, from the covariance of
+                                  the fit, is the statistical uncertainty;
+                                  D1 (Radziemski's dispersion) is kept where
+                                  it is larger.  D2sys is not used: LOPT has
+                                  no groups here, the systematic parts come
+                                  from the perturbation runs.
+    u_cal                         the calibration (lopt_perturb.py)
+    u_hfs                         the A constants (lopt_perturb.py --source
+                                  hfs), without the ground level's common
+                                  part
+    u_kappa                       the kappa classes (the same runs)
+    D2tot* = sqrt(u_stat^2 + u_cal^2 + u_hfs^2 + u_kappa^2)
+
+The column is named D2tot* to tell it from LOPT's D2tot, which has none of
+the hfs treatment's systematics (user, 2026-10-11).
+
+An error dA of the ground level's own A moves every other level by about
+v * dA (ground_common): that part, the same for all of them, is the
+uncertainty of the ground level's center of gravity against the rest of
+the system, and is given as the ground level's own u_hfs and D2tot*, as the
+uncertainty of the ground level is given in rare-gas spectra (user,
+2026-10-11).  An excited level's D2tot* leaves it out; the total
+uncertainty of an excited level's energy is its D2tot* and the ground
+level's in quadrature, and that of a wavenumber between two excited levels
+does not have it.
+
+A Ritz wavenumber: LOPT's uWnCstat (from the covariance of the fit, no D1
+analogue), and for each systematic source the quadrature sum over its
+patterns of the difference of the two levels' shifts, so that what the two
+levels share cancels, the ground level's common part among it:
+
+    u_ritz = sqrt(uWnCstat^2 + u_cal^2 + u_hfs^2 + u_kappa^2)
+
+The perturbation files must come from the set's present fit: a level absent
+from them, or at an energy more than SYS_TOL from the fit's, leaves that
+source's columns and the totals empty, with a warning.
 """
 import argparse
 import csv
@@ -114,6 +189,7 @@ import os
 import shutil
 import sys
 
+import numpy as np
 import openpyxl
 import pandas as pd
 
@@ -128,6 +204,14 @@ LIST_NAME = 'Pr3_lines_set3.xlsx'
 REPORT_NAME = 'set3_report.txt'
 INFLATED_NAME = 'inflated_unc_lines.txt'
 LOPT_LEVELS = 'LOPT_output_levels.txt'
+LEVELS_NAME = 'levels_set3.csv'
+RITZ_NAME = 'ritz_set3.csv'
+TOTALS_REPORT = 'levels_set3_report.txt'
+#: a lopt_perturb file whose energy of a level (written to 4 decimals)
+#: differs from the set's fit by more is from another fit
+SYS_TOL = 2e-4
+#: the total uncertainty column of levels_set3.csv (THE TOTALS)
+TOTAL = 'D2tot*'
 GROUND = '059003.000001'
 I_SPIN = hfs_correction.I_SPIN
 
@@ -208,6 +292,9 @@ class Line(object):
         self.intens = float(first['obs_intens'] or 0.0)
         self.from_companions = float(first.get('obs_intens_hfs') or 0.0)
         self.hfs_shift = float(first.get('hfs_shift') or 0.0)
+        self.u_hfs_shift = float(first.get('u_hfs_shift') or 0.0)
+        self.u_hfs_undet = float(first.get('u_hfs_undet') or 0.0)
+        self.u_shift3 = self.u_hfs_shift    # what Set 3's table carries
         acc = [r for r in rows if is_accepted(r)]
         total = sum(float(r['BF'] or 0.0) for r in acc)
         self.components = [
@@ -264,11 +351,19 @@ def read_lopt_levels(path):
 # the rules
 # ---------------------------------------------------------------------------
 def move_lines(lines, model, report):
-    """Give every line its CgShift; check the identity with the table."""
+    """Give every line its CgShift; check the identity with the table.
+    Keep only the undetermined part of the line's u_hfs_shift (u_shift3;
+    see "THE UNCERTAINTIES"), and report how closely the model's two terms
+    rebuild the table's u_hfs_shift."""
     bad = []
+    u_gap = 0.0
     for ln in lines.values():
         ln.cg = model.cg_shift(ln.char, ln.wn_key, ln.components)
         if ln.components:
+            _, u_A, u_k, _ = model.line_shift_terms(ln.char, ln.wn_key,
+                                                    ln.components)
+            u_gap = max(u_gap, abs(math.hypot(u_A, u_k) - ln.u_hfs_shift))
+            ln.u_shift3 = min(ln.u_hfs_undet, ln.u_hfs_shift)
             gap = ln.hfs_shift - ln.cg.shift - (ln.cg.D + ln.cg.R)
             if abs(gap) > IDENTITY_TOL:
                 bad.append((ln.wn_key, ln.hfs_shift, ln.cg.shift, gap))
@@ -283,6 +378,7 @@ def move_lines(lines, model, report):
                    for b in bad[:20]]
         raise SystemExit('\n'.join(lines_))
     report['moved'] = sum(1 for ln in lines.values() if ln.components)
+    report['u_shift_gap'] = u_gap
 
 
 def merge_companions(lines, model, report):
@@ -504,11 +600,13 @@ def write_table(fields, rows, lines, model, path_csv, path_xlsx, report):
         # companion gave away), as the line list has it
         if abs(ln.intens3 - ln.intens) > 1e-9:
             new['obs_intens'] = repr(round(ln.intens3, 6))
-        # The line is where LOPT is to see it; what its fit uncertainty
-        # owes to hfs is unchanged (see "THE UNCERTAINTIES" above), so
-        # u_hfs_shift and u_hfs_undet stay as the source set wrote them.
+        # The line is where LOPT is to see it, and its fit uncertainty keeps
+        # of hfs only what the undetermined levels owe it, u_hfs_undet,
+        # which stays as written (see "THE UNCERTAINTIES" above).
         if 'hfs_shift' in r:
             new['hfs_shift'] = '0.0'
+        if (r.get('u_hfs_shift') or '').strip():
+            new['u_hfs_shift'] = repr(ln.u_shift3)
         low = (r.get('low_id') or '').strip()
         upp = (r.get('upp_id') or '').strip()
         for col, lid in (('low_E', low), ('upp_E', upp)):
@@ -738,6 +836,14 @@ def write_report(path, report, lines, n_rows, args):
                % report.get('rows_dropped', 0))
     out.append('single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most '
                '%.1e cm^-1' % report.get('dif_check', 0.0))
+    cut = sorted(ln.u_hfs_shift - ln.u_shift3 for ln in lines.values()
+                 if ln.components and ln.merged_into is None)
+    if cut:
+        out.append('u_hfs_shift cut to its undetermined part: lowered by '
+                   'median %.4f, max %.4f cm^-1 over %d lines; the model '
+                   "rebuilds the source set's u_hfs_shift to %.1e cm^-1"
+                   % (cut[len(cut) // 2], cut[-1], len(cut),
+                      report.get('u_shift_gap', 0.0)))
     out += ['  rule %-12s %5d' % (k, v) for k, v in sorted(rules.items())]
     shifts = sorted(abs(ln.cg.shift) for ln in lines.values() if ln.components)
     if shifts:
@@ -917,49 +1023,266 @@ def build(source, out_dir, components_csv=None, copy_iden2=True):
     return text
 
 
+# ---------------------------------------------------------------------------
+# The totals (--levels): LOPT's statistical part and lopt_perturb's
+# systematic ones
+# ---------------------------------------------------------------------------
+def fnum(x):
+    """An output number, unrounded: the user rounds in Excel."""
+    return '%.7f' % x
+
+
+def read_modes(path):
+    """`(pattern names, {level_id: np.array of shifts})` of a lopt_perturb
+    modes file."""
+    with open(path, encoding='utf-8', newline='') as fh:
+        rd = csv.reader(fh)
+        names = next(rd)[1:]
+        return names, {r[0].strip(): np.array([float(x) for x in r[1:]])
+                       for r in rd if r}
+
+
+def read_sys(out_dir, source, energies):
+    """`(names, modes, None)` of lopt_perturb's `source` (calibration,
+    hfs) for the set, or `(None, None, why)` when its files are missing or
+    were made from another fit: every level of the fit must be in them at
+    the same energy (SYS_TOL)."""
+    import lopt_perturb
+    levels_name, modes_name, _ = lopt_perturb.OUTPUTS[source]
+    paths = [os.path.join(out_dir, n) for n in (levels_name, modes_name)]
+    missing = [p for p in paths if not os.path.exists(p)]
+    if missing:
+        return None, None, 'missing %s' % ', '.join(missing)
+    with open(paths[0], encoding='utf-8', newline='') as fh:
+        base = {r['level_id'].strip(): float(r['energy'])
+                for r in csv.DictReader(fh)}
+    names, modes = read_modes(paths[1])
+    off = [lid for lid, E in energies.items()
+           if lid not in base or lid not in modes
+           or abs(base[lid] - E) > SYS_TOL]
+    if off:
+        return None, None, ('%s was made from another fit: %d levels absent '
+                            'or moved by more than %g cm^-1 (first %s); rerun '
+                            'lopt_perturb.py --source %s'
+                            % (paths[0], len(off), SYS_TOL, off[0], source))
+    return names, modes, None
+
+
+def ground_common(model, src_cfg, names, modes):
+    """The part of every level's hfs shifts owed to the ground level's own
+    A: `(c, notes)`, c the common shift of each pattern.
+
+    The energies are measured from the ground level's center of gravity, so
+    an error dA of the ground's A moves every other level by about the same
+    v * dA.  v is the median response to the pattern that moves the ground's
+    A alone (level:GROUND); a pattern that moves it together with others
+    (the 4f radial parameter) has the common part v * dA(ground), and the
+    rest of its shifts stays with each level.  In a wavenumber between two
+    excited levels the common part cancels."""
+    import lopt_perturb
+    c = np.zeros(len(names))
+    own = 'level:' + GROUND
+    if own not in names:
+        return c, ['no pattern %s in the hfs modes: no common part taken '
+                   'out' % own]
+    with open(src_cfg.hfs.A_levels, encoding='utf-8', newline='') as fh:
+        table = {r['level_id'].strip(): r for r in csv.DictReader(fh)}
+    pats, _ = lopt_perturb.hfs_patterns(model, table)
+    dA = {n: d[GROUND] for n, d in pats if GROUND in d and n in names}
+    k = names.index(own)
+    resp = np.array([m[k] / dA[own] for lid, m in modes.items()
+                     if lid != GROUND])
+    v = float(np.median(resp))
+    for n, x in dA.items():
+        c[names.index(n)] = v * x
+    notes = ["the levels' response to the ground level's A: median %.3f "
+             "cm^-1 per cm^-1, 10-90%% %.3f to %.3f"
+             % (v, np.percentile(resp, 10), np.percentile(resp, 90))]
+    notes += ['%-26s dA(ground) %+.6f cm^-1, common shift %+.5f cm^-1'
+              % (n, x, v * x)
+              for n, x in sorted(dA.items(), key=lambda t: -abs(t[1]))]
+    return c, notes
+
+
 def write_levels(out_dir, source):
-    """levels_set3.csv from the set's own LOPT fit; returns the report's
-    lines.  Each level's cg energy and LOPT's uncertainty (the larger of D1
-    and D2tot, as sync_IDEN2.py takes it), its S and u_S, the two combined,
-    and the source set's energy taken to its cg, with the difference."""
+    """levels_set3.csv and ritz_set3.csv from the set's own LOPT fit and
+    lopt_perturb's runs on it; returns the report's lines, also written to
+    TOTALS_REPORT.  THE TOTALS above says what each column is."""
+    import output_files
     src_cfg = config.load(os.path.join(source, config.CONFIG_NAME))
     model = hfs_correction.Model(src_cfg.hfs)
     fit = pd.read_csv(os.path.join(out_dir, LOPT_LEVELS), sep='\t',
-                      dtype={'Designation': str})
+                      dtype=str, keep_default_na=False)
+    fit = fit.rename(columns=lambda c: c.strip())
+    energies = {r['Designation'].strip(): float(r['Energy'])
+                for r in fit.to_dict('records')}
     src = level_cg(model, read_lopt_levels(os.path.join(source, LOPT_LEVELS)))
-    rows, diffs = [], []
-    for r in fit.itertuples():
-        lid = r.Designation.strip()
-        u_fit = max(float(r.D1), float(r.D2tot))
+    warnings, sys_parts = [], {}
+    for name in ('calibration', 'hfs'):
+        names, modes, why = read_sys(out_dir, name, energies)
+        sys_parts[name] = (names, modes)
+        if why:
+            warnings.append('WARNING: no %s part: %s' % (name, why))
+    cal_modes = sys_parts['calibration'][1]
+    hfs_names, hfs_modes = sys_parts['hfs']
+    complete = cal_modes is not None and hfs_modes is not None
+    c, notes, u_ground = None, [], 0.0
+    if hfs_modes is not None:
+        c, notes = ground_common(model, src_cfg, hfs_names, hfs_modes)
+        is_k = np.array([n.startswith('kappa:') for n in hfs_names])
+        u_ground = float(np.linalg.norm(c))
+
+    rows, diffs, stats = [], [], []
+    for r in fit.to_dict('records'):
+        lid = r['Designation'].strip()
+        E, D1, D2 = float(r['Energy']), float(r['D1']), float(r['D2stat'])
+        # a fixed level (the ground) is the origin: no uncertainty of its own
+        u_stat = 0.0 if D2 == 0.0 else max(D1, D2)
+        row = {'level_id': lid, 'E_cg': r['Energy'].strip(),
+               'D1': r['D1'].strip(), 'D2stat': r['D2stat'].strip(),
+               'u_stat': fnum(u_stat)}
+        parts = [u_stat]
+        row['u_cal'] = ''
+        if cal_modes is not None:
+            u_cal = float(np.linalg.norm(cal_modes[lid]))
+            row['u_cal'] = fnum(u_cal)
+            parts.append(u_cal)
+        row['u_hfs'] = row['u_kappa'] = ''
+        if hfs_modes is not None:
+            # in the frame where the ground level carries the common part:
+            # its own shifts are 0, so it gets -c
+            m = hfs_modes[lid] - c
+            u_hfs = float(np.linalg.norm(m[~is_k]))
+            u_k = float(np.linalg.norm(m[is_k]))
+            row['u_hfs'], row['u_kappa'] = fnum(u_hfs), fnum(u_k)
+            parts += [u_hfs, u_k]
+        u_E = math.sqrt(sum(x * x for x in parts))
+        row[TOTAL] = fnum(u_E) if complete else ''
         S, u_S = model.S(lid, pattern=True)
+        row['S'], row['u_S'] = fnum(S), fnum(u_S)
         E_src = src.get(lid)
-        d = None if E_src is None else float(r.Energy) - E_src
+        d = None if E_src is None else E - E_src
         if d is not None:
-            diffs.append((abs(d), lid, d, u_fit))
-        rows.append({'level_id': lid, 'E_cg': '%.4f' % float(r.Energy),
-                     'u_fit': '%.4f' % u_fit, 'S': '%.4f' % S,
-                     'u_S': '%.4f' % u_S,
-                     'u_E': '%.4f' % math.hypot(u_fit, u_S),
-                     'E_source_cg': '' if E_src is None else '%.4f' % E_src,
-                     'diff': '' if d is None else '%.4f' % d,
-                     'N_lines': str(r.N_lines).split(',')[0].strip()})
-    path = os.path.join(out_dir, 'levels_set3.csv')
-    import output_files
-    output_files.require_writable([path])
+            diffs.append((abs(d), lid, d, u_stat))
+        row['E_source_cg'] = '' if E_src is None else fnum(E_src)
+        row['diff'] = '' if d is None else fnum(d)
+        row['N_lines'] = str(r['N_lines']).split(',')[0].strip()
+        rows.append(row)
+        if lid != GROUND:
+            stats.append((E, D1, D2, parts, u_E))
+    path = os.path.join(out_dir, LEVELS_NAME)
+    ritz_path = os.path.join(out_dir, RITZ_NAME)
+    report_path = os.path.join(out_dir, TOTALS_REPORT)
+    output_files.require_writable([path, ritz_path, report_path])
+    ritz, ritz_text = ritz_rows(out_dir, cal_modes, hfs_names, hfs_modes,
+                                complete)
+    write_csv(path, rows)
+    write_csv(ritz_path, ritz)
+
+    diffs.sort(reverse=True)
+    out = ['%s: %d levels' % (path, len(rows)),
+           '%s: %d records' % (ritz_path, len(ritz))] + warnings
+    out.append('u_stat = max(D1, D2stat), 0 for the fixed ground level: D1 '
+               'the larger for %d of %d levels'
+               % (sum(1 for s in stats if s[1] > s[2]), len(stats)))
+    if c is not None:
+        out.append("the ground level's common part, its own u_hfs and %s, "
+                   "in no excited level's: %.4f cm^-1" % (TOTAL, u_ground))
+        out += ['  ' + t for t in notes]
+    out += totals_summary(stats, complete)
+    out += ritz_text
+    out.append('fit - source moved to the cg: largest |diff| %.4f cm^-1 over '
+               '%d levels' % (diffs[0][0] if diffs else 0.0, len(diffs)))
+    out += ['  %s %+.4f (u_stat %.4f)' % (lid, d, u) for _, lid, d, u
+            in diffs[:10]]
+    with open(report_path, 'w', encoding='utf-8', newline='') as fh:
+        fh.write('\n'.join(out) + '\n')
+    return out
+
+
+def write_csv(path, rows):
     with open(path, 'w', encoding='utf-8', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator='\n')
         w.writeheader()
         w.writerows(rows)
-    diffs.sort(reverse=True)
-    s_g, u_g = model.S(GROUND, pattern=True)
-    out = ['%s: %d levels' % (path, len(rows)),
-           'the ground level\'s S = %.4f +- %.4f cm^-1: common to every '
-           'energy, not in u_E' % (s_g, u_g),
-           'fit - source moved to the cg: largest |diff| %.4f cm^-1 over %d '
-           'levels' % (diffs[0][0] if diffs else 0.0, len(diffs))]
-    out += ['  %s %+.4f (u_fit %.4f)' % (lid, d, u) for _, lid, d, u
-            in diffs[:10]]
+
+
+def totals_summary(stats, complete):
+    """Report lines: the median of each part, by energy band."""
+    labels = ['u_stat', 'u_cal', 'u_hfs', 'u_kappa'][:len(stats[0][3])]
+    E = np.array([s[0] for s in stats])
+    D2 = np.array([s[2] for s in stats])
+    P = np.array([s[3] for s in stats])
+    uE = np.array([s[4] for s in stats])
+    out = ['medians over the levels (ground excluded), cm^-1:']
+    for lo, up in ((0, 50000), (50000, 100000), (100000, 1e9), (0, 1e9)):
+        sel = (E >= lo) & (E < up)
+        if not sel.any():
+            continue
+        band = ('all' if (lo, up) == (0, 1e9) else
+                'E %d-%s' % (lo, '' if up > 1e8 else '%d' % up))
+        text = '  %-15s %3d levels: ' % (band, sel.sum())
+        text += ', '.join('%s %.4f' % (n, np.median(P[sel, i]))
+                          for i, n in enumerate(labels))
+        if complete:
+            text += '; %s %.4f, %s / D2stat %.2f' % (
+                TOTAL, np.median(uE[sel]), TOTAL,
+                np.median(uE[sel] / D2[sel]))
+        out.append(text)
     return out
+
+
+def ritz_rows(out_dir, cal_modes, hfs_names, hfs_modes, complete):
+    """ritz_set3.csv's rows, one per record of LOPT_output_lines.txt, and
+    the report's lines.  The statistical part of a Ritz wavenumber is
+    LOPT's uWnCstat, from the fit's covariance; each systematic part is the
+    quadrature sum over the patterns of the difference of the two levels'
+    shifts (as lopt_perturb.ritz_unc), the ground level's common part
+    included: it cancels only between two excited levels."""
+    import lopt_perturb
+    fit = pd.read_csv(os.path.join(out_dir, lopt_perturb.LINES_OUT),
+                      sep='\t', dtype=str, keep_default_na=False)
+    fit = fit.rename(columns=lambda c: c.strip())
+    if hfs_modes is not None:
+        is_k = np.array([n.startswith('kappa:') for n in hfs_names])
+    rows, stats, skipped = [], [], 0
+    for r in fit.to_dict('records'):
+        low, upp = r['L1'].strip(), r['L2'].strip()
+        try:
+            stat = float(r['uWnCstat'])
+        except ValueError:
+            skipped += 1
+            continue
+        row = {'L1': low, 'L2': upp}
+        for col in ('Iobs', 'wn_o', 'uWnOTot', 'Wn_c', 'dWO-C', 'F',
+                    'Weight', 'uWnCstat'):
+            row[col] = r[col].strip()
+        parts = [stat]
+        row['u_cal'] = ''
+        if cal_modes is not None:
+            u = float(np.linalg.norm(cal_modes[upp] - cal_modes[low]))
+            row['u_cal'] = fnum(u)
+            parts.append(u)
+        row['u_hfs'] = row['u_kappa'] = ''
+        if hfs_modes is not None:
+            d = hfs_modes[upp] - hfs_modes[low]
+            u_h = float(np.linalg.norm(d[~is_k]))
+            u_k = float(np.linalg.norm(d[is_k]))
+            row['u_hfs'], row['u_kappa'] = fnum(u_h), fnum(u_k)
+            parts += [u_h, u_k]
+        u = math.sqrt(sum(x * x for x in parts))
+        row['u_ritz'] = fnum(u) if complete else ''
+        rows.append(row)
+        stats.append(parts + [u])
+    labels = ['uWnCstat', 'u_cal', 'u_hfs', 'u_kappa'][:len(stats[0]) - 1]
+    P = np.array(stats)
+    text = ['Ritz wavenumbers, %d records%s; medians, cm^-1: %s%s' % (
+        len(rows), (' (%d without a Ritz uncertainty left out)' % skipped
+                    if skipped else ''),
+        ', '.join('%s %.4f' % (n, np.median(P[:, i]))
+                  for i, n in enumerate(labels)),
+        ', u_ritz %.4f' % np.median(P[:, -1]) if complete else '')]
+    return rows, text
 
 
 def main(argv=None):
@@ -973,8 +1296,9 @@ def main(argv=None):
                    help='leave the IDEN2 of the set alone (no fresh copy, '
                         'no rows removed)')
     p.add_argument('--levels', action='store_true',
-                   help='after LOPT has been run on the set: write '
-                        'levels_set3.csv from its fit, and nothing else')
+                   help='after LOPT and lopt_perturb.py have been run on '
+                        'the set: write the totals, levels_set3.csv and '
+                        'ritz_set3.csv, and nothing else')
     args = p.parse_args(argv)
     if args.levels:
         print('\n'.join(write_levels(os.path.abspath(args.out),

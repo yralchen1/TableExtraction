@@ -286,10 +286,17 @@ def test_characters(tmp_path, monkeypatch):
     assert [ln.wn_key for ln, _ in report['flag_sign']] == [30001.0]
 
 
-def test_the_table_is_moved_and_keeps_the_fit_s_uncertainties(tmp_path):
+def test_the_table_is_moved_and_u_hfs_shift_keeps_its_undetermined_part(
+        tmp_path):
     m = make_model(tmp_path)
     D = S(UPP) - S(LOW)
+    u_D = math.hypot(2.5 * 3.5 * 0.004, 2.5 * 2.5 * 0.01)
+    _, u_A, u_k, _ = m.line_shift_terms('', 30000.0, [(LOW, UPP, 1.0)])
+    assert u_A == pytest.approx(0.056 * u_D)
+    assert u_k == pytest.approx(0.014 * D)
     r1 = row(30000.0, LOW, UPP, '1', '1.0', hfs_shift=repr(0.056 * D))
+    r1['u_hfs_shift'] = repr(math.hypot(u_A, u_k))   # as the source wrote it
+    r1['u_hfs_undet'] = '0.004'
     r1.update({'low_E': '1000.0', 'upp_E': '31000.1', 'rwn': '30000.1',
                'dif_wn_O-C': repr(30000.0 - (30000.1 - 0.056 * D))})
     r2 = row(20000.0, intens='3')
@@ -307,7 +314,12 @@ def test_the_table_is_moved_and_keeps_the_fit_s_uncertainties(tmp_path):
                                                     abs=5e-5)
     assert got[0]['wn_measured'] == repr(30000.0)
     assert float(got[0]['hfs_shift']) == 0.0
-    assert got[0]['u_hfs_shift'] == '0.0123'          # the fit's, kept
+    # the A and kappa terms out (lopt_perturb.py carries them), the part of
+    # the undetermined levels kept
+    assert float(got[0]['u_hfs_shift']) == pytest.approx(0.004)
+    assert got[0]['u_hfs_undet'] == '0.004'
+    assert report['u_shift_gap'] < 1e-12
+    assert got[1]['u_hfs_shift'] == '0.0123'          # no transition: kept
     assert float(got[0]['low_E']) == pytest.approx(1000.0 - S(LOW) + s_g)
     assert float(got[0]['upp_E']) == pytest.approx(31000.1 - S(UPP) + s_g)
     # a single line: the classification's dif is wn_obs - rwn exactly
@@ -488,3 +500,157 @@ def test_an_identified_merged_line_stops_the_run(tmp_path):
     with pytest.raises(SystemExit, match='identifies the merged'):
         M3.remove_merged_from_iden2(str(d), lines, report)
     assert (d / 'dlv.dat').read_bytes() == before
+
+
+# ---------------------------------------------------------------------------
+# The totals (--levels)
+# ---------------------------------------------------------------------------
+LEVELS_HEADER = ('Designation\tEnergy\tD1\tD2stat\tD2sys\tD2tot\tN_lines\t'
+                 'Comments\n')
+LINES_HEADER = ('Iobs\twn_o\tuWnOTot\tWn_c\tuWnCstat\tdWO-C\tL1\tL2\tF\t'
+                'Weight\n')
+
+
+def sys_files(d, source, names, modes, energies):
+    import lopt_perturb
+    levels_name, modes_name, _ = lopt_perturb.OUTPUTS[source]
+    with open(os.path.join(d, levels_name), 'w', encoding='utf-8',
+              newline='') as fh:
+        fh.write('level_id,energy\n')
+        for lid, E in energies.items():
+            fh.write('%s,%.4f\n' % (lid, E))
+    with open(os.path.join(d, modes_name), 'w', encoding='utf-8',
+              newline='') as fh:
+        fh.write(','.join(['level_id'] + names) + '\n')
+        for lid, m in modes.items():
+            fh.write(','.join([lid] + ['%+.6e' % x for x in m]) + '\n')
+
+
+def fit_files(tmp_path, levels, lines):
+    (tmp_path / M3.LOPT_LEVELS).write_text(
+        LEVELS_HEADER + ''.join('\t'.join(r) + '\n' for r in levels),
+        encoding='utf-8', newline='\n')
+    (tmp_path / 'LOPT_output_lines.txt').write_text(
+        LINES_HEADER + ''.join('\t'.join(r) + '\n' for r in lines),
+        encoding='utf-8', newline='\n')
+
+
+def no_source(monkeypatch):
+    """write_levels without a source set: S = 0.1 +- 0.01 for every level,
+    no source energies."""
+    class Model:
+        def S(self, lid, pattern=False):
+            return 0.1, 0.01
+    monkeypatch.setattr(M3.config, 'load',
+                        lambda path: type('Cfg', (), {'hfs': None}))
+    monkeypatch.setattr(M3.hfs_correction, 'Model', lambda h: Model())
+    monkeypatch.setattr(M3, 'read_lopt_levels', lambda path: {})
+    monkeypatch.setattr(M3, 'level_cg', lambda m, lopt: {})
+
+
+FIT_LEVELS = [(GROUND, '0.0000000', '0.0070000', '0.0000000', '0', '0', '3',
+               'fixed'),
+              (LOW, '1000.0000000', '0.0030000', '0.0040000', '0', '0.004',
+               '3', ''),
+              (UPP, '2000.0000000', '0.0050000', '0.0020000', '0', '0.002',
+               '3', '')]
+FIT_LINES = [('10', '1000.0', '0.01', '1000.0', '0.004', '0.0', GROUND, LOW,
+              '', '1'),
+             ('10', '1000.0', '0.01', '1000.0', '0.003', '0.0', LOW, UPP,
+              '', '1')]
+
+
+def test_a_perturbation_file_of_another_fit_is_refused(tmp_path):
+    E = {GROUND: 0.0, LOW: 1000.0}
+    names, modes, why = M3.read_sys(str(tmp_path), 'calibration', E)
+    assert names is None and why.startswith('missing')
+    sys_files(str(tmp_path), 'calibration', ['p001'],
+              {GROUND: [0.0], LOW: [0.003]}, E)
+    names, modes, why = M3.read_sys(str(tmp_path), 'calibration', E)
+    assert why is None and names == ['p001']
+    assert modes[LOW][0] == pytest.approx(0.003)
+    names, modes, why = M3.read_sys(str(tmp_path), 'calibration',
+                                    {GROUND: 0.0, LOW: 1000.001})
+    assert modes is None and 'another fit' in why
+    names, modes, why = M3.read_sys(str(tmp_path), 'calibration',
+                                    dict(E, **{UPP: 2000.0}))
+    assert modes is None and 'another fit' in why
+
+
+def test_the_ground_level_s_common_part(tmp_path, monkeypatch):
+    import lopt_perturb
+    cfg = type('Cfg', (), {'hfs': type('Hfs', (), {
+        'A_levels': a_table(tmp_path)})})
+    own = 'level:' + GROUND
+    monkeypatch.setattr(lopt_perturb, 'hfs_patterns', lambda m, t: (
+        [('radial:x', {GROUND: 0.002, LOW: 0.01}), (own, {GROUND: 0.001}),
+         ('level:' + LOW, {LOW: 0.003})], []))
+    names = ['radial:x', own, 'level:' + LOW, 'kappa:c']
+    modes = {GROUND: M3.np.zeros(4),
+             LOW: M3.np.array([0.05, 0.0079, 0.01, 0.002]),
+             UPP: M3.np.array([0.016, 0.0080, 0.0, 0.003]),
+             OTHER: M3.np.array([0.016, 0.0081, 0.0, 0.001])}
+    c, notes = M3.ground_common(None, cfg, names, modes)
+    # 8 cm^-1 per cm^-1 of the ground level's A, the median response
+    assert list(c) == pytest.approx([0.016, 0.008, 0.0, 0.0])
+
+
+def test_the_totals_of_the_levels_and_the_ritz_wavenumbers(tmp_path,
+                                                          monkeypatch):
+    no_source(monkeypatch)
+    c = M3.np.array([0.012, 0.0, 0.0])
+    monkeypatch.setattr(M3, 'ground_common', lambda m, cfg, n, md: (c, []))
+    d = str(tmp_path)
+    E = {GROUND: 0.0, LOW: 1000.0, UPP: 2000.0}
+    fit_files(tmp_path, FIT_LEVELS, FIT_LINES)
+    sys_files(d, 'calibration', ['p001'],
+              {GROUND: [0.0], LOW: [0.003], UPP: [0.006]}, E)
+    sys_files(d, 'hfs', ['radial:x', 'level:' + UPP, 'kappa:c'],
+              {GROUND: [0.0, 0.0, 0.0], LOW: [0.012, 0.0, 0.004],
+               UPP: [0.012, 0.005, 0.0]}, E)
+    out = M3.write_levels(d, d)
+    assert not any(t.startswith('WARNING') for t in out)
+    with open(os.path.join(d, M3.LEVELS_NAME), newline='') as fh:
+        lev = {r['level_id']: r for r in csv.DictReader(fh)}
+    g, low, upp = lev[GROUND], lev[LOW], lev[UPP]
+    # the fixed ground level has no statistical part, and carries the
+    # common part as its own
+    assert float(g['u_stat']) == 0.0
+    assert float(g['u_hfs']) == pytest.approx(0.012)
+    assert float(g['D2tot*']) == pytest.approx(0.012)
+    assert 'u_E' not in g and 'u_E_ground' not in g
+    assert float(low['u_stat']) == pytest.approx(0.004)     # D2stat > D1
+    assert float(upp['u_stat']) == pytest.approx(0.005)     # D1 > D2stat
+    # LOPT's own numbers are copied as written
+    assert low['E_cg'] == '1000.0000000' and low['D1'] == '0.0030000'
+    # the common 0.012 is in no excited level's u_hfs
+    assert float(low['u_hfs']) == pytest.approx(0.0, abs=1e-7)
+    assert float(low['u_kappa']) == pytest.approx(0.004)
+    assert float(upp['u_hfs']) == pytest.approx(0.005)
+    assert float(low['D2tot*']) == pytest.approx(
+        math.sqrt(0.004 ** 2 + 0.003 ** 2 + 0.004 ** 2), abs=1e-7)
+    with open(os.path.join(d, M3.RITZ_NAME), newline='') as fh:
+        ritz = list(csv.DictReader(fh))
+    # to the ground level the common part is in it; between two excited
+    # levels it cancels
+    assert float(ritz[0]['u_hfs']) == pytest.approx(0.012)
+    assert float(ritz[0]['u_ritz']) == pytest.approx(math.sqrt(
+        0.004 ** 2 + 0.003 ** 2 + 0.012 ** 2 + 0.004 ** 2), abs=1e-7)
+    assert float(ritz[1]['u_cal']) == pytest.approx(0.003)
+    assert float(ritz[1]['u_hfs']) == pytest.approx(0.005)
+    assert float(ritz[1]['u_kappa']) == pytest.approx(0.004)
+
+
+def test_the_totals_are_left_empty_without_the_perturbations(tmp_path,
+                                                             monkeypatch):
+    no_source(monkeypatch)
+    fit_files(tmp_path, FIT_LEVELS, FIT_LINES)
+    out = M3.write_levels(str(tmp_path), str(tmp_path))
+    assert sum(t.startswith('WARNING') for t in out) == 2
+    with open(tmp_path / M3.LEVELS_NAME, newline='') as fh:
+        low = [r for r in csv.DictReader(fh) if r['level_id'] == LOW][0]
+    assert low['u_stat'] == '0.0040000'
+    assert low['u_cal'] == low['u_hfs'] == low['D2tot*'] == ''
+    with open(tmp_path / M3.RITZ_NAME, newline='') as fh:
+        ritz = list(csv.DictReader(fh))
+    assert ritz[0]['uWnCstat'] == '0.004' and ritz[0]['u_ritz'] == ''

@@ -3008,7 +3008,9 @@ lopt.bat LOPT.par
 python ../check_sync.py
 python ../sync_IDEN2.py
 cd ..
-python make_set3.py --levels           # final/levels_set3.csv from final's fit
+python lopt_perturb.py --set final     # the systematic parts, on final's fit
+python lopt_perturb.py --set final --source hfs
+python make_set3.py --levels           # the totals: final/levels_set3.csv, ritz_set3.csv
 ```
 
 After any change in `iter_hfs/` (a rerun of its chain, a new A constant) the whole of it is
@@ -3062,17 +3064,21 @@ be identified in `trans.dat`; one that is stops the run before anything is writt
 of `make_set3.py` does this, so a fresh copy of the IDEN2 loses them too. A second run finds
 nothing left to remove.
 
-**The uncertainties.** An error dS in a level's S moves every line of the level the same way,
-and the fit takes it up into the level. A line moved by kappa·D_est stands at
-(E_cg + dS)(upper) − (E_cg + dS)(lower) − (1 − kappa)·dD, so only (1 − kappa)·u_D is scatter
-between lines. That is the head frame's u_hfs_shift, which the table keeps. The fit of Set 3 is
-therefore the fit of `iter_hfs/` moved by −S level by level. In a scratch run on 2026-10-09 the
-two agreed within 0.001 cm⁻¹ on all 653 levels, LOPT's rounding, with the same 8034 records and
-uncertainties and RSS/dof 0.76. u_S belongs to a level's cg energy, and `levels_set3.csv` gives
-it beside LOPT's uncertainty and their sum. Energies are measured from the ground level's cg,
-whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once. The line list's
-`u_cg` is the other quantity: the uncertainty of one line's cg on its own,
-Σ BF·(kappa·u_D + u_R) with the kappa term, which a published line carries.
+**The uncertainties.** The errors of the A constants and of the kappas are not given to the
+lines of Set 3 (2026-10-10). The table's u_hfs_shift keeps only u_hfs_undet, the part owed to
+levels without a determined A, which `make_LOPT_input.py` carries (or the level's width) as
+before. The kappa term is one number per class, a systematic error. The determined-A term moves
+all lines of a level together, and the fit takes that up into the level: only the differences of
+kappa between the lines of a level make scatter, and not independently from line to line.
+`lopt_perturb.py --source hfs` carries both into the levels exactly, so in the lines they would
+be counted twice, once as scatter in LOPT's D1 and D2. A scratch fit without them bore this out:
+the residuals do not grow with the size of the A term taken out (rms z 0.87, 0.84, 0.79 for that
+term at 0.14, 0.33, 0.60 of the line's uncertainty, where independent scatter would give 0.88,
+0.92, 1.02), and the levels moved by 0.0006 cm⁻¹ at the median, 0.98 D2 at most. `iter_hfs/`,
+where the assignments are made, keeps both terms. Energies are measured from the ground level's
+cg, and the part of their uncertainty from the ground level's own A is common to all of them and
+is given once. The line list's `u_cg` is the other quantity: the uncertainty of one line's cg on
+its own, Σ BF·(kappa·u_D + u_R) with the kappa term, which a published line carries.
 
 **What is written in `final/`:**
 
@@ -3087,7 +3093,8 @@ whose own S = 0.343 ± 0.021 cm⁻¹ is common to all of them and is given once.
     `wn_measured`;
   - `hfs_shift` = 0, so `make_LOPT_input.py` gives LOPT the lines where they stand and writes an
     empty `LOPT_hfs_shifts.txt`;
-  - u_hfs_shift kept, as is the D13 handling of the widths, since `[hfs] apply` stays on;
+  - u_hfs_shift cut to u_hfs_undet (above); the D13 handling of the widths is kept, since
+    `[hfs] apply` stays on;
   - `low_E`/`upp_E`/`rwn` taken to the cg;
   - `dif_wn_O-C` kept: the line against where the component is measured, which the blend
     centroid uncertainty spreads the components by, and for a single line exactly
@@ -3170,13 +3177,73 @@ The runs are made `--jobs` at a time (16 by default, one per physical core), eac
 directory. A run takes about 28 s, so the 153 runs (151 patterns, the base and the half-size
 check) take about 5 minutes. The set's files are only read. Written into the set's directory
 (or `--out`):
-- `calibration_sys_levels.csv`: the energy, D1, `u_cal`, and the largest pattern's part of it;
+- `calibration_sys_levels.csv`: the energy, D1 and D2stat, `u_cal`, and the largest pattern's part of it;
 - `calibration_sys_modes.csv`: every level's shift in every pattern;
 - `calibration_sys_report.txt`.
 
 ```
 python lopt_perturb.py --set final            # after the final chain
+python lopt_perturb.py --set final --source hfs
 ```
+
+**The hyperfine model, `--source hfs`** (2026-10-10). In Set 3, `cg_shift = −Σ BF (κD + R)`
+moves every line to the center of gravity of its pattern, so an error in an A constant or a κ
+moves every line the model moves. Each pattern is a change of the model. The source set's lines
+(`iter_hfs/` for `final/`) get their new `cg_shift`, the set's records are moved by the
+difference, and LOPT is run. That is exact where adding u_S to each level is only a bound:
+- a plain line carries only κ of an A error, and a `c` line almost none;
+- the ground level stays at its center of gravity;
+- the levels that share a parameter move together.
+
+The patterns:
+- **The calculated constants (hfs_A_theory):**
+  - one per radial parameter, moved by its uncertainty, with the outer shells copied from it
+    moving along;
+  - one per outer shell's copying factor;
+  - one per untested configuration: 10 % of the part of A that configuration gives, each
+    configuration on its own (user, 2026-10-10).
+- **The semiempirical scale**, on the 7 composition constants.
+- **The constants fitted to the resolved components:** the eigenvectors of their covariance in
+  the anchored fit, recomputed here (it must reproduce the table).
+- **Each level's own remainder of u_A**, one pattern per level.
+- **One per κ class**, moved by its uncertainty in `[hfs.kappa]`.
+
+The 4f parameter of 4f3 fixes the ground level's A, so its pattern moves nearly every level by
+the same amount, about 0.015 cm⁻¹. The energies are measured from the ground level's cg, and
+the shift cancels in every Ritz wavenumber between excited levels. About 750 runs, roughly 25
+minutes. Written: `hfs_sys_levels.csv` (`u_hfs` with its correlated and own parts, and
+`u_kappa`), `hfs_sys_modes.csv` and `hfs_sys_report.txt`. The reports compare each part with
+LOPT's D2stat.
+
+### The totals: `make_set3.py --levels`
+
+After both `lopt_perturb.py` passes on the set's present fit, `make_set3.py --levels` writes
+`final/levels_set3.csv`, `final/ritz_set3.csv` and `final/levels_set3_report.txt` (2026-10-11).
+Nothing is rounded: the user rounds in Excel, with RoundRule(E, D2tot*, min(D1, D2), 1), and
+LOPT.par's rounding rule is 99999. An excited level's uncertainty is relative to the ground level:
+
+* `u_stat` = max(D1, D2stat), 0 for the fixed ground level. D2stat, from the covariance of the
+  fit, is LOPT's statistical uncertainty; D1 is kept where it is larger. D2sys is not used: there
+  are no LOPT groups, since the systematic parts come from the perturbation runs;
+* `u_cal`, `u_hfs` and `u_kappa`, from the two passes;
+* `D2tot*` = the four in quadrature. The star tells it from LOPT's D2tot, which has none of the
+  systematics of the hfs treatment (user, 2026-10-11).
+
+The ground level's own A moves every other level by the same 8.42·dA (the median response to
+its own pattern; 10–90 % 8.421 to 8.425). That part, 0.0160 cm⁻¹, is the uncertainty of the
+ground level's cg against the rest of the system. As in rare-gas spectra, where transitions
+between excited levels are known far better than those to the ground level, it is given as
+the ground level's own `u_hfs` and `D2tot*` and left out of every excited level's (user,
+2026-10-11). The paper has to say so: an excited level's total uncertainty is its D2tot* and
+the ground level's, 0.016 cm⁻¹, in quadrature. A Ritz wavenumber carries LOPT's `uWnCstat` and, per source, the
+quadrature sum over the patterns of the two levels' difference, so what they share cancels.
+Files from another fit (a level missing, or more than 2e-4 cm⁻¹ off) leave those columns empty,
+with a warning. The first totals (2026-10-11, 652 levels), in medians:
+
+* E < 50000: u_stat 0.0117, u_cal 0.0094, u_hfs 0.0195, u_kappa 0.0034; D2tot* 0.026;
+* 50000–100000: u_stat 0.0197, u_cal 0.0223, u_hfs 0.0206, u_kappa 0.0040; D2tot* 0.038;
+* above 100000: u_stat 0.0290, u_cal 0.0383, u_hfs 0.0224, u_kappa 0.0032; D2tot* 0.058;
+* in all, D2tot* is 2.1 times D2stat. Ritz wavenumbers: uWnCstat 0.022, u_ritz 0.046.
 
 ### Choosing the set from the command line
 

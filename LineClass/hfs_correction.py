@@ -533,16 +533,27 @@ class Model(object):
         """
         if not components:
             return 0.0, 0.0, self.kappa_of(char, wn_key)[0]
+        return combine(self.shift_parts(char, wn_key, components))
+
+    def line_shift_terms(self, char, wn_key, components):
+        """`(hfs_shift, u_A, u_kappa, kappa)` of one observed line:
+        `line_shift` with the two parts of its uncertainty apart
+        (`combine_terms`)."""
+        if not components:
+            return 0.0, 0.0, 0.0, self.kappa_of(char, wn_key)[0]
+        return combine_terms(self.shift_parts(char, wn_key, components))
+
+    def shift_parts(self, char, wn_key, components):
+        """`[(BF, kappa, u_kappa, D, u_D)]` of a line's accepted components,
+        as `combine` takes them."""
         heads = self.satellites.head_pairs(wn_key)
         rows = [self.exception(wn_key, low, upp) for low, upp, _ in components]
         kappas = self.component_kappas(
             char, wn_key, [bf for _, _, bf in components],
             [(low, upp) in heads for low, upp, _ in components],
             [self.row_kappa(r) if r else None for r in rows])
-        return combine([(bf,) + k + self.D(low, upp,
-                                           r.unresolved if r else ())
-                        for (low, upp, bf), k, r
-                        in zip(components, kappas, rows)])
+        return [(bf,) + k + self.D(low, upp, r.unresolved if r else ())
+                for (low, upp, bf), k, r in zip(components, kappas, rows)]
 
     # --- Set 3: the line at its center of gravity ----------------------------
     def cg_shift(self, char, wn_key, components):
@@ -639,6 +650,13 @@ def combine(parts):
     * D_i|, linear too, the kappa of one class being one number.  The kappa
     reported is the BF-weighted mean of the components', or the common one.
     """
+    shift, u_A, u_k, kappa = combine_terms(parts)
+    return shift, math.hypot(u_A, u_k), kappa
+
+
+def combine_terms(parts):
+    """`(hfs_shift, u_A, u_kappa, kappa)`: `combine` with the two parts of
+    the uncertainty apart, u_kappa as |sum BF_i * u_kappa_i * D_i|."""
     by_kappa = {}
     for bf, kappa, u_kappa, d, u_d in parts:
         acc = by_kappa.setdefault((kappa, u_kappa), [0.0, 0.0, 0.0])
@@ -655,7 +673,7 @@ def combine(parts):
     else:
         total = sum(acc[2] for acc in by_kappa.values())
         mean_kappa = sum(k * acc[2] for (k, _), acc in by_kappa.items()) / total
-    return shift, math.hypot(u_A, u_k), mean_kappa
+    return shift, u_A, abs(u_k), mean_kappa
 
 
 def is_hfs_reason(reason):

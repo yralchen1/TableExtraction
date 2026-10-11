@@ -105,3 +105,66 @@ def test_the_runs_go_in_parallel_and_all_come_back():
                     runner=lambda d: {'x': (float(d), 0.0)})
     assert sorted(got) == list(range(7))
     assert got[4]['x'][0] == 4.0
+
+
+# ---------------------------------------------------------------------------
+# The hyperfine model's patterns
+# ---------------------------------------------------------------------------
+class FakeLine(object):
+    def __init__(self, wn_key, components, char=''):
+        self.wn_key, self.components, self.char = wn_key, components, char
+
+
+class FakeModel(object):
+    """cg_shift = -kappa * sum BF * (S_upp - S_low), S = 2.5 * A * J."""
+    def __init__(self):
+        self.levels = {LOW: (4.5, 0.03, 0.002, True),
+                       UPP: (3.5, 0.01, 0.001, True),
+                       OTHER: (2.5, 0.05, 0.004, True)}
+        self.kappa = {'plain_1974': (0.75, 0.04)}
+
+    def S(self, lid):
+        J, A, _u, _d = self.levels[lid]
+        return 2.5 * A * J
+
+    def cg_shift(self, char, wn_key, components):
+        k = self.kappa['plain_1974'][0]
+        s = -sum(bf * k * (self.S(u) - self.S(l)) for l, u, bf in components)
+
+        class R(object):
+            shift = s
+        return R()
+
+
+def fake_lines():
+    return {1.0: FakeLine(1.0, [(LOW, UPP, 1.0)]),
+            2.0: FakeLine(2.0, [(OTHER, UPP, 1.0)]),
+            3.0: FakeLine(3.0, [])}
+
+
+def test_a_change_of_A_moves_only_the_lines_of_its_level():
+    model, lines = FakeModel(), fake_lines()
+    base = L.cg_shifts(model, lines)
+    moves = L.line_moves(model, lines, base, ('A', {OTHER: 0.004}),
+                         L.lines_of_levels(lines))
+    assert set(moves) == {2.0}
+    assert moves[2.0] == pytest.approx(0.75 * 2.5 * 0.004 * 2.5)
+    assert model.levels[OTHER][1] == 0.05           # restored
+
+
+def test_a_change_of_kappa_moves_every_line_by_its_D():
+    model, lines = FakeModel(), fake_lines()
+    base = L.cg_shifts(model, lines)
+    moves = L.line_moves(model, lines, base, ('kappa', 'plain_1974', 0.04),
+                         L.lines_of_levels(lines))
+    D1 = model.S(UPP) - model.S(LOW)
+    assert moves[1.0] == pytest.approx(-0.04 * D1)
+    assert 3.0 not in moves
+    assert model.kappa['plain_1974'] == (0.75, 0.04)  # restored
+
+
+def test_one_kappa_pattern_per_class_with_an_uncertainty():
+    model = FakeModel()
+    model.kappa['flag'] = (1.0, 0.0)
+    assert L.kappa_patterns(model) == [
+        ('kappa:plain_1974', ('kappa', 'plain_1974', 0.04))]

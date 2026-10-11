@@ -21,7 +21,7 @@ wn_key,low_id,upp_id,decision,date,reason
 44022.4591,059003.000105,059003.000245,reject,9/3/2026,"firmly rejected, stays so"
 49280.699,059003.000189,059003.000457,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
 52349.389,059003.000298,059003.000602,reject,9/3/2026,"firmly rejected, stays so; Lines belonging to levels 059003.000298 and 059003.000447 were swapped on 9/6/2026."
-52989.1149,059003.000141,059003.000452,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
+52989.1149,059003.000141,059003.000452,reject,10/11/2026,10 times stronget Iobs than Icalc; too far from final Ritz
 54966.4344,059003.000139,059003.000454,accept,9/3/2026,stays with 000454 now that 31240.26 is rejected
 55750.835,059003.000125,059003.000446,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
 57209.9065,059003.000139,059003.000455,accept,9/3/2026,"hand-made identification, in the LOPT input since iter20"
@@ -841,3 +841,8 @@ wn_key,low_id,upp_id,decision,date,reason
 17961.7519,059003.000182,059003.000211,reject,10/9/2026,IDEN2/LOPT: too far from Ritz
 34350.0584,059003.000156,059003.000258,accept,10/9/2026,"IDEN2/LOPT: char d supports blend, fair Iobs/Icalc; improves cg"
 32947.1485,059003.000148,059003.000241,reject,10/10/2026,Masked by rung 1 of a stronger  hfs structure of 000149-000433
+70627.7628,059003.000045,059003.000656,accept,10/10/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg"
+45316.39,059003.000173,059003.000656,accept,10/10/2026,IDEN2/LOPT
+24933.3076,059003.000044,059003.000168,accept,10/10/2026,"IDEN2/LOPT: was too far from Ritz earlier, but new calibration makes it acceptable"
+26898.1233,059003.000160,059003.000217,accept,10/10/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg; char w supports blend"
+65947.1856,059003.000053,059003.000445,accept,10/11/2026,IDEN2/LOPT

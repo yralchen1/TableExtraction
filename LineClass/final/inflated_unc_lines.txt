@@ -99,3 +99,5 @@ wn_key	unc_wn	date	reason
 60109.195	0.35	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
 47540.8301	0.25	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
 27312.1523	0.5	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
+66477.4764	0.44	10/11/2026	very weak observed line, 4 times weaker than predicted; 3.6 sigma from Ritz in Set 3; no other candidates
+49077.8771	0.4	10/11/2026	outlier in final IDEN2/LOPT, OK with inflated unc

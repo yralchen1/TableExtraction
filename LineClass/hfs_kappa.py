@@ -591,7 +591,7 @@ def uncertainty_classes(lines, min_class=MIN_CLASS):
 
 
 def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
-          use=None):
+          use=None, kappa_held=None):
     """One weighted least-squares solve for the level values and the kappas.
 
     `class_of(line) -> key` says which convention class a line belongs to;
@@ -600,6 +600,8 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
     theorem in the module docstring).  `scale` multiplies every displacement
     D; `read_A_constants` already puts the semiempirical constants on the
     measured scale, so it is 1 except in a test of that scale.  `use` is an optional boolean mask of the lines to fit.
+    `kappa_held`, `{class: kappa}`, holds those classes at the values given
+    instead of fitting them (adopt_uncertainties' outlier filter).
 
     Returns a dict with the fitted kappas, their covariance, the residual of
     every line (including the ones masked out), and the fit diagnostics.
@@ -608,9 +610,10 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
         if sigma is None else sigma
     use = [True] * len(lines) if use is None else use
 
+    kappa_held = kappa_held or {}
     keys = [class_of(ln) for ln in lines]
-    free = sorted({k for k, u in zip(keys, use) if u and k != anchor},
-                  key=str)
+    free = sorted({k for k, u in zip(keys, use)
+                   if u and k != anchor and k not in kappa_held}, key=str)
     levels = sorted({ln.low for ln, u in zip(lines, use) if u}
                     | {ln.upp for ln, u in zip(lines, use) if u})
     index = {lid: i for i, lid in enumerate(levels)}
@@ -627,6 +630,8 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
         rhs = ln.wn
         if keys[i] == anchor:
             rhs -= anchor_value * scale * ln.D
+        elif keys[i] in kappa_held:
+            rhs -= kappa_held[keys[i]] * scale * ln.D
         else:
             M[r, kcol[keys[i]]] += w * scale * ln.D
         b[r] = w * rhs
@@ -649,6 +654,8 @@ def solve(lines, class_of, anchor, anchor_value, scale=1.0, sigma=None,
     energy = {lid: x[index[lid]] for lid in levels}
     kappa = {anchor: anchor_value}
     u_kappa = {anchor: 0.0}
+    for k, v in kappa_held.items():
+        kappa[k], u_kappa[k] = v, 0.0
     for k in free:
         kappa[k] = x[kcol[k]]
         u_kappa[k] = math.sqrt(max(cov[kcol[k], kcol[k]], 0.0))
@@ -849,6 +856,16 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     the model says, and is not offered to the outlier filter or to the fit of
     its class: it has been looked at by hand, and letting it measure the class
     it does not belong to would widen every other line of that class.
+
+    The outlier filter decides with the kappas held (2026-10-10).  The
+    uncertainties are first iterated with every line kept and the kappas
+    free; the filter then runs with the kappas held at the values that pass
+    reached, and the fit returned frees them again on the lines kept.  With
+    the kappas free inside the filter the two fed on each other: a lower
+    kappa put the widest patterns, which favor a higher one, beyond the cut,
+    and leaving them out lowered kappa further.  On 2026-10-10 that took the
+    plain kappa from 0.72 to 0.48 round by round, nine lines rejected, where
+    every line kept gave 0.71.
     """
     ucls = uncertainty_classes(lines)
     held = held_uncertainties(lines)
@@ -864,43 +881,54 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
         span[ucls[i]].append(ln.wn)
     fix_a = {k: (max(v) / min(v)) ** 2 < MIN_SPAN for k, v in span.items()}
     table, fit = {}, None
-    for _ in range(max_rounds):
-        fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
-                    sigma=sigma, use=keep)
-        res = fit['residual']
-        lev = fit['leverage']
-        keep = [res[i] is not None
-                and (held[i] is not None
-                     or abs(res[i]) <= outlier * sigma[i])
-                for i in range(len(lines))]
-        groups = collections.defaultdict(list)
-        for i, ln in enumerate(lines):
-            if keep[i] and held[i] is None:
-                groups[ucls[i]].append((res[i], lev[i], ln.wn))
-        new = {}
-        for key, values in groups.items():
-            a_ang, b_wn = fit_two_term(values, fix_a=fix_a.get(key, False))
-            new[key] = (a_ang, b_wn, len(values))
-        moved = 0.0
-        for key in new:
-            for i, was in enumerate(table.get(key, (0.0, 0.0))[:2]):
-                now = new[key][i]
-                moved = max(moved, abs(now - was) / max(now, 1e-12))
-        table = new
-        for i, ln in enumerate(lines):
-            plain = table.get(('', ln.era))
-            floor = character_floor(ln.char, ln.era, ln.wn,
-                                    plain[:2] if plain else None)
-            key = ucls[i]
-            if held[i] is None and key in table:
-                sigma[i] = max(two_term(table[key][0], table[key][1], ln.wn),
-                               FLOOR, floor)
-            else:
-                # the registry's value, or the stated one of a class that
-                # has not been measured: floored, never ratcheted.
-                sigma[i] = max(stated['sigma'][i], floor)
-        if moved < tol:
-            break
+    kappa_held = None
+    # first every line kept, the kappas free; then the filter, with the
+    # kappas held where that pass left them
+    for cut in (math.inf, outlier):
+        for _ in range(max_rounds):
+            fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
+                        sigma=sigma, use=keep,
+                        kappa_held=kappa_held)
+            res = fit['residual']
+            lev = fit['leverage']
+            keep = [res[i] is not None
+                    and (held[i] is not None
+                         or abs(res[i]) <= cut * sigma[i])
+                    for i in range(len(lines))]
+            groups = collections.defaultdict(list)
+            for i, ln in enumerate(lines):
+                if keep[i] and held[i] is None:
+                    groups[ucls[i]].append((res[i], lev[i], ln.wn))
+            new = {}
+            for key, values in groups.items():
+                a_ang, b_wn = fit_two_term(values, fix_a=fix_a.get(key, False))
+                new[key] = (a_ang, b_wn, len(values))
+            moved = 0.0
+            for key in new:
+                for i, was in enumerate(table.get(key, (0.0, 0.0))[:2]):
+                    now = new[key][i]
+                    moved = max(moved, abs(now - was) / max(now, 1e-12))
+            table = new
+            for i, ln in enumerate(lines):
+                plain = table.get(('', ln.era))
+                floor = character_floor(ln.char, ln.era, ln.wn,
+                                        plain[:2] if plain else None)
+                key = ucls[i]
+                if held[i] is None and key in table:
+                    sigma[i] = max(
+                        two_term(table[key][0], table[key][1], ln.wn),
+                        FLOOR, floor)
+                else:
+                    # the registry's value, or the stated one of a class that
+                    # has not been measured: floored, never ratcheted.
+                    sigma[i] = max(stated['sigma'][i], floor)
+            if moved < tol:
+                break
+        kappa_held = {k: v for k, v in fit['kappa'].items()
+                      if k != 'flag'}
+    # the kappas free again, on the lines the filter kept
+    fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
+                sigma=sigma, use=keep)
     # the mean adopted value and the mean stated value, for the report
     out = {}
     for key, (a_ang, b_wn, n) in table.items():

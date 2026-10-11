@@ -1,0 +1,27 @@
+F:\UMD\AI\as-ai\LineClass\final\levels_set3.csv: 653 levels
+F:\UMD\AI\as-ai\LineClass\final\ritz_set3.csv: 8021 records
+u_stat = max(D1, D2stat), 0 for the fixed ground level: D1 the larger for 276 of 652 levels
+the ground level's common part, its own u_hfs and D2tot*, in no excited level's: 0.0160 cm^-1
+  the levels' response to the ground level's A: median 8.422 cm^-1 per cm^-1, 10-90% 8.420 to 8.424
+  radial:4f3/4f.a01          dA(ground) +0.001809 cm^-1, common shift +0.01524 cm^-1
+  level:059003.000001        dA(ground) +0.000581 cm^-1, common shift +0.00489 cm^-1
+  radial:5d.a10              dA(ground) -0.000003 cm^-1, common shift -0.00002 cm^-1
+  radial:5d.a01              dA(ground) +0.000003 cm^-1, common shift +0.00002 cm^-1
+  radial:4f.a01              dA(ground) +0.000001 cm^-1, common shift +0.00001 cm^-1
+medians over the levels (ground excluded), cm^-1:
+  E 0-50000       160 levels: u_stat 0.0117, u_cal 0.0094, u_hfs 0.0196, u_kappa 0.0035; D2tot* 0.0265, D2tot* / D2stat 2.18
+  E 50000-100000  175 levels: u_stat 0.0196, u_cal 0.0223, u_hfs 0.0206, u_kappa 0.0042; D2tot* 0.0382, D2tot* / D2stat 2.28
+  E 100000-       317 levels: u_stat 0.0290, u_cal 0.0384, u_hfs 0.0224, u_kappa 0.0033; D2tot* 0.0576, D2tot* / D2stat 1.91
+  all             652 levels: u_stat 0.0201, u_cal 0.0303, u_hfs 0.0216, u_kappa 0.0035; D2tot* 0.0458, D2tot* / D2stat 2.14
+Ritz wavenumbers, 8021 records; medians, cm^-1: uWnCstat 0.0219, u_cal 0.0167, u_hfs 0.0286, u_kappa 0.0028, u_ritz 0.0460
+fit - source moved to the cg: largest |diff| 0.0363 cm^-1 over 653 levels
+  059003.000448 +0.0363 (u_stat 0.0714)
+  059003.000665 +0.0247 (u_stat 0.0786)
+  059003.000456 -0.0238 (u_stat 0.0328)
+  059003.000676 -0.0236 (u_stat 0.0612)
+  059003.000455 +0.0228 (u_stat 0.0791)
+  059003.000457 +0.0186 (u_stat 0.0566)
+  059003.000567 +0.0130 (u_stat 0.0771)
+  059003.000683 -0.0128 (u_stat 0.0288)
+  059003.000451 -0.0126 (u_stat 0.0619)
+  059003.000681 +0.0126 (u_stat 0.0453)

@@ -28,3 +28,4 @@ N       ; Divide levels into independent groups (Y/N)?
 Y       ; tab-delimited output [Y/N]?
 Y       ; Round input [Y/N]?
 centroid; BLEND TREATMENT [component/centroid]
+stat    ; KIND OF MEASUREMENT UNCERTAINTY GIVEN in the transitions-input file [tot/stat]

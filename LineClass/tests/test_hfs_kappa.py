@@ -382,3 +382,29 @@ def test_only_a_handful_of_lines_are_set_aside(fitted):
     lines, _, keep, _, _ = fitted
     dropped = sum(1 for k in keep if not k)
     assert dropped < 0.01 * len(lines)
+
+
+def test_a_held_kappa_is_used_and_not_fitted():
+    """solve(kappa_held=...) puts a class's kappa*D on the measured side:
+    the class is held at the value given, and the residuals are those of
+    that value (adopt_uncertainties' outlier filter, 2026-10-10)."""
+    L = hfs_kappa.Line
+    a, b, c = '059003.000001', '059003.000100', '059003.000200'
+    def line(wn, low, upp, cls, D):
+        return L(wn=wn, char='', era=1974, cls=cls, ucls=('', 1974),
+                 low=low, upp=upp, D=D, dJ=0, key=wn, fixed='')
+    # E(b) = 100, E(c) = 300; plain lines measured at kappa = 0.6
+    lines = [line(100.0, a, b, 'flag', 0.0),
+             line(300.0 + 1.0, a, c, 'flag', 1.0),
+             line(200.0 + 0.6 * 0.5, b, c, 'plain', 0.5),
+             line(300.0 + 0.6 * 0.8 + 0.01, a, c, 'plain', 0.8)]
+    sigma = [0.01] * 4
+    free = hfs_kappa.solve(lines, lambda ln: ln.cls, 'flag', 1.0,
+                           sigma=sigma)
+    held = hfs_kappa.solve(lines, lambda ln: ln.cls, 'flag', 1.0,
+                           sigma=sigma, kappa_held={'plain': 0.3})
+    assert held['kappa']['plain'] == 0.3
+    assert abs(free['kappa']['plain'] - 0.3) > 0.1
+    # held at 0.3, the plain lines are left with (0.6 - 0.3) * D to spare
+    assert max(abs(r) for r in held['residual']) > \
+        max(abs(r) for r in free['residual'])
