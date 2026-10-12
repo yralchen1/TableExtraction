@@ -1901,7 +1901,9 @@ def cowan_transitions_of(cowan_lids: dict, known: set, trans=None):
     A PARTNER IS NOT ONLY WHAT THE SPREADSHEET'S IDENTIFIER COLUMN SAYS.
     ``tp_E1_no_trials.xlsx`` carries the identifiers of the calculation as they
     stood when it was written, so a level found since - one added through
-    files.new_levels itself - has a blank there, and matching on that column
+    files.new_levels itself - has a blank there (the identifiers of the levels
+    found up to 059003.000684 were filled in on 2026-10-12, so the blanks are
+    the levels found after that), and matching on that column
     alone silently drops every transition between two levels found since.  Such
     a partner is resolved through its Cowan level number instead, by
     cowan_lid_ids(): the number to the row of IDEN2/enlev.dat, and the row to

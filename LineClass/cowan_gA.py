@@ -20,7 +20,12 @@ one) are
                                    cm^-1); this module converts them to cm^-1
     12, 13     lid1, lid2          the calculation's own level numbers
     14, 15     id1, id2            the experimental level identifiers of
-                                   Wyart's list, where the level is known
+                                   Wyart's list, where the level is known,
+                                   as text; the levels found in this work up
+                                   to 059003.000684 were added 2026-10-12
+                                   (E_low_exp/E_up_exp stay Wyart's only)
+    32, 33     discarded1, discarded2  1 where that level was discarded
+                                   (discarded_levels.csv); not read here
     17, 18     E_low_exp, E_up_exp Wyart's measured energies, in kK
     20         A(s-1)              the transition probability A
     29         std_A%              the percentage uncertainty of A, taken as
@@ -114,8 +119,9 @@ class MatchError(Exception):
 def level_id(value):
     """Wyart's identifier as the rest of the pipeline spells it.
 
-    The spreadsheet holds it as the number 59003.000042; every other file
-    holds the string ``059003.000042``.  An empty cell gives ``''``.
+    The spreadsheet holds it as the text ``059003.000042``, which pandas
+    may read as the number 59003.000042; every other file holds the string.
+    An empty cell gives ``''``.
     """
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return ''
