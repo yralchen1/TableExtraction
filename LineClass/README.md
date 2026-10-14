@@ -6180,6 +6180,86 @@ ratio can be evaluated for a level that does not exist yet, and **scanning it ac
 calculation allows is the search**. Where `ln R` > 0 the recorded lines are more likely with a level
 at that energy than with nothing there; where it is largest they are most likely.
 
+**In brief: what a trial position is scored on.** The core of the score of a trial energy E is
+
+    Σ_t ln R_t(E)
+
+(three further terms are added below). It is a sum over the level's **predicted transitions** t to levels already found, not over a list of
+tests. With the level at E, each t has a Ritz wavenumber nu_t = |E − E_M|, E_M being the energy of
+its partner level. What the line list shows near nu_t is one observation: either a recorded line,
+at a residual d = wn_obs − nu_t and with an observed intensity I_obs, or no recorded line within
+the matching window. R_t compares two explanations of that **same observation**:
+
+    R_t = P(this observation | the level sits at E) / P(this observation | nothing sits at E)
+
+In the numerator the line, if there is one, may be the transition itself. In the denominator it
+can only be an unrelated line that happens to lie there: its chance of lying at that d is set by
+the local density of unexplained lines, and its intensity is drawn from the intensities such lines
+have. Each predicted transition is in one of three cases:
+
+- *No recorded line near it.* R_t = 1 − P_t, where P_t is the probability that the line would have
+  been recorded at all: the plate coverage at its wavelength times the chance of detecting a line
+  of its predicted intensity. A missing line that should certainly have been seen costs up to
+  about 3.4 in ln R (P_t never exceeds 0.965); one too faint to record costs nothing. There is no
+  separate test of the strongest line: its absence is this case at its largest P_t.
+- *A recorded line that no accepted transition explains.* The positional part of R_t is
+  N(d; 0, σ)/ρ: the Gaussian probability density of the residual from Ritz, divided by ρ, the
+  number of unexplained lines per cm⁻¹ near nu_t. σ combines the line's measurement uncertainty
+  (widened for blends), the hyperfine widths of both levels and the uncertainty of the partner's
+  energy. **This is where agreement with Ritz enters, and it rewards precision.** A line exactly at
+  Ritz is worth ln[1/(σ√(2π)ρ)]: at the median ρ = 0.039 per cm⁻¹ that is +6.9 for σ = 0.01 cm⁻¹,
+  +5.3 for σ = 0.05 and +3.9 for σ = 0.2. Every σ of residual costs d²/2σ² more: −2 at 2σ, −4.5 at
+  3σ. Several precise lines all close to their Ritz values therefore score well above the same
+  number of imprecise ones, and the maximum of ln R(E) is as sharp as the lines are precise. The
+  positional part is multiplied by how well I_obs agrees with the predicted intensity. A line that
+  fits badly in position or intensity is read as a coincidence and costs no more than an absence.
+- *A recorded line that other levels' transitions already explain.* It earns much less, and only
+  if adding the predicted intensity of t improves the account of the feature's observed
+  intensity.
+
+Three further terms complete the score of a candidate position, each written in its own column:
+
+    ln_R   = Σ_t ln R_t + ln R_offset
+    ln_R_J = ln_R − (ln_J − min ln_J)
+    look   = ln_R_J − ln n
+
+- **ln R_offset**, the level offset, lets all of the level's predicted intensities be wrong by one
+  common factor. It is usually a small correction.
+- **ln_J**, the ΔJ fingerprint, is large at a position where a whole class of observable
+  predictions with one ΔJ = J(partner) − J(level) is missing: the pattern the lines of a level of
+  another J would leave. Only its differences between the candidates of one scan are used. The
+  cleanest candidate (min ln_J) pays nothing, and each other candidate pays what its fingerprint
+  is worse by.
+- **ln n**, the look-elsewhere correction. A scan over a window hundreds of cm⁻¹ wide, in steps of
+  0.02 cm⁻¹, tries tens of thousands of positions. Even with no level there, some of them line up
+  with recorded lines by chance, and the best of many chance maxima is higher than any one
+  position's chance score would be. n is the number of local maxima with ln R > 0 that the scan
+  returns (maxima closer than 0.5 cm⁻¹ count as one). Subtracting ln n divides R by n: it shares
+  the prior chance of the level being anywhere in the window among the n places it could be.
+  For example, row 742 returns n = 2, so its best position, at ln R = 9.18, keeps
+  `look` = 9.18 − ln 2 = 8.49. Row 1, which has nothing to find, returns 269 maxima, so any of them
+  needs ln R > ln 269 = 5.6 just to reach `look` = 0.
+
+The table is ranked on `ln_R_J`. ln n is the same for every candidate of one scan, so it does not
+reorder them. It decides only whether the best of them is good enough: a `firm` verdict needs
+`look` ≥ 3.
+
+**The distance from E_calc is not in the score.** It enters only through the window: the scan
+covers E_calc ± 3W (W defined below) and nothing outside it, and every position inside is scored
+on the lines alone, with no charge for lying 2.9 W from E_calc rather than at it. The distance is
+reported, as `dE` = E − E_calc and `z` = dE/W, for the analyst to weigh. It changes neither
+`ln R`, nor the ranking, nor the verdict.
+
+**The verdict on a candidate** uses the audit's constants. It is `firm` when at least 4 free lines
+support the position, they are worth at least 8 in ln R, no single line carries more than 45 % of
+the positive evidence, and `look` ≥ 3. It is `no support` when fewer than 2 free lines support it
+or one line carries more than 60 %, and `weak` otherwise. A free line here is a recorded line
+within 2σ of its Ritz wavenumber, on a feature no accepted transition claims, whose own ln R_t is
+positive.
+
+The intensity-pattern scores of `level_shifts.py` (`top1`, `top10_found`, `pattern_V`) are a
+different test, of levels already found, and are not used here.
+
 This is the scan done by hand in IDEN2, with the level list scrolled to a trial position and the
 predicted transitions checked against the plate list one at a time. The arithmetic is the same
 arithmetic. What it adds is that every position in the window is tried instead of the ones a person
