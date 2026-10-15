@@ -100,12 +100,13 @@ levels_set3_report.txt  the medians of each part, the ground level's common
 
 THE UNCERTAINTIES
 =================
-The error of an A constant or of a kappa is not given to the lines.  In
-the table u_hfs_shift keeps only u_hfs_undet, the part owed to levels
-without a determined A (user, 2026-10-10); make_LOPT_input.py carries that
-part, or the level's width, as before.  Model.line_shift_terms rebuilds the
-source set's u_hfs_shift from its two terms, and the report says how
-closely.
+The error of an A constant or of a class's kappa is not given to the
+lines.  In the table u_hfs_shift keeps only u_hfs_undet, the part owed to
+levels without a determined A (user, 2026-10-10), and the spread of the
+line's own kappa (2026-10-15, below); make_LOPT_input.py carries the first
+part, or the level's width, as before.  Model.line_shift_terms and
+Model.line_spread rebuild the source set's u_hfs_shift from its three terms,
+and the report says how closely.
 
 * The kappa term, |sum BF * u_kappa * D|: the kappa of a class is one
   number for all its lines, a systematic error.
@@ -116,6 +117,11 @@ closely.
   line.  In the frame of Set 3 the head-frame (1 - kappa) is the wrong
   factor anyway: a c line, kappa near 0, is hardly moved by an error of A
   here, and was given most of u_D.
+
+The spread of a line's own kappa about its class's, s * |D| per line
+([hfs.kappa_spread], 2026-10-15), is the exception: it is independent from
+line to line, so no perturbation run can carry it, and Set 3's u_hfs_shift
+keeps it beside u_hfs_undet.
 
 lopt_perturb.py --source hfs carries both into the levels exactly, by one
 LOPT run per pattern of the A constants and per kappa class, the
@@ -135,8 +141,9 @@ the part of its uncertainty from the ground level's own A is common to all
 of them and is given once, as the ground level's own (THE TOTALS).
 
 The line list's u_cg is the other quantity: the uncertainty of one line's
-center of gravity on its own, sum BF*(kappa*u_D + u_R) and the kappa term
-(hfs_correction.Model.cg_shift), which a published line carries.
+center of gravity on its own, sum BF*(kappa*u_D + u_R), the kappa term and
+the spread of the line's own kappa (hfs_correction.Model.cg_shift), which a
+published line carries.
 
 THE TOTALS
 ==========
@@ -362,8 +369,13 @@ def move_lines(lines, model, report):
         if ln.components:
             _, u_A, u_k, _ = model.line_shift_terms(ln.char, ln.wn_key,
                                                     ln.components)
-            u_gap = max(u_gap, abs(math.hypot(u_A, u_k) - ln.u_hfs_shift))
-            ln.u_shift3 = min(ln.u_hfs_undet, ln.u_hfs_shift)
+            u_s = model.line_spread(ln.char, ln.wn_key, ln.components)
+            u_gap = max(u_gap, abs(math.sqrt(u_A ** 2 + u_k ** 2 + u_s ** 2)
+                                   - ln.u_hfs_shift))
+            # the spread of the line's own kappa stays with the line: it is
+            # independent from line to line, which no perturbation run of a
+            # class's kappa can carry
+            ln.u_shift3 = math.hypot(min(ln.u_hfs_undet, ln.u_hfs_shift), u_s)
             gap = ln.hfs_shift - ln.cg.shift - (ln.cg.D + ln.cg.R)
             if abs(gap) > IDENTITY_TOL:
                 bad.append((ln.wn_key, ln.hfs_shift, ln.cg.shift, gap))

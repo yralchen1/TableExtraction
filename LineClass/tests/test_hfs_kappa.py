@@ -26,7 +26,9 @@ import hfs_kappa
 @pytest.fixture(scope='module')
 def fitted():
     lines = hfs_kappa.read_lines()
-    sigma, keep, table, fit = hfs_kappa.adopt_uncertainties(lines)
+    # the Step 3 analysis, on the two-term model it was made with
+    sigma, keep, table, fit = hfs_kappa.adopt_uncertainties(lines,
+                                                            spread=False)
     return lines, sigma, keep, table, fit
 
 

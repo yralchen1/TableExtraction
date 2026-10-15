@@ -1839,6 +1839,42 @@ decision: whether the 1969 kappa spread, an independent per-line error, also goe
 final/'s LOPT line uncertainties. That would change the weights, and so every rerun after it.
 If so, the spread is to be measured on iter_hfs's head-frame residuals, not on final/'s.
 
+*Brought forward and done in code, 2026-10-15 (user: "complete as much as we can" before the
+conferences).* README, "The spread of kappa: a third term".
+- **The model.** A line of a fitted kappa class has the variance (a·1e-8·wn²)² + b² + (s·|D|)²,
+  with one s per era (`hfs_kappa.fit_classes`). s goes to `[hfs.kappa_spread]`, and every
+  line's u_hfs_shift gains |Σ BF_i·s·D_i| (`hfs_correction.spread_part`). The line list's
+  u_stat stays the two-term value.
+- **The open question of 2026-10-11 is settled.** The spread stays in final/'s line
+  uncertainties, for both eras, since no perturbation run can carry an error that is
+  independent from line to line.
+- **Kappa held (user's choice B).** With the spread in the weights, a free fit gives
+  plain_1974 0.43-0.60 and plain_1969 0.28-0.38, depending on the weights, against 0.751 and
+  0.440 in use: kappa grows with |D|. `--hold-kappa` holds [hfs.kappa] in every fit and
+  measures a, b and s about it.
+- **Preview** (iter_hfs's table of 2026-10-14, nothing written): s = 0.098 (1974) and 0.258
+  (1969); the plain constant b fell from 0.0207 to 0.0174 cm^-1 (1974) and from 0.0454 to
+  0.0228 cm^-1 (1969). On a scratch LOPT run of the whole chain, rms z of the plain 1974 lines
+  by |D| bin (< 0.03, 0.03-0.1, 0.1-0.3, > 0.3 cm^-1) went from 0.85/0.91/0.90/1.19 to
+  0.89/0.93/0.89/1.04. The 1969 lines went from 0.93/1.00/0.91/1.05 to 0.96/0.95/0.90/0.86.
+  iter_hfs as a whole stays at 0.90, since it keeps the class-kappa and A terms.
+- **Assignments frozen (user).** The lower b alone would drop 6 accepted assignments
+  (39303.2201 and 52734.5537 of the questionable level 000678, which then moves by +0.22;
+  50393.5754; 51754.9866; 54201.983; 92266.6821 000104-000391) and add none. Six `accept`
+  rows in the ledger restore the reviewed set exactly. Level energies then move by 0.002 cm^-1
+  at the median and by 0.07 at most. The rows are the user's to enter.
+- **The floor of 0.0125** was level_positions' all-class constant. Measured on the plain lines
+  alone, the constant is 0.017-0.018, and with the spread modeled it is the b above.
+  level_positions now scores with the set's own uncertainties (its three amendments,
+  2026-10-15; README, "One uncertainty model"), so it has no constant of its own.
+- **For after the conference:** a model of kappa as a function of |D|, or of |D| over the line
+  width.
+
+To run, in order: the calibration with `--hold-kappa` on iter_hfs's table; the six ledger
+rows; the iter_hfs chain (classify_lines, make_LOPT_input, lopt.bat, check_sync,
+sync_IDEN2); make_set3.py and final/'s chain; lopt_perturb.py twice; make_set3.py --levels;
+then `level_positions.py --set iter_hfs --audit`.
+
 **Step 8 - regenerate the tracked outputs and the documentation.**
 `level_positions.csv` and `.xlsx`, `line_classifications.*`, `README.md`.
 Excel must be closed; budget about 10 minutes.

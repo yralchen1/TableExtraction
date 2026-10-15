@@ -820,11 +820,33 @@ def main(argv=None):
                          'the value [hfs.kappa] holds now; else it is held '
                          'there and the final fit made with it fixed.  0 '
                          'takes every fitted value (default: %(default)s)')
+    ap.add_argument('--hold-kappa', action='store_true',
+                    help='hold every fitted class at the kappa [hfs.kappa] '
+                         'holds now, in every fit of the run: the '
+                         'uncertainties and the spread of kappa are then '
+                         'measured about the kappas in use, and nothing is '
+                         'written to [hfs.kappa] (implies --keep-kappa).  '
+                         'The kappas a free fit gives are still reported '
+                         '(user, 2026-10-15)')
+    ap.add_argument('--no-spread', action='store_true',
+                    help='leave the spread of kappa out of the uncertainty '
+                         'model, the model before 2026-10-15; '
+                         '[hfs.kappa_spread] is then not written')
     args = ap.parse_args(argv)
     table_path = classifications_path(args.classifications)
     cfg_path = config_for(table_path, args.config)
+    if args.hold_kappa:
+        args.keep_kappa = True
     kappa_path = (None if args.no_write or args.keep_kappa
                   else config.kappa_file(cfg_path))
+    spread_path = (None if args.no_write or args.no_spread
+                   else config.kappa_file(cfg_path))
+    previous = {c: tuple(v) for c, v in config.load(cfg_path).hfs.kappa}
+    # every fit of the run holds these classes (--hold-kappa)
+    hold_all = ({c: float(previous[c][0])
+                 for c in config.FITTED_KAPPA_CLASSES if c in previous}
+                if args.hold_kappa else {})
+    use_spread = not args.no_spread
 
     # The fit takes a minute or two and every file is written at the end of
     # it, so a report left open in Excel would otherwise be discovered only
@@ -837,8 +859,8 @@ def main(argv=None):
             outputs.append(OUT_COV)
         if args.set_dir:
             outputs.append(os.path.join(HERE, args.set_dir, OUT_LINES))
-        if kappa_path:
-            outputs.append(kappa_path)
+        if kappa_path or spread_path:
+            outputs.append(kappa_path or spread_path)
         output_files.require_writable(outputs, 'output file')
 
     blocks = read_blocks()
@@ -859,7 +881,7 @@ def main(argv=None):
 
     def run(ncal, terms, fixed=None):
         parts = build(lines, lam, blk, binof, sigma, keep, ncal, terms,
-                      fixed)
+                      hold_all if fixed is None else fixed)
         return parts, solve(*parts[5:])
 
     # ---- the uncertainties, measured again once the curve is known -------
@@ -878,7 +900,8 @@ def main(argv=None):
     for r, i in enumerate(pre_parts[0]):
         per_line[i] = pre_fit['residual'][r]
         lev_line[i] = float(pre_fit['leverage'][r])
-    sigma, table = hfs_kappa.refit_uncertainties(lines, per_line, lev_line)
+    sigma, table = hfs_kappa.refit_uncertainties(lines, per_line, lev_line,
+                                                 spread=use_spread)
 
     def extent(good):
         """The blocks that carry a parameter, their line counts and the
@@ -997,20 +1020,26 @@ def main(argv=None):
             per_line[i] = fit['residual'][r]
             lev_line[i] = float(fit['leverage'][r])
         sigma, table = hfs_kappa.refit_uncertainties(lines, per_line,
-                                                     lev_line)
+                                                     lev_line,
+                                                     spread=use_spread)
         parts, fit = run(ncal, terms)
 
     # ---- kappa: how far a few lines move it, and whether it moves ---------
     # (the module docstring).  The jackknife is taken on the fit with every
     # class free; a class that stays within the deadband of its present
     # value is held there, and the final fit is made once more with it fixed.
-    jack = kappa_jackknife(parts, fit, lines)
-    free = {c: (float(fit['sol'][j]), math.sqrt(max(fit['cov'][j, j], 0.0)))
-            for c, j in parts[4].items()}
+    # With --hold-kappa every fit above held the kappas; the free fit is
+    # made here for the report only, on the same weights.
+    fparts, ffit = (run(ncal, terms, fixed={}) if hold_all
+                    else (parts, fit))
+    jack = kappa_jackknife(fparts, ffit, lines)
+    free = {c: (float(ffit['sol'][j]),
+                math.sqrt(max(ffit['cov'][j, j], 0.0)))
+            for c, j in fparts[4].items()}
     realistic = {c: (free[c][0], max(free[c][1], jack[c][0])) for c in free}
-    previous = {c: tuple(v) for c, v in config.load(cfg_path).hfs.kappa}
-    held_kappa = kappa_holds(realistic, previous, args.kappa_deadband)
-    if held_kappa:
+    held_kappa = (dict(hold_all) if hold_all
+                  else kappa_holds(realistic, previous, args.kappa_deadband))
+    if held_kappa and not hold_all:
         parts, fit = run(ncal, terms, fixed=held_kappa)
     kappa_fit = {c: (held_kappa.get(c, realistic[c][0]), realistic[c][1])
                  for c in free}
@@ -1409,6 +1438,21 @@ def main(argv=None):
                float('nan') if u is None else u.a,
                float('nan') if u is None else u.b,
                float('nan') if u is None else u.adopted, rms, chi2))
+    spread = getattr(table, 'spread', {})
+    say()
+    if spread:
+        say('the spread of kappa, s per era, fitted with the classes '
+            '(hfs_kappa.fit_classes):')
+        say('a line of a fitted kappa class (not flag) has (s*|D|)^2 more '
+            'variance; "adopted" and')
+        say('chi2/dof above include it, the line list\'s u_stat_cm1 does not '
+            '(it is the')
+        say('transition\'s, and goes into u_hfs_shift through '
+            '[hfs.kappa_spread]).')
+        for era in sorted(spread, reverse=True):
+            say('  %d   s = %.4f' % (era, spread[era]))
+    else:
+        say('no spread of kappa in the model (--no-spread).')
 
     say()
     say('The lines that carry it')
@@ -1578,6 +1622,12 @@ def main(argv=None):
             % os.path.relpath(kappa_path, HERE))
     elif not args.no_write:
         say()
+    if hold_all:
+        say('kappa held at [hfs.kappa] in every fit of this run '
+            '(--hold-kappa); the free fit above is for comparison only')
+    if spread_path and spread:
+        say('spread of kappa written into [hfs.kappa_spread] of %s'
+            % os.path.relpath(spread_path, HERE))
         say('kappa not written into the configuration (--keep-kappa)')
 
     if args.no_write:
@@ -1622,6 +1672,19 @@ def main(argv=None):
             corr, os.path.join(HERE, args.set_dir, OUT_LINES))
         print('  %s: %d line(s) corrected, %d left on the published value.'
               % (os.path.join(args.set_dir, OUT_LINES), n, miss))
+    if spread_path and spread:
+        written, before = config.set_kappa_spread(
+            cfg_path, spread,
+            'written %s from %s (%d lines)%s; before: %s'
+            % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+               os.path.relpath(table_path, HERE), len(rows),
+               ', kappa held' if hold_all else '',
+               '  '.join('%d %.4f' % kv for kv in sorted(dict(
+                   config.load(cfg_path).hfs.kappa_spread).items()))
+               or 'none'))
+        print('  [hfs.kappa_spread] of %s: %s'
+              % (os.path.relpath(written, HERE), '  '.join(
+                  '%d %.4f' % (e, spread[e]) for e in sorted(spread))))
     if kappa_path:
         written, before = config.set_hfs_kappa(
             cfg_path, kappa_fit, kappa_note(kappa_fit, before_of(kappa_path),

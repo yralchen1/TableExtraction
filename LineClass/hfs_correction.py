@@ -304,6 +304,8 @@ class Model(object):
 
     def __init__(self, settings):
         self.kappa = dict(settings.kappa)
+        # {era: s}, the line-to-line spread of kappa ([hfs.kappa_spread])
+        self.kappa_spread = dict(getattr(settings, 'kappa_spread', ()))
         components = getattr(settings, 'components', '')
         # with the list of Sugar's resolved components the flags are split
         # (`line_class`); without it every flagged line is the anchor's
@@ -484,6 +486,21 @@ class Model(object):
             out = [f if f is not None else o for o, f in zip(out, fixed)]
         return out
 
+    def component_spreads(self, wn_key, kappas, heads=None, fixed=None):
+        """`[s_i]`, the spread of kappa of each accepted component of an
+        observed line (`kappas` as `component_kappas` gives them, `heads` and
+        `fixed` as it takes them): the era's [hfs.kappa_spread] for a
+        component whose kappa is a fitted class's, 0 for one at the anchor's
+        kappa, made a head by the registry of resolved companions, or fixed
+        by the exception registry - its kappa is not a class's mean."""
+        s = self.kappa_spread.get(hfs_kappa.era_of(wn_key), 0.0)
+        anchor = self.kappa.get('flag')
+        n = len(kappas)
+        heads = heads or [False] * n
+        fixed = fixed or [None] * n
+        return [0.0 if (h or f is not None or k == anchor) else s
+                for k, h, f in zip(kappas, heads, fixed)]
+
     def is_head_line(self, wn_key):
         """True if the line `wn_key` sits on a head-frame Ritz value by a
         registry: the one resolved companions belong to, or a line the
@@ -537,23 +554,34 @@ class Model(object):
 
     def line_shift_terms(self, char, wn_key, components):
         """`(hfs_shift, u_A, u_kappa, kappa)` of one observed line:
-        `line_shift` with the two parts of its uncertainty apart
-        (`combine_terms`)."""
+        `line_shift` with the two systematic parts of its uncertainty apart
+        (`combine_terms`); the spread of kappa is `line_spread`."""
         if not components:
             return 0.0, 0.0, 0.0, self.kappa_of(char, wn_key)[0]
         return combine_terms(self.shift_parts(char, wn_key, components))
 
+    def line_spread(self, char, wn_key, components):
+        """The spread-of-kappa part of one observed line's u_hfs_shift,
+        cm^-1 (`spread_part`); 0 for a line with no accepted transition."""
+        if not components:
+            return 0.0
+        return spread_part(self.shift_parts(char, wn_key, components))
+
     def shift_parts(self, char, wn_key, components):
-        """`[(BF, kappa, u_kappa, D, u_D)]` of a line's accepted components,
-        as `combine` takes them."""
+        """`[(BF, kappa, u_kappa, D, u_D, s)]` of a line's accepted
+        components, as `combine` takes them; s is the component's spread of
+        kappa (`component_spreads`)."""
         heads = self.satellites.head_pairs(wn_key)
         rows = [self.exception(wn_key, low, upp) for low, upp, _ in components]
+        is_head = [(low, upp) in heads for low, upp, _ in components]
+        fixed = [self.row_kappa(r) if r else None for r in rows]
         kappas = self.component_kappas(
-            char, wn_key, [bf for _, _, bf in components],
-            [(low, upp) in heads for low, upp, _ in components],
-            [self.row_kappa(r) if r else None for r in rows])
+            char, wn_key, [bf for _, _, bf in components], is_head, fixed)
+        spreads = self.component_spreads(wn_key, kappas, is_head, fixed)
         return [(bf,) + k + self.D(low, upp, r.unresolved if r else ())
-                for (low, upp, bf), k, r in zip(components, kappas, rows)]
+                + (s,)
+                for (low, upp, bf), k, r, s in zip(components, kappas, rows,
+                                                   spreads)]
 
     # --- Set 3: the line at its center of gravity ----------------------------
     def cg_shift(self, char, wn_key, components):
@@ -578,8 +606,9 @@ class Model(object):
         with `line_shift`'s hfs_shift, which make_set3.py checks line by line.
 
         The uncertainty follows `combine`: the A constants linearly,
-        sum BF_i * (kappa_i * u_D_i + u_R_i), and kappa linearly,
-        sum BF_i * u_kappa_i * D_i, added in quadrature.  `u_undet` is the
+        sum BF_i * (kappa_i * u_D_i + u_R_i), kappa linearly,
+        sum BF_i * u_kappa_i * D_i, and the spread of the line's own kappa,
+        |sum BF_i * s_i * D_i| (`spread_part`), added in quadrature.  `u_undet` is the
         part of it owed to levels without a determined A, the quadrature
         difference from the same with their u_S left out
         (classify_lines.hfs_undetermined_part does the same in the head
@@ -590,15 +619,16 @@ class Model(object):
                            0.0, 0.0)
         heads = self.satellites.head_pairs(wn_key)
         rows = [self.exception(wn_key, low, upp) for low, upp, _ in components]
+        is_head = [(low, upp) in heads for low, upp, _ in components]
+        fixed = [self.row_kappa(r) if r else None for r in rows]
         kappas = self.component_kappas(
-            char, wn_key, [bf for _, _, bf in components],
-            [(low, upp) in heads for low, upp, _ in components],
-            [self.row_kappa(r) if r else None for r in rows])
+            char, wn_key, [bf for _, _, bf in components], is_head, fixed)
+        spreads = self.component_spreads(wn_key, kappas, is_head, fixed)
 
         def terms(known_only):
-            shift = D_line = R_line = u_A = u_k = 0.0
-            for (low, upp, bf), (kappa, u_kappa), r in zip(components, kappas,
-                                                           rows):
+            shift = D_line = R_line = u_A = u_k = u_s = 0.0
+            for (low, upp, bf), (kappa, u_kappa), r, s_i in zip(
+                    components, kappas, rows, spreads):
                 unres = r.unresolved if r else ()
                 d = u_d_l = u_d_u = r_i = u_r = 0.0
                 for lid, sign in ((low, -1.0), (upp, 1.0)):
@@ -621,7 +651,9 @@ class Model(object):
                 R_line += bf * r_i
                 u_A += bf * (kappa * u_d + u_r)
                 u_k += bf * u_kappa * d
-            return shift, math.hypot(u_A, u_k), D_line, R_line
+                u_s += bf * s_i * d
+            return (shift, math.sqrt(u_A ** 2 + u_k ** 2 + u_s ** 2), D_line,
+                    R_line)
 
         shift, u, D_line, R_line = terms(False)
         u_known = terms(True)[1]
@@ -640,25 +672,37 @@ CgShift = collections.namedtuple('CgShift', 'shift u u_undet kappa D R')
 
 def combine(parts):
     """`(hfs_shift, u_hfs_shift, kappa)` of an observed line from its accepted
-    components, given as `(BF, kappa, u_kappa, D, u_D)`.
+    components, given as `(BF, kappa, u_kappa, D, u_D)` or
+    `(BF, kappa, u_kappa, D, u_D, s)`, s the component's spread of kappa.
 
     The shift is sum BF_i * (1 - kappa_i) * D_i, summed class by class of
     kappa so that a line of one class gets exactly (1 - kappa) * sum BF_i*D_i.
     Its uncertainty has two parts, added in quadrature: the A constants,
     sum BF_i * (1 - kappa_i) * u_D_i, summed linearly since the components of
     one line share levels and configurations; and kappa, |sum BF_i * u_kappa_i
-    * D_i|, linear too, the kappa of one class being one number.  The kappa
+    * D_i|, linear too, the kappa of one class being one number.  A third
+    part, independent of both and of every other line, is the spread of the
+    line's own kappa about its class's, `spread_part` (2026-10-15).  The kappa
     reported is the BF-weighted mean of the components', or the common one.
     """
     shift, u_A, u_k, kappa = combine_terms(parts)
-    return shift, math.hypot(u_A, u_k), kappa
+    return shift, math.sqrt(u_A ** 2 + u_k ** 2 + spread_part(parts) ** 2),         kappa
+
+
+def spread_part(parts):
+    """|sum BF_i * s_i * D_i| of `combine`'s parts, cm^-1: the error of a
+    line's position from its own kappa departing from its class's by about
+    s times the width of the pattern (hfs_kappa.SPREAD_ROUNDS).  One kappa
+    is read off one feature, so the components add linearly.  0 for parts
+    that carry no s."""
+    return abs(sum(p[0] * p[5] * p[3] for p in parts if len(p) > 5))
 
 
 def combine_terms(parts):
     """`(hfs_shift, u_A, u_kappa, kappa)`: `combine` with the two parts of
     the uncertainty apart, u_kappa as |sum BF_i * u_kappa_i * D_i|."""
     by_kappa = {}
-    for bf, kappa, u_kappa, d, u_d in parts:
+    for bf, kappa, u_kappa, d, u_d in (p[:5] for p in parts):
         acc = by_kappa.setdefault((kappa, u_kappa), [0.0, 0.0, 0.0])
         acc[0] += bf * d
         acc[1] += bf * u_d

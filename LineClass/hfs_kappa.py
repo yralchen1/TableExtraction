@@ -177,6 +177,29 @@ MIN_CLASS = 20
 #: at zero.
 MIN_SPAN = 1.5
 
+#: the line-to-line spread of kappa about its class (2026-10-15).  A line of
+#: a fitted kappa class (plain, c, flag_unlisted: every class but the anchor
+#: `flag`, which also holds the lines a registry fixes) was not set on at
+#: exactly its class's kappa: how far into an unresolved pattern a setting
+#: falls varies from line to line.  That scatter is an independent error of
+#: each line, s * |D|, with one s per era, fitted together with the two terms
+#: of every class (`fit_classes`).  Without it the constant term b of a class
+#: took up the spread of its widest patterns and gave it to every line: on the
+#: LOPT residuals of 2026-10-14 the plain lines with |D| < 0.03 cm^-1 had an
+#: rms of 0.85-0.9 of their uncertainty and those with |D| > 0.3 cm^-1 1.2-1.36.
+#: The term belongs to the transition, not to the observed line, so the line
+#: list's own uncertainty (`two_term`) leaves it out and hfs_correction.py
+#: adds it to u_hfs_shift ([hfs.kappa_spread]).
+SPREAD_ROUNDS = 8
+
+
+def spread_D(ln):
+    """|D| of a line for the spread of kappa: its displacement if its kappa
+    is fitted, 0 for a line of the anchor class (`flag`), whose kappa is 1 by
+    measurement or fixed by a registry."""
+    return abs(ln.D) if ln.cls != 'flag' and ln.D else 0.0
+
+
 #: lines whose uncertainty is fixed by hand, one per row, tab-delimited:
 #: `wn_key`, `unc_wn`, `date`, `reason`.  `wn_key` is Sugar's observed
 #: wavenumber, the same number the line is named by in
@@ -700,6 +723,15 @@ def difference(fit, a, b):
 ClassUnc = collections.namedtuple('ClassUnc', 'a b n adopted stated')
 
 
+class ClassTable(dict):
+    """`{class key: ClassUnc}`, with `spread`, `{era: s}`, the spread of
+    kappa fitted with them (SPREAD_ROUNDS); empty where none was fitted."""
+
+    def __init__(self, *args, spread=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.spread = dict(spread or {})
+
+
 def two_term(a, b, wn):
     """The uncertainty of a line in cm^-1 under the two-term model.
 
@@ -714,10 +746,30 @@ def two_term(a, b, wn):
     return math.sqrt((a * 1e-8 * wn * wn) ** 2 + b * b)
 
 
-def fit_two_term(values, fix_a=False):
+def _golden(f, lo, hi, rounds=60):
+    """The minimum of `f` on `[lo, hi]`, which it has exactly one of."""
+    k = (math.sqrt(5.0) - 1.0) / 2.0
+    c, d = hi - k * (hi - lo), lo + k * (hi - lo)
+    fc, fd = f(c), f(d)
+    for _ in range(rounds):
+        if fc < fd:
+            hi, d, fd = d, c, fc
+            c = hi - k * (hi - lo)
+            fc = f(c)
+        else:
+            lo, c, fc = c, d, fd
+            d = lo + k * (hi - lo)
+            fd = f(d)
+    return 0.5 * (lo + hi)
+
+
+def fit_two_term(values, fix_a=False, spread=0.0):
     """Maximum-likelihood `(a, b)` for one class, leverage folded in.
 
-    `values` are `(residual in cm^-1, leverage, wavenumber)` triples.  A
+    `values` are `(residual in cm^-1, leverage, wavenumber)` triples, or
+    `(..., |D|)` quadruples when the spread of kappa is to be allowed for:
+    each line's variance then holds `(spread * |D|)^2` besides the two
+    terms (`spread_D`, `fit_classes`).  A
     fitted level value has already followed part of each residual, so what a
     residual measures is not the uncertainty itself but `E[r^2] = (1 - h) u^2`
     with `h` the leverage; the `(1 - h)` therefore sits inside the variance
@@ -733,37 +785,24 @@ def fit_two_term(values, fix_a=False):
     `fix_a` holds `a` at zero, for a class whose lines cover too little
     spectrum to tell the two terms apart.
     """
-    r = [v[0] for v in values]
-    s = [1e-8 * v[2] * v[2] for v in values]
-    g = [max(1.0 - v[1], 1e-3) for v in values]
+    r = np.array([v[0] for v in values], dtype=float)
+    s = np.array([1e-8 * v[2] * v[2] for v in values], dtype=float)
+    g = np.maximum(1.0 - np.array([v[1] for v in values], dtype=float),
+                   1e-3)
+    e = np.array([(spread * v[3]) ** 2 if len(v) > 3 else 0.0
+                  for v in values], dtype=float)
+    r2, s2 = r * r, s * s
 
     def nll(a, b):
-        t = 0.0
-        for i in range(len(r)):
-            v = g[i] * ((a * s[i]) ** 2 + b * b)
-            t += math.log(v) + r[i] * r[i] / v
-        return t
+        v = g * (a * a * s2 + b * b + e)
+        return float(np.sum(np.log(v) + r2 / v))
 
-    def golden(f, lo, hi, rounds=60):
-        """The minimum of `f` on `[lo, hi]`, which it has exactly one of."""
-        k = (math.sqrt(5.0) - 1.0) / 2.0
-        c, d = hi - k * (hi - lo), lo + k * (hi - lo)
-        fc, fd = f(c), f(d)
-        for _ in range(rounds):
-            if fc < fd:
-                hi, d, fd = d, c, fc
-                c = hi - k * (hi - lo)
-                fc = f(c)
-            else:
-                lo, c, fc = c, d, fd
-                d = lo + k * (hi - lo)
-                fd = f(d)
-        return 0.5 * (lo + hi)
+    golden = _golden
 
     # a starting point that is already of the right size: the plain rms split
     # evenly between the two terms.
-    rms = math.sqrt(sum(x * x for x in r) / max(sum(g), 1.0))
-    mean_s = sum(s) / len(s)
+    rms = math.sqrt(float(np.sum(r2)) / max(float(np.sum(g)), 1.0))
+    mean_s = float(np.mean(s))
     a = 0.0 if fix_a else 0.7 * rms / mean_s
     b = 0.7 * rms
     for _ in range(40):
@@ -778,7 +817,77 @@ def fit_two_term(values, fix_a=False):
     return a, b
 
 
-def refit_uncertainties(lines, residual, leverage, ucls=None):
+def fit_spread(items):
+    """Maximum-likelihood spread of kappa s for one era.
+
+    `items` are `((a, b), values)` per class of the era, `values` the
+    quadruples of `fit_two_term`; each class keeps its own two terms and s
+    is common to all.  0 if no line carries a displacement, or if s = 0 is
+    at least as likely as the best s > 0."""
+    rows = [((a, b), v) for (a, b), vals in items for v in vals
+            if len(v) > 3 and v[3] > 0.0]
+    if not rows:
+        return 0.0
+    g, base, r2, d2 = (np.array(c, dtype=float) for c in zip(*[
+        (max(1.0 - v[1], 1e-3), (a * 1e-8 * v[2] * v[2]) ** 2 + b * b,
+         v[0] * v[0], v[3] * v[3]) for (a, b), v in rows]))
+
+    def nll(sp):
+        var = g * (base + sp * sp * d2)
+        return float(np.sum(np.log(var) + r2 / var))
+
+    s = math.exp(_golden(lambda x: nll(math.exp(x)), -12.0, 1.0))
+    return s if nll(s) < nll(0.0) else 0.0
+
+
+def fit_classes(groups, fix_a=None, min_class=1, spread=True):
+    """The two terms of every class and the spread of kappa of every era,
+    fitted together (2026-10-15).
+
+    `groups` are `{class key: values}`, `values` the quadruples of
+    `fit_two_term` and the key's last element the era.  The two are fitted
+    in turn - each class's `(a, b)` at the eras' present s, then each era's
+    s at the classes' `(a, b)` - until s stops moving.  A class of fewer
+    than `min_class` lines is not fitted.  `spread` False fits the two terms
+    alone, the model before 2026-10-15.  Returns `({key: (a, b)},
+    {era: s})`."""
+    fix_a = fix_a or {}
+    s_era, fitted = {}, {}
+    for _ in range(SPREAD_ROUNDS if spread else 1):
+        fitted = {key: fit_two_term(v, fix_a=fix_a.get(key, False),
+                                    spread=s_era.get(key[1], 0.0))
+                  for key, v in groups.items() if len(v) >= min_class}
+        if not spread:
+            break
+        by_era = collections.defaultdict(list)
+        for key, ab in fitted.items():
+            by_era[key[1]].append((ab, groups[key]))
+        new = {era: fit_spread(items) for era, items in by_era.items()}
+        moved = max([abs(new[e] - s_era.get(e, -1.0)) for e in new] + [0.0])
+        s_era = new
+        if moved < 1e-4:
+            break
+    if spread:
+        # the two terms once more, at the s finally adopted
+        fitted = {key: fit_two_term(v, fix_a=fix_a.get(key, False),
+                                    spread=s_era.get(key[1], 0.0))
+                  for key, v in groups.items() if len(v) >= min_class}
+    return fitted, s_era
+
+
+def line_sigma(ln, ab, plain, spread):
+    """The uncertainty of a line of the calibration's fit under the class
+    model: the two terms `ab` of its class (Sugar's stated value without),
+    floored at FLOOR and at the character floor (`plain` the era's plain
+    `(a, b)`), and the spread of kappa `spread` of its era times its
+    `spread_D`, in quadrature."""
+    u = (max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
+         else max(stated_uncertainty(ln.char, ln.era, ln.wn), FLOOR))
+    u = max(u, character_floor(ln.char, ln.era, ln.wn, plain))
+    return math.hypot(u, spread * spread_D(ln))
+
+
+def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True):
     """The two-term model again, from the residuals of a fit given from
     outside - the calibration fit.
 
@@ -794,6 +903,10 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
     `residual` and `leverage` are per line, `None` for a line the fit left
     out.  Returns `(sigma, table)` in the form `adopt_uncertainties` returns
     them.  Registry lines keep their own value here as well.
+
+    The spread of kappa is fitted with the classes (`fit_classes`) and is in
+    each line's sigma, and `table.spread` gives it; `spread` False leaves it
+    out, the model before 2026-10-15.
     """
     ucls = uncertainty_classes(lines) if ucls is None else ucls
     held = held_uncertainties(lines)
@@ -805,26 +918,24 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
     groups = collections.defaultdict(list)
     for i, ln in enumerate(lines):
         if residual[i] is not None and held[i] is None:
-            groups[ucls[i]].append((residual[i], leverage[i], ln.wn))
-    fitted = {}
-    for key, values in groups.items():
-        if len(values) >= MIN_CLASS:
-            fitted[key] = fit_two_term(values, fix_a=fix_a.get(key, False))
+            groups[ucls[i]].append((residual[i], leverage[i], ln.wn,
+                                    spread_D(ln)))
+    fitted, s_era = fit_classes(groups, fix_a, min_class=MIN_CLASS,
+                                spread=spread)
 
     sigma = []
     for i, ln in enumerate(lines):
         if held[i] is not None:
-            u = held[i]
+            sigma.append(max(held[i], character_floor(
+                ln.char, ln.era, ln.wn, fitted.get(('', ln.era)))))
         else:
             # a class too thin to measure itself falls back on the plain
             # lines of its own era, which are the bulk of the spectrum and
             # share its plates; Sugar's stated value is the last resort.
             ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
-            u = (max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
-                 else max(stated_uncertainty(ln.char, ln.era, ln.wn), FLOOR))
-        sigma.append(max(u, character_floor(ln.char, ln.era, ln.wn,
-                                            fitted.get(('', ln.era)))))
-    table = {}
+            sigma.append(line_sigma(ln, ab, fitted.get(('', ln.era)),
+                                    s_era.get(ln.era, 0.0)))
+    table = ClassTable(spread=s_era)
     for key, (a_ang, b_wn) in fitted.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
         table[key] = ClassUnc(
@@ -837,7 +948,7 @@ def refit_uncertainties(lines, residual, leverage, ucls=None):
 
 
 def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
-                        max_rounds=10, tol=0.01):
+                        max_rounds=10, tol=0.01, spread=True):
     """The Step 1 loop: stated uncertainties in, adopted uncertainties out.
 
     Returns `(sigma, keep, table, fit)`: the adopted uncertainty of every
@@ -881,6 +992,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
         span[ucls[i]].append(ln.wn)
     fix_a = {k: (max(v) / min(v)) ** 2 < MIN_SPAN for k, v in span.items()}
     table, fit = {}, None
+    s_era = {}
     kappa_held = None
     # first every line kept, the kappas free; then the filter, with the
     # kappas held where that pass left them
@@ -898,11 +1010,11 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
             groups = collections.defaultdict(list)
             for i, ln in enumerate(lines):
                 if keep[i] and held[i] is None:
-                    groups[ucls[i]].append((res[i], lev[i], ln.wn))
-            new = {}
-            for key, values in groups.items():
-                a_ang, b_wn = fit_two_term(values, fix_a=fix_a.get(key, False))
-                new[key] = (a_ang, b_wn, len(values))
+                    groups[ucls[i]].append((res[i], lev[i], ln.wn,
+                                            spread_D(ln)))
+            fitted, s_era = fit_classes(groups, fix_a, spread=spread)
+            new = {key: ab + (len(groups[key]),)
+                   for key, ab in fitted.items()}
             moved = 0.0
             for key in new:
                 for i, was in enumerate(table.get(key, (0.0, 0.0))[:2]):
@@ -915,9 +1027,9 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
                                         plain[:2] if plain else None)
                 key = ucls[i]
                 if held[i] is None and key in table:
-                    sigma[i] = max(
-                        two_term(table[key][0], table[key][1], ln.wn),
-                        FLOOR, floor)
+                    sigma[i] = line_sigma(ln, table[key][:2],
+                                          plain[:2] if plain else None,
+                                          s_era.get(ln.era, 0.0))
                 else:
                     # the registry's value, or the stated one of a class that
                     # has not been measured: floored, never ratcheted.
@@ -930,7 +1042,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
                 sigma=sigma, use=keep)
     # the mean adopted value and the mean stated value, for the report
-    out = {}
+    out = ClassTable(spread=s_era)
     for key, (a_ang, b_wn, n) in table.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
         out[key] = ClassUnc(

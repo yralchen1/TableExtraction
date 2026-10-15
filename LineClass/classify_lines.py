@@ -279,7 +279,8 @@ def release_hfs_allowances(observed_lines: list) -> int:
 def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
     """(hfs_shift, u_hfs_shift, kappa) of `line`, cm^-1: (1 - kappa) *
     sum BF_i*D_i over its accepted transitions, BF being the share of the
-    line each carries (calc_weights), with the uncertainty and the kappa that
+    line each carries (calc_weights), with the uncertainty (the spread of
+    kappa of [hfs.kappa_spread] included) and the kappa that
     hfs_correction.combine gives; in a flagged blend only the strongest
     component takes the flag's kappa, and a transition whose resolved
     companions the registry lists on this line takes kappa = 1
@@ -307,8 +308,11 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
     exc = [line.hfs_exceptions.get((t.lower_level.level_id,
                                     t.upper_level.level_id))
            for t in acc]
+    fixed = [e[:2] if e else None for e in exc]
     kappas = HFS.component_kappas(line.line_character, line.wn_key, bfs,
-                                  heads, [e[:2] if e else None for e in exc])
+                                  heads, fixed)
+    # the spread of the line's own kappa about its class's (2026-10-15)
+    spreads = HFS.component_spreads(line.wn_key, kappas, heads, fixed)
 
     def u_S(lev, e):
         if known_A_only and lev.hfs_undetermined:
@@ -317,8 +321,9 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
             else lev.u_hfs_S
     return hfs_correction.combine(
         [(bf, kappa, u_kappa, t.hfs_D_on(line),
-          math.hypot(u_S(t.upper_level, e), u_S(t.lower_level, e)))
-         for t, bf, (kappa, u_kappa), e in zip(acc, bfs, kappas, exc)])
+          math.hypot(u_S(t.upper_level, e), u_S(t.lower_level, e)), s_i)
+         for t, bf, (kappa, u_kappa), e, s_i in zip(acc, bfs, kappas, exc,
+                                                    spreads)])
 
 
 def hfs_undetermined_part(line, weights: dict) -> float:

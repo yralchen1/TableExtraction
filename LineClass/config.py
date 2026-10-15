@@ -97,6 +97,8 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'files.kappa_exceptions', 'files.hfs_components',
              'files.start_levels',
              'hfs.kappa.flag_unlisted',
+             'hfs.kappa_spread', 'hfs.kappa_spread.1974',
+             'hfs.kappa_spread.1969',
              'decisions', 'decisions.max_forced_offset',
              'blends', 'blends.u_ln_intensity',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
@@ -123,7 +125,8 @@ _SCHEMA = {
     'decisions': {'max_forced_offset': float},
     'blends': {'u_ln_intensity': float},
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
-            'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES}},
+            'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES},
+            'kappa_spread': {e: float for e in ('1974', '1969')}},
 }
 
 
@@ -209,6 +212,10 @@ class HfsSettings:
     [hfs.kappa] must then give.  `iden2_display` says where sync_IDEN2.py puts the
     lines LOPT uses in IDEN2's dlv.dat: 'measured' (the default) or 'lopt',
     at the wavenumber and uncertainty LOPT is given, which needs `apply`.
+    `kappa_spread` gives, per era (1974, 1969), the line-to-line spread s
+    of kappa about its class: a line of a fitted class gains s*|D| in its
+    u_hfs_shift ([hfs.kappa_spread], written by wavelength_calibration.py
+    since 2026-10-15; none without the table).
     hfs_correction.py says what each of them means.
     """
     apply: bool = False
@@ -217,6 +224,7 @@ class HfsSettings:
     kappa_exceptions: str = ''
     components: str = ''
     kappa: tuple = ()           # ((class, (kappa, u_kappa)), ...)
+    kappa_spread: tuple = ()    # ((era, s), ...), [hfs.kappa_spread]
     resolved_levels: tuple = ()
     iden2_display: str = 'measured'
 
@@ -442,6 +450,92 @@ def set_hfs_kappa(path: str, values: dict, note: str = '') -> tuple:
     return target, before
 
 
+#: what begins each comment line `set_kappa_spread` writes.
+SPREAD_NOTE = '# [wavelength_calibration.py] '
+SPREAD_HEADER = '[hfs.kappa_spread]'
+
+
+def set_kappa_spread(path: str, values: dict, note: str = '') -> tuple:
+    """Write the spread of kappa `values` ({era: s}, eras 1974 and 1969)
+    into the `[hfs.kappa_spread]` of the file that holds the `[hfs.kappa]`
+    the configuration `path` uses (`kappa_file`), and return `(file
+    written, the values it held before)`.
+
+    The file is edited as text, as `set_hfs_kappa` does: the table's era
+    lines and its comment lines beginning with SPREAD_NOTE are replaced and
+    nothing else is touched.  A file without the table gets one, right after
+    `[hfs.kappa]`.  The file is read back, and restored if it does not give
+    the new values.
+    """
+    eras = ('1974', '1969')
+    if set(str(e) for e in values) != set(eras):
+        raise ConfigError("set_kappa_spread: needs a value for each of "
+                          + ', '.join(eras))
+    target = kappa_file(path)
+    with open(target, 'rb') as fh:
+        before = {int(k): float(v) for k, v in
+                  (tomllib.load(fh)['hfs'].get('kappa_spread') or {}).items()}
+    with open(target, encoding='utf-8', newline='') as fh:
+        text = fh.read()
+    eol = '\r\n' if '\r\n' in text else '\n'
+    lines = text.split(eol)
+    body = [SPREAD_NOTE + part for part in note.splitlines()]
+    body += ['%s = %.4f' % (e, float(values[int(e)] if int(e) in values
+                                     else values[e])) for e in eras]
+    try:
+        start = next(i for i, ln in enumerate(lines)
+                     if ln.strip() == SPREAD_HEADER)
+    except StopIteration:
+        start = None
+    if start is None:
+        k = next((i for i, ln in enumerate(lines)
+                  if ln.strip() == '[hfs.kappa]'), None)
+        if k is None:
+            raise ConfigError(f"{target}: [hfs.kappa] is not written as a "
+                              f"table header of its own")
+        end = next((i for i in range(k + 1, len(lines))
+                    if lines[i].lstrip().startswith('[')), len(lines))
+        while end > k + 1 and not lines[end - 1].strip():
+            end -= 1
+        new = (lines[:end] + ['', SPREAD_HEADER,
+                              '# the line-to-line spread s of kappa about '
+                              'its class, per era: a line of',
+                              '# a fitted class (not flag) gains s*|D| in '
+                              'its u_hfs_shift; see hfs_kappa.py,',
+                              '# SPREAD_ROUNDS.  Written by '
+                              'wavelength_calibration.py.'] + body
+               + lines[end:])
+    else:
+        end = next((i for i in range(start + 1, len(lines))
+                    if lines[i].lstrip().startswith('[')), len(lines))
+        kept = [ln for ln in lines[start + 1:end]
+                if not ln.startswith(SPREAD_NOTE)
+                and not ('=' in ln and not ln.lstrip().startswith('#')
+                         and ln.split('=', 1)[0].strip() in eras)]
+        # the old values' place: after the table's own comments
+        tail = []
+        while kept and not kept[-1].strip():
+            tail.insert(0, kept.pop())
+        new = lines[:start + 1] + kept + body + tail + lines[end:]
+    new_text = eol.join(new)
+    with open(target, 'w', encoding='utf-8', newline='') as fh:
+        fh.write(new_text)
+    try:
+        with open(target, 'rb') as fh:
+            after = tomllib.load(fh)['hfs']['kappa_spread']
+        for e in eras:
+            want = float('%.4f' % float(values[int(e)] if int(e) in values
+                                        else values[e]))
+            if float(after[e]) != want:
+                raise ConfigError(f"{target}: [hfs.kappa_spread] {e} reads "
+                                  f"back as {after[e]}, not {want}")
+    except (tomllib.TOMLDecodeError, ConfigError, KeyError) as exc:
+        with open(target, 'w', encoding='utf-8', newline='') as fh:
+            fh.write(text)
+        raise ConfigError(f"set_kappa_spread: {exc}; {target} "
+                          f"restored") from None
+    return target, before
+
 def load(path: str = None) -> Config:
     """Read, validate and return the configuration."""
     path = os.path.abspath(path or DEFAULT_PATH)
@@ -483,6 +577,8 @@ def load(path: str = None) -> Config:
             kappa_exceptions=exceptions, components=components,
             kappa=tuple((k, tuple(h['kappa'][k]))
                         for k in HFS_KAPPA_CLASSES if k in h['kappa']),
+            kappa_spread=tuple((int(e), float(v)) for e, v in
+                               sorted(h.get('kappa_spread', {}).items())),
             resolved_levels=tuple(h.get('resolved_levels', ())),
             iden2_display=display)
 

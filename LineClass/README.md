@@ -2774,6 +2774,58 @@ calibration once with them, calls `hfs_kappa.refit_uncertainties` on the residua
 leaves behind, and remakes the fit; `UNC_ROUNDS` says how many times. The report's last table is
 the test, `chi2/dof = sum(r²/u²) / sum(1 − h)` per class, which must be close to 1.
 
+**The spread of kappa: a third term (2026-10-15).** A line whose kappa is a fitted class's
+(plain, `c`, `flag_unlisted`) is not set on at exactly that kappa. How far into an unresolved
+pattern a setting falls varies from line to line, so the line's position scatters about its
+class's prediction by about s·|D|, D being the half-width of its pattern. This error belongs to
+each line on its own, independent of every other line. The class model without it put the
+scatter of the widest patterns into the constant b and gave it to every line. The symptom, on
+LOPT's residuals of `iter_hfs/` and `final/` (2026-10-14), was that plain lines with
+|D| < 0.03 cm⁻¹ reached only 0.84–0.89 of their uncertainty in rms, and those with
+|D| > 0.3 cm⁻¹ 1.19–1.36 of it. The variance of a line of a fitted class is now
+
+```
+u^2 = (a * 1e-8 * wn^2)^2 + b^2 + (s * |D|)^2          s per era
+```
+
+`hfs_kappa.fit_classes` fits the two terms of each class and one s per era in turn, until s
+stops moving. It is maximum likelihood with the leverage inside the variance, as before. A line
+of the anchor class `flag` carries no s (`hfs_kappa.spread_D`): its kappa is 1 by measurement or
+fixed by a registry. The term is a property of the transition, not of the observed line, so
+the line list's `u_stat_cm1` (`unc_own_corr`) stays the two-term value. s goes into the
+`[hfs.kappa_spread]` table of the configuration that holds `[hfs.kappa]`, and every program that
+computes a line's hfs uncertainty adds the line's share to `u_hfs_shift`:
+|Σ BF_i·s·D_i| over its components of a fitted class (`hfs_correction.spread_part`). This
+happens in `classify_lines.py` (the column), `Model.cg_shift` (a published line's u_cg) and
+`make_set3.py`. In Set 3 the term **stays** in the line's `u_hfs_shift` beside `u_hfs_undet`:
+no perturbation run of a class's kappa can carry an error that is independent from line to
+line. That settles the question left open on 2026-10-11 of whether the 1969 spread goes into
+`final/`'s line uncertainties: it does, and the 1974 spread too.
+
+**Kappa is held while the spread is measured (user, 2026-10-15).** With the spread in the
+weights, a free fit of the kappas no longer gives the values in use. It caps the weight of the
+widest patterns, and those prefer a higher kappa. A free fit on iter_hfs's table of
+2026-10-14 gave plain_1974 0.43(4) and plain_1969 0.28(4) with s fitted about them, and 0.60
+and 0.38 with s fitted about the kappas in use. So kappa is not one constant per class: it
+grows with |D|. Adopting either value would move every plain line's correction by
+(Δkappa)·D, beyond the line uncertainties, before the results are presented.
+`wavelength_calibration.py --hold-kappa` therefore holds every fitted class at the value
+`[hfs.kappa]` holds, in every fit of the run, so the uncertainties and s are measured about
+the kappas actually used. The free fit is still made and reported in "kappa, line by line"
+for comparison, and nothing is written to `[hfs.kappa]`. The preview on iter_hfs's table
+(2026-10-15, nothing written) gave:
+
+| | a (Å) | b (cm⁻¹), before → now | s |
+|---|---|---|---|
+| plain 1974 | 0.0022 | 0.0207 → 0.0174 | 0.098 |
+| plain 1969 | 0.0025 | 0.0454 → 0.0228 | 0.258 |
+
+chi2/dof per class stayed between 0.91 and 1.12 wherever no floor holds the class. The
+0.0125 cm⁻¹ found as level_positions' floor on `final/` was an all-class value in a different
+model. Measured on the plain lines alone, on LOPT's residuals, the constant is 0.017–0.018.
+A model of kappa as a function of |D| (or of |D| over the line width) is left until after the
+conference. `--no-spread` restores the two-term model and writes no spread.
+
 **The character floor (2026-10-08).** A line with a character code is never given less than
 twice the uncertainty of a plain line of its era at the same wavenumber
 (`hfs_kappa.character_floor`, `CHARACTER_FACTOR = 2`). The exceptions are plain lines and
@@ -5500,6 +5552,20 @@ in the window, and the best attainable R_t falls from about 25 to 3.2. In the in
 question stops being "is a line of this brightness here" and becomes "does adding the predicted
 intensity of t improve an account of that brightness which already works".
 
+**The claims are believed softly (2026-10-15).** C rests on Icalc, which is uncertain by the
+intensity width s, about a factor of three. Taken at face value, claims that already account for
+all of I_obs left a further claimant nothing but a charge, however uncertain those claims were.
+C·f now enters both densities as C_eff,
+
+    ln C_eff = ln I_obs − s·ln(1 + exp((ln I_obs − ln(C·f)) / s))
+
+which is C·f itself where the claims leave room, about I_obs where they exceed it, and passes from
+one to the other smoothly over one width s (I_obs − s·ln 2 where the two are equal). There is no
+cutoff. A claimant of the feature's own size, on a feature claimed three times over, is charged
+about a third of what it was charged before (ln G −0.09 against −0.25 at s = 1.2). Where the
+claims leave room nothing changes. On 23856.871, the line of `059003.000376` whose other claimants
+predict 1447 against an observed 895, ln G goes from −0.54 to −0.14.
+
 **Two readings of a match, and the row is worth the better of them.** A matched free feature can
 be read two ways. Either *the feature is the transition* — its position drawn from N(d; 0, sigma)
 against the local line density rho, its brightness from N(ln I_obs; ln(I_t·f), s) against g — or
@@ -5670,10 +5736,10 @@ number in it is a guess (values of the run of 2026-09-07, 594 levels, 29260 pred
 
 | ingredient | what it is | value |
 |---|---|---|
-| sigma_meas | the width of the feature: a wavelength-constant reading error (0.0030 Å for 1974, 0.0040 Å for 1969), a precision floor of 0.0055 cm⁻¹, and an excess for the line's character code, wavelength-constant where the width comes from reading the plate and wavenumber-constant where it belongs to the line itself | 0.006 – 0.01 cm⁻¹ plain below 47500 cm⁻¹; `c` (1974) 0.0337 Å, `cl` (1969) 0.0044 Å, `d` 0.0073 Å, `ch` 0.0103 Å, `h` 0.0082 Å, `bl` 0.0085 Å, and `w` (1974) 0.0251 cm⁻¹ — the one code the residuals put in wavenumber |
+| sigma_meas | *(before 2026-10-15; now only in `--fit-hfs`)* the width of the feature: a wavelength-constant reading error (0.0030 Å for 1974, 0.0040 Å for 1969), a precision floor of 0.0055 cm⁻¹, and an excess for the line's character code, wavelength-constant where the width comes from reading the plate and wavenumber-constant where it belongs to the line itself | 0.006 – 0.01 cm⁻¹ plain below 47500 cm⁻¹; `c` (1974) 0.0337 Å, `cl` (1969) 0.0044 Å, `d` 0.0073 Å, `ch` 0.0103 Å, `h` 0.0082 Å, `bl` 0.0085 Å, and `w` (1974) 0.0251 cm⁻¹ — the one code the residuals put in wavenumber |
 | w_hfs | hyperfine width of a LEVEL, constant in wavenumber, fitted on the 1974 lines alone and carried unchanged into 1969; a level with fewer than 4 lines of its own takes the typical width of its CONFIGURATION instead of zero | 274 levels carry one — 61 their own fitted width above 0.020 cm⁻¹, 213 their configuration's; 5 above 0.08 and marked as large; largest 0.102 cm⁻¹ |
 | w_cfg | the typical width of a configuration: the rms of the widths applied to the levels of it the fit can measure | 4f².6s 0.0642, 4f².6p 0.0237, 4f.5d² 0.0211, 4f².7s 0.0142, 4f².6d 0.0123, 4f².5g 0.0089, 4f².5f 0.0069, 4f³ 0.0047, 4f².5d 0.0043 cm⁻¹ |
-| k(n) | what is left over for a blend of n parts once that width is accounted for | 1.000, 1.483, 1.242, 1.116 for n = 1…4 |
+| k(n) | *(before 2026-10-15; now only in `--fit-hfs`)* what is left over for a blend of n parts once that width is accounted for | 1.000, 1.483, 1.242, 1.116 for n = 1…4 |
 | eta | rate at which a genuine recorded line sits at an anomalous position | 0.0002 (2ΔNLL = 51 against eta = 0) |
 | rho | UNRELATED lines per cm^-1: the free lines and what the calculation predicts for the unfound levels | median 0.039 (all recorded lines: 0.004 – 0.336, median 0.094) |
 | s, s_L | within-level and between-level spread of ln(I_obs·BF/I_pred·f) | 1.215, 0.280 |
@@ -5691,6 +5757,44 @@ by k(n), the second by w_hfs. `level_hfs_widths.csv` holds the fitted widths and
 `python level_positions.py --fit-hfs`; its `w_applied` column is the width actually used, and
 `make_LOPT_input.py` reads the same column, so the uncertainties LOPT is given and the ones the
 scan uses cannot drift apart.
+
+**One uncertainty model: the set's own (2026-10-15).** The two paragraphs above describe the
+score's own width model, which is withdrawn from the score. It weighed a line differently from
+LOPT: in `iter_hfs/`, 95321.235 had sigma 0.38 in the score and 0.233 in LOPT. An audit could then
+propose a "refit" that came only from the two sets of weights. Since 2026-10-15 a line is weighed
+as the set's LOPT fit weighs it, and placed where that fit places it:
+
+- **The adopted energies are LOPT's**, from the set's `LOPT_output_levels.txt`, and so are the Ritz
+  wavenumbers of the accepted rows. The table's own least-squares energies differ from them by
+  0.001 cm⁻¹ at the median and by up to 0.16 cm⁻¹ in `iter_hfs/`. A level LOPT does not list keeps
+  the table's energy, and the run says how many do.
+- **A line accepted for the transition being scored takes its record in the set's
+  `LOPT_input_lines.txt`.** It is placed at the record's wavenumber, which in a head-frame set
+  (`[hfs] apply`) is wn_obs + hfs_shift, and weighed by the record's uncertainty. That uncertainty
+  already holds the level widths, `u_hfs_shift`, a blend's centroid term and its accepted share.
+  A component of a blend is placed through LOPT's centroid. With the other components' Ritz values
+  held, the record puts it at (wn − Σ_others w_i·Ritz_i)/w_t, with the uncertainty σ/w_t, w being
+  the record weights. A weak component of a strong blend therefore says little about its own
+  position, and k(n) is no longer needed.
+- **Any other line** (free, or claimed by other transitions) takes its `unc_wn_obs` from the
+  classification table, or from the line list for a line the table never names. To that are added
+  the terms `make_LOPT_input.hfs_line_unc` would add for the candidate as a single component: the
+  widths of the levels whose hfs the correction does not account for, and in a head-frame set the
+  uncertainty of its shift (1 − kappa)·D. The line is judged at wn_obs + (1 − kappa)·D, kappa being
+  its own class's, so that its residual is measured where LOPT would fit it. A line that sits at the
+  head of its pattern (kappa = 1) takes neither the shift nor the widths. The spread of kappa about
+  its class, s·|D|, enters when the set's hfs model carries one (`[hfs] kappa_spread`).
+- u_M, the partner's D1, is added as before.
+
+The `--detail` table now prints each matched line's sigma, and its `d` is measured from where LOPT
+fits the line. The head of the report reads the set's model back on its own residuals: on
+`iter_hfs/` (2026-10-15) rms(residual/sigma) is 0.817 over the 4497 singly classified lines and
+0.818 over the 1125 blend components, against LOPT's RSS/dof of 0.80. The anomalous-position rate
+eta comes out at zero on those residuals: lines that were off were already given their own
+uncertainty in the registry, and the (1 − p) branch still bounds what any row can cost.
+
+`sigma_meas`, the character excesses and k(n) remain only in `--fit-hfs`, the fit of the
+per-level widths.
 
 **No level analysis in `final/` (2026-10-11).** Set 3 is the container of the reported
 quantities, used only to judge the overall agreement and internal consistency of the results
@@ -5713,6 +5817,14 @@ empirical trends whose cause is not known:
 - a line-to-line spread of kappa about its class of about 0.05·|D| (1974) and 0.26·|D| (1969),
   D the transition's pattern half-width from its center of gravity. Remeasured, it should come
   from the head-frame residuals of `iter_hfs/`.
+
+*Taken up 2026-10-15.* The spread is now the third term of the line model, fitted in the
+calibration about the kappas in use (see "The spread of kappa: a third term" under the two-term
+model). The floor and the spread were one finding: without the spread, the constant term took
+up the widest patterns' scatter. With it, the plain lines' constant is 0.017 cm⁻¹ (1974). This
+is not 0.0125, which was an all-class value of level_positions' own model, and that model is no
+longer used: `level_positions.py` now scores with the set's own uncertainties ("One uncertainty
+model" above).
 
 **One observed line, one uncertainty.** `w_hfs(low)² + w_hfs(upp)²` is a property of the
 *transition*, and one observed line may be assigned to several of them, sitting on levels of
@@ -6171,7 +6283,7 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `d_ln_J` | `ln_J` − `ln_J_alt`, which is what `gain` counts. Positive means the alternate fits this level's J better |
 | `ln_R_J` / `ln_R_alt_J` | `ln_R` and `ln_R_alt` each offset by the cleaner of the two fingerprints, so that their difference is `gain` |
 | `z_alt` | (E(alternate) − E_calc)/W: how far the alternate is from where the calculation puts the level, in units of that configuration's own scatter |
-| `action` | the disposition |
+| `action` | the disposition; blank when `gain` ≤ 0, where the adopted position holds and the alternate proposes nothing (before 2026-10-15 such rows were labeled too, `refit` or `top line`, though the printed report left them out) |
 
 ### Searching for a level nobody has found: `level_positions.py --unknown`
 

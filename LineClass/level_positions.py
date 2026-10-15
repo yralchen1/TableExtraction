@@ -166,6 +166,19 @@ brightness already explained" - so a strong prediction dumped on a feature that
 is fully explained without it is charged for the excess, exactly as it should
 be.
 
+How far the claims are believed is softened (2026-10-15).  C rests on Icalc,
+which is uncertain by the intensity width s (a factor of about three), so a
+feature whose claims already account for all of I_obs or more is not taken to
+have no light left for t.  C f enters both densities as C_eff,
+
+    ln C_eff = ln I_obs - s ln(1 + exp((ln I_obs - ln(C f)) / s))
+
+which is C f itself where the claims leave room, about I_obs where they
+exceed it, and passes from one to the other smoothly over one width
+(softened_claim).  A claimant of the feature's own size on a feature claimed
+three times over is then charged about a third of what the comparison at the
+face value of C charged it.
+
 Note that ln(I_obs (C+I_t)^-1 ... ) is the same number as the branching-fraction
 form ln(I_obs BF / (I_t f)) used elsewhere in the pipeline, since BF is by
 definition I_t / (C + I_t): one transition's prediction is never compared with a
@@ -197,11 +210,31 @@ it has not earned.
 Everything the formula needs is fitted to the run itself, by build(), and
 printed at the head of the report so that no number in it is a guess.
 
-sigma_t.  The wavenumber uncertainty of the matched line, built from the three
-things that are known to widen a feature, and combined with the partner energy
-uncertainty:
+sigma_t.  The wavenumber uncertainty of the matched line is THE SET'S OWN,
+the one make_LOPT_input.py gives LOPT, combined with the partner energy
+uncertainty (2026-10-15):
 
-    sigma_t^2 = (k(n) sigma_meas)^2 + w_hfs(low)^2 + w_hfs(upp)^2 + u_M^2
+    sigma_t^2 = sigma_set^2 + u_M^2
+
+A line that carries an accepted record of this very transition takes the
+uncertainty of that record in the set's LOPT_input_lines.txt, and is placed at
+that record's wavenumber: in a set with the hyperfine correction on
+([hfs] apply) that is wn_obs + hfs_shift, the head-frame value LOPT fits.  The
+record already holds the widths of the levels whose hfs is not computed,
+u_hfs_shift, the centroid term of a blend and the accepted share.  Any other
+line - free, or claimed by other transitions - is the measurement unc_wn_obs
+of the classification table (or of the line list, for a line the table never
+names) with the terms make_LOPT_input.hfs_line_unc would add for the candidate
+transition, a single component of BF = 1: the widths of its levels whose hfs
+is not computed, and in an hfs set the shift (1 - kappa) D of the line's kappa
+class and its uncertainty (candidate_terms).  So the score weighs a line as the
+fit does, and a "refit" can no longer come from two sets of weights or two
+positions of one line.  Before 2026-10-15 the score built its own width model,
+described in the rest of this section; it now serves only the fit of the
+per-level widths (--fit-hfs, fit_hfs_widths), and k(n) is gone with it, the
+blend inflation being in LOPT's record.
+
+The width model of --fit-hfs:
 
     sigma_meas^2 = (dlam(era) 1e-8 nu^2)^2 + u_F^2 + (dlam(char) 1e-8 nu^2)^2
                                                      + k(char)^2
@@ -288,11 +321,10 @@ across unchanged, and lines on unmarked levels do not move.  So the flag itself
 is not used: a line gets the hyperfine width of its two levels whatever its
 character, which is the only way the unflagged ones can be reached.
 
-k(n) is the rms of t = (wn_obs - rwn)/sigma_meas among features carrying n
-accepted transitions - about 1.01 unblended and 1.47 for a two-component blend,
-so a blend is less well placed than the model for its width admits.  It is
-shrunk toward 1 by a pseudo-count so that a class of five lines does not
-acquire a factor of its own.  u_M is the partner level D1 from
+k(n) was the rms of t = (wn_obs - rwn)/sigma_meas among features carrying n
+accepted transitions - about 1.01 unblended and 1.47 for a two-component blend
+(withdrawn 2026-10-15 with the rest of this width model).  u_M is the partner
+level D1 from
 LOPT_output_levels.txt, 0.002 - 0.03 cm^-1; adding it in quadrature slightly
 overstates sigma, since the two are positively correlated, and the direction is
 conservative.
@@ -889,9 +921,10 @@ RHO_BG_FLOOR = 0.05  # the background rate of unrelated lines is never taken
 LN_BG_DROP = 3.0     # and the same cap on the intensity half: the H0 density
                      # of a free feature's brightness is never more than this
                      # far below the all-lines value
-SHRINK_N = 25.0      # pseudo-count pulling k(n) toward 1
-K_WORST = 1.6        # the largest k(n) the run produces, used to widen the
-                     # matching window (see ln_ratio)
+SHRINK_N = 25.0      # pseudo-count pulling k(n) toward 1 (--fit-hfs only)
+K_WORST = 1.6        # how much wider than the line's own sigma the matching
+                     # window is drawn (see ln_ratio; it was the largest k(n)
+                     # when the score had a blend factor of its own)
 ETA_MAX = 0.25       # upper bound of the anomalous-position rate
 MIN_LEVEL_LINES = 5  # accepted lines a level needs to enter the s_L estimate
 S0_FLOOR = 0.05      # the smallest s0 the intensity-width model may take
@@ -955,6 +988,12 @@ PRIOR_MIN_CFG = 3    # found levels a configuration needs before its levels
                      # enter the fit of the position prior (leave-one-out W)
 PRIOR_MIN_N = 30     # values of z below which no prior is fitted at all
 LOPT_LEVELS_FILE = os.path.join(HERE, 'LOPT_output_levels.txt')
+# the set's LOPT input, whose records give the accepted lines their positions
+# and uncertainties (section 4, sigma_t); LOPT_hfs_shifts.txt beside it maps a
+# head-frame record back to its measured wavenumber
+LOPT_INPUT_FILE = os.path.join(HERE, 'LOPT_input_lines.txt')
+LOPT_WN_TOL = 0.0015 # cm^-1: a record is the accepted row's when its measured
+                     # wavenumber is this close (the file holds 3 decimals)
 FIRM_LN_R = 3.0      # ln R at or above which a level with no alternate
                      # position is settled enough to go into the registry
 FIRM_TOL = 0.5       # a registry entry is honoured only if ln R at the
@@ -1110,7 +1149,11 @@ def read_partner_uncertainties(path=None):
 
 
 def fit_k_blend(t, n, log):
-    """k(n): how much the quoted uncertainty understates a blend of n parts."""
+    """k(n): how much the quoted uncertainty understates a blend of n parts.
+
+    Used only by the fit of the per-level widths (--fit-hfs), which keeps
+    the width model of section 4; the score itself takes the set's own
+    uncertainties, whose LOPT records already carry a blend's."""
     out, rows = {}, []
     for nb in sorted(set(int(x) for x in n if x >= 1)):
         m = (n == nb)
@@ -1129,6 +1172,424 @@ def fit_k_blend(t, n, log):
     for nb, cnt, rms, k in rows:
         log(f"    n={nb:2d}  N={cnt:5d}  rms(t)={rms:.3f}  k={k:.3f}")
     return out
+
+
+def read_lopt_energies(path=None):
+    """{level_id: E}, the energies of LOPT's level output, or {} if the file
+    is absent.  These, and not the classification table's own least-squares
+    energies, are the adopted positions of the set: they are what IDEN2
+    shows and what the reported uncertainties belong to."""
+    path = path or LOPT_LEVELS_FILE
+    if not os.path.exists(path):
+        return {}
+    d = pd.read_csv(path, sep='\t', dtype={'Designation': str})
+    return {str(k).strip(): float(v)
+            for k, v in zip(d['Designation'], d['Energy']) if pd.notna(v)}
+
+
+def read_lopt_records(path=None):
+    """The records of the set's LOPT input, or None if it has none.
+
+    A frame of low_id, upp_id, wn_lopt (the wavenumber LOPT fits), wn_meas
+    (the measured one: wn_lopt taken back through LOPT_hfs_shifts.txt in a
+    head-frame set, hfs_correction.measured), unc (the uncertainty LOPT is
+    given), flag and weight (a blend component's share of the centroid).  The fields are cut by column, as make_LOPT_input.py
+    writes them: an intensity that fills its field runs into the next one,
+    so a whitespace split would merge two fields on the brightest lines.
+    """
+    import hfs_correction
+    import make_LOPT_input
+    path = path or LOPT_INPUT_FILE
+    if not os.path.exists(path):
+        return None
+    shifts = hfs_correction.read_shifts(path)
+    fields = make_LOPT_input.FIELDS
+    rows = []
+    with open(path, encoding='latin-1', newline='') as fh:
+        for raw in fh:
+            rec = raw.rstrip('\r\n')
+            if not rec.strip():
+                continue
+            cut = {k: rec[a - 1:b].strip() for k, (a, b) in fields.items()}
+            lo, up = cut['lower_level'], cut['upper_level']
+            try:
+                wn, unc = float(cut['wavenumber']), float(cut['uncertainty'])
+            except ValueError:
+                continue
+            if not lo or not up:
+                continue
+            try:
+                weight = float(cut['weight'])
+            except ValueError:
+                weight = 0.0
+            rows.append((lo, up, wn,
+                         hfs_correction.measured(lo, up, wn, shifts), unc,
+                         cut['flags'], weight))
+    return pd.DataFrame(rows, columns=['low_id', 'upp_id', 'wn_lopt',
+                                       'wn_meas', 'unc', 'flag', 'weight'])
+
+
+def use_lopt_energies(real, log=print):
+    """Put the set's LOPT energies into the table read as the run.
+
+    The classification table carries the energies of classify_lines' own
+    least-squares fit, which differ from LOPT's by up to a few tenths of a
+    wavenumber on a level resting on few lines.  A score evaluated there
+    could propose a "refit" to the position LOPT already holds, so the
+    adopted energies - and the Ritz wavenumbers rwn of the accepted rows - are
+    LOPT's wherever LOPT has the level.  A level LOPT does not list (one
+    inserted since the last LOPT run) keeps the table's energy, and is
+    counted.
+    """
+    e = read_lopt_energies()
+    if not e:
+        log("  LOPT_output_levels.txt not found - the adopted energies are "
+            "the classification table's")
+        return real
+    real = real.copy()
+    moved, missing = [], set()
+    for col, ecol in (('low_id', 'low_E'), ('upp_id', 'upp_E')):
+        ids = real[col].fillna('').astype(str)
+        new = ids.map(e)
+        has = new.notna() & (ids != '')
+        missing |= set(ids[~has & (ids != '') & real[ecol].notna()])
+        moved.append((new[has] - real.loc[has, ecol]).abs())
+        real.loc[has, ecol] = new[has]
+    if 'rwn' in real.columns:
+        real['rwn'] = (real['upp_E'] - real['low_E']).abs()
+    d = pd.concat(moved).dropna()
+    log(f"  adopted energies: LOPT's ({len(e)} levels); they differ from the "
+        f"table's own fit by {d.median() if len(d) else 0.0:.4f} cm^-1 "
+        f"(median), {d.max() if len(d) else 0.0:.4f} at most"
+        + (f"; {len(missing)} levels LOPT does not list keep the table's"
+           if missing else ''))
+    return real
+
+
+def hfs_model():
+    """The set's hyperfine correction (hfs_correction.Model), or None when
+    its [hfs] apply is off."""
+    if cl.CFG is None or not cl.CFG.hfs.apply:
+        return None
+    import hfs_correction
+    return hfs_correction.Model(cl.CFG.hfs)
+
+
+def spread_of(model, era):
+    """s(era), the line-to-line spread of kappa about its class per unit of
+    |D|, for each line: the model's kappa_spread ({era: s}, [hfs]
+    kappa_spread) where it carries one, else 0."""
+    table = getattr(model, 'kappa_spread', None) or {}
+    era = np.asarray(era)
+    out = np.zeros(len(era))
+    for e in set(era.tolist()):
+        v = table.get(int(e), table.get(str(e), 0.0)) or 0.0
+        out[era == e] = float(v)
+    return out
+
+
+def level_terms(ctx, level_id):
+    """(S, u_known^2, u_undet^2, w_absent^2, w_undet^2) of one level, cm^-1:
+    what it adds to a transition's hfs shift and uncertainty, as
+    make_LOPT_input.py counts them.  Without the correction a level adds its
+    hyperfine width alone.  With it, a level whose A is determined (or whose
+    sublevels are resolved) adds its S and u_S and no width; a level listed
+    without a usable A adds its u_S and its width, of which only the larger
+    is carried (hfs_line_unc); a level absent from the table of A constants
+    adds its width.
+    """
+    lid = str(level_id)
+    w2 = ctx.w_hfs.get(lid, 0.0) ** 2
+    model = getattr(ctx, 'hfs', None)
+    if model is None:
+        return 0.0, 0.0, 0.0, w2, 0.0
+    cache = ctx.__dict__.setdefault('_level_terms', {})
+    if lid not in cache:
+        S, u_S = model.S(lid)
+        if model.is_undetermined(lid):
+            cache[lid] = (0.0, 0.0, u_S ** 2, 0.0, w2)
+        elif model.is_corrected(lid):
+            cache[lid] = (S, u_S ** 2, 0.0, 0.0, 0.0)
+        else:
+            cache[lid] = (0.0, 0.0, 0.0, w2, 0.0)
+    return cache[lid]
+
+
+def transition_terms(ctx, level_id, partner, sign):
+    """The per-transition half of sigma_set, for the level being scanned and
+    each of its partners (arrays over the partners).
+
+    D       the displacement S(upper) - S(lower) of the transition's pattern
+    u2k     the variance of D owed to the determined A constants
+    u2u     the variance of D owed to the A constants that are not determined
+    w2a     the squared widths of the levels whose hfs the correction does
+            not account for and that are absent from the table of A
+            constants (every width when the correction is off)
+    w2u     the squared widths of the levels listed without a usable A
+    acc_i   the observed line this transition is accepted on, -1 if none;
+            acc_wn and acc_unc are that line's LOPT record (ctx.acc_rec)
+    """
+    n = len(partner)
+    own = level_terms(ctx, level_id)
+    out = {k: np.zeros(n) for k in ('D', 'u2k', 'u2u', 'w2a', 'w2u',
+                                    'acc_wn', 'acc_unc')}
+    out['acc_i'] = np.full(n, -1, dtype=int)
+    rec = getattr(ctx, 'acc_rec', None) or {}
+    for i, (p, sg) in enumerate(zip(partner, sign)):
+        t = level_terms(ctx, p)
+        out['D'][i] = sg * (own[0] - t[0])
+        out['u2k'][i] = own[1] + t[1]
+        out['u2u'][i] = own[2] + t[2]
+        out['w2a'][i] = own[3] + t[3]
+        out['w2u'][i] = own[4] + t[4]
+        key = ((str(p), str(level_id)) if sg > 0
+               else (str(level_id), str(p)))
+        r = rec.get(key)
+        if r is not None:
+            out['acc_i'][i], out['acc_wn'][i], out['acc_unc'][i] = r
+    return out
+
+
+def candidate_terms(ctx, tt, pick, nu):
+    """sigma_set^2 and the residual d of the lines `pick` (indices into the
+    observed list) at the Ritz wavenumbers `nu`, both of shape (T, K) for the
+    T transitions of `tt` (transition_terms).
+
+    The line accepted for this very transition takes its LOPT record: that
+    record's uncertainty, and d measured from its wavenumber.  Any other line
+    takes make_LOPT_input.hfs_line_unc for the candidate as a single
+    component of BF = 1: its measurement unc_wn_obs, the widths of the levels
+    the correction does not account for, and in a head-frame set the
+    uncertainty of the shift (1 - kappa) D that moves it to where LOPT would
+    fit it.  kappa is the line's own class's (hfs_correction.Model.kappa_of),
+    and 1 for a line that sits at the head of its pattern, which also drops
+    the widths, as make_LOPT_input does.  The spread of kappa about its class,
+    s |D|, enters for a line whose kappa is a fitted class when the model
+    carries one (spread_of).
+    """
+    unc = ctx.unc_o[pick]
+    D = tt['D'][:, None]
+    w2a, w2u = tt['w2a'][:, None], tt['w2u'][:, None]
+    if getattr(ctx, 'hfs', None) is None:
+        shift = 0.0
+        var = unc ** 2 + w2a
+    else:
+        one = 1.0 - ctx.kap_o[pick]
+        head = ctx.head_o[pick]
+        shift = one * D
+        var = (unc ** 2
+               + np.where(head, 0.0,
+                          w2a + np.maximum(w2u,
+                                           one ** 2 * tt['u2u'][:, None]))
+               + one ** 2 * tt['u2k'][:, None]
+               + (ctx.ukap_o[pick] * D) ** 2
+               + (ctx.spread_o[pick] * D) ** 2)
+    acc = pick == tt['acc_i'][:, None]
+    d = np.where(acc, tt['acc_wn'][:, None] - nu,
+                 ctx.wn_o[pick] + shift - nu)
+    var = np.where(acc, tt['acc_unc'][:, None] ** 2, var)
+    return var, d
+
+
+def softened_claim(x, claimed_f, s):
+    """ln of the claimed light a blend comparison believes (section 3).
+
+    The other transitions on a feature claim the predicted intensity
+    claimed_f, and their Icalc is uncertain by the intensity width s.  Where
+    the claims leave room (claimed_f well below I_obs = e^x) they are taken
+    as they stand; where they already account for all of I_obs or more, they
+    are believed only up to about I_obs, so that a calculation that may be a
+    factor of three high does not rule a further claimant's light out.  The
+    passage between the two is smooth and one width s wide:
+
+        ln C_eff = x - s ln(1 + exp((x - ln claimed_f) / s))
+
+    which is ln claimed_f when claimed_f << I_obs, x when claimed_f >> I_obs,
+    and x - s ln 2 where the two are equal.  A free feature (claimed_f = 0)
+    gives -inf, C_eff = 0.
+    """
+    claimed_f = np.asarray(claimed_f, dtype=float)
+    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+        m0 = np.log(claimed_f)
+        out = x - s * np.logaddexp(0.0, (x - m0) / s)
+    return np.where(claimed_f > 0, out, -np.inf)
+
+
+def read_line_keys():
+    """{wn rounded to 4 decimals: wn_key} of the observed line list, when its
+    layout names a wn_key column (a calibrated set's list: Sugar's own value
+    beside the corrected one); {} otherwise, the list's wn being its key."""
+    import openpyxl
+    layout = cl.CFG.lines
+    if 'wn_key' not in layout.columns:
+        return {}
+    wb = openpyxl.load_workbook(cl.LINES_FILE, read_only=True, data_only=True)
+    ws = wb[layout.sheet]
+    col = cl.column_index(ws, layout, cl.LINES_FILE)
+    out = {}
+    for row in ws.iter_rows(min_row=2):
+        wn, key = row[col['wn']].value, row[col['wn_key']].value
+        if wn is None or key in (None, ''):
+            continue
+        out[round(float(wn), 4)] = float(key)
+    wb.close()
+    return out
+
+
+def observed_uncertainties(real, obs):
+    """(unc, key): the measurement uncertainty and the wn_key of every
+    recorded line, arrays aligned with `obs`.
+
+    The uncertainty is the classification table's unc_wn_obs, which is the
+    line list's with the hand-set values of the inflation registry laid over
+    it (classify_lines.apply_inflated_uncertainties) - the value
+    make_LOPT_input.py starts from.  A line the table never names keeps the
+    line list's value, and a line with none at all the median of the list.
+    The key is the table's wn_key, else the list's own, else the wavenumber.
+    """
+    wn = obs['wn_obs'].to_numpy(dtype=float)
+    k4 = np.round(wn, 4)
+    unc = obs['unc_wn_obs'].to_numpy(dtype=float).copy()
+    keys = wn.copy()
+    if 'unc_wn_obs' in real.columns:
+        t = real.dropna(subset=['wn_obs']).drop_duplicates('wn_obs')
+        tk = np.round(t['wn_obs'].to_numpy(dtype=float), 4)
+        u_of = dict(zip(tk, t['unc_wn_obs'].to_numpy(dtype=float)))
+        key_of = (dict(zip(tk, pd.to_numeric(t['wn_key'], errors='coerce')))
+                  if 'wn_key' in t.columns else {})
+        listed = read_line_keys() if cl.CFG is not None else {}
+        for i, k in enumerate(k4):
+            u = u_of.get(k)
+            if u is not None and np.isfinite(u) and u > 0:
+                unc[i] = u
+            kk = key_of.get(k)
+            if kk is None or not np.isfinite(kk):
+                kk = listed.get(k, wn[i])
+            keys[i] = kk
+    good = np.isfinite(unc) & (unc > 0)
+    if not good.all():
+        unc[~good] = float(np.median(unc[good])) if good.any() else 0.05
+    return unc, keys
+
+
+def observed_hfs_terms(ctx, key_o, log=print):
+    """The line half of sigma_set in a head-frame set, one entry per
+    recorded line: kap_o and ukap_o, the kappa of its class and its
+    uncertainty; head_o, true for a line that sits at the head of its pattern
+    (kappa = 1, no level widths); spread_o, s(era) for a line whose kappa is
+    a fitted class, else 0.  Without the correction ctx.hfs is None and the
+    arrays are zero."""
+    n = len(ctx.wn_o)
+    ctx.hfs = hfs_model()
+    ctx.kap_o, ctx.ukap_o = np.zeros(n), np.zeros(n)
+    ctx.head_o = np.zeros(n, dtype=bool)
+    ctx.spread_o = np.zeros(n)
+    ctx.kappa_ref = (0.0, 0.0)
+    if ctx.hfs is None:
+        return
+    import hfs_kappa
+    m = ctx.hfs
+    for i, (c, k) in enumerate(zip(ctx.char_o, key_o)):
+        c = '' if c is None else str(c).strip()
+        if m.sits_at_head(c, float(k)):
+            ctx.kap_o[i], ctx.head_o[i] = 1.0, True
+        else:
+            ctx.kap_o[i], ctx.ukap_o[i] = m.kappa_of(c, float(k))
+    era = np.array([hfs_kappa.era_of(float(k)) for k in key_o])
+    ctx.spread_o = np.where(ctx.head_o, 0.0, spread_of(m, era))
+    ctx.kappa_ref = (m.kappa['plain_1974'][0], m.kappa['plain_1969'][0])
+    sp = getattr(m, 'kappa_spread', None)
+    log(f"  hyperfine correction on: lines judged where LOPT would fit them, "
+        f"at wn_obs + (1 - kappa) D; {int(ctx.head_o.sum())} of {n} lines "
+        f"sit at the head of their pattern (kappa = 1); kappa spread "
+        f"{dict(sp) if sp else 'none'}")
+
+
+def accepted_fit(acc, ctx, log=print):
+    """wn_fit and unc_fit of every accepted row, and ctx.acc_rec.
+
+    An accepted row is placed where LOPT fits it and weighed as LOPT weighs
+    it: the record of its transition in the set's LOPT input whose measured
+    wavenumber is the row's own (section 4).  A row LOPT is not given - the
+    resolved hfs companions, which make_LOPT_input.py leaves out - or a set
+    with no LOPT input falls back on the candidate formula (candidate_terms).
+    ctx.acc_rec maps (low_id, upp_id) to (line index, nu_fit, unc_nu_fit):
+    the position and uncertainty the record gives the transition itself,
+    which for a blend component is not the line's own (see below).
+    """
+    recs = read_lopt_records()
+    by_pair = {}
+    if recs is not None:
+        fit = recs[~recs['flag'].str.contains('P', na=False)]
+        for lo, up, wl, wm, u, w in zip(fit['low_id'], fit['upp_id'],
+                                        fit['wn_lopt'], fit['wn_meas'],
+                                        fit['unc'], fit['weight']):
+            by_pair.setdefault((lo, up), []).append((wm, wl, u, w))
+    ctx.acc_rec = {}
+    wn_fit = np.full(len(acc), np.nan)
+    unc_fit = np.full(len(acc), np.nan)
+    weight = np.full(len(acc), np.nan)
+    lines = acc['line_idx'].to_numpy(dtype=int)
+    for j, (lo, up, wn, li_) in enumerate(zip(
+            acc['low_id'], acc['upp_id'], acc['wn_obs'].to_numpy(dtype=float),
+            lines)):
+        hit = [r for r in by_pair.get((lo, up), ())
+               if abs(r[0] - wn) <= LOPT_WN_TOL]
+        if hit:
+            wn_fit[j], unc_fit[j], weight[j] = hit[0][1:]
+        else:
+            tt = transition_terms(ctx, up, [lo], [1.0])
+            var, d = candidate_terms(ctx, tt, np.array([[li_]]),
+                                     np.zeros((1, 1)))
+            wn_fit[j] = float(d[0, 0]) + (wn - ctx.wn_o[li_])
+            unc_fit[j] = math.sqrt(float(var[0, 0]))
+    n_rec = int(np.isfinite(weight).sum())
+    acc['wn_fit'] = wn_fit
+    acc['unc_fit'] = unc_fit
+    # A component of a blend is not fitted at its own Ritz value: LOPT fits
+    # the line's wavenumber to the centroid sum_i w_i Ritz_i of its
+    # components.  With the other components' Ritz values held, the record
+    # places this one at nu_t = (wn_lopt - sum_others w_i Ritz_i) / w_t, with
+    # the uncertainty sigma / w_t - a weak component of a strong blend says
+    # little about its own position, and that is what the score is told.
+    # The other components' Ritz values are those of the adopted energies.
+    pos, unc_t = wn_fit.copy(), unc_fit.copy()
+    groups = {}
+    for j, li_ in enumerate(lines):
+        if np.isfinite(weight[j]) and weight[j] > 0:
+            groups.setdefault(int(li_), []).append(j)
+    n_blend = 0
+    for js in groups.values():
+        if len(js) < 2:
+            continue
+        ritz = np.array([abs(ctx.e_final.get(str(acc['upp_id'].iat[j]),
+                                             np.nan)
+                             - ctx.e_final.get(str(acc['low_id'].iat[j]),
+                                               np.nan)) for j in js])
+        w = weight[js]
+        if not np.isfinite(ritz).all():
+            continue
+        total = float(w.sum())
+        for k, j in enumerate(js):
+            others = float(np.dot(np.delete(w, k), np.delete(ritz, k)))
+            pos[j] = (total * wn_fit[j] - others) / w[k]
+            unc_t[j] = total * unc_fit[j] / w[k]
+            n_blend += 1
+    for j, (lo, up, li_) in enumerate(zip(acc['low_id'], acc['upp_id'],
+                                          lines)):
+        ctx.acc_rec[(lo, up)] = (int(li_), float(pos[j]), float(unc_t[j]))
+    acc['nu_fit'] = pos
+    acc['unc_nu_fit'] = unc_t
+    if recs is None:
+        log(f"  {os.path.basename(LOPT_INPUT_FILE)} not found - every "
+            f"accepted row takes the candidate formula of section 4")
+    else:
+        log(f"  accepted rows at their LOPT records: {n_rec} of {len(acc)}, "
+            f"{n_blend} of them components of blends, placed through LOPT's "
+            f"centroid"
+            + (f"; {len(acc) - n_rec} LOPT is not given (resolved hfs "
+               f"companions, or rows newer than the LOPT input) take the "
+               f"candidate formula" if n_rec < len(acc) else ''))
 
 
 # ---------------------------------------------------------------------------
@@ -1999,6 +2460,8 @@ def build(args, log=print):
         ls.E_INPUT_CSV = args.energies_csv
 
     levels, real, _ = ls.read_run()
+    if not args.lopt:
+        real = use_lopt_energies(real, log)
     per = mc.per_level_table(real, levels)
     ctx.per = per
     ctx.e_final = dict(zip(per['level_id'], per['E_final']))
@@ -2016,12 +2479,13 @@ def build(args, log=print):
     ctx.obs = obs
     ctx.wn_o = obs['wn_obs'].to_numpy()
     ctx.int_o = obs['obs_intens'].to_numpy(dtype=float)
-    ctx.unc_o = obs['unc_wn_obs'].to_numpy(dtype=float)
     ctx.char_o = obs['char'].to_numpy()
-    # the modelled width of each recorded feature, section 4: this, and not
-    # the quoted unc_wn_obs, is what a candidate position is judged against
-    ctx.meas_o = meas_sigma(ctx.wn_o, ctx.char_o, ctx.unc_o)
+    # the measurement uncertainty of each recorded line, section 4: the
+    # classification table's unc_wn_obs (registry inflations included), the
+    # line list's for a line the table never names
+    ctx.unc_o, key_o = observed_uncertainties(real, obs)
     ctx.w_hfs = read_hfs_widths(log=log)
+    observed_hfs_terms(ctx, key_o, log)
     with np.errstate(divide='ignore', invalid='ignore'):
         ctx.ln_int_o = np.log(np.where(ctx.int_o > 0, ctx.int_o, np.nan))
     log(f"observed lines: {len(obs)}, {ctx.wn_o[0]:.1f} - {ctx.wn_o[-1]:.1f} "
@@ -2033,7 +2497,7 @@ def build(args, log=print):
                          len(ctx.wn_o) - 1)]
         - ctx.wn_o[np.clip(np.arange(len(ctx.wn_o)) - K_RHO // 2, 0,
                            len(ctx.wn_o) - 1)])
-    ctx.sig_loc_o = running(ctx.meas_o, K_UNC, 'median')
+    ctx.sig_loc_o = running(ctx.unc_o, K_UNC, 'median')
     ctx.bg_mu_o = running(ctx.ln_int_o, K_BG, 'mean')
     ctx.bg_sd_o = running(ctx.ln_int_o, K_BG, 'std')
     ctx.bg_sd_o = np.maximum(ctx.bg_sd_o, 0.2)
@@ -2070,6 +2534,8 @@ def build(args, log=print):
     if miss.any():
         log(f"  WARNING: {int(miss.sum())} accepted rows have no exact line in "
             f"the observed workbook")
+    # where LOPT fits each accepted row, and with what uncertainty
+    accepted_fit(acc, ctx, log)
 
     # C, the predicted intensity claimed on each observed line, and who claims
     ctx.claimed_tot = np.zeros(len(ctx.wn_o))
@@ -2100,26 +2566,23 @@ def build(args, log=print):
 
     # --- the measured ingredients ---------------------------------------
     log("ingredients measured on this run:")
-    a = acc.dropna(subset=['rwn', 'unc_wn_obs']).copy()
-    a = a[a['unc_wn_obs'] > 0]
-    meas = meas_sigma(a['wn_obs'].to_numpy(),
-                      a['char'].fillna('').astype(str).to_numpy(),
-                      a['unc_wn_obs'].to_numpy(dtype=float))
-    v_hfs = hfs_pair(ctx.w_hfs, a['low_id'].astype(str),
-                     a['upp_id'].astype(str))
-    # k(n) is what is left over once the width of the feature is accounted
-    # for, hyperfine part included: measured without it, it would charge the
-    # blending for a width that belongs to the level
-    t = ((a['wn_obs'] - a['rwn']).to_numpy() / np.sqrt(meas ** 2 + v_hfs))
-    nb = a['n_accepted'].fillna(1).to_numpy(dtype=float)
-    ctx.k_n = fit_k_blend(t, nb, log)
-    kn = np.array([ctx.k_n.get(int(x), 1.0) for x in nb])
-    sigma = np.sqrt((kn * meas) ** 2 + v_hfs)
-    res = (a['wn_obs'] - a['rwn']).to_numpy()
+    a = acc.dropna(subset=['rwn', 'unc_nu_fit']).copy()
+    a = a[a['unc_nu_fit'] > 0]
+    # the set's own uncertainty model, read back on its own residuals: the
+    # LOPT record of each accepted row against the Ritz value of LOPT's
+    # energies.  No constant is fitted here (section 4); a class far from 1
+    # is a class the set's model mis-states, and the place to mend it is the
+    # set's model, not this score
+    sigma = a['unc_nu_fit'].to_numpy(dtype=float)
+    res = (a['nu_fit'] - a['rwn']).to_numpy()
     z = res / sigma
-    log(f"  the width model: rms of residual/sigma over the {len(a)} accepted "
-        f"lines = {math.sqrt(float(np.mean(z ** 2))):.3f}; a class that comes "
-        f"out far from 1 is a class whose width is mis-stated")
+    one = (a['n_accepted'].fillna(1).to_numpy(dtype=float) <= 1)
+    log(f"  the set's uncertainties: rms of residual/sigma over the "
+        f"{int(one.sum())} singly classified accepted lines = "
+        f"{math.sqrt(float(np.mean(z[one] ** 2))):.3f}, over the "
+        f"{int((~one).sum())} components of blends "
+        f"{math.sqrt(float(np.mean(z[~one] ** 2))) if (~one).any() else 0:.3f}"
+        f" (a component placed through its blend's centroid)")
     code = np.array([normalize_char(c) for c in a['char'].fillna('')])
     era = era_of(a['wn_obs'].to_numpy())
     seen = sorted(set(zip(era, code)))
@@ -2132,7 +2595,7 @@ def build(args, log=print):
     # the rate at which a GENUINE line sits at an anomalous position, and the
     # background it is mixed against is every line it could have been taken for
     rho_a = np.interp(a['wn_obs'].to_numpy(), ctx.wn_o, ctx.rho_o)
-    ctx.eta = fit_eta((a['wn_obs'] - a['rwn']).to_numpy(), sigma, rho_a, log)
+    ctx.eta = fit_eta(res, sigma, rho_a, log)
 
     f = np.array([ls.scale_bias_factor(w, ctx.bias) for w in a['wn_obs']])
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -2255,10 +2718,10 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
     ls_pred = g.get('ls10', np.full(len(keep), np.nan))[keep]
     partner = g['partner'][keep]
     own = ctx.own_claim.get(level_id, {})
-    # the hyperfine width of the pair of levels the transition joins: the
-    # level being scanned contributes its own to every one of its lines
-    v_hfs = (ctx.w_hfs.get(str(level_id), 0.0) ** 2
-             + np.array([ctx.w_hfs.get(str(x), 0.0) ** 2 for x in partner]))
+    # the transition's half of the set's uncertainty model (section 4): the
+    # widths of its levels, its hfs displacement D, and the LOPT record of the
+    # line it is accepted on, if any
+    tt = transition_terms(ctx, level_id, partner, sign)
 
     total = np.zeros(len(e_grid))
     rows = None
@@ -2275,28 +2738,36 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
                         ctx.calib, ctx.bias).reshape(nu_s.shape)
         sig_loc = np.interp(nu_s, ctx.wn_o, ctx.sig_loc_o)
 
-        # the nearest recorded line
-        j = np.searchsorted(ctx.wn_o, nu_s)
+        # the nearest recorded line to where the transition would be
+        # measured: in a head-frame set a plain line sits (1 - kappa) D from
+        # the head-frame Ritz value, so the search is made there (with the
+        # plain kappa of the era; the line found is then judged with its own)
+        target = nu_s
+        if getattr(ctx, 'hfs', None) is not None:
+            k_ref = np.where(nu_s < ERA_SPLIT, ctx.kappa_ref[0],
+                             ctx.kappa_ref[1])
+            target = nu_s - (1.0 - k_ref) * tt['D'][:, None]
+        j = np.searchsorted(ctx.wn_o, target)
         j1 = np.clip(j, 0, len(ctx.wn_o) - 1)
         j0 = np.clip(j - 1, 0, len(ctx.wn_o) - 1)
-        d1 = ctx.wn_o[j1] - nu_s
-        d0 = ctx.wn_o[j0] - nu_s
+        d1 = ctx.wn_o[j1] - target
+        d0 = ctx.wn_o[j0] - target
         pick = np.where(np.abs(d0) < np.abs(d1), j0, j1)
-        d = ctx.wn_o[pick] - nu_s
+        # sigma_set^2 of that line under this transition, and its residual
+        # from where LOPT would fit it (section 4)
+        v_set, d = candidate_terms(ctx, tt, pick, nu_s)
 
         # The window is set by whichever is worse, the width typical of the
-        # neighbourhood or the one the candidate line itself is modelled at: a
+        # neighbourhood or the one the candidate line itself carries: a
         # feature flagged complex where its neighbours are plain must not be
-        # ruled out for lying half its own width away.  K_WORST covers the
-        # largest k(n) the run produces, and the hyperfine widths of the two
-        # levels widen it further.  Widening the window costs nothing: a line
-        # far out has N(d; 0, sigma)/rho far below 1 and contributes
-        # ln(1 - p), the same as an absence.
-        unc_near = ctx.meas_o[pick]
-        unc_near = np.where(np.isfinite(unc_near) & (unc_near > 0), unc_near,
-                            sig_loc)
+        # ruled out for lying half its own width away.  The transition's own
+        # terms widen it further, and K_WORST beyond that.  Widening the
+        # window costs nothing: a line far out has N(d; 0, sigma)/rho far
+        # below 1 and contributes ln(1 - p), the same as an absence.
+        unc_near = ctx.unc_o[pick]
         sig_w = np.sqrt(np.maximum(sig_loc, K_WORST * unc_near) ** 2
-                        + (u_m ** 2 + v_hfs)[:, None])
+                        + np.maximum(v_set - unc_near ** 2, 0.0)
+                        + (u_m ** 2)[:, None])
         w = N_SIGMA * sig_w
         matched = (np.abs(d) <= w) & ok
 
@@ -2305,19 +2776,11 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
 
         if matched.any():
             mi = pick[matched]
-            unc = ctx.meas_o[mi]
-            unc = np.where(np.isfinite(unc) & (unc > 0), unc,
-                           sig_loc[matched])
             # C: what other levels already claim on that feature
             own_here = np.array([own.get(int(x), 0.0) for x in mi])
             claimed = np.maximum(ctx.claimed_tot[mi] - own_here, 0.0)
-            n_blend = ctx.n_acc_line[mi] - (own_here > 0).astype(int) + 1
-            kn = np.array([ctx.k_n.get(int(x), ctx.k_n.get(1, 1.0))
-                           for x in n_blend])
             u_here = np.repeat(u_m, nu_s.shape[1]).reshape(nu_s.shape)[matched]
-            v_here = np.repeat(v_hfs,
-                               nu_s.shape[1]).reshape(nu_s.shape)[matched]
-            sig = np.sqrt((kn * unc) ** 2 + u_here ** 2 + v_here)
+            sig = np.sqrt(v_set[matched] + u_here ** 2)
 
             # the intensity ratio
             i_here = np.repeat(i_pred, nu_s.shape[1]).reshape(nu_s.shape)[matched]
@@ -2349,10 +2812,13 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
                            ln_norm(x, ctx.unk_mu_o[mi], ctx.unk_sd_o[mi])),
                 ln_bg - LN_BG_DROP)
             ln_bg_f = np.where(np.isfinite(ln_bg_f), ln_bg_f, ln_bg)
+            # the claims of the other transitions, believed softly where they
+            # already account for the whole feature (softened_claim, section 3)
+            c_eff = np.exp(softened_claim(x, claimed * f, s_here))
             with np.errstate(divide='ignore', invalid='ignore'):
-                ln_p1 = ln_intensity(x, (claimed + i_here) * f, s_here, ln_bg)
+                ln_p1 = ln_intensity(x, c_eff + i_here * f, s_here, ln_bg)
                 ln_p0 = np.where(free, ln_bg_f,
-                                 ln_intensity(x, claimed * f, s_here, ln_bg))
+                                 ln_intensity(x, c_eff, s_here, ln_bg))
             ln_g = np.where(np.isfinite(ln_p1 - ln_p0), ln_p1 - ln_p0, 0.0)
 
             dens = (np.exp(-0.5 * (d[matched] / sig) ** 2)
@@ -2462,6 +2928,14 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
             tab['wn_obs'] = np.where(matched[:, 0], ctx.wn_o[pick[:, 0]],
                                      np.nan)
             tab['d'] = np.where(matched[:, 0], d[:, 0], np.nan)
+            # where LOPT would fit the matched line, and the set's
+            # uncertainty of it, without and with the partner's
+            tab['wn_fit'] = np.where(matched[:, 0], nu_s[:, 0] + d[:, 0],
+                                     np.nan)
+            tab['sigma_line'] = np.where(matched[:, 0],
+                                         np.sqrt(v_set[:, 0]), np.nan)
+            tab['sigma'] = np.where(matched[:, 0],
+                                    np.sqrt(v_set[:, 0] + u_m ** 2), np.nan)
             tab['I_obs'] = np.where(matched[:, 0], ctx.int_o[pick[:, 0]],
                                     np.nan)
             claim_col = np.full(len(partner), np.nan)
@@ -2671,15 +3145,20 @@ def run_digest(ctx):
     h.update(('%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.2f|%.2f|%.3f'
               % (ctx.eta, ctx.s, ctx.s_L, w.a0, w.a1, w.c, w.p_ref,
                  w.s_ref, w.k_min)).encode())
-    # the width model: a changed constant changes every level's sigma
-    h.update(repr((UNC_FLOOR, ERA_SPLIT, sorted(DLAM_ERA.items()),
-                   sorted(CHAR_DLAM.items()),
-                   sorted(CHAR_DWN.items()))).encode())
+    # the set's uncertainties (section 4): every accepted row's LOPT record,
+    # and the hfs terms of the lines, change every level's sigma
+    acc = getattr(ctx, 'acc', None)
+    if acc is not None and 'wn_fit' in acc.columns:
+        for c in ('wn_fit', 'unc_fit'):
+            h.update(np.round(acc[c].to_numpy(dtype=float), 4).tobytes())
+    for a in (getattr(ctx, 'kap_o', ()), getattr(ctx, 'ukap_o', ()),
+              getattr(ctx, 'spread_o', ())):
+        h.update(np.round(np.asarray(a, dtype=float), 4).tobytes())
     # the unrelated-line background: it enters every matched free row
     for a in (ctx.rho_bg_o, ctx.bg_mu_f, ctx.bg_sd_f, ctx.unk_mu_o,
               ctx.unk_sd_o):
         h.update(np.round(np.asarray(a, dtype=float), 3).tobytes())
-    for d in (ctx.k_n, ctx.w_hfs, ctx.bias):
+    for d in (ctx.w_hfs, ctx.bias):
         h.update(repr(sorted((str(k), np.round(np.asarray(v, dtype=float), 3)
                               .tolist())
                              for k, v in d.items())).encode())
@@ -2953,7 +3432,7 @@ def print_detail(ctx, level_id, at=None, show_all=False,
           else np.full(len(tab), np.nan))
     hdr = (f"{'partner':<14}{'IDEN2':>6} {'label':<12}{'E_partner':>12}"
            f"{'dJ':>4}{'nu':>12}{'I_pred':>10}{'P_obs':>7}"
-           f"{'wn_obs':>12}{'d':>8}"
+           f"{'wn_obs':>12}{'d':>8}{'sigma':>8}"
            f"{'I_obs':>10}{'C':>10}{'lnG':>7}{'lnR':>8}  what")
     print(hdr)
     print('-' * len(hdr))
@@ -2968,10 +3447,11 @@ def print_detail(ctx, level_id, at=None, show_all=False,
                 f"{r['nu']:>12.3f}{r['I_pred']:>10.1f}{r['P_obs']:>7.3f}")
         if r['matched']:
             print(f"{head}{r['wn_obs']:>12.3f}{r['d']:>8.3f}"
+                  f"{r.get('sigma', np.nan):>8.3f}"
                   f"{r['I_obs']:>10.1f}{r['C']:>10.1f}{r['ln_G']:>7.2f}"
                   f"{r['ln_R']:>8.2f}  {tag}")
         else:
-            print(f"{head}{'-':>12}{'-':>8}{'-':>10}{'-':>10}"
+            print(f"{head}{'-':>12}{'-':>8}{'-':>8}{'-':>10}{'-':>10}"
                   f"{'-':>7}{r['ln_R']:>8.2f}  {tag}")
 
 
@@ -3452,6 +3932,19 @@ def disposition(row):
     return 'weak'
 
 
+def action_of(row):
+    """The audit's action for a row with an alternate: disposition() where
+    the evidence prefers the alternate (gain > 0), and '' where it does not.
+    An alternate that scores below the adopted position proposes nothing -
+    the adopted position holds - and labelling it 'refit' or 'top line' made
+    sound levels read as questionable in the audit workbook (000454, 000538,
+    000457 of the 2026-10-14 audit)."""
+    gain = row.get('gain', np.nan)
+    if not (np.isfinite(gain) and gain > 0):
+        return ''
+    return disposition(row)
+
+
 def audit_table(ctx, tab, e_calc, w_of, vac):
     """Add the audit columns to a scanned report table.
 
@@ -3510,7 +4003,8 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
     z_alt    (E_alt - E_calc)/W: how far the alternate sits from where the
              calculation puts the level, in units of that configuration's own
              scatter
-    action   see disposition()
+    action   see disposition(); blank where gain <= 0, the adopted position
+             then holding and the alternate proposing nothing
     """
     cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], gain_R=[],
                 gain_P=[], look=[], n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
@@ -3577,7 +4071,7 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         cols['z_alt'].append((e_a - ec) / w if (np.isfinite(ec)
                                                 and np.isfinite(w) and w > 0)
                              else np.nan)
-        cols['action'].append(disposition(row))
+        cols['action'].append(action_of(row))
     for k, v in cols.items():
         tab[k] = v
     return tab
@@ -3617,7 +4111,7 @@ def order_report(tab):
 
 def print_audit(tab, alt_drop):
     """The audit report: what to do about the levels that have an alternate."""
-    q = tab[tab['action'].astype(str) != ''].copy()
+    q = tab[tab['gain'].notna()].copy() if 'gain' in tab.columns         else tab.iloc[0:0]
     if q.empty:
         print('\nno level has an alternate position to audit')
         return
@@ -3889,6 +4383,10 @@ def release_levels(ctx, ids, args, log=print):
         return 0
     li_ = acc['line_idx'].to_numpy(dtype=int)[sel]
     ic = acc['calc_intens'].fillna(0.0).to_numpy(dtype=float)[sel]
+    # a released row is no longer one of LOPT's: its line is judged as any
+    # free line is (section 4)
+    for a, b in zip(lo[sel], up[sel]):
+        getattr(ctx, 'acc_rec', {}).pop((a, b), None)
     np.add.at(ctx.claimed_tot, li_, -ic)
     ctx.claimed_tot = np.maximum(ctx.claimed_tot, 0.0)
     np.add.at(ctx.n_acc_line, li_, -1)
@@ -3990,8 +4488,13 @@ def refit_lines(ctx):
     add lines the fit is already holding somewhere else.
     """
     acc, out = ctx.acc, refit_dropped(ctx)
-    cols = ['low_id', 'upp_id', 'wn_obs', 'unc_wn_obs', 'BF']
-    df = acc[cols].copy()
+    # each row where LOPT fits it and with LOPT's uncertainty (accepted_fit;
+    # a context built without it keeps the table's values)
+    if 'wn_fit' in acc.columns:
+        df = acc[['low_id', 'upp_id', 'wn_fit', 'unc_fit', 'BF']].rename(
+            columns={'wn_fit': 'wn_obs', 'unc_fit': 'unc_wn_obs'})
+    else:
+        df = acc[['low_id', 'upp_id', 'wn_obs', 'unc_wn_obs', 'BF']].copy()
     df['low_id'] = df['low_id'].astype(str)
     df['upp_id'] = df['upp_id'].astype(str)
     if out:
@@ -4028,8 +4531,9 @@ def claimed_observations(ctx, tab, e, level_id, energies):
     Each becomes one row of the same shape as an accepted line: the weight
     BF^2/u^2 is built from the share of the feature's predicted light the
     transition carries, so that a component of a blend counts for less exactly
-    as an accepted component does, and u is the measured width of the feature
-    where the workbook quotes no uncertainty.
+    as an accepted component does, and the wavenumber and u are the line's
+    as LOPT would take it (section 4: wn_fit and sigma_line of the detail
+    table).
     """
     if tab is None or not len(tab):
         return []
@@ -4041,10 +4545,9 @@ def claimed_observations(ctx, tab, e, level_id, energies):
         p = str(r['partner'])
         if p not in energies:
             continue
-        i = int(observed_index(ctx, [float(r['wn_obs'])])[0])
-        u = ctx.unc_o[i]
-        if not np.isfinite(u) or u <= 0:
-            u = ctx.meas_o[i]
+        # the line as LOPT would take it: where it would fit it, and the
+        # set's uncertainty of it (section 4)
+        u = float(r['sigma_line'])
         if not np.isfinite(u) or u <= 0:
             continue
         # the light this transition carries of what the feature is claimed to
@@ -4054,7 +4557,7 @@ def claimed_observations(ctx, tab, e, level_id, energies):
         up = e > energies.get(p, np.nan)
         rows.append(dict(low_id=p if up else str(level_id),
                          upp_id=str(level_id) if up else p,
-                         wn_obs=float(r['wn_obs']), unc_wn_obs=float(u),
+                         wn_obs=float(r['wn_fit']), unc_wn_obs=float(u),
                          BF=share, accepted=1))
     return rows
 
@@ -4838,7 +5341,10 @@ def use_set(args, log=print):
         (level_shifts.read_run) and the level workbook are the set's;
       * IDEN2/enlev.dat and IDEN2/IDEN_level_ids.txt, for the calculated
         energies, the configurations and the IDEN2 rows of --unknown;
-      * LOPT_output_levels.txt, for the partner uncertainties D1;
+      * LOPT_output_levels.txt, for the adopted energies and the partner
+        uncertainties D1;
+      * LOPT_input_lines.txt, for the positions and uncertainties of the
+        accepted lines (section 4);
       * level_hfs_widths.csv, read from the set if it has its own copy.
 
     What the run writes describes the set, so it is written into the set:
@@ -4846,7 +5352,7 @@ def use_set(args, log=print):
     registry of --firm, and the width file of --fit-hfs.  A path given as
     absolute is left where it is.
     """
-    global HFS_FILE, LEVEL_IDS, ENLEV, LOPT_LEVELS_FILE
+    global HFS_FILE, LEVEL_IDS, ENLEV, LOPT_LEVELS_FILE, LOPT_INPUT_FILE
     set_dir = os.path.abspath(args.set_dir)
     if not os.path.isdir(set_dir):
         raise SystemExit(f"level_positions.py: --set {args.set_dir} is not a "
@@ -4865,6 +5371,7 @@ def use_set(args, log=print):
     ENLEV = os.path.join(iden2, 'enlev.dat')
     LEVEL_IDS = os.path.join(iden2, 'IDEN_level_ids.txt')
     LOPT_LEVELS_FILE = working_path('LOPT_output_levels.txt', cwd=set_dir)
+    LOPT_INPUT_FILE = working_path('LOPT_input_lines.txt', cwd=set_dir)
     hfs = os.path.basename(HFS_FILE)
     HFS_FILE = (os.path.join(set_dir, hfs) if args.fit_hfs
                 else working_path(hfs, cwd=set_dir))
@@ -4877,6 +5384,7 @@ def use_set(args, log=print):
                        ('line list', cl.LINES_FILE),
                        ('classification table', cl.OUTPUT_CSV),
                        ('LOPT level output', LOPT_LEVELS_FILE),
+                       ('LOPT input', LOPT_INPUT_FILE),
                        ('IDEN2', iden2),
                        ('hyperfine widths', HFS_FILE),
                        ('report', args.out)):
