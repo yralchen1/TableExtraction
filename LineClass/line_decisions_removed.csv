@@ -9,3 +9,5 @@ removed_on,removed_for,removed_because,wn_key,low_id,upp_id,decision,date,reason
 9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,38701.8602,059003.000038,059003.000642,accept,9/17/2026,IDEN2/LOPT
 9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,25757.3299,059003.000642,059003.000273,accept,9/17/2026,IDEN2/LOPT
 9/29/2026,059003.000642,Level moved from the F=2 to the F=3 hfs sublevel; this line is the F=2 component,30511.6182,059003.000642,059003.000288,accept,9/17/2026,IDEN2/LOPT
+10/14/2026,059003.000575,"Too far from Ritz: the level was moved by -139.768 cm^-1",17006.999,059003.000465,059003.000575,accept,9/9/2026,IDEN2/LOPT
+10/14/2026,059003.000575,"Too far from Ritz: the level was moved by -139.768 cm^-1",18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT

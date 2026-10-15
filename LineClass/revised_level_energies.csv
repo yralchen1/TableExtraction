@@ -25,3 +25,6 @@ level_id,E_input,comment
 059003.000228,66543.761,re-positioned from 66324.84 (dE=+218.92); 5 new assignments; Energy taken from IDEN2
 059003.000494,121673.2290,re-positioned from 121580.9000 (dE = +92.3800) by move_level.py on 9/16/2026
 059003.000572,129185.7520,re-positioned from 129454.4500 (dE = -268.7260) by move_level.py on 9/18/2026
+059003.000575,130078.872,"re-positioned from 130218.64 (dE = -139.768); level_positions.py --audit of iter_hfs on 10/14/2026, lines marked in iter_hfs/IDEN2 by the user"
+059003.000553,106439.066,"re-positioned from 106468.42 (dE = -29.354); level_positions.py --audit of iter_hfs on 10/14/2026, lines marked in iter_hfs/IDEN2 by the user"
+059003.000516,134270.670,"re-positioned from 134163.33 (dE = +107.340); level_positions.py --audit of iter_hfs on 10/14/2026, lines marked in iter_hfs/IDEN2 by the user"

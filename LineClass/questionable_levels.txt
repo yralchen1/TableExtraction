@@ -1,59 +1,35 @@
 level_id	E	audit_action	status	note
-059003.000391	116727.115	weak	questionable	
-059003.000422	133194.2759	no support	questionable	
-059003.000446	84150.6067	weak	questionable	
-059003.000455	89969.8879	weak	questionable	
-059003.000457	99938.9953	top line	questionable	
-059003.000461	111779.1233	weak	questionable	
-059003.000478	117359.309	no support	questionable	
-059003.000493	121412.6637	no support	questionable	
-059003.000506	133307.5185	weak	questionable	
-059003.000515	134163.2166	no support	questionable	
-059003.000516	134162.7932	weak	questionable	
-059003.000521	135896.7399	no support	questionable	
-059003.000522	135926.922	no support	questionable	
-059003.000524	136110.9971	no support	questionable	
-059003.000529	136643.8002	weak	questionable	
-059003.000533	138342.8038	no support	questionable	
-059003.000534	138410.7024	weak	questionable	
-059003.000535	138445.3706	no support	questionable	
-059003.000536	138840.0183	no support	questionable	
-059003.000542	101777.977	weak	questionable	
-059003.000545	105338.5014	weak	questionable	
-059003.000547	105534.6423	no support	questionable	
-059003.000551	106384.5413	weak	questionable	
-059003.000553	106468.4069	weak	questionable	
-059003.000562	111193.2105	no support	questionable	
-059003.000564	115439.5071	weak	questionable	
-059003.000566	121143.3723	weak	questionable	
-059003.000568	124594.4689	weak	questionable	
-059003.000572	129185.7168	weak	questionable	
-059003.000573	129744.1297	weak	questionable	
-059003.000575	130218.787	no support	questionable	
-059003.000589	134488.5092	no support	questionable	
-059003.000600	136638.5024	weak	questionable	
-059003.000602	136620.1772	no support	questionable	
-059003.000603	136641.8305	weak	questionable	
-059003.000622	141440.8228	no support	questionable	
-059003.000625	108117.2603	weak	questionable	
-059003.000652	129877.1476	weak	questionable	
-059003.000673	111073.106	weak	questionable	
-059003.000676	86011.8406	weak	questionable	
-059003.000678	118669.9025	weak	questionable	
-059003.000680	122956.0177	weak	questionable	
-059003.000347	107854.4576	weak	firm	current position classifies 10 lines, alternate 5
-059003.000376	114970.8912	weak	firm	alternate loses one of the strongest lines
-059003.000538	139081.5144	refit	firm	alternate implies a common shift of the three strong VUV lines
-059003.000585	134454.3276	weak	firm	4f2.5g, JK-pure pair
-059003.000586	134454.8128	weak	firm	4f2.5g, JK-pure pair
-059003.000587	134480.1696	weak	firm	4f2.5g, JK-pure pair
-059003.000591	134496.3284	no support	firm	4f2.5g, JK-pure pair
-059003.000592	136555.0456	weak	firm	4f2.5g, JK-pure pair
-059003.000599	136589.5145	no support	firm	4f2.5g, JK-pure pair
-059003.000605	136649.5934	no support	firm	4f2.5g, JK-pure pair
-059003.000611	138799.4195	weak	firm	4f2.5g, JK-pure pair
-059003.000613	138822.338	no support	firm	4f2.5g, JK-pure pair
-059003.000616	138833.5152	weak	firm	4f2.5g, JK-pure pair
-059003.000617	138871.0239	weak	firm	4f2.5g, JK-pure pair
-059003.000620	138888.9182	no support	firm	4f2.5g, JK-pure pair
-059003.000642	49652.3142	relocate	firm	alternate is its other hfs component
+059003.000553	106468.3486	weak	questionable	
+059003.000516	134163.2028	weak	questionable	
+059003.000551	106384.4663	weak	questionable	
+059003.000678	118670.0634	weak	questionable	
+059003.000545	105338.492	weak	questionable	
+059003.000529	136643.4822	weak	questionable	
+059003.000572	129185.696	weak	questionable	
+059003.000677	136033.576	weak	questionable	
+059003.000573	129744.1232	weak	questionable	
+059003.000600	136638.4876	weak	questionable	
+059003.000619	138883.769	weak	questionable	
+059003.000649	129498.0707	weak	questionable	
+059003.000672	119498.5791	weak	questionable	
+059003.000455	89970.1546	weak	questionable	
+059003.000603	136641.7623	weak	questionable	
+059003.000295	83426.5533	weak	questionable	
+059003.000506	133307.3518	weak	questionable	
+059003.000533	138342.7433	weak	questionable	
+059003.000652	129877.1022	weak	questionable	
+059003.000568	124594.52	weak	questionable	
+059003.000564	115439.6881	weak	questionable	
+059003.000589	134488.4707	no support	questionable	
+059003.000602	136620.0346	no support	questionable	
+059003.000536	138840.0229	no support	questionable	
+059003.000535	138445.5717	no support	questionable	
+059003.000547	105534.6254	no support	questionable	
+059003.000515	134163.3124	no support	questionable	
+059003.000521	135896.7846	no support	questionable	
+059003.000422	133194.4622	no support	questionable	
+059003.000524	136111.0558	no support	questionable	
+059003.000522	135926.9568	no support	questionable	
+059003.000622	141440.8312	no support	questionable	
+059003.000542	101777.9543	no support	questionable	
+059003.000566	121143.5896	no support	questionable	

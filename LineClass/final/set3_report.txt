@@ -1,14 +1,14 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6673 lines, 9162 table rows; moved 5030
+6673 lines, 9164 table rows; moved 5034
 rows of merged lines left out of the table: 29
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-u_hfs_shift cut to its undetermined part: lowered by median 0.0168, max 0.2111 cm^-1 over 5030 lines; the model rebuilds the source set's u_hfs_shift to 4.2e-17 cm^-1
-  rule class kappa   4759
+u_hfs_shift cut to its undetermined part: lowered by median 0.0168, max 0.2111 cm^-1 over 5034 lines; the model rebuilds the source set's u_hfs_shift to 2.8e-17 cm^-1
+  rule class kappa   4763
   rule head-D         250
-  rule none          1643
+  rule none          1639
   rule resolved        21
-  |cg_shift| median 0.0404, 90% 0.1850, max 1.0910 cm^-1
+  |cg_shift| median 0.0404, 90% 0.1848, max 1.0910 cm^-1
 
 Merged companions (hfs_satellites.txt): 25
   20972.0992      -> 20971.7476     

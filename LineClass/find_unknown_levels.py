@@ -69,8 +69,9 @@ row is the best position the window offers:
              not a position, it is a collision
 ``dE_o_c``   E_found minus the calculated energy, cm^-1
 
-``--all-columns`` adds the rest of what the search prints: ``look`` (ln R after
-the look-elsewhere correction for the width of the window scanned), ``z``
+``--all-columns`` adds the rest of what the search prints: ``ln_P`` (the
+position prior, zero at E_calc and negative away from it), ``look`` (ln R + ln_P
+after the look-elsewhere correction for the width of the window scanned), ``z``
 (dE_o_c in units of the configuration's own rms W), ``n_obs``, ``n_miss``,
 ``free_gain`` (what the free lines alone are worth in ln R) and ``top_share``
 (the largest single line's share of the positive evidence - a position where
@@ -137,7 +138,7 @@ KEEP = ['idx', 'label', 'J', 'parity', 'cfg', 'E_calc', 'W']
 # The columns taken from the top row of the search, in the order asked for.
 CORE = ['E_found', 'verdict', 'n_found', 'ln_R', 'n_match', 'n_free',
         'dE_o_c']
-EXTRA = ['look', 'z', 'n_obs', 'n_miss', 'free_gain', 'top_share']
+EXTRA = ['ln_P', 'look', 'z', 'n_obs', 'n_miss', 'free_gain', 'top_share']
 FLAGS = ['unique_found', 'not_found']
 
 COUNTS = 'positions where ln R > 0:'
@@ -406,8 +407,8 @@ def parse_args(argv):
                         'each other are the same position, and each is noted '
                         'against the other (default %(default)s)')
     p.add_argument('--all-columns', action='store_true',
-                   help='also keep look, z, n_obs, n_miss, free_gain and '
-                        'top_share from the search')
+                   help='also keep ln_P, look, z, n_obs, n_miss, free_gain '
+                        'and top_share from the search')
     p.add_argument('--notes-only', action='store_true',
                    help='do no searching: read the table already written to '
                         '--out, work the Note column out again and write it '
@@ -507,7 +508,8 @@ def write(tab, path):
                  'cowan_lid'):
         if name in tab.columns:
             tab[name] = tab[name].astype('Int64')
-    for name in ('E_calc', 'W', 'E_found', 'ln_R', 'dE_o_c', 'look', 'z',
+    for name in ('E_calc', 'W', 'E_found', 'ln_R', 'ln_P', 'dE_o_c', 'look',
+                 'z',
                  'free_gain', 'top_share'):
         if name in tab.columns:
             # to_numeric first: a column every search left blank is a column

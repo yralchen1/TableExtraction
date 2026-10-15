@@ -1,5 +1,5 @@
-lopt_perturb.py --source hfs, 2026-10-11 09:14
-set: F:\UMD\AI\as-ai\LineClass\final (8021 records)
+lopt_perturb.py --source hfs, 2026-10-14 14:53
+set: F:\UMD\AI\as-ai\LineClass\final (8030 records)
 source set F:\UMD\AI\as-ai\LineClass\iter_hfs; A table F:\UMD\AI\as-ai\LineClass\A_hfs_levels.csv
 calculated constants: 35 correlated patterns (7 radial, 8 factors, 20 configurations)
 semiempirical scale: 7 levels; fitted constants: 111 patterns over 111 levels, the fit reproducing the table to 0.00005 cm^-1
@@ -7,15 +7,15 @@ levels whose correlated parts reach their u_A (no own part left): 56, largest ra
 records without a line: 0; patterns that move no record: 0
 patterns run: 747 (147 correlated, 596 own, 4 kappa)
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
-linearity: the pattern radial:4f.a01 at half size differs by 1.11e-07 cm^-1 at most (its largest level shift 0.0063)
-749 runs, 16 at a time, 1476 s
+linearity: the pattern radial:4f.a01 at half size differs by 5.57e-08 cm^-1 at most (its largest level shift 0.0063)
+749 runs, 16 at a time, 1771 s
 
 u_hfs over 652 levels (ground excluded): median 0.0269, 90% 0.0408, max 0.1018 cm^-1; / D2stat median 1.42, 90% 2.74
   E      0-50000 : 160 levels, median u_hfs 0.0246, median D2stat 0.0115
   E  50000-100000: 175 levels, median u_hfs 0.0261, median D2stat 0.0173
   E 100000-      : 317 levels, median u_hfs 0.0275, median D2stat 0.0280
-u_hfs_corr over 652 levels (ground excluded): median 0.0237, 90% 0.0332, max 0.0637 cm^-1; / D2stat median 1.19, 90% 2.37
-  E      0-50000 : 160 levels, median u_hfs_corr 0.0218, median D2stat 0.0115
+u_hfs_corr over 652 levels (ground excluded): median 0.0237, 90% 0.0332, max 0.0637 cm^-1; / D2stat median 1.18, 90% 2.37
+  E      0-50000 : 160 levels, median u_hfs_corr 0.0217, median D2stat 0.0115
   E  50000-100000: 175 levels, median u_hfs_corr 0.0215, median D2stat 0.0173
   E 100000-      : 317 levels, median u_hfs_corr 0.0251, median D2stat 0.0280
 u_hfs_own over 652 levels (ground excluded): median 0.0087, 90% 0.0252, max 0.1004 cm^-1; / D2stat median 0.48, 90% 1.28

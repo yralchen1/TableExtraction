@@ -259,7 +259,6 @@ wn_key,low_id,upp_id,decision,date,reason
 86884.296,059003.000096,059003.000351,reject,9/9/2026,Line is well explained by another strong transition; this one is too far from Ritz; include in pub line list as masked.
 48572.079,059003.000108,059003.000268,accept,9/9/2026,IDEN2/LOPT
 54296.804,059003.000069,059003.000268,accept,9/9/2026,IDEN2/LOPT
-17006.999,059003.000465,059003.000575,accept,9/9/2026,IDEN2/LOPT
 92977.225,059003.000075,059003.000365,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
 92974.394,059003.000098,059003.000391,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
 92977.225,059003.000098,059003.000391,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
@@ -279,7 +278,6 @@ wn_key,low_id,upp_id,decision,date,reason
 94650.5226,059003.000078,059003.000384,accept,9/22/2026,IDEN2
 94950.80068530583,059003.000076,059003.000384,accept,9/11/2026,IDEN2/LOPT
 98546.421,059003.000075,059003.000487,accept,9/11/2026,Blend improves cg Ritz
-18883.712,059003.000356,059003.000575,accept,9/11/2026,IDEN2/LOPT
 94406.411,059003.000166,059003.000422,accept,9/11/2026,Blend is compatible with cl  char; cg is compatible with Ritz.
 37863.349,059003.000248,059003.000343,reject,9/11/2026,Too small predicted intensity to contribute to blend.
 17195.128,059003.000322,059003.000487,accept,9/11/2026,IDEN2
@@ -846,3 +844,6 @@ wn_key,low_id,upp_id,decision,date,reason
 24933.3076,059003.000044,059003.000168,accept,10/10/2026,"IDEN2/LOPT: was too far from Ritz earlier, but new calibration makes it acceptable"
 26898.1233,059003.000160,059003.000217,accept,10/10/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg; char w supports blend"
 65947.1856,059003.000053,059003.000445,accept,10/11/2026,IDEN2/LOPT
+99444.7004,059003.000145,059003.000516,reject,10/14/2026,IDEN2/LOPT: 000516 moved to 134270.670; masked component of the blend with 000062-000482
+96351.9126,059003.000160,059003.000516,accept,10/14/2026,IDEN2/LOPT: 000516 moved to 134270.670; blend with 000080-000397
+39496.0495,059003.000233,059003.000553,reject,10/14/2026,Too strong Iobs compared to Icalc.

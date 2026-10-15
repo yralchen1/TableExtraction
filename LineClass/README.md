@@ -5985,14 +5985,16 @@ the audit separates them before anything is called a revision. Three corrections
   In the audit this makes
 
   ```
-  gain = gain_R + d_ln_J
+  gain = gain_R + d_ln_J + gain_P
   ```
 
-  where `gain_R` = `ln_R_alt` − `ln_R` is the line evidence alone, and `gain` — the one the
-  dispositions and `look` are taken on — is the line evidence with the fingerprint counted in. The
-  `relocate` test that the alternate be convincing in its own right is applied to `ln_R_alt_J`, so
-  an alternate that fits this level's J worse has to make that up in lines before it can be called
-  firm. Under `--unknown` the candidates are ranked on `ln_R_J`, and `look` and the verdict follow
+  where `gain_R` = `ln_R_alt` − `ln_R` is the line evidence alone, `gain_P` = `ln_P_alt` − `ln_P`
+  is what the position prior says about the move (see **The distance from E_calc** under
+  `--unknown`; zero with `--no-prior`), and `gain` — the one the dispositions and `look` are taken
+  on — is the line evidence with the fingerprint and the prior counted in. The `relocate` test that
+  the alternate be convincing in its own right is applied to `ln_R_alt_J` + `ln_P_alt`, so an
+  alternate that fits this level's J worse, or lies further from E_calc, has to make that up in
+  lines before it can be called firm. Under `--unknown` the candidates are ranked on `ln_R_J`, and `look` and the verdict follow
   from it.
 
   The audit constants were left where they were, and the whole run says they should be. Over the
@@ -6149,9 +6151,11 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `ln_R_match` / `ln_R_miss` | its split between the matched rows and the absences |
 | `sum_lnG` | the intensity evidence alone — a useful diagnostic on its own: a large negative value means the level's lines are there but their brightnesses are not what theory expects |
 | `scan_width` | width of the interval scanned, cm⁻¹ (`--scan`) |
-| `n_alt` | local maxima within `--alt-drop` of the adopted peak. **This count is the verdict** behind the `question` flag |
+| `n_alt` | local maxima of `ln R` + `ln_P` within `--alt-drop` of the adopted position's `ln R` + `ln_P`. **This count is the verdict** behind the `question` flag |
 | `ln_R_alt` | `ln R` at the best of them |
-| `d_ln_R` | `ln_R` − `ln_R_alt`; **negative means the lines prefer the alternate** (`gain` is the same quantity with the clearer sign) |
+| `d_ln_R` | `ln_R` − `ln_R_alt`; **negative means the lines prefer the alternate** |
+| `ln_P` / `ln_P_alt` | the position prior at the adopted position and at the alternate: 0 at E_calc, negative away from it |
+| `d_ln_post` | (`ln_R` + `ln_P`) − (`ln_R_alt` + `ln_P_alt`): `d_ln_R` with the prior counted; negative means the alternate is preferred |
 | `dE_alt` | E(alternate) − E(adopted): the size of the move |
 | `near_level` / `near_dE` | the run's level of the same J and parity nearest the alternate, and the gap — see above (empty when there is none) |
 | `question` | `?` when `n_alt` > 0 |
@@ -6159,7 +6163,8 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
 | `n_own` / `n_kept` | recorded lines the level is assigned now, and how many of them the alternate still matches — the test that separates a refit from a relocation |
 | `gain_R` | `ln_R_alt` − `ln_R`: what the alternate wins on the line evidence alone |
-| `gain` / `look` | `gain_R` + `d_ln_J` — the line evidence with the ΔJ fingerprint counted in, which is what the dispositions are taken on — and its look-elsewhere correction |
+| `gain_P` | `ln_P_alt` − `ln_P`: what the position prior says about the move |
+| `gain` / `look` | `gain_R` + `d_ln_J` + `gain_P` — the line evidence with the ΔJ fingerprint and the position prior counted in, which is what the dispositions are taken on — and its look-elsewhere correction |
 | `n_obs_alt` / `n_seen_alt` / `n_miss_alt` | the observable-prediction counts the level would have at the alternate |
 | `n_vacant` | unfound calculated levels of the same J and parity within one configuration window of the alternate |
 | `ln_J` / `ln_J_alt` | the ΔJ fingerprint at the adopted position and at the alternate — how much better the pattern of matches and absences there fits a level of a *different* J. Zero is clean; a few nats accuses the position |
@@ -6217,14 +6222,16 @@ have. Each predicted transition is in one of three cases:
   if adding the predicted intensity of t improves the account of the feature's observed
   intensity.
 
-Three further terms complete the score of a candidate position, each written in its own column:
+Four further terms complete the score of a candidate position, each written in its own column:
 
     ln_R   = Σ_t ln R_t + ln R_offset
-    ln_R_J = ln_R − (ln_J − min ln_J)
+    ln_R_J = ln_R + ln_P − (ln_J − min ln_J)
     look   = ln_R_J − ln n
 
 - **ln R_offset**, the level offset, lets all of the level's predicted intensities be wrong by one
   common factor. It is usually a small correction.
+- **ln_P**, the position prior, charges a position for its distance from E_calc. See
+  **The distance from E_calc** below.
 - **ln_J**, the ΔJ fingerprint, is large at a position where a whole class of observable
   predictions with one ΔJ = J(partner) − J(level) is missing: the pattern the lines of a level of
   another J would leave. Only its differences between the candidates of one scan are used. The
@@ -6244,11 +6251,28 @@ The table is ranked on `ln_R_J`. ln n is the same for every candidate of one sca
 reorder them. It decides only whether the best of them is good enough: a `firm` verdict needs
 `look` ≥ 3.
 
-**The distance from E_calc is not in the score.** It enters only through the window: the scan
-covers E_calc ± 3W (W defined below) and nothing outside it, and every position inside is scored
-on the lines alone, with no charge for lying 2.9 W from E_calc rather than at it. The distance is
-reported, as `dE` = E − E_calc and `z` = dE/W, for the analyst to weigh. It changes neither
-`ln R`, nor the ranking, nor the verdict.
+**The distance from E_calc (2026-10-14).** The scan covers E_calc ± 3W (W defined below) and
+nothing outside it. Inside the window, the distance enters through the **position prior**
+
+    ln_P(E) = −(nu + 1)/2 · ln[1 + ((E − E_calc)/(tau·W))² / nu]
+
+which is the logarithm of a Student t density in z = (E − E_calc)/W, divided by its value at
+z = 0. It is zero at E_calc and negative everywhere else. Its shape is measured on every run, on
+the found levels: for each of them z = (E_obs − E_calc)/W₋ᵢ, where W₋ᵢ is the rms of E_obs − E_calc
+over the *other* found levels of its configuration (configurations with fewer than 3 found levels
+are left out), and nu and tau are fitted to those z by maximum likelihood. W₋ᵢ is used because a
+level being searched for does not help set the W it is measured in. The Student t is used because
+the tails are an empirical question: where they are Gaussian, the fit says so by returning a large
+nu.
+
+On the 653 found levels of `iter/` (2026-10-14) the fit gives nu = 12.1 and tau = 0.94. The
+distribution is close to Gaussian. A Student t with 4 degrees of freedom, which was once suggested
+for it, is rejected (2ΔlnL = 15). ln_P is then −0.6 at 1 W from E_calc, −2.1 at 2 W and −4.0 at
+3 W.
+
+Before 2026-10-14 there was no such term: every position inside the window was scored on the
+lines alone. `--no-prior` restores that behavior, for comparison. The distance is also reported
+as `dE` = E − E_calc and `z` = dE/W.
 
 **The verdict on a candidate** uses the audit's constants. It is `firm` when at least 4 free lines
 support the position, they are worth at least 8 in ln R, no single line carries more than 45 % of

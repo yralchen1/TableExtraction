@@ -544,9 +544,18 @@ the position at energy E is judged on
 which leaves the best-fitting position's ln R untouched, charges each rival
 what its fingerprint is worse by, and gives a level with no rival nothing to
 pay.  With --audit the set is the adopted position and its alternate, so
-gain = (ln_R_alt - ln_R) + d_ln_J; with --unknown it is the candidate positions
-of the scan, which are then ranked, corrected for look-elsewhere and given
-their verdicts on ln_R_J.
+gain = (ln_R_alt - ln_R) + d_ln_J + gain_P; with --unknown it is the candidate
+positions of the scan, which are then ranked, corrected for look-elsewhere and
+given their verdicts on ln_R_J (which there includes ln_P).
+
+THE POSITION PRIOR.  ln R reads the recorded lines only, and the window
+E_calc +/- 3W treats every position inside it alike.  But E_obs - E_calc is
+measured on the found levels, so how far a position is from E_calc is evidence
+too.  ln_P = ln t(z) - ln t(0), with z = (E - E_calc)/(tau W) and t a Student
+t of nu degrees of freedom, nu and tau fitted on every run to the found levels
+(fit_position_prior, W leave-one-out).  It is zero at E_calc and never
+positive, and it is added to ln R before maxima are picked, compared and
+ranked.  --no-prior leaves it out.
 
 THE VACANCY TEST, which is the only test in this module that comes from the
 theory rather than from the line list, and the only one that can rule a
@@ -751,8 +760,16 @@ with --scan, for the best alternate position found:
                  single probability, is what earns the level its question mark
     ln_R_alt     ln R at the best of them
     d_ln_R       ln_R - ln_R_alt.  NEGATIVE means the lines prefer the
-                 alternate.  (The audit's `gain` is the same quantity with the
-                 clearer sign: gain = -d_ln_R, positive = the alternate wins.)
+                 alternate.
+    ln_P         the position prior at the adopted energy, ln_P_alt at the
+                 alternate: zero at E_calc and more negative the further the
+                 position is from it, in units of the configuration's W (see
+                 fit_position_prior).  The alternates are the local maxima of
+                 ln R + ln_P, and they are counted against ln_R + ln_P
+    d_ln_post    (ln_R + ln_P) - (ln_R_alt + ln_P_alt): d_ln_R with the
+                 prior counted.  (The audit's `gain` adds the delta J
+                 fingerprint and turns the sign: positive = the alternate
+                 wins.)
     dE_alt       E_alternate - E_adopted, cm^-1: how far the move would be
     near_level   the level of the run whose energy is CLOSEST TO THE
                  ALTERNATE, AMONG THE LEVELS OF THE SAME J AND PARITY.  Only
@@ -788,8 +805,10 @@ with --audit, for that same alternate:
     free_gain    what those free lines are worth in ln R
     top_share    the largest single line's share of the positive evidence
     gain_R       ln_R_alt - ln_R, the line evidence alone
-    gain         gain_R + d_ln_J, what the alternate wins once the delta J
-                 fingerprint is counted with it.  THE one that decides
+    gain_P       ln_P_alt - ln_P, what the position prior says about the move
+    gain         gain_R + d_ln_J + gain_P, what the alternate wins once the
+                 delta J fingerprint and the prior are counted with it.  THE
+                 one that decides
     look         gain - ln(n_alt), the look-elsewhere correction of section 6
     n_obs_alt    observable predictions at the alternate
     n_seen_alt   how many of them would find a line there
@@ -932,6 +951,9 @@ ALT_SEP = 0.5        # cm^-1: two maxima closer than this are one maximum
 WINDOW_K = 3.0       # configuration widths either side of E_calc a scan covers
 ALT_DROP = 5.0       # ln R below the adopted peak that still counts as an
                      # alternate position
+PRIOR_MIN_CFG = 3    # found levels a configuration needs before its levels
+                     # enter the fit of the position prior (leave-one-out W)
+PRIOR_MIN_N = 30     # values of z below which no prior is fitted at all
 LOPT_LEVELS_FILE = os.path.join(HERE, 'LOPT_output_levels.txt')
 FIRM_LN_R = 3.0      # ln R at or above which a level with no alternate
                      # position is settled enough to go into the registry
@@ -2483,12 +2505,115 @@ def scan_interval(e_adopted, e_calc, window, k=WINDOW_K):
     return min(lo, e_adopted - 5.0), max(hi, e_adopted + 5.0)
 
 
+# ---------------------------------------------------------------------------
+# The position prior: how far from E_calc a level of its configuration lies
+# ---------------------------------------------------------------------------
+# ln R weighs the recorded lines only.  Where the calculation puts the level is
+# evidence too: over the found levels, E_obs - E_calc is a measured quantity,
+# and in units of the rms W of its own configuration it has a measured
+# distribution.  A position 2.9 W from E_calc is far less likely a priori than
+# one at E_calc, and the window E_calc +/- 3W alone said nothing about that.
+#
+# The distribution is fitted on every run, as a Student t in
+#
+#     z = (E_obs - E_calc) / W_(-i)
+#
+# with free degrees of freedom nu and scale tau.  W_(-i) is the rms of the
+# OTHER found levels of the configuration: a level does not help to set the
+# width it is measured in, which is the position of a level being searched
+# for, and which would otherwise shrink the tails of the small
+# configurations.  The t is there because the tails are an empirical question;
+# where they are Gaussian the fit says so with a large nu.
+#
+# The term added to ln R is
+#
+#     ln_P(E) = ln t_nu((E - E_calc) / (tau W)) - ln t_nu(0)
+#             = -(nu + 1)/2 * ln(1 + ((E - E_calc)/(tau W))^2 / nu)
+#
+# zero at E_calc and never positive.  Only differences of it between positions
+# of one level enter a comparison, so its zero is a convention; it is put at
+# E_calc so that the term can only take from a position, never add to it.
+class PositionPrior(NamedTuple):
+    nu: float     # degrees of freedom of the Student t
+    tau: float    # its scale, in units of W
+    n: int        # found levels the fit was made on
+
+
+def prior_z(en):
+    """z = (E_obs - E_calc)/W_(-i) of every found level that can carry one."""
+    known = en[en['known']]
+    z = []
+    for _, g in known.groupby('cfg'):
+        o = g['omc'].to_numpy(dtype=float)
+        o = o[np.isfinite(o)]
+        n = len(o)
+        if n < PRIOR_MIN_CFG:
+            continue
+        w = np.sqrt((float(np.sum(o ** 2)) - o ** 2) / (n - 1))
+        ok = w > 0
+        z.extend((o[ok] / w[ok]).tolist())
+    return np.asarray(z, dtype=float)
+
+
+def t_ln_density(z, nu, tau):
+    """ln of the Student t density of z, nu degrees of freedom, scale tau."""
+    return (math.lgamma(0.5 * (nu + 1.0)) - math.lgamma(0.5 * nu)
+            - 0.5 * math.log(nu * math.pi) - math.log(tau)
+            - 0.5 * (nu + 1.0) * np.log1p((np.asarray(z) / tau) ** 2 / nu))
+
+
+def fit_position_prior(en, log=print):
+    """The Student t of (E_obs - E_calc)/W over the found levels, or None."""
+    from scipy.optimize import minimize
+    z = prior_z(en)
+    if len(z) < PRIOR_MIN_N:
+        log(f"  position prior: only {len(z)} found levels in configurations "
+            f"of {PRIOR_MIN_CFG} or more; no prior is applied")
+        return None
+
+    def nll(p):
+        return -float(np.sum(t_ln_density(z, math.exp(p[0]), math.exp(p[1]))))
+    r = minimize(nll, [math.log(10.0), 0.0], method='Nelder-Mead',
+                 options=dict(xatol=1e-6, fatol=1e-8, maxiter=4000))
+    nu, tau = math.exp(r.x[0]), math.exp(r.x[1])
+    sd = float(np.sqrt(np.mean(z ** 2)))
+    gauss = -float(np.sum(-0.5 * (z / sd) ** 2 - math.log(sd)
+                          - 0.5 * _LN_2PI))
+    log(f"  position prior: Student t in z = (E_obs - E_calc)/W over {len(z)} "
+        f"found levels, nu = {nu:.2f}, scale = {tau:.3f} W "
+        f"(rms of z {sd:.3f}; 2 dlnL against a Gaussian {2 * (gauss - r.fun):.1f})")
+    return PositionPrior(nu, tau, len(z))
+
+
+def ln_prior(e, e_calc, window, prior):
+    """ln_P at each energy of e: zero at E_calc, never positive.
+
+    Zero everywhere when there is no prior, or no E_calc or W to place it by.
+    """
+    e = np.atleast_1d(np.asarray(e, dtype=float))
+    if (prior is None or e_calc is None or window is None
+            or not np.isfinite(e_calc) or not np.isfinite(window)
+            or window <= 0):
+        return np.zeros(len(e))
+    t = (e - e_calc) / (prior.tau * window)
+    return -0.5 * (prior.nu + 1.0) * np.log1p(t * t / prior.nu)
+
+
+def prior_digest(prior):
+    """What the prior adds to the run digest: a changed fit rescans."""
+    if prior is None:
+        return 'prior:none'
+    return 'prior:%.2f|%.3f' % (prior.nu, prior.tau)
+
+
 def scan_level(ctx, level_id, e_adopted, e_calc, window, step=GRID_STEP,
                alt_drop=ALT_DROP):
-    """Scan ln R across the interval the calculation allows.
+    """Scan ln R + ln_P across the interval the calculation allows.
 
     Returns a dict with the adopted value, the alternate maxima ranked by
-    ln R, and the grid itself.
+    ln R + ln_P, and the grid itself.  Each alternate is (E, ln R, ln_P): the
+    line evidence and the position prior are kept apart so that the report
+    can show both.  ln_P is zero throughout when ctx carries no prior.
     """
     lo, hi = scan_interval(e_adopted, e_calc, window)
     n = int((hi - lo) / step) + 1
@@ -2499,24 +2624,30 @@ def scan_level(ctx, level_id, e_adopted, e_calc, window, step=GRID_STEP,
     y, _ = ln_ratio(ctx, level_id, grid)
     y_adopted, _ = ln_ratio(ctx, level_id, np.array([e_adopted]))
     y_adopted = float(y_adopted[0])
+    prior = getattr(ctx, 'prior', None)
+    lp = ln_prior(grid, e_calc, window, prior)
+    lp_adopted = float(ln_prior(e_adopted, e_calc, window, prior)[0])
+    post = y + lp
 
-    peaks = local_maxima(y)
+    peaks = local_maxima(post)
     alts = []
     for i in peaks:
         if abs(grid[i] - e_adopted) < ALT_SEP:
             continue
-        if y[i] >= y_adopted - alt_drop:
-            alts.append((float(grid[i]), float(y[i])))
-    alts.sort(key=lambda z: -z[1])
+        if post[i] >= y_adopted + lp_adopted - alt_drop:
+            alts.append((float(grid[i]), float(y[i]), float(lp[i])))
+    alts.sort(key=lambda z: -(z[1] + z[2]))
     # keep only maxima ALT_SEP apart from each other
     kept = []
-    for e, v in alts:
-        if all(abs(e - k[0]) >= ALT_SEP for k in kept):
-            kept.append((e, v))
-    i_best = int(np.argmax(y))
+    for a in alts:
+        if all(abs(a[0] - k[0]) >= ALT_SEP for k in kept):
+            kept.append(a)
+    i_best = int(np.argmax(post))
     return dict(level_id=level_id, e_adopted=e_adopted, ln_R=y_adopted,
+                ln_P=lp_adopted,
                 e_best=float(grid[i_best]), ln_R_best=float(y[i_best]),
-                lo=lo, hi=hi, step=step, grid=grid, y=y, alternates=kept)
+                lo=lo, hi=hi, step=step, grid=grid, y=y, ln_P_grid=lp,
+                alternates=kept)
 
 
 # ---------------------------------------------------------------------------
@@ -2715,6 +2846,9 @@ def detail_energy(ctx, level_id, at, alt_drop=ALT_DROP):
                                  row_of_id=li.id_rows(LEVEL_IDS))
     e_calc = dict(zip(lv['level_id'], lv['E_calc']))
     w_of = dict(zip(lv['level_id'], lv['W']))
+    if not hasattr(ctx, 'prior'):
+        ctx.prior = (None if getattr(ctx, 'no_prior', False)
+                     else fit_position_prior(en))
     r = scan_level(ctx, level_id, e_adopted, e_calc.get(level_id, np.nan),
                    w_of.get(level_id, np.nan), alt_drop=alt_drop)
     if not r['alternates']:
@@ -3284,9 +3418,9 @@ def disposition(row):
       relocate     a free position, broadly supported by lines nobody is
                    using, surviving the look-elsewhere correction, and
                    convincing in its own right - ln R must be positive there,
-                   after the delta J fingerprint has been charged against it
-                   (ln_R_alt_J), and not merely better than where the level is
-                   now.  How far
+                   after the delta J fingerprint and the position prior have
+                   been charged against it (ln_R_alt_J + ln_P_alt), and not
+                   merely better than where the level is now.  How far
                    away it is does not enter: a position 1 cm^-1 away that
                    takes a different set of lines is as much a relocation as
                    one 300 cm^-1 away, and needs the same ledger record.
@@ -3309,7 +3443,8 @@ def disposition(row):
                                          and share > AUDIT_ANY_SHARE):
         return 'no support'
     if (row['n_free'] >= AUDIT_MIN_FREE
-            and row.get('ln_R_alt_J', row['ln_R_alt']) > 0.0
+            and row.get('ln_R_alt_post',
+                        row.get('ln_R_alt_J', row['ln_R_alt'])) > 0.0
             and row['free_gain'] >= AUDIT_MIN_GAIN
             and np.isfinite(share) and share <= AUDIT_MAX_SHARE
             and row['look'] >= AUDIT_MIN_LOOK):
@@ -3322,9 +3457,12 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
 
     gain_R   ln R the alternate wins by on the line evidence alone
              (positive: the lines prefer it)
-    gain     gain_R + d_ln_J: the same, once the delta J fingerprint is
-             counted with it.  This is the column the dispositions are taken
-             on, and the one to read
+    gain_P   ln_P_alt - ln_P, what the position prior says about the move:
+             negative when the alternate is further from E_calc, in units of
+             the configuration's W, than the adopted position is
+    gain     gain_R + d_ln_J + gain_P: the same, once the delta J
+             fingerprint and the position prior are counted with it.  This is
+             the column the dispositions are taken on, and the one to read
     look     that gain after the look-elsewhere correction.  A level allowed
              a 7000 cm^-1 window gets hundreds of chances at a good maximum
              and a level allowed 130 gets a handful, so the two cannot be
@@ -3375,7 +3513,7 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
     action   see disposition()
     """
     cols = dict(n_free=[], free_gain=[], top_share=[], gain=[], gain_R=[],
-                look=[], n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
+                gain_P=[], look=[], n_obs_alt=[], n_seen_alt=[], n_miss_alt=[], n_own=[],
                 n_kept=[], kept_light=[], n_vacant=[], z_alt=[], ln_J_alt=[],
                 d_ln_J=[], ln_R_J=[], ln_R_alt_J=[], action=[])
     lev = ctx.per.set_index('level_id')
@@ -3400,7 +3538,10 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         r_j, a_j = fold_j([r['ln_R'], r['ln_R_alt']],
                           [r['ln_J'], s['ln_J']])
         gain_R = float(r['ln_R_alt']) - float(r['ln_R'])
-        gain = a_j - r_j
+        # the position prior, zero where the run carries none
+        gain_P = (float(r.get('ln_P_alt', 0.0)) - float(r.get('ln_P', 0.0))
+                  if np.isfinite(r.get('ln_P_alt', 0.0)) else 0.0)
+        gain = a_j - r_j + gain_P
         look = gain - math.log(max(int(r['n_alt']), 1))
         w = float(w_of.get(lid, np.nan))
         ec = float(e_calc.get(lid, np.nan))
@@ -3410,6 +3551,9 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         row['gain_R'] = gain_R
         row['look'] = look
         row['ln_R_alt_J'] = a_j
+        # what the alternate is worth in its own right: the lines, the
+        # fingerprint and the prior together
+        row['ln_R_alt_post'] = a_j + float(r.get('ln_P_alt', 0.0) or 0.0)
         cols['n_free'].append(s['n_free'])
         cols['free_gain'].append(s['free_gain'])
         cols['top_share'].append(s['top_share'])
@@ -3425,6 +3569,7 @@ def audit_table(ctx, tab, e_calc, w_of, vac):
         cols['ln_R_alt_J'].append(a_j)
         cols['gain'].append(gain)
         cols['gain_R'].append(gain_R)
+        cols['gain_P'].append(gain_P)
         cols['look'].append(look)
         cols['n_vacant'].append(count_vacancies(
             vac, lev.at[lid, 'J'] if lid in lev.index else None,
@@ -3462,8 +3607,8 @@ def order_report(tab):
                               ascending=[True, False, False],
                               na_position='last')
         tab = tab.drop(columns='_r')
-    elif 'd_ln_R' in tab.columns:
-        tab = tab.sort_values(['d_ln_R', 'ln_R'], ascending=[True, True],
+    elif 'd_ln_post' in tab.columns:
+        tab = tab.sort_values(['d_ln_post', 'ln_R'], ascending=[True, True],
                               na_position='last')
     else:
         tab = tab.sort_values('ln_R')
@@ -3479,7 +3624,9 @@ def print_audit(tab, alt_drop):
     pref = q[q['gain'] > 0]
     print(f"\naudit of the {len(q)} levels with an alternate position within "
           f"{alt_drop:g} of the adopted one")
-    print(f"  {len(pref)} of them have an alternate the lines actually prefer")
+    print(f"  {len(pref)} of them have an alternate the evidence actually "
+          f"prefers (gain > 0: the lines, the delta J fingerprint and the "
+          f"position prior together)")
     print('\n  what kind of problem each one is:')
     for name, g in pref.groupby('action'):
         print(f"    {name:<12} {len(g):>4}")
@@ -3487,7 +3634,7 @@ def print_audit(tab, alt_drop):
         'look', ascending=False)
     cols = ['level_id', 'E', 'n_obs', 'n_seen', 'ln_R', 'dE_alt',
             'ln_R_alt', 'n_seen_alt', 'n_miss_alt', 'gain_R', 'd_ln_J',
-            'gain', 'n_alt', 'look',
+            'gain_P', 'gain', 'n_alt', 'look',
             'n_free', 'free_gain', 'top_share', 'n_own', 'n_kept',
             'kept_light', 'n_vacant', 'z_alt', 'ln_J', 'ln_J_alt']
     with pd.option_context('display.width', 220, 'display.max_columns', 24):
@@ -4019,6 +4166,10 @@ def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0,
     of another configuration, whose label says little about which
     configuration's scatter it shares; --window-sigmas widens the window for
     it.  Maxima closer together than ALT_SEP are one maximum.
+
+    The maxima are those of ln R + ln_P, the line evidence with the position
+    prior added, and a candidate must have ln R + ln_P above min_ln_r.  Each
+    position is (E, ln R, ln_P).  ln_R_best is the best ln R + ln_P.
     """
     E_c = float(en['E_calc'][idx])
     W = float(per_cfg.get(en['cfg'][idx], whole))
@@ -4029,17 +4180,20 @@ def scan_unknown(ctx, idx, en, per_cfg, whole, step=GRID_STEP, min_ln_r=0.0,
         n = GRID_MAX
     grid = lo + step * np.arange(n)
     y, _ = ln_ratio(ctx, UNKNOWN_ID, grid)
-    hits = [(float(grid[i]), float(y[i])) for i in local_maxima(y)
-            if y[i] > min_ln_r]
-    hits.sort(key=lambda z: -z[1])
+    lp = ln_prior(grid, E_c, W, getattr(ctx, 'prior', None))
+    post = y + lp
+    hits = [(float(grid[i]), float(y[i]), float(lp[i]))
+            for i in local_maxima(post) if post[i] > min_ln_r]
+    hits.sort(key=lambda z: -(z[1] + z[2]))
     kept = []
-    for e, v in hits:
-        if all(abs(e - k[0]) >= ALT_SEP for k in kept):
-            kept.append((e, v))
+    for h in hits:
+        if all(abs(h[0] - k[0]) >= ALT_SEP for k in kept):
+            kept.append(h)
     return dict(idx=idx, E_calc=E_c, W=W, lo=lo, hi=hi, step=step,
-                min_ln_r=min_ln_r, grid=grid, y=y, positions=kept,
-                ln_R_best=float(y.max()) if len(y) else float('nan'),
-                E_best=float(grid[int(np.argmax(y))]) if len(y) else
+                min_ln_r=min_ln_r, grid=grid, y=y, ln_P_grid=lp,
+                positions=kept,
+                ln_R_best=float(post.max()) if len(post) else float('nan'),
+                E_best=float(grid[int(np.argmax(post))]) if len(post) else
                 float('nan'))
 
 
@@ -4047,22 +4201,25 @@ def unknown_table(ctx, r, refit=False, info=None):
     """One row per candidate position, best first.
 
     ln_R    what the recorded lines alone say about that energy
-    ln_R_J  the same with the delta J fingerprint folded in, and THE COLUMN
-            THE TABLE IS RANKED AND JUDGED ON.  The candidates are positions
-            of ONE level, so they predict the same transitions to the same
-            partners with the same gA and whatever the calculated branch
-            strengths get wrong is common to them all; only the difference
-            between their fingerprints says anything about where the level
-            is.  Every candidate is therefore offset by the cleanest of them,
-            ln_R_J = ln_R - (ln_J - min ln_J): the best-fitting candidate
-            keeps its ln R exactly, each other pays what its fingerprint is
-            worse by, and a scan whose candidates are all equally clean is
-            left as it was
+    ln_P    the position prior there (fit_position_prior): zero at E_calc,
+            more negative the further the position is from it in units of
+            the configuration's W
+    ln_R_J  ln_R + ln_P with the delta J fingerprint folded in, and THE
+            COLUMN THE TABLE IS RANKED AND JUDGED ON.  The candidates are
+            positions of ONE level, so they predict the same transitions to
+            the same partners with the same gA and whatever the calculated
+            branch strengths get wrong is common to them all; only the
+            difference between their fingerprints says anything about where
+            the level is.  Every candidate is therefore offset by the cleanest
+            of them, ln_R_J = ln_R + ln_P - (ln_J - min ln_J): the
+            best-fitting candidate pays nothing for its fingerprint, each
+            other pays what its fingerprint is worse by, and a scan whose
+            candidates are all equally clean is left as it was
     look    ln_R_J after the look-elsewhere correction for the whole scan
     dE, z   how far it is from the calculated energy, in cm^-1 and in units
             of that configuration's own scatter.  A position at z = 2.8 is
             asking the calculation to be wrong by nearly three times as much
-            as it usually is for that configuration.
+            as it usually is for that configuration; ln_P charges for it.
     n_obs   predictions that could have been recorded there (P_obs >= P_SEEN)
     n_match how many of those REALLY match a recorded line (n_real of
             support(): within FREE_SIGMA, and a line the row's own ln R_t
@@ -4110,16 +4267,20 @@ def unknown_table(ctx, r, refit=False, info=None):
     """
     rows = []
     n = max(len(r['positions']), 1)
-    sups = [support(ctx, UNKNOWN_ID, e) for e, _ in r['positions']]
+    # (E, ln R, ln_P); a position without a prior term has ln_P = 0
+    pos = [(float(p[0]), float(p[1]), float(p[2]) if len(p) > 2 else 0.0)
+           for p in r['positions']]
+    sups = [support(ctx, UNKNOWN_ID, e) for e, _, _ in pos]
     # the cleanest fingerprint among the candidates carries no charge; fold_j
     # says why only the difference between them means anything
-    folded = fold_j([v for _, v in r['positions']],
+    folded = fold_j([v + p for _, v, p in pos],
                     [sp['ln_J'] for sp in sups])
-    for (e, v), sup, v_j in zip(r['positions'], sups, folded):
+    for (e, v, p), sup, v_j in zip(pos, sups, folded):
         fit = refit_correction(ctx, UNKNOWN_ID, e) if refit else None
         if info is not None and fit is not None:
             info[e] = fit
-        rows.append(dict(E=e, ln_R=v, ln_R_J=v_j, look=v_j - math.log(n),
+        rows.append(dict(E=e, ln_R=v, ln_P=p, ln_R_J=v_j,
+                         look=v_j - math.log(n),
                          dE=e - r['E_calc'],
                          z=(e - r['E_calc']) / r['W'] if r['W'] > 0
                          else np.nan,
@@ -4135,7 +4296,7 @@ def unknown_table(ctx, r, refit=False, info=None):
                          verdict=position_verdict(
                              sup['n_free'], sup['free_gain'],
                              sup['top_share'], v_j - math.log(n))))
-    cols = ['E', 'ln_R', 'ln_R_J', 'look', 'dE', 'z',
+    cols = ['E', 'ln_R', 'ln_P', 'ln_R_J', 'look', 'dE', 'z',
             'n_obs', 'n_match', 'n_poor', 'n_miss',
             'n_free', 'free_gain', 'top_share', 'ln_J']
     if refit:
@@ -4252,6 +4413,13 @@ def print_unknown(ctx, idx, en, r, n_pred, top=0, refit=True):
           f"calculated position")
     print(f"  scanned {r['lo']:.1f} - {r['hi']:.1f} cm^-1 in steps of "
           f"{r['step']:.3f}")
+    pr = getattr(ctx, 'prior', None)
+    if pr is not None:
+        edge = float(ln_prior(r['E_calc'] + 3.0 * r['W'], r['E_calc'],
+                              r['W'], pr)[0])
+        print(f"  ln R below is the line evidence; ln_P, the position prior, "
+              f"is added to it before positions are picked and ranked "
+              f"(0 at E_calc, {edge:.2f} at 3 W)")
     if at_calc['n_obs_alt'] < 2:
         print(f"  With fewer than two transitions that could have been "
               f"recorded, nothing in this window can be believed: one line "
@@ -4382,7 +4550,10 @@ def add_claims(ctx, tab):
 
 
 def score_one(ctx, st, e, j0):
-    """ln_R_J of one row at one energy, with ctx as it stands.
+    """ln_R_J of one row at one energy, with ctx as it stands, less ln_P.
+
+    The position prior is left to the caller: it is the same in every
+    combination, and combo_score() adds the value the row's table gave it.
 
     ``j0`` is the row's own fingerprint zero - the smallest ln_J among its
     candidates - so that the number is on the same scale as the ln_R_J of that
@@ -4418,6 +4589,9 @@ def combo_score(ctx, slots, choice):
         for k in order:
             parts[k], tab = score_one(ctx, slots[k]['state'], choice[k],
                                       slots[k]['j0'])
+            # the position prior does not depend on the other rows, so it is
+            # the one its own table gave that position
+            parts[k] += slots[k].get('ln_p', {}).get(choice[k], 0.0)
             add_claims(ctx, tab)
     finally:
         ctx.claimed_tot, ctx.n_acc_line = tot0, n0
@@ -4616,6 +4790,10 @@ def parse_args(argv):
                         'second run fast; a level is re-scanned the moment '
                         'its energy, one of its partners, or an accepted '
                         'assignment within reach of its predictions moves')
+    p.add_argument('--no-prior', action='store_true',
+                   help='leave the position prior out: every position in the '
+                        'window equally likely before the lines are read, as '
+                        'the runs made before 2026-10-14 did')
     p.add_argument('--plain-background', action='store_true',
                    help='take the background of unrelated lines from the whole '
                         'observed list, as the runs made before the '
@@ -4745,6 +4923,7 @@ def main(argv=None):
         if args.firm and (args.scan or args.audit):
             output_files.require_writable([args.firm], 'registry file')
     ctx = build(args)
+    ctx.no_prior = args.no_prior
 
     if args.detail:
         print_detail(ctx, args.detail, args.at, args.detail_all,
@@ -4755,6 +4934,7 @@ def main(argv=None):
         if args.drop_questionable:
             release_levels(ctx, questionable_levels(args.out), args)
         en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
+        ctx.prior = None if args.no_prior else fit_position_prior(en)
         slots = []
         for idx in args.unknown:
             if idx not in en.index:
@@ -4783,7 +4963,9 @@ def main(argv=None):
                     idx=idx, tab=tab, j0=j0, state=slot_state(ctx),
                     fit=dict(info or {}),
                     alone=dict(zip((float(x) for x in tab['E']),
-                                   (float(x) for x in tab['ln_R_J'])))))
+                                   (float(x) for x in tab['ln_R_J']))),
+                    ln_p=dict(zip((float(x) for x in tab['E']),
+                                  (float(x) for x in tab['ln_P'])))))
         if args.combine and len(slots) > 1:
             print_combinations(ctx, slots, top=args.combine)
         return 0
@@ -4806,18 +4988,20 @@ def main(argv=None):
                                              row_of_id=li.id_rows(LEVEL_IDS))
         e_calc = dict(zip(lv['level_id'], lv['E_calc']))
         w_of = dict(zip(lv['level_id'], lv['W']))
+        ctx.prior = None if args.no_prior else fit_position_prior(en)
         registry = read_firm(args.firm)
         known = registry if args.use_firm else {}
         if registry and not args.use_firm:
             print(f"\nthe registry {args.firm} calls {len(registry)} levels "
                   f"settled; --use-firm skips their scans")
-        glob = run_digest(ctx)
+        glob = run_digest(ctx) + '|' + prior_digest(ctx.prior)
         acc_wn, acc_key = accepted_index(ctx)
         print(f"\n{len(ids)} levels to consider "
               f"({len(unmatched)} matched no row of enlev.dat)"
               + (f"; the registry may spare some of them their scan"
                  if known else ''))
         n_alt, best_alt, d_alt, sep, width = [], [], [], [], []
+        ln_p, ln_p_alt, d_post = [], [], []
         scanned, fresh = [], {k: dict(v) for k, v in registry.items()}
         # a maximum that falls on another level of the run OF THE SAME J
         # AND PARITY is a different question from one that falls on empty
@@ -4835,6 +5019,7 @@ def main(argv=None):
             fp = scan_fingerprint(ctx, lid, e_a, ec, wd, args.step,
                                   args.alt_drop, glob, acc_wn, acc_key)
             was = known.get(str(lid))
+            ln_p.append(float(ln_prior(e_a, ec, wd, ctx.prior)[0]))
             if (was is not None and str(was['fingerprint']) == fp
                     and abs(ln_r - float(was['ln_R'])) <= FIRM_TOL):
                 # nothing this level's scan depends on has moved, and ln R at
@@ -4846,6 +5031,8 @@ def main(argv=None):
                 best_alt.append(np.nan)
                 d_alt.append(np.nan)
                 sep.append(np.nan)
+                ln_p_alt.append(np.nan)
+                d_post.append(np.nan)
                 alt_lev.append('')
                 alt_lev_dE.append(np.nan)
                 fresh[str(lid)] = dict(level_id=lid, E=e_a, ln_R=ln_r,
@@ -4864,9 +5051,11 @@ def main(argv=None):
             n_alt.append(len(r['alternates']))
             width.append(r['hi'] - r['lo'])
             if r['alternates']:
-                e_a, v_a = r['alternates'][0]
+                e_a, v_a, p_a = r['alternates'][0]
                 best_alt.append(v_a)
                 d_alt.append(r['ln_R'] - v_a)
+                ln_p_alt.append(p_a)
+                d_post.append(r['ln_R'] + r['ln_P'] - v_a - p_a)
                 sep.append(e_a - r['e_adopted'])
                 nid, ndE = nearest_same_kind(kinds, kind_of, lid, e_a)
                 alt_lev.append(nid)
@@ -4874,13 +5063,18 @@ def main(argv=None):
             else:
                 best_alt.append(np.nan)
                 d_alt.append(np.nan)
+                ln_p_alt.append(np.nan)
+                d_post.append(np.nan)
                 sep.append(np.nan)
                 alt_lev.append('')
                 alt_lev_dE.append(np.nan)
         tab['scan_width'] = width
+        tab['ln_P'] = ln_p
         tab['n_alt'] = n_alt
         tab['ln_R_alt'] = best_alt
         tab['d_ln_R'] = d_alt
+        tab['ln_P_alt'] = ln_p_alt
+        tab['d_ln_post'] = d_post
         tab['dE_alt'] = sep
         tab['near_level'] = alt_lev
         tab['near_dE'] = alt_lev_dE
@@ -4902,7 +5096,8 @@ def main(argv=None):
         'near_dE': 4, 'scan_width': 1, 'gain': 3, 'look': 3,
         'free_gain': 3, 'top_share': 3, 'kept_light': 3, 'z_alt': 2,
         'ln_J': 3, 'ln_J_alt': 3, 'd_ln_J': 3, 'gain_R': 3,
-        'ln_R_J': 3, 'ln_R_alt_J': 3})
+        'ln_R_J': 3, 'ln_R_alt_J': 3, 'ln_P': 3, 'ln_P_alt': 3,
+        'd_ln_post': 3, 'gain_P': 3})
     print(f"ln R at the adopted position: median {tab['ln_R'].median():.1f}, "
           f"{int((tab['ln_R'] <= 0).sum())} at or below zero, "
           f"{int((tab['ln_R'] < 10).sum())} below 10")
@@ -4913,17 +5108,19 @@ def main(argv=None):
         print(f"\nlevels with an alternate position within "
               f"{args.alt_drop:g} of the adopted one: {len(q)} of {len(tab)}")
         print(f"  of these, {int((q['d_ln_R'] < 0).sum())} have an alternate "
-              f"the lines prefer to the adopted position")
+              f"the lines prefer to the adopted position, "
+              f"{int((q['d_ln_post'] < 0).sum())} once the position prior "
+              f"is counted")
         onlev = (q['near_dE'].abs() < INTERCHANGE_DE).sum()
         print(f"  {int(onlev)} of the best alternates fall on another level "
               f"of the run of the same J and parity - an interchange, not a "
               f"free position")
         cols = ['level_id', 'E', 'n_obs', 'n_seen', 'n_miss', 'ln_R',
-                'n_alt', 'ln_R_alt', 'd_ln_R', 'dE_alt', 'near_level',
-                'near_dE']
-        with pd.option_context('display.width', 200,
+                'n_alt', 'ln_R_alt', 'd_ln_R', 'ln_P', 'ln_P_alt',
+                'd_ln_post', 'dE_alt', 'near_level', 'near_dE']
+        with pd.option_context('display.width', 220,
                                'display.max_columns', 24):
-            print(q.sort_values('d_ln_R')[cols].head(40)
+            print(q.sort_values('d_ln_post')[cols].head(40)
                   .to_string(index=False, na_rep='-'))
         # An empty action is not a clean bill of health.  It means the scan
         # found no alternate, which is reassuring only when the adopted
