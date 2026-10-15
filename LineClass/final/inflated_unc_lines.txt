@@ -101,3 +101,26 @@ wn_key	unc_wn	date	reason
 27312.1523	0.5	10/8/2026	outlier in IDEN2/LOPT, OK with inflated unc
 66477.4764	0.44	10/11/2026	very weak observed line, 4 times weaker than predicted; 3.6 sigma from Ritz in Set 3; no other candidates
 49077.8771	0.4	10/11/2026	outlier in final IDEN2/LOPT, OK with inflated unc
+23083.6428	0.2	10/15/2026	blended with rung 1 of 000182-000653 (companion of 23082.919), which LOPT cannot model; held 000384 0.085 above its 14 VUV lines
+34042.6488	0.35	10/15/2026	*r head of 000188-000448 doubtful: the other 9 lines of 000448 put it 0.35 off, and the printed component spacing disagrees with the head offset; 000187-000298 may be mixed in
+54489.4089	0.3	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc; 000572 questionable
+67489.8694	0.5	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc; 000677 questionable
+53268.5544	0.28	10/15/2026	observed 26 times stronger than predicted: mostly an unidentified line
+53041.1707	0.29	10/15/2026	observed 22 times stronger than predicted: mostly an unidentified line
+71937.8315	0.45	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc
+94957.2961	0.8	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc
+41279.9499	0.14	10/15/2026	outlier in final IDEN2/LOPT, 4 times stronger than predicted (blend?)
+116657.51	1.2	10/15/2026	blend with 000032-000650 suspected
+53958.1579	0.3	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc
+69903.5211	0.43	10/15/2026	outlier in final IDEN2/LOPT; opposite to 70349.2703 on 000627
+70349.2703	0.37	10/15/2026	outlier in final IDEN2/LOPT; opposite to 69903.5211 on 000627
+49051.2989	0.4	10/15/2026	Too high Iobs, blend suspected
+10255.9388	0.07	10/15/2026	outlier in final IDEN2/LOPT, disagrees with 22970.778 on 000367
+39903.869	0.14	10/15/2026	outlier in final IDEN2/LOPT, 4 times stronger than predicted (blend?)
+67957.0287	0.39	10/15/2026	outlier in final IDEN2/LOPT, 4 times weaker than predicted
+51230.3449	0.23	10/15/2026	IDEN2/LOPT: assignment requires inflation
+47440.1709	0.16	10/15/2026	outlier in final IDEN2/LOPT, 4 times stronger than predicted; disagrees with 43703.877 on 000209
+12154.3143	0.055	10/15/2026	outlier in final IDEN2/LOPT; disagrees with the legacy 40551.224 on 000319
+40163.2089	0.12	10/15/2026	outlier in final IDEN2/LOPT; disagrees with the legacy 39533.681 on 000130
+24350.6202	0.23	10/15/2026	double line (char d, Sugar: a blend of two lines); its setting fits the center of gravity, not the head
+100117.4188	0.7	10/15/2026	Weak line on the level of noise, pulls 000493 too hard

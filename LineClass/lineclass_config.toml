@@ -412,3 +412,11 @@ plain_1974    = [0.751, 0.034]
 plain_1969    = [0.440, 0.049]
 c             = [0.039, 0.041]
 flag_unlisted = [0.900, 0.025]
+
+[hfs.kappa_spread]
+# the line-to-line spread s of kappa about its class, per era: a line of
+# a fitted class (not flag) gains s*|D| in its u_hfs_shift; see hfs_kappa.py,
+# SPREAD_ROUNDS.  Written by wavelength_calibration.py.
+# [wavelength_calibration.py] written 2026-10-15 17:05 from iter_hfs\line_classifications.csv (4497 lines), kappa held; before: 1969 0.2580  1974 0.0980
+1974 = 0.0984
+1969 = 0.2230

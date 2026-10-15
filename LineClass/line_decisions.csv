@@ -847,3 +847,20 @@ wn_key,low_id,upp_id,decision,date,reason
 99444.7004,059003.000145,059003.000516,reject,10/14/2026,IDEN2/LOPT: 000516 moved to 134270.670; masked component of the blend with 000062-000482
 96351.9126,059003.000160,059003.000516,accept,10/14/2026,IDEN2/LOPT: 000516 moved to 134270.670; blend with 000080-000397
 39496.0495,059003.000233,059003.000553,reject,10/14/2026,Too strong Iobs compared to Icalc.
+39303.2201,059003.000285,059003.000678,accept,10/15/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg; drop by the uncertainty model of 2026-10-15 denied"
+50393.5754,059003.000143,059003.000643,accept,10/15/2026,IDEN2/LOPT: fair Iobs/Icalc and obs-Ritz; drop by the uncertainty model of 2026-10-15 denied
+51754.9866,059003.000120,059003.000284,accept,10/15/2026,"IDEN2/LOPT: blend (""bl"" char), fair Iobs/Icalc; improves cg; drop by the uncertainty model of 2026-10-15 denied"
+52734.5537,059003.000224,059003.000678,accept,10/15/2026,IDEN2/LOPT: fair Iobs/Icalc and obs-Ritz; drop by the uncertainty model of 2026-10-15 denied
+54201.983,059003.000041,059003.000237,accept,10/15/2026,IDEN2/LOPT: fair Iobs/Icalc and obs-Ritz; drop by the uncertainty model of 2026-10-15 denied
+92266.6821,059003.000104,059003.000391,accept,10/15/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg; drop by the uncertainty model of 2026-10-15 denied"
+94177.019,059003.000165,059003.000638,accept,10/15/2026,"IDEN2/LOPT: blend, fair Iobs/Icalc; improves cg; drop by the uncertainty model of 2026-10-15 denied"
+47315.7707,059003.000120,059003.000437,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted
+57669.1661,059003.000126,059003.000451,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted
+57669.1661,059003.000042,059003.000258,reject,10/15/2026,IDEN2/LOPT: keep the previous rejection: Iobs too small
+51365.5563,059003.000146,059003.000451,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; Icalc is too uncertain to be denied
+49591.7861,059003.000160,059003.000303,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; blend improves cg
+43816.4801,059003.000201,059003.000547,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; blend improves cg
+95763.5096,059003.000075,059003.000476,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg; blend improves Iobs/Icalc
+98489.1877,059003.000097,059003.000496,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
+71296.2120,059003.000194,059003.000651,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
+116657.5100,059003.000032,059003.000650,accept,10/15/2026,IDEN2/LOPT: inflation of unc overturns the previous rejection; blend improves cg

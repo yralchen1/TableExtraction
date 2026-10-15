@@ -3297,6 +3297,58 @@ with a warning. The first totals (2026-10-11, 652 levels), in medians:
 * above 100000: u_stat 0.0290, u_cal 0.0383, u_hfs 0.0224, u_kappa 0.0032; D2tot* 0.058;
 * in all, D2tot* is 2.1 times D2stat. Ritz wavenumbers: uWnCstat 0.022, u_ritz 0.046.
 
+### The article's level table: `levels_pub.py`
+
+`levels_pub.xlsx` is the level table of the article. It has one row per level of the Cowan
+calculation, holding the composition, the calculated energy `Ec` and, where known, the
+published energy (Sugar's or Wyart's) and the `level_id`. `levels_pub.py` (2026-10-15) fills
+the empty `level_id` cells and writes seven columns after the existing ones:
+
+| Column | What it holds |
+|---|---|
+| `lid` | the level's number in the Cowan calculation (`tp_E1_no_trials.xlsx`) |
+| `Eopt` | the energy from `final/LOPT_output_levels.txt`, cm⁻¹ (the center of gravity) |
+| `unc_stat` | max(D1, D2stat), 0 for the fixed ground level |
+| `unc_sys` | √(u_cal² + u_hfs² + u_kappa²), the parts the two `lopt_perturb.py` passes measure |
+| `unc_tot` | √(unc_stat² + unc_sys²), which is `D2tot*` of `levels_set3.csv` |
+| `N_lines` | LOPT's line count without its "L" and "D" parts |
+| `Notes` | `N` new (`new_levels.txt`), `R` revised (`revised_level_energies.csv`), `D` discarded (`discarded_levels.csv`); letters combine, e.g. `NR` |
+
+The uncertainties are read from `final/levels_set3.csv`. So after any change to the calibration,
+the uncertainty model or kappa, the order is:
+1. the chains of `iter_hfs` and `final`;
+2. `lopt_perturb.py` twice;
+3. `make_set3.py --levels`;
+4. `python levels_pub.py`.
+
+The tool stops if `levels_set3.csv` belongs to another fit (an energy or line count differs) or
+has no systematic parts. It also stops if a level of the fit ends up in no row.
+
+**Joining a row to the calculated levels.**
+- A row that has a `level_id` is joined through `classify_lines.cowan_lid_ids`, that is, through
+  `IDEN2/IDEN_level_ids.txt`, never by energy.
+- A row without one takes the calculated level of its parity and J nearest in `Ec`, within
+  6 cm⁻¹. The workbook's `Ec` is not the `E_calc` of `tp_E1_no_trials.xlsx` to the digit: the
+  median difference is 0.1–0.2 cm⁻¹ and a few reach 5. A near tie is decided by the lid order
+  of the neighboring rows, since the table runs in lid order within each parity.
+- The workbook stops near 141400 cm⁻¹. A level found above that (000682, lid 509, on
+  2026-10-15) gets a row inserted where its lid puts it, with the parity, configuration, term,
+  J and `Ec` of the calculation. Its composition and Landé g are left for you to fill in.
+
+The workbook is updated in place (`--out` writes elsewhere, and `--check` only reports). A
+rerun replaces the seven columns.
+
+`R` comes from the revision list only, because a revision means a different set of lines, and a
+shift alone does not prove that. The report lists `Eopt` − energy for the revised levels. It
+also lists the largest shifts among the unmarked levels, for information, ranked by what is
+left after the change of frame: `Eopt` is a center of gravity measured from the ground level's,
+while a published energy lies near the hfs head. The frame alone moves a level by about
+−(S − S_ground), with S_ground = 0.343 cm⁻¹ (`S` from `levels_set3.csv`).
+
+On 2026-10-15 the table had 1037 rows: 653 with an energy of the fit, 48 `level_id` cells
+filled, and 62 N, 29 R and 2 D. The largest unexplained shifts of unmarked levels were
+000493 (+1.27) and 000300 (−1.02).
+
 ### Choosing the set from the command line
 
 `classify_lines.py` and `gA_imputation.py` take `--config`. The other dozen programs cannot: they

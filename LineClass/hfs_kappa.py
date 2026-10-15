@@ -146,7 +146,7 @@ FLOOR = 0.0055
 
 #: a line with a character code is never given less than this many times the
 #: uncertainty of a plain line of its era at the same wavenumber (user,
-#: 2026-10-08).  A wide, diffuse or complex line cannot be set on as
+#: 2026-10-08).  A wide, double or complex line cannot be set on as
 #: accurately as a sharp one recorded as strongly, whatever the residuals of
 #: its class say: the calibration of that day measured the 431 w lines of
 #: 1974 at 0.0392 cm^-1 against 0.0371 for the plain ones, which says that

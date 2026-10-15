@@ -1,5 +1,5 @@
-lopt_perturb.py --source hfs, 2026-10-14 14:53
-set: F:\UMD\AI\as-ai\LineClass\final (8030 records)
+lopt_perturb.py --source hfs, 2026-10-15 19:02
+set: F:\UMD\AI\as-ai\LineClass\final (7842 records)
 source set F:\UMD\AI\as-ai\LineClass\iter_hfs; A table F:\UMD\AI\as-ai\LineClass\A_hfs_levels.csv
 calculated constants: 35 correlated patterns (7 radial, 8 factors, 20 configurations)
 semiempirical scale: 7 levels; fitted constants: 111 patterns over 111 levels, the fit reproducing the table to 0.00005 cm^-1
@@ -8,26 +8,26 @@ records without a line: 0; patterns that move no record: 0
 patterns run: 747 (147 correlated, 596 own, 4 kappa)
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
 linearity: the pattern radial:4f.a01 at half size differs by 5.57e-08 cm^-1 at most (its largest level shift 0.0063)
-749 runs, 16 at a time, 1771 s
+749 runs, 16 at a time, 2310 s
 
-u_hfs over 652 levels (ground excluded): median 0.0269, 90% 0.0408, max 0.1018 cm^-1; / D2stat median 1.42, 90% 2.74
-  E      0-50000 : 160 levels, median u_hfs 0.0246, median D2stat 0.0115
-  E  50000-100000: 175 levels, median u_hfs 0.0261, median D2stat 0.0173
-  E 100000-      : 317 levels, median u_hfs 0.0275, median D2stat 0.0280
-u_hfs_corr over 652 levels (ground excluded): median 0.0237, 90% 0.0332, max 0.0637 cm^-1; / D2stat median 1.18, 90% 2.37
-  E      0-50000 : 160 levels, median u_hfs_corr 0.0217, median D2stat 0.0115
-  E  50000-100000: 175 levels, median u_hfs_corr 0.0215, median D2stat 0.0173
-  E 100000-      : 317 levels, median u_hfs_corr 0.0251, median D2stat 0.0280
-u_hfs_own over 652 levels (ground excluded): median 0.0087, 90% 0.0252, max 0.1004 cm^-1; / D2stat median 0.48, 90% 1.28
-  E      0-50000 : 160 levels, median u_hfs_own 0.0089, median D2stat 0.0115
-  E  50000-100000: 175 levels, median u_hfs_own 0.0064, median D2stat 0.0173
-  E 100000-      : 317 levels, median u_hfs_own 0.0089, median D2stat 0.0280
-u_kappa over 652 levels (ground excluded): median 0.0035, 90% 0.0077, max 0.0238 cm^-1; / D2stat median 0.15, 90% 0.45
-  E      0-50000 : 160 levels, median u_kappa 0.0035, median D2stat 0.0115
-  E  50000-100000: 175 levels, median u_kappa 0.0042, median D2stat 0.0173
-  E 100000-      : 317 levels, median u_kappa 0.0033, median D2stat 0.0280
-  kappa:c: median 0.0000, max 0.0124 cm^-1
-  kappa:flag_unlisted: median 0.0000, max 0.0034 cm^-1
-  kappa:plain_1969: median 0.0021, max 0.0218 cm^-1
-  kappa:plain_1974: median 0.0024, max 0.0225 cm^-1
+u_hfs over 652 levels (ground excluded): median 0.0269, 90% 0.0404, max 0.1037 cm^-1; / D2stat median 1.57, 90% 3.13
+  E      0-50000 : 160 levels, median u_hfs 0.0246, median D2stat 0.0099
+  E  50000-100000: 175 levels, median u_hfs 0.0261, median D2stat 0.0158
+  E 100000-      : 317 levels, median u_hfs 0.0276, median D2stat 0.0247
+u_hfs_corr over 652 levels (ground excluded): median 0.0237, 90% 0.0331, max 0.0638 cm^-1; / D2stat median 1.32, 90% 2.75
+  E      0-50000 : 160 levels, median u_hfs_corr 0.0219, median D2stat 0.0099
+  E  50000-100000: 175 levels, median u_hfs_corr 0.0215, median D2stat 0.0158
+  E 100000-      : 317 levels, median u_hfs_corr 0.0251, median D2stat 0.0247
+u_hfs_own over 652 levels (ground excluded): median 0.0087, 90% 0.0252, max 0.0953 cm^-1; / D2stat median 0.54, 90% 1.40
+  E      0-50000 : 160 levels, median u_hfs_own 0.0089, median D2stat 0.0099
+  E  50000-100000: 175 levels, median u_hfs_own 0.0064, median D2stat 0.0158
+  E 100000-      : 317 levels, median u_hfs_own 0.0089, median D2stat 0.0247
+u_kappa over 652 levels (ground excluded): median 0.0035, 90% 0.0077, max 0.0228 cm^-1; / D2stat median 0.16, 90% 0.50
+  E      0-50000 : 160 levels, median u_kappa 0.0036, median D2stat 0.0099
+  E  50000-100000: 175 levels, median u_kappa 0.0043, median D2stat 0.0158
+  E 100000-      : 317 levels, median u_kappa 0.0032, median D2stat 0.0247
+  kappa:c: median 0.0000, max 0.0097 cm^-1
+  kappa:flag_unlisted: median 0.0000, max 0.0018 cm^-1
+  kappa:plain_1969: median 0.0020, max 0.0216 cm^-1
+  kappa:plain_1974: median 0.0025, max 0.0194 cm^-1
 written: F:\UMD\AI\as-ai\LineClass\final\hfs_sys_levels.csv, F:\UMD\AI\as-ai\LineClass\final\hfs_sys_modes.csv, F:\UMD\AI\as-ai\LineClass\final\hfs_sys_report.txt

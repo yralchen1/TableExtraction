@@ -1,16 +1,16 @@
-lopt_perturb.py --source calibration, 2026-10-14 14:24
-set: F:\UMD\AI\as-ai\LineClass\final (8030 records)
+lopt_perturb.py --source calibration, 2026-10-15 18:08
+set: F:\UMD\AI\as-ai\LineClass\final (7842 records)
 corrections F:\UMD\AI\as-ai\LineClass\wavelength_calibration_corrections.csv; covariance F:\UMD\AI\as-ai\LineClass\wavelength_calibration_cov.csv
-groups 152; patterns run 152 of 152, the largest carrying 25.1% of the variance
-corrections against covariance: largest relative difference of a group's u 1.04%
-records not moved: 0 not in the table, 46 without a group, 0 in a group the covariance does not hold
+groups 150; patterns run 150 of 150, the largest carrying 25.4% of the variance
+corrections against covariance: largest relative difference of a group's u 1.24%
+records not moved: 0 not in the table, 61 without a group, 0 in a group the covariance does not hold
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
-linearity: the pattern p001 at half size differs by 2.66e-07 cm^-1 at most (its largest level shift 0.0352)
-154 runs, 16 at a time, 301 s
+linearity: the pattern p001 at half size differs by 2.20e-07 cm^-1 at most (its largest level shift 0.0296)
+152 runs, 16 at a time, 471 s
 
-u_cal over 652 levels (ground excluded): median 0.0303, 90% 0.0426, max 0.1041 cm^-1; / D2stat median 1.12, 90% 1.99
-  E      0-50000 : 160 levels, median u_cal 0.0094, median D2stat 0.0115
-  E  50000-100000: 175 levels, median u_cal 0.0223, median D2stat 0.0173
-  E 100000-      : 317 levels, median u_cal 0.0384, median D2stat 0.0280
-the largest pattern's share of u_cal^2: median 0.54
+u_cal over 652 levels (ground excluded): median 0.0262, 90% 0.0369, max 0.0913 cm^-1; / D2stat median 1.06, 90% 1.97
+  E      0-50000 : 160 levels, median u_cal 0.0080, median D2stat 0.0099
+  E  50000-100000: 175 levels, median u_cal 0.0192, median D2stat 0.0158
+  E 100000-      : 317 levels, median u_cal 0.0332, median D2stat 0.0247
+the largest pattern's share of u_cal^2: median 0.51
 written: F:\UMD\AI\as-ai\LineClass\final\calibration_sys_levels.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_modes.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_report.txt
