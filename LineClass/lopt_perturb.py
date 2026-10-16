@@ -455,7 +455,7 @@ def theory_patterns(table):
     sigmas, fraction, min_measured = T.read_uncertainties(T.PARAMS_FILE,
                                                          params)
     known = {lv.level_id: lv for lv in levels if lv.level_id}
-    tested = T.tested_configs(list(known.values()), T.read_measured(),
+    tested = T.configs_tested(list(known.values()), T.read_measured(),
                               min_measured)
     calc = [lid for lid, r in table.items()
             if r['source'].startswith(T.CALC_SOURCE) and lid in known]

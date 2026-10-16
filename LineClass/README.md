@@ -3302,17 +3302,18 @@ with a warning. The first totals (2026-10-11, 652 levels), in medians:
 `levels_pub.xlsx` is the level table of the article. It has one row per level of the Cowan
 calculation, holding the composition, the calculated energy `Ec` and, where known, the
 published energy (Sugar's or Wyart's) and the `level_id`. `levels_pub.py` (2026-10-15) fills
-the empty `level_id` cells and writes seven columns after the existing ones:
+the empty `level_id` cells and writes eight columns after the existing ones:
 
 | Column | What it holds |
 |---|---|
 | `lid` | the level's number in the Cowan calculation (`tp_E1_no_trials.xlsx`) |
+| `iden2_id` | the level's row in `final/IDEN2/enlev.dat`, from `final/IDEN2/IDEN_level_ids.txt` |
 | `Eopt` | the energy from `final/LOPT_output_levels.txt`, cm⁻¹ (the center of gravity) |
 | `unc_stat` | max(D1, D2stat), 0 for the fixed ground level |
 | `unc_sys` | √(u_cal² + u_hfs² + u_kappa²), the parts the two `lopt_perturb.py` passes measure |
 | `unc_tot` | √(unc_stat² + unc_sys²), which is `D2tot*` of `levels_set3.csv` |
 | `N_lines` | LOPT's line count without its "L" and "D" parts |
-| `Notes` | `N` new (`new_levels.txt`), `R` revised (`revised_level_energies.csv`), `D` discarded (`discarded_levels.csv`); letters combine, e.g. `NR` |
+| `Notes` | `N` new (`new_levels.txt`), `R` revised (`revised_level_energies.csv`), `D` discarded (`discarded_levels.csv`); letters combine, e.g. `NR`. `Q` questionable (`questionable_levels.txt`, the list kept by hand) follows a comma: `Q` alone, or `NR,Q` |
 
 The uncertainties are read from `final/levels_set3.csv`. So after any change to the calibration,
 the uncertainty model or kappa, the order is:
@@ -3336,7 +3337,11 @@ has no systematic parts. It also stops if a level of the fit ends up in no row.
   J and `Ec` of the calculation. Its composition and Landé g are left for you to fill in.
 
 The workbook is updated in place (`--out` writes elsewhere, and `--check` only reports). A
-rerun replaces the seven columns.
+rerun replaces the eight columns. A column the workbook does not have yet goes after the one it
+follows in the table above (`iden2_id` was added after `lid` on 2026-10-16). When a column or a
+row is inserted, the references in the workbook's own formulas move with the cells, as they do
+in Excel: `dE_O-C = Eopt − Ec` keeps pointing at `Eopt`. The filter range and column widths
+move too, and an inserted row takes the formulas of the row above it.
 
 `R` comes from the revision list only, because a revision means a different set of lines, and a
 shift alone does not prove that. The report lists `Eopt` − energy for the revised levels. It
@@ -3346,8 +3351,9 @@ while a published energy lies near the hfs head. The frame alone moves a level b
 −(S − S_ground), with S_ground = 0.343 cm⁻¹ (`S` from `levels_set3.csv`).
 
 On 2026-10-15 the table had 1037 rows: 653 with an energy of the fit, 48 `level_id` cells
-filled, and 62 N, 29 R and 2 D. The largest unexplained shifts of unmarked levels were
-000493 (+1.27) and 000300 (−1.02).
+filled, and 62 N, 29 R and 2 D. On 2026-10-16 the Q mark added 28 levels to that. The largest
+unexplained shifts of unmarked levels, after the recalibration of 2026-10-15, were 000493
+(+1.43) and 000300 (−1.00).
 
 ### Choosing the set from the command line
 

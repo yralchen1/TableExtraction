@@ -3,10 +3,12 @@
 levels_pub.xlsx is the table of the article: one row per calculated level of
 the Cowan calculation, with its composition, its calculated energy Ec and,
 where it is known, its published energy (Sugar's or Wyart's) and level_id.
-This tool completes its level_id column and writes seven columns after the
+This tool completes its level_id column and writes eight columns after the
 existing ones:
 
   lid       the level's number in the Cowan calculation (tp_E1_no_trials.xlsx)
+  iden2_id  the level's row in the set's IDEN2/enlev.dat, through the set's
+            IDEN2/IDEN_level_ids.txt
   Eopt      the optimized energy, cm^-1, from final/LOPT_output_levels.txt
   unc_stat  max(D1, D2stat), 0 for the fixed ground level
   unc_sys   sqrt(u_cal^2 + u_hfs^2 + u_kappa^2), the systematic parts that
@@ -15,7 +17,9 @@ existing ones:
   N_lines   the number of lines that determine the level: LOPT's count
             without its "L" and "D" parts
   Notes     N new (new_levels.txt), R revised (revised_level_energies.csv),
-            D discarded (discarded_levels.csv); letters combine, e.g. "NR"
+            D discarded (discarded_levels.csv); letters combine, e.g. "NR".
+            Q questionable (questionable_levels.txt, the list kept by hand)
+            is added after a comma: "Q" alone, or "NR,Q"
 
 The uncertainties come from final/levels_set3.csv, which make_set3.py
 --levels writes from the set's LOPT fit and the two lopt_perturb.py passes
@@ -34,9 +38,14 @@ the fit that ends up in no row is reported and the run stops: the table must
 hold every level.
 
 The workbook is rewritten in place unless --out names another file.  The
-seven columns are found by their headers and replaced, so a rerun after the
+eight columns are found by their headers and replaced, so a rerun after the
 next calibration overwrites them.  Nothing else in the workbook is changed
-except the empty level_id cells that the join fills.
+except the empty level_id cells that the join fills.  A column that is new
+to the workbook goes after the one it follows in the list above (iden2_id
+after lid), and a row for a level beyond the table goes where its lid puts
+it; either way the cell references of the workbook's own formulas (such as
+dE_O-C = Eopt - Ec), its filter range and its column widths are moved with
+the cells, and an inserted row takes the formulas of the row above it.
 
 The report also lists, for the information of the analyst, the levels whose
 Eopt departs most from the published energy without being marked R.  "R" is
@@ -54,7 +63,12 @@ import math
 import os
 import sys
 
+import re
+
 import openpyxl
+from openpyxl.formula.tokenizer import Token, Tokenizer
+from openpyxl.formula.translate import Translator
+from openpyxl.utils import column_index_from_string, get_column_letter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -69,8 +83,13 @@ LOPT_LEVELS = 'LOPT_output_levels.txt'
 SET3_LEVELS = 'levels_set3.csv'
 TOTAL = 'D2tot*'
 
-NEW_COLUMNS = ['lid', 'Eopt', 'unc_stat', 'unc_sys', 'unc_tot', 'N_lines',
-               'Notes']
+ID_MAP = os.path.join('IDEN2', 'IDEN_level_ids.txt')
+QUESTIONABLE = os.path.join(HERE, 'questionable_levels.txt')
+
+NEW_COLUMNS = ['lid', 'iden2_id', 'Eopt', 'unc_stat', 'unc_sys', 'unc_tot',
+               'N_lines', 'Notes']
+#: the columns filled from the fit, in the order of level_values()' tuple
+VALUE_COLUMNS = ['Eopt', 'unc_stat', 'unc_sys', 'unc_tot', 'N_lines']
 #: the workbook's Ec is not the E_calc of tp_E1_no_trials.xlsx to the
 #: digit: the median difference is 0.1-0.2 cm^-1 and a few reach 5 (measured
 #: 2026-10-15), so a row without a level_id is joined to the nearest level of
@@ -233,13 +252,16 @@ def level_values(lopt_rows, set3_rows):
     return out
 
 
-def notes_of(new_ids, revised_ids, discarded_ids):
-    """{level_id: 'N'/'R'/'D' letters, in that order}."""
+def notes_of(new_ids, revised_ids, discarded_ids, questionable_ids=()):
+    """{level_id: notes}: the letters N, R and D in that order, then Q after
+    a comma ("Q" alone when there is no other letter, user 2026-10-16)."""
     out = {}
     for letter, ids in (('N', new_ids), ('R', revised_ids),
                         ('D', discarded_ids)):
         for i in ids:
             out[i] = out.get(i, '') + letter
+    for i in questionable_ids:
+        out[i] = out[i] + ',Q' if out.get(i) else 'Q'
     return out
 
 
@@ -249,6 +271,93 @@ def id_column(path, name='level_id', sep=','):
     with open(path, encoding='utf-8', newline='') as fh:
         return {(r.get(name) or '').strip()
                 for r in csv.DictReader(fh, delimiter=sep)} - {''}
+
+
+def iden2_rows(set_dir):
+    """{level_id: row of the set's IDEN2/enlev.dat}, {} without the table."""
+    path = os.path.join(set_dir, ID_MAP)
+    if not os.path.exists(path):
+        return {}
+    import cowan_gA
+    return {v: int(k) for k, v in cowan_gA.read_id_map(path).items()}
+
+
+# ---------------------------------------------------------------------------
+# The workbook's own formulas, filter and widths, when cells move
+# ---------------------------------------------------------------------------
+_CELL = re.compile(r"(\$?)([A-Z]{1,3})(\$?)(\d+)")
+_COLS = re.compile(r"^(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})$")
+
+
+def shift_refs(formula, col_at=None, row_at=None):
+    """`formula` with every reference to a column at or after `col_at`
+    moved one column right, and every one to a row at or after `row_at` one
+    row down: what a column or a row inserted there does to it in Excel."""
+    def col(c):
+        i = column_index_from_string(c)
+        return get_column_letter(i + 1) if col_at and i >= col_at else c
+
+    def cell(m):
+        r = int(m.group(4))
+        if row_at and r >= row_at:
+            r += 1
+        return m.group(1) + col(m.group(2)) + m.group(3) + str(r)
+
+    tok = Tokenizer(formula)
+    for t in tok.items:
+        if t.type == Token.OPERAND and t.subtype == Token.RANGE:
+            sheet, bang, ref = t.value.rpartition('!')
+            m = _COLS.match(ref)
+            ref = (m.group(1) + col(m.group(2)) + ':' + m.group(3)
+                   + col(m.group(4))) if m else _CELL.sub(cell, ref)
+            t.value = sheet + bang + ref
+    return tok.render()
+
+
+def _shift_formulas(ws, col_at=None, row_at=None):
+    for line in ws.iter_rows():
+        for c in line:
+            if isinstance(c.value, str) and c.value.startswith('='):
+                c.value = shift_refs(c.value, col_at, row_at)
+
+
+def _shift_filter(ws, col_at=None, row_at=None):
+    if ws.auto_filter.ref:
+        ws.auto_filter.ref = shift_refs('=' + ws.auto_filter.ref,
+                                        col_at, row_at)[1:]
+
+
+def insert_column(ws, at):
+    """Insert an empty column at `at`, moving formulas, filter and widths."""
+    _shift_formulas(ws, col_at=at)
+    _shift_filter(ws, col_at=at)
+    ws.insert_cols(at)
+    dims = sorted(ws.column_dimensions.items(),
+                  key=lambda kv: kv[1].min or 0, reverse=True)
+    for key, d in dims:
+        if d.min is None or d.max is None or d.max < at:
+            continue
+        if d.min >= at:
+            d.min += 1
+            new_key = get_column_letter(d.min)
+            del ws.column_dimensions[key]
+            d.index = new_key
+            ws.column_dimensions[new_key] = d
+        d.max += 1
+
+
+def insert_row(ws, at):
+    """Insert an empty row at `at`, moving formulas and filter; the new row
+    takes the formulas of the row above it, as Excel's fill-down would."""
+    _shift_formulas(ws, row_at=at)
+    _shift_filter(ws, row_at=at)
+    ws.insert_rows(at)
+    if at > 2:
+        for c in ws[at - 1]:
+            if isinstance(c.value, str) and c.value.startswith('='):
+                dest = ws.cell(at, c.column)
+                dest.value = Translator(c.value, c.coordinate).translate_formula(
+                    dest.coordinate)
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +404,7 @@ def insert_missing(ws, cols, rows, lids, calc, lid_of_id, id_of_lid, wanted):
         before = [row for l, row in same if l < lid]
         at = (max(before) + 1 if before
               else min((row for _, row in same), default=ws.max_row + 1))
-        ws.insert_rows(at)
+        insert_row(ws, at)
         values = {'parity': par, 'J': c['J'], 'Ec': c['E_calc'],
                   'level_id': level_id, 'conf': c['conf'],
                   'term': c['term'] + ('*' if par == 'o' else '')}
@@ -310,7 +419,8 @@ def insert_missing(ws, cols, rows, lids, calc, lid_of_id, id_of_lid, wanted):
     return out
 
 
-def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None):
+def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None,
+          questionable_path=QUESTIONABLE):
     """Read everything and work the new cells out.
 
     Returns `(wb, ws, cells, report)`: the workbook, its sheet, the cells to
@@ -331,6 +441,7 @@ def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None):
     values = level_values(read_tsv(os.path.join(set_dir, LOPT_LEVELS)),
                           read_csv(os.path.join(set_dir, SET3_LEVELS)))
     discarded = id_column(cfg.discarded_levels)
+    iden2 = iden2_rows(set_dir)
 
     rows = read_rows(ws, cols)
     lids, _ = match_rows(rows, calc, lid_of_id)
@@ -339,8 +450,9 @@ def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None):
     if inserted:
         rows = read_rows(ws, cols)
     lids, problems = match_rows(rows, calc, lid_of_id)
+    questionable = id_column(questionable_path, sep='\t')
     notes = notes_of(id_column(cfg.new_levels, sep='\t'),
-                     id_column(cfg.level_overrides), discarded)
+                     id_column(cfg.level_overrides), discarded, questionable)
 
     cells, filled, placed = {}, [], set()
     for r, lid in zip(rows, lids):
@@ -350,13 +462,17 @@ def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None):
             cells[(r['row'], 'level_id')] = level_id
             filled.append(level_id)
         cells[(r['row'], 'lid')] = lid
+        cells[(r['row'], 'iden2_id')] = iden2.get(level_id)
         v = values.get(level_id)
         if v is not None:
-            for name, x in zip(NEW_COLUMNS[1:6], v[:5]):
+            for name, x in zip(VALUE_COLUMNS, v[:5]):
                 cells[(r['row'], name)] = x
             placed.add(level_id)
+            if level_id not in iden2:
+                problems.append('row %d: %s is not in %s' % (
+                    r['row'], level_id, os.path.join(set_dir, ID_MAP)))
         else:
-            for name in NEW_COLUMNS[1:6]:
+            for name in VALUE_COLUMNS:
                 cells[(r['row'], name)] = None
             if level_id and level_id not in discarded:
                 problems.append('row %d: %s has no energy in the fit and is '
@@ -383,9 +499,9 @@ def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None):
     if filled:
         report.append('  filled: ' + ' '.join(sorted(filled)))
     count = {k: sum(1 for r in rows if k in (notes.get(r['level_id']) or ''))
-             for k in 'NRD'}
-    report.append('Notes: %d N, %d R, %d D' % (count['N'], count['R'],
-                                               count['D']))
+             for k in 'NRDQ'}
+    report.append('Notes: %d N, %d R, %d D, %d Q' % (
+        count['N'], count['R'], count['D'], count['Q']))
     report += ['WARNING: ' + p for p in problems]
     report += shift_report(rows, values, notes)
     return wb, ws, cells, report
@@ -435,13 +551,17 @@ def shift_report(rows, values, notes):
 
 def write(wb, ws, cells, path):
     cols = header_map(ws)
-    nxt = ws.max_column + 1
-    for name in NEW_COLUMNS:
-        if name not in cols:
-            ws.cell(1, nxt, name)
-            cols[name] = nxt
-            nxt += 1
-    # a rerun replaces the seven columns whole
+    for k, name in enumerate(NEW_COLUMNS):
+        if name in cols:
+            continue
+        # after the column it follows in NEW_COLUMNS, or after the last one
+        at = (cols[NEW_COLUMNS[k - 1]] + 1 if k and NEW_COLUMNS[k - 1] in cols
+              else ws.max_column + 1)
+        if at <= ws.max_column:
+            insert_column(ws, at)
+        ws.cell(1, at, name)
+        cols = header_map(ws)
+    # a rerun replaces the eight columns whole
     for name in NEW_COLUMNS:
         for r in range(2, ws.max_row + 1):
             ws.cell(r, cols[name]).value = None

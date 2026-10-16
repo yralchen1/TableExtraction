@@ -1279,7 +1279,7 @@ def shell_columns(levels):
     return sorted(seen, key=lambda k: (order.get(k[0], 99), KINDS.index(k[1])))
 
 
-def tested_configs(levels, measured, min_measured):
+def configs_tested(levels, measured, min_measured):
     """{configuration: n} of the leading configurations of at least
     `min_measured` levels with a measured constant."""
     count = {}
@@ -1449,7 +1449,7 @@ def main(argv=None):
         'the bound times %.2f' % (n, TAIL_FROM + 1, median, p90, median))
 
     sigmas, fraction, min_measured = read_uncertainties(args.params, params)
-    tested = tested_configs(known, measured, min_measured)
+    tested = configs_tested(known, measured, min_measured)
     say('tested configurations (leading configuration of >= %d measured '
         'constants): %s; the part of A from the others is uncertain by %.0f%%'
         % (min_measured, ', '.join('%s %d' % kv for kv in sorted(

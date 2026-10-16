@@ -7,11 +7,14 @@ The tests fix:
   * the join of a row to the calculated level list: by level_id first, then
     by parity, J and the nearest calculated energy, a near tie decided by
     the lid order of the neighboring rows;
-  * the seven columns from LOPT and levels_set3.csv, and the refusal of a
-    levels_set3.csv that belongs to another fit or has no systematic parts;
-  * the N/R/D notes;
+  * the columns from LOPT, levels_set3.csv and the set's IDEN2 table, and
+    the refusal of a levels_set3.csv that belongs to another fit or has no
+    systematic parts;
+  * the N/R/D notes and the Q added after a comma;
   * a row inserted for a level beyond the table, and a rerun that replaces
-    the columns instead of adding more.
+    the columns instead of adding more;
+  * a column added to a workbook written before it existed (iden2_id after
+    lid), with the workbook's own formulas following the cells they name.
 """
 import math
 import os
@@ -120,6 +123,18 @@ def test_the_notes_combine_their_letters():
                                                     'c': 'D'}
 
 
+def test_Q_stands_alone_or_follows_a_comma():
+    assert L.notes_of({'a', 'b'}, {'b'}, set(), {'b', 'q'}) == {
+        'a': 'N', 'b': 'NR,Q', 'q': 'Q'}
+
+
+def test_references_move_with_an_inserted_column_or_row():
+    assert L.shift_refs('=U2-O2', col_at=20) == '=V2-O2'
+    assert L.shift_refs('=SUM($U$2:U9)+T1', col_at=21) == '=SUM($V$2:V9)+T1'
+    assert L.shift_refs('=U2-O5', row_at=5) == '=U2-O6'
+    assert L.shift_refs('=MAX(U:U)', col_at=21) == '=MAX(V:V)'
+
+
 # ---------------------------------------------------------------------------
 # The workbook
 # ---------------------------------------------------------------------------
@@ -166,6 +181,13 @@ def setup(tmp_path):
         set3(ID(31), '1398.3505782', 0.0077, 0.0027, 0.0155, 0.0004),
         set3(ID(50), '60010.1', 0.02, 0.01, 0.01, 0.0),
         set3(ID(90), '141300.5', 0.1, 0.05, 0.02, 0.01, n='4')])
+    (sd / 'IDEN2').mkdir()
+    (sd / L.ID_MAP).write_text(
+        'level_id\tIDEN_id\n%s\t1253\n%s\t1252\n%s\t900\n%s\t658\n'
+        % (ID(1), ID(31), ID(50), ID(90)), encoding='utf-8')
+    quest = tmp_path / 'questionable_levels.txt'
+    quest.write_text('level_id\tE\n%s\t141300.5\n%s\t60010.1\n'
+                     % (ID(90), ID(50)), encoding='utf-8')
     new = tmp_path / 'new_levels.txt'
     new.write_text('level_id\tE\n%s\t141300.5\n' % ID(90), encoding='utf-8')
     rev = tmp_path / 'revised.csv'
@@ -174,7 +196,15 @@ def setup(tmp_path):
     disc.write_text('level_id\n', encoding='utf-8')
     cfg = types.SimpleNamespace(new_levels=str(new), level_overrides=str(rev),
                                 discarded_levels=str(disc))
+    cfg.questionable = str(quest)
     return pub, sd, cfg
+
+
+def run(pub, sd, cfg, **kw):
+    kw.setdefault('calc', CALC)
+    kw.setdefault('lid_of_id', LID_OF_ID)
+    return L.build(str(pub), str(sd), cfg, questionable_path=cfg.questionable,
+                   **kw)
 
 
 def read_back(path):
@@ -187,22 +217,23 @@ def read_back(path):
 def test_the_table_is_completed_and_a_rerun_replaces_the_columns(setup):
     pub, sd, cfg = setup
     for _ in range(2):
-        wb, ws, cells, report = L.build(str(pub), str(sd), cfg,
-                                        calc=CALC, lid_of_id=LID_OF_ID)
+        wb, ws, cells, report = run(pub, sd, cfg)
         L.write(wb, ws, cells, str(pub))
     head, rows = read_back(pub)
     assert head == HEAD + L.NEW_COLUMNS          # once, not twice
     by_id = {r['level_id']: r for r in rows}
     # filled by the join
     assert by_id[ID(31)]['lid'] == 2 and by_id[ID(31)]['Notes'] == 'R'
-    assert by_id[ID(50)]['lid'] == 10
+    assert by_id[ID(31)]['iden2_id'] == 1252
+    assert by_id[ID(50)]['lid'] == 10 and by_id[ID(50)]['Notes'] == 'Q'
     assert by_id[ID(31)]['N_lines'] == 12
     assert by_id[ID(31)]['Eopt'] == pytest.approx(1398.3505782)
     assert by_id[ID(1)]['unc_stat'] == 0.0
     assert by_id[ID(1)]['unc_tot'] == pytest.approx(0.016)
     # the level above the table got a row, after the last odd one
     new = by_id[ID(90)]
-    assert new['lid'] == 5 and new['Notes'] == 'N' and new['Ec'] == 150000.0
+    assert new['lid'] == 5 and new['Notes'] == 'N,Q' and new['Ec'] == 150000.0
+    assert new['iden2_id'] == 658
     assert new['term'] == '2D*' and new['parity'] == 'o'
     assert [r['parity'] for r in rows] == ['o', 'o', 'o', 'e']
     assert len(rows) == 4                        # inserted once, not twice
@@ -211,5 +242,39 @@ def test_the_table_is_completed_and_a_rerun_replaces_the_columns(setup):
 def test_a_level_of_the_fit_with_no_possible_row_stops_the_run(setup):
     pub, sd, cfg = setup
     with pytest.raises(SystemExit):
-        L.build(str(pub), str(sd), cfg, calc=CALC[:4] + CALC[5:],
-                lid_of_id={k: v for k, v in LID_OF_ID.items() if v != 5})
+        run(pub, sd, cfg, calc=CALC[:4] + CALC[5:],
+            lid_of_id={k: v for k, v in LID_OF_ID.items() if v != 5})
+
+
+def test_a_new_column_goes_after_lid_and_the_formulas_follow(setup):
+    # the workbook as the seven-column version of the tool left it, with a
+    # formula column of the user's own, dE_O-C = Eopt - Ec, before them
+    pub, sd, cfg = setup
+    old = [c for c in L.NEW_COLUMNS if c != 'iden2_id']
+    wb = openpyxl.load_workbook(pub)
+    ws = wb.active
+    ws.insert_cols(6)
+    ws.cell(1, 6, 'dE_O-C')
+    for k, name in enumerate(old):
+        ws.cell(1, len(HEAD) + 2 + k, name)
+    eopt = openpyxl.utils.get_column_letter(len(HEAD) + 3)
+    for r in (2, 3, 4):
+        ws.cell(r, 6, '=%s%d-E%d' % (eopt, r, r))
+    ws.auto_filter.ref = 'A1:%s4' % openpyxl.utils.get_column_letter(
+        ws.max_column)
+    wb.save(pub)
+    wb, ws, cells, report = run(pub, sd, cfg)
+    L.write(wb, ws, cells, str(pub))
+    ws = openpyxl.load_workbook(pub).active
+    head = [c.value for c in ws[1]]
+    assert head[head.index('lid') + 1] == 'iden2_id'
+    assert head[head.index('iden2_id') + 1] == 'Eopt'
+    new_eopt = openpyxl.utils.get_column_letter(head.index('Eopt') + 1)
+    assert ws.cell(2, 6).value == '=%s2-E2' % new_eopt
+    assert ws.auto_filter.ref.endswith(
+        openpyxl.utils.get_column_letter(len(head)) + '5')
+    # the row inserted for lid 5 took the formula of the row above it
+    rows = {ws.cell(r, head.index('level_id') + 1).value: r
+            for r in range(2, ws.max_row + 1)}
+    r = rows[ID(90)]
+    assert ws.cell(r, 6).value == '=%s%d-E%d' % (new_eopt, r, r)

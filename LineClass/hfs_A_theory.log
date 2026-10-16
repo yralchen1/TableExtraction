@@ -1,6 +1,6 @@
 hfs_A_theory.py 
 
-RCEOUT: 5626 levels; 654 paired with a level_id
+RCEOUT: 5626 levels; 655 paired with a level_id
 
 radial parameters used (cm^-1):
   4f       a01 = +0.02870, a12 = a01, a10 = +0.00000
@@ -30,10 +30,10 @@ scaled shells ([scaled] of the parameter file), factors from the Cowan fit (RCEO
   5g  from 4f  factor 0.0005 +- 100%: zeta 5g (f25g) / zeta 4f (f25g) = 0.4 / 764.1
   6g  from 4f  factor 0.0002 +- 100%: zeta 6g (f26g) / zeta 4f (f26g) = 0.2 / 764.1
 
-truncation: over 588 levels, the change brought by components 8-10 is a median 0.14 (90th percentile 0.39) of its bound; u_trunc is the bound times 0.14
+truncation: over 589 levels, the change brought by components 8-10 is a median 0.14 (90th percentile 0.39) of its bound; u_trunc is the bound times 0.14
 tested configurations (leading configuration of >= 3 measured constants): f5d2 44, f26s 23, 4f3 3; the part of A from the others is uncertain by 10%
-measured constants compared: 73; rms residual 0.0111 cm^-1; median |z| 0.60
-  059003.000127 J=4.5  -74 f26s (3H) 4H         A_meas +0.0777 +- 0.0017  A_calc +0.0945  z -9.4  cancel 1.0
+measured constants compared: 73; rms residual 0.0111 cm^-1; median |z| 0.80
+  059003.000127 J=4.5  -74 f26s (3H) 4H         A_meas +0.0787 +- 0.0017  A_calc +0.0945  z -8.8  cancel 1.0
   059003.000190 J=0.5  -95 f26s (3P) 2P         A_meas -0.1570 +- 0.0100  A_calc -0.0802  z -7.0  cancel 1.9
 observed levels: printed weight median 0.965, 5th percentile 0.915, lowest 0.759; u_round median 0.0000; u_trunc median 0.0003, 90th percentile 0.0012 cm^-1
 amplitude error 0.10: u_amp median 0.0010, 90th percentile 0.0042, largest 0.0633 cm^-1; |A_calc| < u_amp for 6 of 593 observed levels
