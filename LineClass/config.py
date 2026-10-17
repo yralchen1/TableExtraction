@@ -87,6 +87,13 @@ _ENUMS = {
 #: flagged lines whose components he did not list (2026-10-06).
 HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c', 'flag_unlisted')
 
+#: The tests level_positions.py's audit can apply at a level's adopted
+#: position ([audit], 2026-10-16): `S` the score of the position, `free` its
+#: free lines and what they are worth, `share` the largest single line's share
+#: of the evidence.  See AuditPolicy.
+AUDIT_TESTS = ('S', 'free', 'share')
+AUDIT_GROUPS = ('legacy', 'new', 'revised')
+
 # Keys the configuration file may leave out; they take the default written
 # into load() below.
 _OPTIONAL = {'inherit', 'locked', 'derived_from',
@@ -101,7 +108,10 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'hfs.kappa_spread.1969',
              'decisions', 'decisions.max_forced_offset',
              'blends', 'blends.u_ln_intensity',
-             'hfs', 'hfs.resolved_levels', 'hfs.iden2_display'}
+             'hfs', 'hfs.resolved_levels', 'hfs.iden2_display',
+             'audit', 'audit.legacy', 'audit.new', 'audit.revised',
+             'audit.revised_as_legacy', 'audit.s_min', 'audit.min_free',
+             'audit.min_gain', 'audit.max_share'}
 
 _SCHEMA = {
     'inherit': str,
@@ -127,6 +137,9 @@ _SCHEMA = {
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES},
             'kappa_spread': {e: float for e in ('1974', '1969')}},
+    'audit': {'legacy': _StrList, 'new': _StrList, 'revised': _StrList,
+              'revised_as_legacy': _StrList, 's_min': float,
+              'min_free': float, 'min_gain': float, 'max_share': float},
 }
 
 
@@ -234,6 +247,43 @@ class HfsSettings:
 
 
 @dataclass(frozen=True)
+class AuditPolicy:
+    """The [audit] section: which tests put a question mark on a level.
+
+    Every level is scanned for alternate positions, and one with any is
+    marked.  These are the further tests at the ADOPTED position
+    (level_positions.py, section 5), named per group of levels:
+
+      S      S < s_min, S = ln_R_J + ln_P - ln(n_pos), the score --unknown
+             ranks a candidate position by
+      free   fewer than min_free free lines (observable, well centred, on
+             features no other accepted transition claims), or those lines
+             worth less than min_gain in ln R
+      share  one line carrying max_share or more of the positive evidence
+
+    The groups are `new` (files.new_levels), `revised` (files.level_overrides,
+    less `revised_as_legacy`) and `legacy` (the rest: Sugar's and Wyart's).
+    A level both new and revised is judged as new.  The user's policy
+    (2026-10-16): the levels the user found or revised are held to harsher
+    criteria than Sugar's and Wyart's, who had the plates and a far wider
+    knowledge of related spectra and of hfs.  Without the section every
+    group gets the S test alone.
+    """
+    legacy: tuple = ('S',)
+    new: tuple = ('S',)
+    revised: tuple = ('S',)
+    revised_as_legacy: tuple = ()
+    s_min: float = 3.0
+    min_free: float = 4.0
+    min_gain: float = 8.0
+    max_share: float = 0.45
+
+    def tests_of(self, group: str) -> tuple:
+        """The tests named for `group` ('legacy', 'new' or 'revised')."""
+        return getattr(self, group)
+
+
+@dataclass(frozen=True)
 class Config:
     path: str                 # the configuration file this was read from
     levels_file: str          # workbook of the adopted energy levels
@@ -269,6 +319,8 @@ class Config:
     # starts the levels from instead of their published energies (the warm
     # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
     start_levels: str = ''
+    # [audit]: the tests level_positions.py applies at the adopted position
+    audit: AuditPolicy = AuditPolicy()
 
 
 def _merge(base_tbl: dict, over: dict) -> dict:
@@ -582,6 +634,24 @@ def load(path: str = None) -> Config:
             resolved_levels=tuple(h.get('resolved_levels', ())),
             iden2_display=display)
 
+    audit = AuditPolicy()
+    if 'audit' in raw:
+        a = raw['audit']
+        for g in AUDIT_GROUPS:
+            bad = [t for t in a.get(g, ()) if t not in AUDIT_TESTS]
+            if bad:
+                raise ConfigError(f"'audit.{g}' names unknown test(s) "
+                                  f"{', '.join(map(repr, bad))}; the tests "
+                                  f"are {', '.join(AUDIT_TESTS)}")
+        d = AuditPolicy()
+        audit = AuditPolicy(
+            **{g: tuple(a.get(g, getattr(d, g))) for g in AUDIT_GROUPS},
+            revised_as_legacy=tuple(a.get('revised_as_legacy', ())),
+            s_min=float(a.get('s_min', d.s_min)),
+            min_free=float(a.get('min_free', d.min_free)),
+            min_gain=float(a.get('min_gain', d.min_gain)),
+            max_share=float(a.get('max_share', d.max_share)))
+
     return Config(
         path=path,
         levels_file=_p('levels'),
@@ -617,6 +687,7 @@ def load(path: str = None) -> Config:
             raw.get('blends', {}).get('u_ln_intensity', 0.0)),
         start_levels=(_p('start_levels')
                       if raw['files'].get('start_levels') else ''),
+        audit=audit,
     )
 
 

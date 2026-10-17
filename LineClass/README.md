@@ -5540,6 +5540,55 @@ Every local maximum within a few units of the adopted one is an alternate positi
 with any has earned its question mark. **The count of them is the verdict**, reported as a column
 of its own; no single p-value stands in for it.
 
+A level with no alternate is not settled by that alone. 000484 has no alternate within
+±612 cm⁻¹, yet ln R = −4 where it stands: two free lines carry it, and the rest are blends. So
+since 2026-10-16 the adopted position is also given the score that `--unknown` ranks a candidate
+position by (S on the conference slides):
+
+  S = ln_R_J + ln_P − ln(n_pos)
+
+- `ln_R_J` is ln R with the ΔJ fingerprint charged against the best alternate, or ln R itself
+  where there is none.
+- `ln_P` is the position prior.
+- `n_pos` is the number of distinct maxima of ln R + ln_P above zero in the window.
+
+In practice n_pos is 1 for a level without an alternate, so S is then just ln R + ln_P.
+
+**The policy (`[audit]` of the configuration, `config.AuditPolicy`, 2026-10-16).** Which tests at
+the adopted position can mark a level depends on where the level came from. The levels found or
+revised in this work are judged harder than Sugar's and Wyart's, who had the plates and a far wider
+knowledge of the related spectra and of hfs.
+
+| Test | Fails when |
+|---|---|
+| `S` | S < `s_min` (3) |
+| `free` | fewer than `min_free` (4) free lines at the adopted position, or those lines worth less than `min_gain` (8) in ln R |
+| `share` | one line carries `max_share` (0.45) or more of the positive evidence |
+
+A free line is observable, within `FREE_SIGMA` of its prediction, and on a feature that no other
+level's accepted transition claims. The groups, and the tests the baseline configuration gives them:
+- `new`: the levels of `files.new_levels`; S, free and share.
+- `revised`: the levels of `files.level_overrides`, less `revised_as_legacy` (000234 and 000237,
+  old levels exchanged because the LSF had tied them to the wrong eigenvectors); S, free and share.
+- `legacy`: all the rest; S only, as a pointer (it found 000484). Legacy levels are not doubted on
+  these scores alone.
+
+A level both new and revised is judged as new. A set can override any key. Without the section,
+every group gets the S test alone. Every level has an alternate scan as well, and an alternate
+always gives a mark.
+
+The columns are `group`, and `n_free_adopted`, `free_gain_adopted` and `top_share_adopted` (the
+free-line test at the adopted position, from `support()`). `q_why` lists every reason, e.g.
+`alternate; S 2.49 < 3; free 3 < 4`. The marks are for review; `--drop-all-questionable` releases
+every marked level.
+
+On 2026-10-16 the policy marked 24 of the 89 new and revised levels:
+- **10 with an alternate.**
+- **2 with S < 3:** 000494, and the legacy 000484.
+- **12 for `free 3 < 4` alone,** with those three lines worth 9.9–16:
+  - new: 000623, 000640, 000656, 000663, 000666, 000668, 000673;
+  - revised: 000298, 000424, 000516, 000518, 000575 (000575 also for share 0.53).
+
 **One sum, not four factors.** The four things a level answers for — the improbability of its
 alignments, the intensity pattern, the blends, the absences — are usually four penalties
 multiplied together, and the arbitrary part is then how to weigh them against one another. Here
@@ -6328,7 +6377,12 @@ worth inspecting when the report suggests a move. `--at 138851.2` takes any ener
 | `d_ln_post` | (`ln_R` + `ln_P`) − (`ln_R_alt` + `ln_P_alt`): `d_ln_R` with the prior counted; negative means the alternate is preferred |
 | `dE_alt` | E(alternate) − E(adopted): the size of the move |
 | `near_level` / `near_dE` | the run's level of the same J and parity nearest the alternate, and the gap — see above (empty when there is none) |
-| `question` | `?` when `n_alt` > 0 |
+| `n_pos` | distinct maxima of `ln R` + `ln_P` above zero in the window: the n of S's look-elsewhere term |
+| `S` | `ln_R_J` + `ln_P` − ln(`n_pos`), the adopted position scored as `--unknown` scores a candidate |
+| `group` | `legacy`, `new` or `revised`: which tests of the `[audit]` policy apply |
+| `n_free_adopted` / `free_gain_adopted` / `top_share_adopted` | the free-line test at the adopted position |
+| `question` | `?` when `n_alt` > 0 or a test of the level's group fails |
+| `q_why` | every reason for the mark, e.g. `alternate; S 2.49 < 3; free 3 < 4` |
 | `scanned` | `this run` when the window was scanned, `registry` when the level was taken unchanged from the registry of settled positions |
 | `n_free` / `free_gain` / `top_share` | the free-line test (`--audit`) |
 | `n_own` / `n_kept` | recorded lines the level is assigned now, and how many of them the alternate still matches — the test that separates a refit from a relocation |
@@ -6654,7 +6708,8 @@ holding. Where those neighbours are themselves unsettled — the levels the last
 which is to say the levels the scan found an alternate position for — that conditioning is
 circular, and a real level can be hidden behind assignments that may not survive the next revision.
 `--drop-all-questionable` removes it. Every accepted assignment of every level whose `question`
-column in `--out` (default `level_positions.csv`) is `?` is dropped before the search: subtracted
+column in `--out` (default `level_positions.csv`) is `?` (an alternate, or since 2026-10-16 a
+failed test of the `[audit]` policy) is dropped before the search: subtracted
 from `C`, from the count of accepted transitions on each feature, and from the `own_claim` of both
 levels the row joined. In the run of 2026-09-14 that is **263 assignments of 69 levels**, and it
 takes the recorded lines carrying no accepted transition from 2125 to 2314 of 6668.

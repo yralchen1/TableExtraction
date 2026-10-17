@@ -51,6 +51,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import classify_lines as cl                # noqa: E402
+import config                              # noqa: E402
 import cowan_gA                            # noqa: E402
 import level_interchange as li             # noqa: E402
 import level_positions as lp               # noqa: E402
@@ -1710,3 +1711,88 @@ def test_leaving_a_row_unplaced_is_one_of_the_combinations():
     assert (tab['E_4'].isna() & tab['E_5'].isna()).any()
     none = tab[tab['E_4'].isna() & tab['E_5'].isna()].iloc[0]
     assert none['total'] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# S at the adopted position, and the question marks (section 5)
+# ---------------------------------------------------------------------------
+def test_the_positions_counted_are_the_maxima_above_zero_apart():
+    grid = np.arange(0.0, 10.0, 0.1)
+    post = np.full(len(grid), -1.0)
+    post[20], post[22] = 4.0, 3.0     # 0.2 apart: one position
+    post[50] = 0.5
+    post[80] = -0.2                   # a maximum below zero: not counted
+    assert lp.count_positions(grid, post) == 2
+
+
+def test_S_charges_the_look_elsewhere_and_the_prior():
+    assert lp.score_S(6.0, -0.5, 10) == pytest.approx(5.5 - np.log(10))
+    assert lp.score_S(-4.0, -0.2, 0) == pytest.approx(-4.2)
+
+
+def test_a_level_without_an_alternate_is_marked_when_S_is_low():
+    # 000484 on 2026-10-16: no alternate, ln R -4 where it stands
+    tab = pd.DataFrame({'n_alt': [0, 3, 0, 2, 0],
+                        'S': [-4.2, 10.0, 12.0, 1.0, np.nan]})
+    lp.mark_questions(tab, config.AuditPolicy())
+    assert list(tab['question']) == ['?', '?', '', '?', '']
+    assert list(tab['q_why']) == ['S -4.20 < 3', 'alternate', '',
+                                  'alternate; S 1.00 < 3', '']
+
+
+POLICY = config.AuditPolicy(legacy=('S',), new=('S', 'free', 'share'),
+                            revised=('S', 'free', 'share'))
+
+
+def test_the_policy_judges_new_levels_harder_than_legacy_ones():
+    # the same thin support: two free lines worth 5, one line half the case
+    row = dict(n_alt=0, S=6.0, n_free_adopted=2, free_gain_adopted=5.0,
+               top_share_adopted=0.5)
+    tab = pd.DataFrame([row, row], index=[0, 1])
+    tab['group'] = ['legacy', 'new']
+    lp.mark_questions(tab, POLICY)
+    assert list(tab['question']) == ['', '?']
+    assert tab['q_why'][1] == 'free 2 < 4; free_gain 5.0 < 8; share 0.50 >= 0.45'
+
+
+def test_a_well_supported_new_level_is_not_marked():
+    tab = pd.DataFrame([dict(n_alt=0, S=30.0, n_free_adopted=9,
+                             free_gain_adopted=40.0, top_share_adopted=0.2,
+                             group='new')])
+    lp.mark_questions(tab, POLICY)
+    assert tab['question'][0] == ''
+
+
+def test_the_groups_come_from_the_new_and_revised_lists():
+    with tempfile.TemporaryDirectory() as d:
+        new = os.path.join(d, 'new.txt')
+        rev = os.path.join(d, 'rev.csv')
+        with open(new, 'w') as fh:
+            fh.write('level_id\tE\nA\t1\nB\t2\n')
+        with open(rev, 'w') as fh:
+            fh.write('level_id,E_input\nB,2\nC,3\nX,4\n')
+        pol = config.AuditPolicy(revised_as_legacy=('X',))
+        g = lp.level_groups(['A', 'B', 'C', 'X', 'Z'], pol, new, rev)
+    assert g == {'A': 'new', 'B': 'new', 'C': 'revised', 'X': 'legacy',
+                 'Z': 'legacy'}
+
+
+def _set_config(d, audit_text):
+    base = os.path.join(HERE, 'lineclass_config.toml').replace('\\', '/')
+    path = os.path.join(d, 'set.toml')
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write('inherit = "%s"\n\n[audit]\n%s' % (base, audit_text))
+    return path
+
+
+def test_a_set_can_override_the_audit_policy():
+    with tempfile.TemporaryDirectory() as d:
+        pol = config.load(_set_config(d, 'legacy = []\nmin_free = 3\n')).audit
+    assert pol.legacy == () and pol.min_free == 3.0
+    assert pol.new == ('S', 'free', 'share')         # inherited
+
+
+def test_an_unknown_audit_test_is_refused():
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(config.ConfigError):
+            config.load(_set_config(d, 'new = ["S", "fre"]\n'))

@@ -302,6 +302,30 @@ kT = 12233.068631
 # fraction, instead of silently adopting the new values.
 verify_tolerance = 0.01
 
+[audit]
+# Which tests at a level's ADOPTED position put a question mark on it in the
+# audit of level_positions.py (--scan / --audit), on top of the alternate
+# positions every level is scanned for (config.AuditPolicy, 2026-10-16):
+#   S      S = ln_R_J + ln_P - ln(n_pos) below s_min
+#   free   fewer than min_free free lines, or those worth less than min_gain
+#   share  one line carrying max_share or more of the positive evidence
+# Groups: new (files.new_levels), revised (files.level_overrides, less
+# revised_as_legacy), legacy (Sugar's and Wyart's).  The user's policy: the
+# levels found or revised here are judged harder than Sugar's and Wyart's,
+# who had the plates and a far wider knowledge of related spectra and of hfs.
+# The marks are proposals the user reviews; legacy levels are not doubted on
+# these scores alone, but S is kept for them as a pointer (000484).
+legacy  = ["S"]
+new     = ["S", "free", "share"]
+revised = ["S", "free", "share"]
+# old levels in the revised list, exchanged because the LSF had tied them to
+# the wrong eigenvectors (9/9/2026): judged as legacy
+revised_as_legacy = ["059003.000234", "059003.000237"]
+s_min     = 3.0
+min_free  = 4
+min_gain  = 8.0
+max_share = 0.45
+
 [decisions]
 # The decision ledger (files.line_decisions) is obeyed to the letter: an
 # "accept" row puts its assignment into the run even when the automatic

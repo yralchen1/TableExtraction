@@ -482,13 +482,43 @@ of the adopted one is an alternate position, and a level with any is a level
 that has earned a question mark.  The count of them is reported as a column of
 its own: it is the criterion, not any single p-value.
 
+A level with no alternate is not settled by that alone (user, 2026-10-16, on
+000484: no alternate within +-612 cm^-1, and ln R = -4 where it stands, its
+case two free lines and the rest blends).  The adopted position is therefore
+also given the score a position found by --unknown is ranked on, S on the
+slides:
+
+    S = ln_R_J + ln_P - ln(n_pos) ,
+
+ln_R_J the line evidence with the delta J fingerprint charged against the
+best alternate (ln_R itself where there is none), ln_P the position prior,
+and n_pos the number of distinct maxima of ln R + ln_P above zero in the
+window - the chance-or-real peaks the level could have been put on, counted
+as scan_unknown() counts them.  Below s_min (3, the threshold of a firm
+position) the level gets a question mark too, whether or not it has an
+alternate.
+
+THE POLICY ([audit] of the configuration, config.AuditPolicy).  Which tests
+at the adopted position apply depends on where the level came from.  The
+levels found or revised in this work (files.new_levels, files.level_overrides)
+are judged harder than Sugar's and Wyart's, who had the plates and a far wider
+knowledge of the related spectra and of hfs (user, 2026-10-16).  Besides S
+the policy can ask for the other tests of a firm position, applied to the
+adopted position's own support (support() at E: n_free_adopted,
+free_gain_adopted, top_share_adopted): `free` - at least min_free (4) free
+lines worth at least min_gain (8) in ln R; `share` - no line carrying
+max_share (45 per cent) or more of the positive evidence.  `group` names the
+level's group and `q_why` every test that gave the mark.  The marks are for
+the analyst to review; --drop-all-questionable releases every marked level.
+
 The predicted intensities are held fixed while E moves.  Over the few hundred
 cm^-1 of a scan window the Boltzmann factor exp(-E/kT) with kT = 12900 cm^-1
 changes by about two per cent, far below s.
 
 THE REGISTRY OF SETTLED POSITIONS.  The scan is what makes a run slow, and
 most of it is spent re-proving what was proved last time: a level with ln R
-above FIRM_LN_R and no alternate anywhere in its window is not in doubt, and
+and S above FIRM_LN_R and no alternate anywhere in its window is not in doubt,
+and
 the great majority of the levels are in that state.  Those levels are written
 to a registry file, one line each, with a FINGERPRINT of everything their scan
 depends on: the interval scanned and its step, `--alt-drop`, the level's own
@@ -822,7 +852,23 @@ with --scan, for the best alternate position found:
                  rather than either of them moving.  A near_level several
                  cm^-1 away is noise; read dE_alt instead.
     near_dE      E_alternate - E(near_level), cm^-1
-    question     '?' when n_alt > 0
+    n_pos        distinct maxima of ln R + ln_P above zero in the window
+                 (ALT_SEP apart): the n of the look-elsewhere correction in S
+    S            ln_R_J + ln_P - ln(n_pos): the adopted position scored as
+                 --unknown scores a candidate (the S of the slides).  ln_R_J
+                 is ln_R with the fingerprint charged against the best
+                 alternate (with --audit; ln_R where there is none or with
+                 --scan alone).  Below S_MIN the position is not firm
+    group        `legacy`, `new` or `revised`: which tests of the [audit]
+                 policy apply to the level
+    n_free_adopted, free_gain_adopted, top_share_adopted
+                 the free-line test at the ADOPTED position: its free lines
+                 (observable, within FREE_SIGMA, on features no other accepted
+                 transition claims), what they are worth in ln R, and the
+                 largest single line's share of the positive evidence
+    question     '?' when n_alt > 0, or a test of the level's group fails
+    q_why        every reason for the mark: `alternate`, `S 1.72 < 3`,
+                 `free 2 < 4`, `free_gain 5.1 < 8`, `share 0.62 >= 0.45`
     scanned      `this run` when the window was scanned, `registry` when the
                  level was taken from the registry of settled positions
                  unchanged (section 5); the other scan columns then hold what
@@ -994,8 +1040,13 @@ LOPT_LEVELS_FILE = os.path.join(HERE, 'LOPT_output_levels.txt')
 LOPT_INPUT_FILE = os.path.join(HERE, 'LOPT_input_lines.txt')
 LOPT_WN_TOL = 0.0015 # cm^-1: a record is the accepted row's when its measured
                      # wavenumber is this close (the file holds 3 decimals)
-FIRM_LN_R = 3.0      # ln R at or above which a level with no alternate
-                     # position is settled enough to go into the registry
+FIRM_LN_R = 3.0      # ln R (and S) at or above which a level with no
+                     # alternate position is settled enough to go into the
+                     # registry
+S_MIN = 3.0          # S at the adopted position below which a level is
+                     # marked questionable even with no alternate (the
+                     # threshold of a firm position, AUDIT_MIN_LOOK); the
+                     # default of [audit] s_min
 FIRM_TOL = 0.5       # a registry entry is honoured only if ln R at the
                      # adopted position still comes out within this of the
                      # value that was recorded with it
@@ -2967,6 +3018,117 @@ def local_maxima(y):
     return np.flatnonzero(m)
 
 
+def count_positions(grid, post, floor=0.0, sep=None):
+    """How many distinct positions a scanned window offers: the local maxima
+    of `post` (ln R + ln_P) above `floor`, maxima closer than `sep` (ALT_SEP)
+    counted once - the candidate positions scan_unknown() keeps, and the n of
+    the look-elsewhere correction in S."""
+    sep = ALT_SEP if sep is None else sep
+    post = np.asarray(post, dtype=float)
+    hits = sorted(((post[i], float(grid[i])) for i in local_maxima(post)
+                   if post[i] > floor), reverse=True)
+    kept = []
+    for _, e in hits:
+        if all(abs(e - k) >= sep for k in kept):
+            kept.append(e)
+    return len(kept)
+
+
+def score_S(ln_r, ln_p, n_pos):
+    """S = ln R + ln_P - ln(n_pos), n_pos taken as at least one."""
+    return float(ln_r) + float(ln_p) - math.log(max(int(n_pos), 1))
+
+
+def audit_policy():
+    """The [audit] policy of the configuration in use (config.AuditPolicy);
+    the default - S for every group - when none is loaded."""
+    cfg = getattr(cl, 'CFG', None)
+    return getattr(cfg, 'audit', None) or config.AuditPolicy()
+
+
+def level_groups(ids, policy=None, new_path=None, revised_path=None):
+    """{level_id: 'new' / 'revised' / 'legacy'} for the [audit] policy.
+
+    New levels are those of files.new_levels, revised ones those of
+    files.level_overrides less the policy's revised_as_legacy; a level in
+    both is new.  The paths default to the configuration's."""
+    policy = policy or audit_policy()
+    cfg = getattr(cl, 'CFG', None)
+    new_path = new_path if new_path is not None else getattr(
+        cfg, 'new_levels', '')
+    revised_path = revised_path if revised_path is not None else getattr(
+        cfg, 'level_overrides', '')
+
+    def ids_of(path, sep):
+        if not path or not os.path.exists(path):
+            return set()
+        t = pd.read_csv(path, sep=sep, dtype=str)
+        return set(t['level_id'].dropna().str.strip())
+
+    new = ids_of(new_path, '\t')
+    rev = ids_of(revised_path, ',') - set(policy.revised_as_legacy)
+    return {i: 'new' if i in new else 'revised' if i in rev else 'legacy'
+            for i in map(str, ids)}
+
+
+def policy_reasons(row, tests, policy):
+    """The tests of `tests` that the adopted position of `row` fails, as
+    the words q_why prints.  A test whose value is missing (a level not
+    scanned, say) is not failed."""
+    out = []
+
+    def num(k):
+        v = row.get(k, np.nan)
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return np.nan
+    S, nf, fg, ts = (num('S'), num('n_free_adopted'),
+                     num('free_gain_adopted'), num('top_share_adopted'))
+    if 'S' in tests and np.isfinite(S) and S < policy.s_min:
+        out.append('S %.2f < %g' % (S, policy.s_min))
+    if 'free' in tests and np.isfinite(nf):
+        if nf < policy.min_free:
+            out.append('free %d < %g' % (nf, policy.min_free))
+        if np.isfinite(fg) and fg < policy.min_gain:
+            out.append('free_gain %.1f < %g' % (fg, policy.min_gain))
+    if ('share' in tests and np.isfinite(ts)
+            and ts >= policy.max_share):
+        out.append('share %.2f >= %g' % (ts, policy.max_share))
+    return out
+
+
+def mark_questions(tab, policy=None):
+    """`question` and `q_why` from the alternates and the [audit] policy
+    (section 5).  A table without a `group` column is judged as legacy."""
+    policy = policy or audit_policy()
+    groups = (tab['group'] if 'group' in tab.columns
+              else pd.Series('legacy', index=tab.index))
+    why = []
+    for (_, r), g in zip(tab.iterrows(), groups):
+        w = ['alternate'] if float(r.get('n_alt', 0) or 0) > 0 else []
+        w += policy_reasons(r, policy.tests_of(g), policy)
+        why.append('; '.join(w))
+    tab['q_why'] = why
+    tab['question'] = ['?' if w else '' for w in why]
+    return tab
+
+
+def adopted_support(ctx, tab):
+    """The free-line test at each level's adopted position: the columns
+    n_free_adopted, free_gain_adopted and top_share_adopted."""
+    nf, fg, ts = [], [], []
+    for lid in tab['level_id']:
+        s = support(ctx, lid, ctx.e_final[lid])
+        nf.append(s['n_free'])
+        fg.append(s['free_gain'])
+        ts.append(s['top_share'])
+    tab['n_free_adopted'] = nf
+    tab['free_gain_adopted'] = fg
+    tab['top_share_adopted'] = ts
+    return tab
+
+
 def scan_interval(e_adopted, e_calc, window, k=WINDOW_K):
     """The energies the scan covers: k (three) configuration windows either
     side of where the calculation puts the level, always including the adopted
@@ -3234,7 +3396,8 @@ def read_firm(path):
 
 def write_firm(path, rows, log=print):
     """Write the registry, newest verdict per level, in energy order."""
-    cols = ['level_id', 'E', 'ln_R', 'scan_width', 'fingerprint']
+    cols = ['level_id', 'E', 'ln_R', 'S', 'n_pos', 'scan_width',
+            'fingerprint']
     t = pd.DataFrame(rows, columns=cols)
     # an empty registry is still written: the alternative is to leave the
     # entries of a previous run standing for levels this run has just found
@@ -3242,6 +3405,7 @@ def write_firm(path, rows, log=print):
     t = t.sort_values('E').reset_index(drop=True)
     t['E'] = t['E'].round(4)
     t['ln_R'] = t['ln_R'].round(3)
+    t['S'] = t['S'].round(3)
     t['scan_width'] = t['scan_width'].round(1)
     output_files.require_writable([path], 'registry file')
     t.to_csv(path, index=False, lineterminator='\n')
@@ -4333,7 +4497,8 @@ def questionable_levels(path, log=print):
     """The levels the last report of ``path`` marks with a question mark.
 
     That is the `question` column of level_positions.csv: '?' wherever the
-    scan found an alternate position within --alt-drop of the adopted one.  It
+    scan found an alternate position within --alt-drop of the adopted one, or
+    the adopted position fails a test of the [audit] policy (section 5).  It
     is the run's own record of which positions are not settled, written by the
     last --scan or --audit.
     """
@@ -5223,7 +5388,8 @@ def parse_args(argv):
                         'assignment of every level the last report (--out, '
                         'default level_positions.csv) marks questionable - '
                         'the levels whose `question` column is `?`, those the '
-                        'scan found an alternate position for - so that their '
+                        'scan found an alternate position for or that fail '
+                        'a test of the [audit] policy - so that their '
                         'lines are free for the level being searched for.  '
                         'The released levels keep their adopted energies and '
                         'go on serving as partners; only their claim on the '
@@ -5509,7 +5675,7 @@ def main(argv=None):
               + (f"; the registry may spare some of them their scan"
                  if known else ''))
         n_alt, best_alt, d_alt, sep, width = [], [], [], [], []
-        ln_p, ln_p_alt, d_post = [], [], []
+        ln_p, ln_p_alt, d_post, n_pos = [], [], [], []
         scanned, fresh = [], {k: dict(v) for k, v in registry.items()}
         # a maximum that falls on another level of the run OF THE SAME J
         # AND PARITY is a different question from one that falls on empty
@@ -5528,13 +5694,16 @@ def main(argv=None):
                                   args.alt_drop, glob, acc_wn, acc_key)
             was = known.get(str(lid))
             ln_p.append(float(ln_prior(e_a, ec, wd, ctx.prior)[0]))
+            # an entry written before S was recorded is scanned again
             if (was is not None and str(was['fingerprint']) == fp
-                    and abs(ln_r - float(was['ln_R'])) <= FIRM_TOL):
+                    and abs(ln_r - float(was['ln_R'])) <= FIRM_TOL
+                    and np.isfinite(float(was.get('n_pos', np.nan)))):
                 # nothing this level's scan depends on has moved, and ln R at
                 # the adopted position still comes out what it did: the scan
                 # would find the same empty window it found last time
                 scanned.append('registry')
                 n_alt.append(0)
+                n_pos.append(int(was['n_pos']))
                 width.append(float(was['scan_width']))
                 best_alt.append(np.nan)
                 d_alt.append(np.nan)
@@ -5544,14 +5713,20 @@ def main(argv=None):
                 alt_lev.append('')
                 alt_lev_dE.append(np.nan)
                 fresh[str(lid)] = dict(level_id=lid, E=e_a, ln_R=ln_r,
+                                       S=score_S(ln_r, ln_p[-1], n_pos[-1]),
+                                       n_pos=n_pos[-1],
                                        scan_width=float(was['scan_width']),
                                        fingerprint=fp)
                 continue
             scanned.append('this run')
             r = scan_level(ctx, lid, e_a, ec, wd,
                            step=args.step, alt_drop=args.alt_drop)
-            if not r['alternates'] and ln_r >= FIRM_LN_R:
+            n_pos.append(count_positions(r['grid'], r['y'] + r['ln_P_grid']))
+            s_here = score_S(ln_r, ln_p[-1], n_pos[-1])
+            if (not r['alternates'] and ln_r >= FIRM_LN_R
+                    and s_here >= FIRM_LN_R):
                 fresh[str(lid)] = dict(level_id=lid, E=e_a, ln_R=ln_r,
+                                       S=s_here, n_pos=n_pos[-1],
                                        scan_width=r['hi'] - r['lo'],
                                        fingerprint=fp)
             else:
@@ -5586,7 +5761,14 @@ def main(argv=None):
         tab['dE_alt'] = sep
         tab['near_level'] = alt_lev
         tab['near_dE'] = alt_lev_dE
-        tab['question'] = np.where(np.asarray(n_alt) > 0, '?', '')
+        tab['n_pos'] = n_pos
+        tab['S'] = [score_S(v, p, n) for v, p, n in
+                    zip(tab['ln_R'], ln_p, n_pos)]
+        policy = audit_policy()
+        grp = level_groups(tab['level_id'], policy)
+        tab['group'] = [grp[str(i)] for i in tab['level_id']]
+        adopted_support(ctx, tab)
+        mark_questions(tab, policy)
         tab['scanned'] = scanned
         n_cached = scanned.count('registry')
         print(f"  windows actually scanned: {len(scanned) - n_cached}"
@@ -5596,6 +5778,13 @@ def main(argv=None):
             write_firm(args.firm, list(fresh.values()))
         if args.audit:
             tab = audit_table(ctx, tab, e_calc, w_of, vacancies(en))
+            # with an alternate, S charges the adopted position the
+            # fingerprint it is worse by than the alternate (ln_R_J)
+            rj = np.asarray(tab['ln_R_J'], dtype=float)
+            tab['S'] = [score_S(j, p, n) if np.isfinite(j) else s0
+                        for j, p, n, s0 in zip(rj, tab['ln_P'], tab['n_pos'],
+                                               tab['S'])]
+            mark_questions(tab, policy)
 
     tab = order_report(tab)
     mc.save_table(tab, args.out, decimals={
@@ -5605,7 +5794,8 @@ def main(argv=None):
         'free_gain': 3, 'top_share': 3, 'kept_light': 3, 'z_alt': 2,
         'ln_J': 3, 'ln_J_alt': 3, 'd_ln_J': 3, 'gain_R': 3,
         'ln_R_J': 3, 'ln_R_alt_J': 3, 'ln_P': 3, 'ln_P_alt': 3,
-        'd_ln_post': 3, 'gain_P': 3})
+        'd_ln_post': 3, 'gain_P': 3, 'S': 3, 'free_gain_adopted': 3,
+        'top_share_adopted': 3})
     print(f"ln R at the adopted position: median {tab['ln_R'].median():.1f}, "
           f"{int((tab['ln_R'] <= 0).sum())} at or below zero, "
           f"{int((tab['ln_R'] < 10).sum())} below 10")
@@ -5637,21 +5827,22 @@ def main(argv=None):
         # the hardest case in the report rather than the safest.  The audit
         # cannot show these - it lists levels that have an alternate - so
         # they are listed here.
-        stuck = tab[(tab['n_alt'] == 0) & (tab['ln_R'] < FIRM_LN_R)]
+        stuck = tab[(tab['n_alt'] == 0) & (tab['question'] == '?')]
         print(f"\n{len(stuck)} levels have no alternate anywhere in the "
-              f"window AND ln R below {FIRM_LN_R:g} where they stand.  They "
-              f"carry no action, because there is nothing to propose moving "
-              f"them to;\n  that is not a clean bill of health.  The lines do "
-              f"not support them where they are and the scan has nothing "
-              f"better to offer, so what is wrong with them - if\n  anything "
-              f"is - lies outside the window the calculation allows, or in "
-              f"the lines assigned to them:")
+              f"window but fail a test of the [audit] policy where they "
+              f"stand.  They carry no action, because there is nothing to "
+              f"propose moving them to,\n  but they carry a question mark: "
+              f"the lines do not support them well enough where they are and "
+              f"the scan has nothing better to offer, so what is\n  wrong "
+              f"with them - if anything is - lies outside the window the "
+              f"calculation allows, or in the lines assigned to them:")
         if len(stuck):
             with pd.option_context('display.width', 200,
                                    'display.max_columns', 24):
-                print(stuck.sort_values('ln_R')[
-                    ['level_id', 'E', 'n_pred', 'n_obs', 'n_seen', 'n_miss',
-                     'ln_R', 'scan_width']].to_string(index=False,
+                print(stuck.sort_values('S')[
+                    ['level_id', 'group', 'E', 'n_obs', 'n_seen', 'ln_R',
+                     'ln_P', 'S', 'n_free_adopted', 'free_gain_adopted',
+                     'top_share_adopted', 'q_why']].to_string(index=False,
                                                       na_rep='-'))
     if 'action' in tab.columns:
         print_audit(tab, args.alt_drop)
