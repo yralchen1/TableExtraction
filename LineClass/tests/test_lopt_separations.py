@@ -69,11 +69,14 @@ def test_a_wide_character_gets_the_wide_factor(tmp_path):
     assert [float(l.split()[-1]) for l in records] == [1.0, 0.5, 0.5]
     assert stats['blends'] == 3 and stats['wide'] == 1
     assert stats['records'] == 3 and stats['extra_dof'] == 0
-    # four labels of the label field's width, then the value and u
+    # four labels of the label field's width, separated by one character
+    # ('-' inside a transition, ' ' between the two), then the value and u
     first, last = M.FIELDS['lower_level']
     w = last - first + 1
-    assert records[0][:4 * w] == LOW[0] + LOW[1] + LOW[2] + LOW[3]
-    assert records[0][4 * w:].split() == ['0', '1.0000']
+    assert records[0][:4 * w + 3] == (LOW[0].ljust(w) + '-' + LOW[1].ljust(w)
+                                      + ' ' + LOW[2].ljust(w) + '-'
+                                      + LOW[3].ljust(w))
+    assert records[0][4 * w + 3:].split() == ['0', '1.0000']
 
 
 def test_a_blend_of_three_adds_one_degree_of_freedom(tmp_path):
@@ -110,7 +113,7 @@ def test_refresh_follows_the_transitions_file(tmp_path):
     stats = S.refresh(str(lines), str(sep), {25000.0: 'w'}, fwhm=flat)
     body = [l for l in sep.read_text().splitlines()
             if l and not l.startswith(';')]
-    assert body[0].startswith(LOW[0] + LOW[4] + LOW[2] + LOW[3])
+    assert body[0].startswith(LOW[0] + '-' + LOW[4] + ' ' + LOW[2] + '-' + LOW[3])
     assert [float(l.split()[-1]) for l in body] == [1.0, 0.5]   # d wide, w not
     assert stats['blends'] == 2 and stats['unknown_char'] == 0
 
@@ -196,10 +199,32 @@ def test_the_registry_is_read_and_checked(tmp_path):
                    '34861.88980\t3.0\t2026-11-18\tflagged\n', encoding='utf-8')
     assert S.read_registry(str(reg)) == {34861.8898: 3.0}
     assert S.read_registry('') == {}
+    # the same blend twice with one factor is fine; with two it is not
+    reg.write_text('wn_key\tfactor\tdate\treason\n1.0\t1\tx\ty\n1.0\t1\tx\tz\n',
+                   encoding='utf-8')
+    assert S.read_registry(str(reg)) == {1.0: 1.0}
     reg.write_text('wn_key\tfactor\tdate\treason\n1.0\t1\tx\ty\n1.0\t2\tx\ty\n',
                    encoding='utf-8')
-    with pytest.raises(ValueError, match='twice'):
+    with pytest.raises(ValueError, match='another factor'):
         S.read_registry(str(reg))
+    # a header without the two columns is named in the error
+    reg.write_text('key\tf\n1.0\t1\n', encoding='utf-8')
+    with pytest.raises(ValueError, match='header'):
+        S.read_registry(str(reg))
+
+
+def test_the_registry_is_read_as_excel_saves_it(tmp_path):
+    # CRLF, comments quoted when they hold a comma or a quote, rows padded
+    # with empty cells, a reason in quotes, a key with its trailing 0 dropped
+    reg = tmp_path / 'blend_separations.txt'
+    reg.write_bytes(
+        b'# plain comment\t\t\t\r\n'
+        b'"# wn_key: Sugar\'s wavenumber, as in the table."\t\t\t\r\n'
+        b'"# flagged (""deviation > 2 sigma"") on"\t\t\t\r\n'
+        b'wn_key\tfactor\tdate\treason\r\n'
+        b'36833.56\t1.5\t11/18/2026\tplain reason\r\n'
+        b'12609.2196\t3\t11/18/2026\t"fitted 2.81 apart (char ch)"\r\n')
+    assert S.read_registry(str(reg)) == {36833.56: 1.5, 12609.2196: 3.0}
 
 
 def test_the_project_registry_parses():

@@ -2900,6 +2900,15 @@ configuration, so in every set).
   u_ij = √(Σw / (w_i w_j)), w = 2/τ². A fit with the file is LOPT's own fit with that τ, except
   that LOPT counts each record as one degree of freedom (its own equations count n − 1 per
   blend): a blend of 3 components adds 1, one of 4 adds 3. In `iter_hfs` that is 58 of 5029.
+  A record reads `<low_i>-<up_i> <low_j>-<up_j>  0  u_ij`, each label padded to the 13
+  characters of the label field. LOPT 6 requires one separator character after each of the
+  first three labels and does not read it (since 2026-11-18; a file without them stops LOPT
+  with a missing-level error); the user's choice is `-` inside a transition and a space
+  between the two.
+- **LOPT's report** of the separations, `LOPT_output_lines_sep.txt`, gives each level label a
+  column of its own and copies the components' observed wavenumbers from the transitions
+  file (`W_inp1`, `W_inp2`), in the unit of the first component's line (cm⁻¹ throughout in
+  this project). No script here reads it.
 - **The blends are found as LOPT finds them**, from the transitions file: the same text in the
   wavenumber field and the same unit, no P or M flag, a weight above zero.
 - **Kept in step.** A stale record would hold together two transitions that are no longer one

@@ -1,18 +1,28 @@
-# Blends given a separation allowance of their own (lopt_separations.py; files.blend_separations).
-# wn_key: Sugar's wavenumber of the observed line, as in line_classifications.csv.
-# factor: tau = factor x the effective line width (0.035 A instrumental with Doppler), in place of
-# [blends] separation_factor (0.5) or wide_separation_factor (1.0).
-# The first rows (user, 2026-11-18): the blends LOPT 6 flagged ("deviation > 2 sigma") on
-# iter_hfs's fit with the separations file, after bl, ch, h, cl joined the wide characters.
-# Each factor is the smallest multiple of 0.5 for which every pair's allowance covers the
-# fitted separation of its components.
+# Blends given a separation allowance of their own (lopt_separations.py; files.blend_separations).			
+"# wn_key: Sugar's wavenumber of the observed line, as in line_classifications.csv."			
+"# factor: tau = factor x the effective line width (0.035 A instrumental with Doppler), in place of"			
+# [blends] separation_factor (0.5) or wide_separation_factor (1.0).			
+"# The first rows (user, 2026-11-18): the blends LOPT 6 flagged (""deviation > 2 sigma"") on"			
+"# iter_hfs's fit with the separations file, after bl, ch, h, cl joined the wide characters."			
+# Each factor is the smallest multiple of 0.5 for which every pair's allowance covers the			
+# fitted separation of its components.			
 wn_key	factor	date	reason
-11003.5322	1.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 1.08 line widths apart (2.2 sigma at 0.5)
-12609.2196	3.0	2026-11-18	LOPT 6 on iter_hfs: components fitted 2.81 line widths apart (2.8 sigma at 1.0, char ch)
-33602.5509	1.5	2026-11-18	LOPT 6 on iter_hfs: 4 components, fitted up to 1.54 line widths apart (2.2 sigma at 0.5)
-34861.8898	3.0	2026-11-18	LOPT 6 on iter_hfs: components fitted 2.95 line widths apart (2.9 sigma at 1.0, char c)
-35378.1493	1.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 1.10 line widths apart (2.2 sigma at 0.5)
-36833.5600	1.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 1.12 line widths apart (2.2 sigma at 0.5)
-36895.8014	2.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 2.16 line widths apart (2.2 sigma at 1.0, char c)
-37336.7713	2.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 2.40 line widths apart (2.4 sigma at 1.0, char c)
-39768.8314	1.5	2026-11-18	LOPT 6 on iter_hfs: components fitted 1.03 line widths apart (2.1 sigma at 0.5)
+11003.5322	1.5	11/18/2026	LOPT 6 on iter_hfs: components fitted 1.08 line widths apart (2.2 sigma at 0.5)
+12609.2196	3	11/18/2026	"LOPT 6 on iter_hfs: components fitted 2.81 line widths apart (2.8 sigma at 1.0, char ch)"
+33602.5509	1.5	11/18/2026	"LOPT 6 on iter_hfs: 4 components, fitted up to 1.54 line widths apart (2.2 sigma at 0.5)"
+34861.8898	3	11/18/2026	"LOPT 6 on iter_hfs: components fitted 2.95 line widths apart (2.9 sigma at 1.0, char c)"
+35378.1493	1.5	11/18/2026	LOPT 6 on iter_hfs: components fitted 1.10 line widths apart (2.2 sigma at 0.5)
+36833.56	1.5	11/18/2026	LOPT 6 on iter_hfs: components fitted 1.12 line widths apart (2.2 sigma at 0.5)
+36895.8014	2.5	11/18/2026	"LOPT 6 on iter_hfs: components fitted 2.16 line widths apart (2.2 sigma at 1.0, char c)"
+37336.7713	2.5	11/18/2026	"LOPT 6 on iter_hfs: components fitted 2.40 line widths apart (2.4 sigma at 1.0, char c)"
+39768.8314	1.5	11/18/2026	LOPT 6 on iter_hfs: components fitted 1.03 line widths apart (2.1 sigma at 0.5)
+34350.0584	2	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 0.96 cm-1  (-1.95 sigma at 1.0, char d)"
+12046.213	2	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 0.20 cm-1  (-1.84 sigma at 1.0, char ch)"
+37037.9192	2	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 1.03 cm-1  (-1.82 sigma at 1.0, char w)"
+53364.2388	2	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 1.96 cm-1  (-1.80 sigma at 1.0, char bl)"
+38825.7505	1	11/18/2026	LOPT 6 on iter_hfs: fitted separation 0.55 cm-1  (-1.79 sigma at 0.5)
+31398.871	2	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 0.94 cm-1  (-1.78 sigma at 1.0, char c)"
+38770.69	1	11/18/2026	LOPT 6 on iter_hfs: fitted separation 0.66 cm-1  (-1.76 sigma at 0.5)
+22989.2427	1	11/18/2026	LOPT 6 on iter_hfs: fitted separation 0.21 cm-1  (-1.70 sigma at 0.5)
+23569.9289	1	11/18/2026	LOPT 6 on iter_hfs: fitted separation 0.22 cm-1  (-1.65 sigma at 0.5)
+32294.9185	1	11/18/2026	"LOPT 6 on iter_hfs: fitted separation 0.36 cm-1  (-1.61 sigma at 0.5, char *r)"

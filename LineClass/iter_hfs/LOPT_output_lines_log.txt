@@ -1,0 +1,41 @@
+LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-18 16:11:46
+Reading parameters...Done.
+
+Treating the input line uncertainties as statistical ones.
+Using statistical uncertainties of input wavenumbers in level optimization weights.
+Using centroid blend treatment.
+Using Cholesky decomposition to solve the matrix equation.
+
+Reading lines...Done.
+Filling groups...
+Done.
+Counting assigned lines...Done.
+Reading fixed levels...
+Done.
+Reading separations... 647 separation(s) read.
+Done.
+
+Group 1 of 1: 653 levels.
+Finding energies and uncertainties (0 exact constraints)...
+Done. (spent 0 sec)
+Adjusting weights...Done.
+Adjusting dispersions...Done.
+
+RSS/degrees_of_freedom = 0.75 (5029 degrees_of_freedom)
+
+Finding Ritz uncertainties for lines...
+Done. (spent 0 sec)
+
+Fitted separations of transitions are written to file LOPT_output_lines_sep.txt
+Numerical precision: level 0 (double), condition number 2.2e+03; largest estimated error 2.6e-05 of the last printed digit.
+Adding preliminary values...Done.
+
+Rounding levels...Done.
+Adjusting single-line levels...Done.
+Rounding lines...Done.
+Sorting levels...Done.
+Writing levels...Done.
+Writing lines...Done.
+Writing NP plot data...Done.
+Ok.
+Total time spent: 1 sec

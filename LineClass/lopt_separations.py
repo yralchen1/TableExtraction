@@ -39,7 +39,10 @@ to it; lopt/observations.py, build_group_observations).  What changes:
 Each pair (i, j) of the n components of a blend gets one record
 ``(E_up_i - E_low_i) - (E_up_j - E_low_j) = 0 +- u_ij`` with
 u_ij = sqrt(sum_k w_k / (w_i w_j)), w_k = 2 / tau_k^2 - the weights LOPT
-gives its own equations (create_blend_sep_obs), so a fit with this file and
+gives its own equations (create_blend_sep_obs), written as
+``<low_i>-<up_i> <low_j>-<up_j>  0  u_ij`` (each label padded to the width of
+the label field; LOPT 6 needs one separator character after each of the
+first three and ignores what it is), so a fit with this file and
 the same tau is LOPT's own.  One difference: LOPT counts each record of the
 file as one degree of freedom, its own equations as n - 1 per blend, so a blend
 of 3 components adds 1 to the degrees of freedom and one of 4 adds 3.
@@ -70,6 +73,10 @@ PAR_SEP_FILE_KEY = 'SEPARATIONS INPUT FILE NAME'
 PAR_SEP_FACTOR_KEY = 'BLEND SEPARATION FACTOR'
 #: the '**' Sugar's list puts after a multiply classified line
 MULTIPLE_MARK = '**'
+#: one record: four labels of the label field's width, each followed by one
+#: separator character LOPT does not read (required since 2026-11-18): '-'
+#: between the two levels of a transition, ' ' between the two transitions
+RECORD_FORMAT = '%s-%s %s-%s  0  %.4f'
 
 _HEAD_RE = re.compile(r'^;\s*rules:\s*factor\s+(\S+)\s+wide_factor\s+(\S+)'
                       r'\s+wide_characters\s+(\S*)\s*$')
@@ -81,21 +88,51 @@ def read_registry(path):
     """`{wn_key rounded to 4 decimals: factor}` of the hand-kept registry
     of blends with an allowance of their own: tab-delimited, header
     `wn_key  factor  date  reason`, `#` starts a comment line.  {} if `path`
-    is '' or absent."""
+    is '' or absent.
+
+    The file is kept in Excel, so it is read as Excel saves it: CRLF line
+    ends, a comment line wrapped in quotes when it holds a comma or a quote,
+    and empty cells padding a row to the width of the table.  The fields
+    are unquoted first, so a comment is a row whose first cell starts with
+    `#`.  A blend listed twice (for example under two of its components'
+    pairs, which share one wn_key) is accepted when the factors agree."""
     out = {}
     if not path or not os.path.exists(path):
         return out
-    with io.open(path, encoding='utf-8-sig', newline='') as fh:
-        rows = [l for l in fh.read().splitlines()
-                if l.strip() and not l.lstrip().startswith('#')]
-    for row in csv.DictReader(rows, delimiter='\t'):
-        key = round(float(row['wn_key']), 4)
-        factor = float(row['factor'])
+    raw = io.open(path, 'rb').read()
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw.decode('cp1252')      # Excel's "Text (Tab delimited)"
+    header = None
+    for n, cells in enumerate(csv.reader(io.StringIO(text, newline=''),
+                                         delimiter='\t'), 1):
+        cells = [c.strip() for c in cells]
+        while cells and not cells[-1]:
+            cells.pop()
+        if not cells or cells[0].startswith('#'):
+            continue
+        if header is None:
+            header = cells
+            if 'wn_key' not in header or 'factor' not in header:
+                raise ValueError('%s, line %d: the header must name the '
+                                 'columns wn_key and factor; it reads %r'
+                                 % (path, n, '\t'.join(header)))
+            i_key, i_fac = header.index('wn_key'), header.index('factor')
+            continue
+        try:
+            key = round(float(cells[i_key]), 4)
+            factor = float(cells[i_fac])
+        except (IndexError, ValueError):
+            raise ValueError('%s, line %d: no wn_key and factor in %r'
+                             % (path, n, '\t'.join(cells)))
         if not factor > 0:
-            raise ValueError('%s: the factor of %s must be positive'
-                             % (path, row['wn_key']))
-        if key in out:
-            raise ValueError('%s: %s is listed twice' % (path, row['wn_key']))
+            raise ValueError('%s, line %d: the factor of %s must be positive'
+                             % (path, n, cells[i_key]))
+        if key in out and out[key] != factor:
+            raise ValueError('%s, line %d: %s is listed again with another '
+                             'factor (%g, before %g)'
+                             % (path, n, cells[i_key], factor, out[key]))
         out[key] = factor
     return out
 
@@ -233,7 +270,7 @@ def build(records, char_of, factor, wide_factor, wide_chars, fwhm=fwhm_cm,
                                  if own is not None else ''))
         for i, j, u in pair_uncertainties([tau] * len(comps)):
             a, b = comps[i], comps[j]
-            out.append('%s%s%s%s  0  %.4f'
+            out.append(RECORD_FORMAT
                        % (label(a['low'], width), label(a['upp'], width),
                           label(b['low'], width), label(b['upp'], width), u))
             stats['records'] += 1
