@@ -46,7 +46,10 @@ LOPT prints its input wavenumbers to 3 decimals and a small pattern would
 vanish in that rounding.  Each pattern is therefore scaled so that its
 largest record moves by SCALE_TO cm^-1, the records are written with every
 decimal the 12-character field holds, and the levels' shifts are divided
-back; the fit is linear, so this changes nothing but the precision.  One
+back; the fit is linear, so this changes nothing but the precision.
+(LOPT 6 prints the energies with every digit at the round-off threshold of
+99999 the set's LOPT.par carries; only its uncertainties are rounded, to
+two significant digits.)  One
 pattern is also run at half that size, and the report gives how far the two
 disagree: a check that the fit really is linear.
 
@@ -126,6 +129,7 @@ import numpy as np
 
 import config
 import hfs_correction
+import lopt_separations
 import make_LOPT_input
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -320,15 +324,28 @@ def read_levels(path):
     return out
 
 
+#: LOPT 6 starts OpenBLAS and OpenMP threads of its own (4 and one per
+#: logical processor by default); JOBS runs side by side are faster with one
+#: thread each.  The results do not depend on the number of threads.
+LOPT_ENV = {'OPENBLAS_NUM_THREADS': '1', 'OMP_NUM_THREADS': '1'}
+
+
 def run_lopt(run_dir):
-    """Run `lopt.bat LOPT.par` in `run_dir`; returns the levels."""
+    """Run `lopt.bat LOPT.par` in `run_dir`; returns the levels.
+
+    LOPT 6 exits with 1 when it stops on an error, and it creates or empties
+    every output file when it reads the parameters, so a failed run leaves an
+    empty levels file rather than none: both are checked."""
+    env = dict(os.environ, **LOPT_ENV)
     with open(os.path.join(run_dir, 'lopt.log'), 'w') as log:
-        subprocess.run(['cmd', '/c', 'lopt.bat', PAR], cwd=run_dir,
-                       stdout=log, stderr=subprocess.STDOUT, check=False)
+        proc = subprocess.run(['cmd', '/c', 'lopt.bat', PAR], cwd=run_dir,
+                              stdout=log, stderr=subprocess.STDOUT,
+                              check=False, env=env)
     path = os.path.join(run_dir, LEVELS_OUT)
-    if not os.path.exists(path):
-        raise RuntimeError('LOPT wrote no levels in %s (see lopt.log)'
-                           % run_dir)
+    if (proc.returncode != 0 or not os.path.exists(path)
+            or os.path.getsize(path) == 0):
+        raise RuntimeError('LOPT failed in %s (exit status %d; see lopt.log)'
+                           % (run_dir, proc.returncode))
     return read_levels(path)
 
 
@@ -338,6 +355,11 @@ def prepare(work, name, set_dir, records, shifts):
     run_dir = os.path.join(work, name)
     os.makedirs(run_dir)
     shutil.copy(os.path.join(set_dir, FIXLEV), run_dir)
+    # the set's separations file, if its LOPT.par names one: the moved records
+    # keep their blends (one observed line moves as one), so it is the same
+    sep = lopt_separations.separations_beside(os.path.join(set_dir, LINES_IN))
+    if sep is not None:
+        shutil.copy(sep, run_dir)
     make_LOPT_input.write_par_file(
         os.path.join(set_dir, PAR), os.path.join(run_dir, PAR),
         LINES_IN, FIXLEV, LEVELS_OUT, LINES_OUT)

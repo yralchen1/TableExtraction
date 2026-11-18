@@ -114,8 +114,8 @@ F. **The new position is built.**  The new energy goes into whichever of
    as much as the ones that gained one - are divided again among their
    unflagged records in proportion to their calculated intensities.
 
-G. **LOPT.**  ``lopt.bat LOPT.par`` (the Perl v5 build; never the Java jar,
-   which has no centroid blend model), run once before anything is changed so
+G. **LOPT.**  ``lopt.bat LOPT.par`` (since 2026-11 LOPT 6; never the Java
+   jar, which has no centroid blend model), run once before anything is changed so
    that there is a before to compare with, and once after.  The first of those
    is asked for through ``insert_new_level.call_LOPT``, which runs it only if
    one of the files LOPT reads or writes has changed since LOPT last stopped
@@ -1024,7 +1024,7 @@ def _run(args, rejects, accepts, saved, log, today):
         present.add(key)
         n_new += 1
     n_w = INL.reweigh(lopt_rows, touched_wn, calc_of, log)
-    INL.write_lopt_input(LOPT_INPUT, lopt_rows)
+    INL.write_lopt_input(LOPT_INPUT, lopt_rows, log)
     log('   %d record(s) taken out, %d put in, %d weight(s) changed, %d '
         'record(s) in all' % (n_out, n_new, n_w, len(lopt_rows)))
 

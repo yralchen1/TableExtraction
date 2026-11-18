@@ -100,6 +100,7 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'files.level_overrides', 'files.line_decisions',
              'files.new_levels', 'files.icalc_extra',
              'files.discarded_levels', 'files.inflated_unc',
+             'files.blend_separations',
              'files.hfs_A_levels', 'files.hfs_satellites',
              'files.kappa_exceptions', 'files.hfs_components',
              'files.start_levels',
@@ -107,7 +108,9 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'hfs.kappa_spread', 'hfs.kappa_spread.1974',
              'hfs.kappa_spread.1969',
              'decisions', 'decisions.max_forced_offset',
-             'blends', 'blends.u_ln_intensity',
+             'blends', 'blends.u_ln_intensity', 'blends.separations',
+             'blends.separation_factor', 'blends.wide_characters',
+             'blends.wide_separation_factor',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display',
              'audit', 'audit.legacy', 'audit.new', 'audit.revised',
              'audit.revised_as_legacy', 'audit.s_min', 'audit.min_free',
@@ -121,7 +124,8 @@ _SCHEMA = {
               'output': str, 'output_csv': str, 'level_overrides': str,
               'line_decisions': str, 'new_levels': str,
               'icalc_extra': str, 'discarded_levels': str,
-              'inflated_unc': str, 'hfs_A_levels': str,
+              'inflated_unc': str, 'blend_separations': str,
+              'hfs_A_levels': str,
               'hfs_satellites': str, 'kappa_exceptions': str,
               'hfs_components': str, 'start_levels': str},
     'range': {'wn_min': float, 'wn_max': float},
@@ -133,7 +137,9 @@ _SCHEMA = {
                    'self_consistent': bool, 'fit_range_decades': _FloatPair},
     'intensity_model': {'C': float, 'kT': float, 'verify_tolerance': float},
     'decisions': {'max_forced_offset': float},
-    'blends': {'u_ln_intensity': float},
+    'blends': {'u_ln_intensity': float, 'separations': bool,
+               'separation_factor': float, 'wide_characters': _StrList,
+               'wide_separation_factor': float},
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES},
             'kappa_spread': {e: float for e in ('1974', '1969')}},
@@ -247,6 +253,27 @@ class HfsSettings:
 
 
 @dataclass(frozen=True)
+class BlendSeparations:
+    """The separation keys of [blends]: how LOPT is told how far apart the
+    components of a blend may lie (lopt_separations.py, 2026-11-18).
+
+    With `on`, make_LOPT_input.py writes LOPT a separations file with one
+    record per pair of components of every blend, 0 +- tau, where tau is
+    `factor` (or `wide_factor` for a line whose character, '**' stripped, is
+    one of `wide_chars`) times the effective line width, and switches LOPT's
+    own separation equations off (BLEND SEPARATION FACTOR = 0).  Without
+    `on` LOPT's own equations stand, at 10 times the line uncertainty.
+    `registry` is the hand-kept table of blends given a factor of their own
+    (files.blend_separations, '' if none), which overrides both.
+    """
+    on: bool = False
+    factor: float = 0.5
+    wide_factor: float = 1.0
+    wide_chars: tuple = ('w', 'c', 'd')
+    registry: str = ''
+
+
+@dataclass(frozen=True)
 class AuditPolicy:
     """The [audit] section: which tests put a question mark on a level.
 
@@ -315,6 +342,8 @@ class Config:
     # units, that makes a blend's centroid uncertain (blend_centroid.py);
     # 0.0 leaves it out.
     blend_u_ln: float = 0.0
+    # [blends] separations: LOPT's separations file (BlendSeparations)
+    blend_seps: BlendSeparations = BlendSeparations()
     # LOPT_output_levels.txt of the set's last fit, which classify_lines.py
     # starts the levels from instead of their published energies (the warm
     # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
@@ -634,6 +663,21 @@ def load(path: str = None) -> Config:
             resolved_levels=tuple(h.get('resolved_levels', ())),
             iden2_display=display)
 
+    def _blend_separations(b):
+        d = BlendSeparations()
+        out = BlendSeparations(
+            on=bool(b.get('separations', d.on)),
+            factor=float(b.get('separation_factor', d.factor)),
+            wide_factor=float(b.get('wide_separation_factor', d.wide_factor)),
+            wide_chars=tuple(b.get('wide_characters', d.wide_chars)),
+            registry=(_p('blend_separations')
+                      if raw['files'].get('blend_separations') else ''))
+        if out.on and not (out.factor > 0 and out.wide_factor > 0):
+            raise ConfigError("'blends.separation_factor' and "
+                              "'blends.wide_separation_factor' must be "
+                              "positive when 'blends.separations' is on")
+        return out
+
     audit = AuditPolicy()
     if 'audit' in raw:
         a = raw['audit']
@@ -685,6 +729,7 @@ def load(path: str = None) -> Config:
         hfs=hfs,
         blend_u_ln=float(
             raw.get('blends', {}).get('u_ln_intensity', 0.0)),
+        blend_seps=_blend_separations(raw.get('blends', {})),
         start_levels=(_p('start_levels')
                       if raw['files'].get('start_levels') else ''),
         audit=audit,

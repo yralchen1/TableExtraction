@@ -198,16 +198,26 @@ def model_unc(table, char, wn):
 
 
 # --- the test --------------------------------------------------------------
-def leave_one_out(r, u_obs, u_calc):
+def leave_one_out(r, u_obs, u_calc, redundancy=None):
     """`(h, r_loo, u_rest)` of a line LOPT fitted with the uncertainty
     `u_obs`, its Ritz value then known to `u_calc`, leaving the residual
     `r`.  u_rest is None when the line alone fixes its Ritz value (h of 1
-    within rounding): nothing else measures it."""
+    within rounding): nothing else measures it.
+
+    `redundancy` is LOPT 6's column `r`, 1 - h, printed with two decimals.
+    LOPT 6 prints the uncertainties with two significant digits, and h from
+    their ratio is then wrong by up to about 0.05 near h = 1, where r_loo
+    divides by 1 - h; the column is good to 0.005 there.  It is used where
+    it is given and below 0.5, the ratio elsewhere (and for LOPT 5 output,
+    which has no such column)."""
     h = (u_calc / u_obs) ** 2 if u_obs > 0 else 1.0
+    if redundancy is not None and redundancy < 0.5:
+        if redundancy < 0.005:       # printed 0 or 0.00: no information
+            return 1.0, None, None
+        h = 1.0 - redundancy
     if h >= 0.999:
         return h, None, None
-    return (h, r / (1.0 - h),
-            u_calc * u_obs / math.sqrt(u_obs ** 2 - u_calc ** 2))
+    return (h, r / (1.0 - h), u_obs * math.sqrt(h / (1.0 - h)))
 
 
 def median(values):
@@ -353,6 +363,8 @@ def read_lopt_lines(path):
                      'Weight')}
             if None in vals.values():
                 continue
+            # LOPT 6 only: the redundancy number, empty where not printed
+            vals['r'] = _num(row.get('r'))
             out[(row['L1'].strip(), row['L2'].strip())] = vals
     return out
 
@@ -487,7 +499,7 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
         D = float(r['hfs_D'])
         char = r['char']
         h, r_loo, u_rest = leave_one_out(lp['dWO-C'], lp['uWnOStat'],
-                                         lp['uWnCstat'])
+                                         lp['uWnCstat'], lp.get('r'))
         if r_loo is None or D == 0.0:
             count['untestable'] += 1
             continue

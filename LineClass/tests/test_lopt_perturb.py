@@ -168,3 +168,21 @@ def test_one_kappa_pattern_per_class_with_an_uncertainty():
     model.kappa['flag'] = (1.0, 0.0)
     assert L.kappa_patterns(model) == [
         ('kappa:plain_1974', ('kappa', 'plain_1974', 0.04))]
+
+
+class _Done(object):
+    def __init__(self, code):
+        self.returncode = code
+
+
+@pytest.mark.parametrize('code, text', [(1, ''), (0, ''), (1, 'x')])
+def test_a_failed_lopt6_run_is_refused(tmp_path, monkeypatch, code, text):
+    # LOPT 6 empties its outputs when it reads the parameters and exits with 1
+    # on an error: an empty levels file, or a nonzero status, is a failure
+    def fake(cmd, cwd, stdout, stderr, check, env):
+        assert env['OMP_NUM_THREADS'] == '1'
+        (tmp_path / L.LEVELS_OUT).write_text(text)
+        return _Done(code)
+    monkeypatch.setattr(L.subprocess, 'run', fake)
+    with pytest.raises(RuntimeError, match='LOPT failed'):
+        L.run_lopt(str(tmp_path))

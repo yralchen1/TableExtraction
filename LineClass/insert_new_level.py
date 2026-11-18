@@ -92,11 +92,12 @@ D. **The LOPT input.**  One record per accepted assignment is inserted into
    affected as the new one.  The ``P`` records - the rejected candidates LOPT
    carries but does not fit - keep weight zero.
 
-E. **LOPT.**  ``lopt.bat LOPT.par`` (the Perl v5 build; never the Java jar,
-   which has no centroid blend model), run once on the untouched input first
-   so that there is a before to compare with.  That first run is very often a
-   repetition of the one the last run ended with, and the Perl build takes
-   minutes, so LOPT is called through ``call_LOPT``: it runs only when one of
+E. **LOPT.**  ``lopt.bat LOPT.par`` (since 2026-11 LOPT 6, F:/LOPT/v6; never
+   the Java jar, which has no centroid blend model), run once on the untouched
+   input first so that there is a before to compare with.  That first run is
+   very often a repetition of the one the last run ended with (the Perl build
+   it replaced took minutes; LOPT 6 takes seconds), so LOPT is called through
+   ``call_LOPT``: it runs only when one of
    the five files LOPT reads or writes has changed size or modification time
    since LOPT last stopped, and otherwise hands back the fit that is already
    on disk together with the ``RSS/degrees_of_freedom`` recorded with it in
@@ -238,6 +239,7 @@ if HERE not in sys.path:
 
 import config
 import cowan_gA
+import lopt_separations
 import make_LOPT_input
 import output_files
 import swap_line_assignments_IDEN as IDEN
@@ -261,6 +263,9 @@ LOPT_INPUT = os.path.join(HERE, 'LOPT_input_lines.txt')
 LOPT_LINES = os.path.join(HERE, 'LOPT_output_lines.txt')
 LOPT_LEVELS = os.path.join(HERE, 'LOPT_output_levels.txt')
 LOPT_FIXLEV = os.path.join(HERE, 'LOPT_fixlev.txt')
+# LOPT 6's separations file ([blends] separations; lopt_separations.py),
+# rebuilt by write_lopt_input whenever the transitions file changes
+LOPT_SEP = os.path.join(HERE, lopt_separations.DEF_NAME)
 SYNC_REPORT = os.path.join(HERE, 'sync_report.txt')
 # Where call_LOPT records what the files looked like when LOPT last ran; see
 # the comment over call_LOPT.  It is a derived file and is not tracked.
@@ -278,7 +283,7 @@ def writable_files() -> list:
     """
     return [NEW_LEVELS, LINE_DECISIONS, CLASSIFICATIONS, CLASSIFICATIONS_XLSX,
             LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV, LOPT_PAR,
-            SYNC_REPORT, LOGFILE, TRANS, ENLEV, GLUELEV, ID_MAP]
+            LOPT_SEP, SYNC_REPORT, LOGFILE, TRANS, ENLEV, GLUELEV, ID_MAP]
 
 
 WRITABLE = writable_files()
@@ -511,7 +516,7 @@ def use_set(set_dir: str, log=print) -> str:
     global IDEN2_DIR, ENLEV, TRANS, GLUELEV, ID_MAP, DLV
     global NEW_LEVELS, LINE_DECISIONS, CLASSIFICATIONS, CLASSIFICATIONS_XLSX
     global LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV
-    global SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR
+    global LOPT_SEP, SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR
     here = os.path.abspath(set_dir)
     if not os.path.isdir(here):
         raise SystemExit('insert_new_level.py: --set %s is not a directory'
@@ -547,13 +552,14 @@ def use_set(set_dir: str, log=print) -> str:
     LINE_DECISIONS = cfg.line_decisions
     CLASSIFICATIONS = cfg.output_csv
     CLASSIFICATIONS_XLSX = cfg.output_file
-    (LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV, SYNC_REPORT,
-     LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR) = (
+    (LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV, LOPT_SEP,
+     SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR) = (
         os.path.join(here, os.path.basename(p))
         for p in (LOPT_PAR, LOPT_INPUT, LOPT_LINES, LOPT_LEVELS, LOPT_FIXLEV,
-                  SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR))
+                  LOPT_SEP, SYNC_REPORT, LOPT_SNAPSHOT, LOGFILE, BACKUP_DIR))
     WRITABLE = writable_files()
-    LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES]
+    LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES,
+                  LOPT_SEP]
 
     log('working set: %s' % here)
     for what, path in (('configuration', cfg_path),
@@ -1054,6 +1060,19 @@ def lopt_key(wn) -> float:
     return round(float(wn), LOPT_WN_DP)
 
 
+def printed_match(text, wn) -> bool:
+    """Whether the number LOPT printed as `text` can be the wavenumber `wn`.
+
+    For the OUTPUT files.  LOPT 6 rounds an observed wavenumber at the step of
+    its uncertainty (``121547.24`` for an input of ``121547.243`` with
+    u = 0.36), so `lopt_key` cannot match it; the printed value can lie up to
+    half its last digit from the input.
+    """
+    text = str(text).strip()
+    decimals = len(text.split('.', 1)[1]) if '.' in text else 0
+    return abs(float(text) - float(wn)) <= 0.5 * 10.0 ** -decimals + 1e-9
+
+
 def read_lopt_input(path: str) -> list:
     """The records of ``LOPT_input_lines.txt``, parsed by their fixed columns.
 
@@ -1100,11 +1119,16 @@ def record_text(r) -> str:
         r['flag'], r['weight'])
 
 
-def write_lopt_input(path: str, rows) -> None:
+def write_lopt_input(path: str, rows, log=None) -> None:
+    """Write the transitions file, and rebuild the set's separations file
+    to match it (lopt_separations.refresh_beside): a record left from before
+    would hold together two transitions that are no longer one blend, and a
+    new blend would have no separation equations at all."""
     rows = sorted(rows, key=lambda r: -r['wn'])
     with io.open(path, 'w', encoding='ascii', newline='') as fh:
         for r in rows:
             fh.write(record_text(r) + make_LOPT_input.EOL_LINES)
+    lopt_separations.refresh_beside(path, log)
 
 
 def line_uncertainty(rows):
@@ -1256,9 +1280,10 @@ def lopt_rss(output: str):
 def run_lopt(log):
     """Run LOPT and return ``(RSS/dof, degrees of freedom)``."""
     # A .bat file is not an executable image, so it is handed to the command
-    # interpreter rather than started directly.  lopt.bat is the Perl v5 build
-    # of LOPT; the Java jar under F:/J/LOPT has no centroid blend model and
-    # renames its outputs, and must never be used here.
+    # interpreter rather than started directly.  lopt.bat runs LOPT 6 (since
+    # 2026-11; F:/LOPT/v6), which exits with 1 when it stops on an error; the
+    # Java jar under F:/J/LOPT has no centroid blend model and renames its
+    # outputs, and must never be used here.
     # It runs where its parameter file is, since the file names the others
     # without a directory: the project directory, or the working set.
     cmd = (['cmd', '/c', 'lopt.bat', os.path.basename(LOPT_PAR)]
@@ -1277,7 +1302,8 @@ def run_lopt(log):
 # ---------------------------------------------------------------------------
 # Running LOPT only when it would make a difference
 # ---------------------------------------------------------------------------
-# The Perl build of LOPT takes minutes on a fit this size, and a good part of
+# The Perl build of LOPT took minutes on a fit this size (LOPT 6, since
+# 2026-11, takes seconds, so the saving is now small), and a good part of
 # what these tools ask of it is a repetition: the run begins by fitting the
 # files exactly as they stand, only so that the fit it ends with has something
 # to be compared against, and those same files were very likely left by the
@@ -1305,7 +1331,8 @@ def run_lopt(log):
 # The snapshot lives in LOPT_snapshot.json beside the files it describes.  If
 # it is missing, unreadable or of an older layout, LOPT runs; that is the
 # whole of the error handling this needs.
-LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES]
+LOPT_FILES = [LOPT_PAR, LOPT_INPUT, LOPT_FIXLEV, LOPT_LEVELS, LOPT_LINES,
+              LOPT_SEP]
 SNAPSHOT_VERSION = 1
 
 
@@ -2456,7 +2483,7 @@ def _run(args, rejects, accepts, saved, log, today):
         pair_rows.setdefault((c.low_id, c.upp_id), []).append(row)
         n_new += 1
     n_w = reweigh(lopt_rows, [c.wn for c in accepted], calc_of, log)
-    write_lopt_input(LOPT_INPUT, lopt_rows)
+    write_lopt_input(LOPT_INPUT, lopt_rows, log)
     log('   %d record(s) inserted, %d flagged record(s) of the same '
         'transition removed, %d weight(s) changed, %d record(s) in all'
         % (n_new, n_replaced, n_w, len(lopt_rows)))

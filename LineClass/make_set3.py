@@ -147,8 +147,10 @@ published line carries.
 
 THE TOTALS
 ==========
-Every number is written unrounded; the user rounds in Excel (LOPT.par's
-rounding rule is 99999).  An excited level's uncertainty is relative to the
+Every number is written as LOPT printed it, and the user rounds in Excel.
+LOPT.par's rounding rule is 99999, so the energies carry every digit; LOPT 6
+caps the threshold of the uncertainties at 99.99999, which prints D1 and
+D2stat at two significant digits, so u_stat below is good to about 5 %.  An excited level's uncertainty is relative to the
 ground level (user, 2026-10-10 and 2026-10-11):
 
     u_stat = max(D1, D2stat)      LOPT's (0 for the ground level, which

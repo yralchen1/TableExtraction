@@ -411,3 +411,29 @@ def test_force_overrides_every_one_of_them(tmp_path):
                   {'level_id': '059003.000999'}):
         args = Args(audit=an_audit(tmp_path, **cells), force=True)
         DL.check_the_evidence(GONE, args, lambda *_a: None)
+
+
+def test_partner_culprits_match_lopt6_rounded_wavenumbers(tmp_path):
+    # LOPT 6 prints wn_o at the step of its uncertainty: 121547.24 for the
+    # input 121547.243; the freed line must still be found
+    path = tmp_path / 'LOPT_output_lines.txt'
+    rows = [['wn_o', 'uWnOTot', 'dWO-C', 'L1', 'L2', 'F'],
+            ['121547.24', '0.36', '1.20', 'A', 'B', ''],
+            ['121547.24', '0.36', '0.10', 'A', 'GONE', ''],
+            ['121548.31', '0.36', '5.00', 'C', 'D', '']]
+    path.write_text(''.join('\t'.join(r) + '\n' for r in rows),
+                    encoding='latin-1')
+    bad, worst, every = DL.partner_culprits(str(path), [121547.243], 'GONE',
+                                            3.0)
+    assert [e[:2] for e in every] == [('A', 'B')]
+    assert [b[:2] for b in bad] == [('A', 'B')]     # 1.20 / 0.36 = 3.3 sigma
+    assert worst == pytest.approx(1.2 / 0.36)
+
+
+def test_printed_match_is_half_the_last_digit():
+    assert INL.printed_match('121547.24', 121547.243)
+    assert INL.printed_match('121547.24', 121547.245)
+    assert not INL.printed_match('121547.24', 121547.2451)
+    assert INL.printed_match('121547.3', 121547.299)
+    assert INL.printed_match('121547.24300', 121547.243)
+    assert not INL.printed_match('121547.24300', 121547.2431)

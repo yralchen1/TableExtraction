@@ -434,7 +434,7 @@ def partner_culprits(path, wavenumbers, level_id, sigma):
     returns them, over every row of ``LOPT_output_lines.txt`` at one of
     `wavenumbers` that does not name `level_id`.
     """
-    want = {INL.lopt_key(w) for w in wavenumbers}
+    want = [float(w) for w in wavenumbers]
     bad, worst, every = [], 0.0, []
     for r in INL.lopt_lines(path):
         low, upp = r.get('L1', ''), r.get('L2', '')
@@ -444,7 +444,9 @@ def partner_culprits(path, wavenumbers, level_id, sigma):
             wn = float(r['wn_o'])
         except (KeyError, ValueError):
             continue
-        if INL.lopt_key(wn) not in want:
+        # LOPT prints wn_o rounded at the step of its uncertainty, so the
+        # input wavenumber is matched within half the printed last digit
+        if not any(INL.printed_match(r['wn_o'], w) for w in want):
             continue
         try:
             d = float(r['dWO-C'])
@@ -934,7 +936,7 @@ def _run(args, saved, log, today):
                  not in gone]
     n_out = before_n - len(lopt_rows)
     n_w = INL.reweigh(lopt_rows, touched_wn, calc_of, log)
-    INL.write_lopt_input(LOPT_INPUT, lopt_rows)
+    INL.write_lopt_input(LOPT_INPUT, lopt_rows, log)
     log('   %d record(s) taken out, %d weight(s) changed, %d record(s) in all'
         % (n_out, n_w, len(lopt_rows)))
 

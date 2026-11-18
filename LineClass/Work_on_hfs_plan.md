@@ -28,6 +28,83 @@ published and not to be put into the pipeline.**
 
 ---
 
+## Status, 2026-11-18
+
+The three items above have long been worked through (sections 1.1, 2.6, 3.5),
+and the header above is kept as history. Where the work stands:
+
+**Done.** Steps 0 to 7b of section 5: the uncertainty basis, the measured
+components, the kappa fits, the plate calibration, A constants from the data,
+the head-frame correction in the pipeline, the comparison of frames, the
+calibration passes, and Set 3 in `final/` with its systematic uncertainties.
+The last work, 2026-10-15 to 10-17:
+
+* **2026-10-15, the third term of the line model.** A line of a fitted kappa
+  class has the variance (a·1e-8·wn²)² + b² + (s·|D|)², one s per era, and the
+  calibration holds kappa (`--hold-kappa`; Step 7b). The chain was then run as
+  listed at the end of Step 7b: the calibration, the ledger rows that freeze the
+  reviewed assignments (17 rows, among them the 6 the plan named), the iter_hfs
+  and final/ chains, both `lopt_perturb.py` passes and `make_set3.py --levels`.
+  23 lines were given inflated uncertainties in `inflated_unc_lines.txt`.
+* **2026-10-15/16, the article's level table.** `levels_pub.py` fills
+  `levels_pub.xlsx` (Step 9).
+* **2026-10-16, A for 000684**, the one level of the fit that had none:
+  +0.0278(54), calculated, tier 3. The chain has **not** been rerun since, so
+  000684's Eopt in `final/` is about 0.14 cm^-1 too high (Step 4).
+* **2026-10-16/17, the dependability policy** of the level audit (`[audit]` of
+  the configuration; Step 0). `questionable_levels.txt` now holds 28 levels.
+* **2026-11, LOPT 6.** `lopt.bat` now runs LOPT 6, the user's new Python
+  implementation, in place of the Perl 5 build (section 8). Its default blend
+  model is the centroid with separation equations, and it accepts a file of
+  blend separations. Adapted 2026-11-18. The `.par` files keep their round-off
+  threshold of 99999, which LOPT 6 accepts since the user's update of that day:
+  energies and wavenumbers are printed with every digit, and only the
+  uncertainties are rounded, to two significant digits (their threshold is
+  capped at 99.99999 inside LOPT 6). `kappa_candidates` therefore takes the
+  leverage from LOPT 6's column `r` near h = 1 instead of from the ratio of two
+  rounded uncertainties; `discard_level.partner_culprits` matches `wn_o` within
+  half its last printed digit; `lopt_perturb` checks the exit status and an empty
+  levels file and runs each job single-threaded. A scratch run on iter_hfs's input
+  took 1.2 s against about 30 s for the Perl build: RSS/dof 0.77 against 0.80,
+  levels moved by 0.007 cm^-1 rms, at most 0.13 (000531, 0.75 sigma), all of
+  them levels with blended lines.
+* **2026-11-18, the blends' separations file** (README, "How far apart the
+  components may lie"). `lopt_separations.py` writes LOPT's separation
+  equations itself into `LOPT_separations.txt`: each pair of a blend's
+  components coincides within tau = 0.5 × the effective line width (0.035 A
+  instrumental with Doppler), 1.0 × for a line of Sugar's character w, c or d
+  (the user's choice). `make_LOPT_input.py` writes it and sets LOPT's BLEND
+  SEPARATION FACTOR to 0, since LOPT adds a file's records to its own equations
+  rather than replacing them; every tool that rewrites the transitions file
+  rebuilds it. Then, on the user's word, bl, ch, h and cl joined the wide
+  characters, and the nine blends LOPT still flagged beyond 2 sigma got a
+  factor of their own (1.5 to 3.0) in the hand-kept `blend_separations.txt`.
+  Scratch run on iter_hfs: RSS/dof 0.75, no separation beyond 2 sigma; levels
+  0.003 cm^-1 rms from LOPT's own equations (at most 0.047, 000531), 0.006 rms
+  from the Perl fit.
+
+**Next, in order.**
+
+1. Done 2026-11-18: the line width LOPT 6 is told, by the separations file
+   (above). It reaches a set with its next `make_LOPT_input.py`.
+2. Rerun the whole chain once on LOPT 6, which also brings in 000684's A: the
+   iter_hfs and final/ chains, `lopt_perturb.py` twice, `make_set3.py
+   --levels`, `python levels_pub.py`.
+3. The user's verdict on each mark of the `[audit]` policy (column `q_why` of
+   `iter_hfs/level_positions.csv`), and `questionable_levels.txt` brought in
+   line with it.
+4. Step 8: the tracked outputs and the documentation.
+5. Step 9: the publication tables. Open in it: kappa held against the fit, and
+   the list of contradictions for the paper's discussion.
+6. Step 10: the final line list; the user is to explain the approach.
+7. After the conference: a model of kappa as a function of |D| (or a class of
+   its own for the wide plain 1974 patterns), so that the calibration need not
+   hold kappa; an intensity or signal-to-noise term in the line model, since
+   the scatter grows toward weak lines (1969 rms 1.16 for the weakest sixth
+   against 0.74 for the strongest); the housekeeping of section 6.
+
+---
+
 ## 0. Terms used in this document
 
 Every symbol is defined here once, and the definitions are not repeated below.
@@ -1021,6 +1098,30 @@ component), 000538, 000376 and 000347 (the alternate loses lines). The other
 *Test:* `check_sync.py` reports no ERROR findings, and `level_positions.py
 --audit` leaves no unreviewed question mark.
 
+*Amended 2026-10-16/17: the dependability policy* (README, "The policy"; `[audit]`
+of `lineclass_config.toml`, `config.AuditPolicy`). An alternate position always gives a
+question mark. Beyond that, which tests at the adopted position can give one depends
+on where the level came from, because the levels found or revised in this work are
+judged harder than Sugar's and Wyart's, who had the plates and a wider knowledge of the
+related spectra and of hfs:
+- *S*, the score `--unknown` gives a candidate position: S = ln_R_J + ln_P − ln(n_pos),
+  where ln R is the evidence of the level's lines, ln_P the position prior and n_pos the
+  number of competing maxima in the window. It fails below 3.
+- *free*: fewer than 4 free lines (observable, within FREE_SIGMA of the prediction, on
+  a feature no other level's accepted line claims), or those lines worth less than 8 in
+  ln R.
+- *share*: one line carrying 45 % or more of the positive evidence.
+
+New and revised levels get all three tests. Legacy levels get S only, as a pointer: they
+are not doubted on these scores alone. 000234 and 000237, old levels exchanged on 9/9
+because the LSF had tied them to the wrong eigenvectors, count as legacy. On 2026-10-16
+the policy marked 24 of the 89 new and revised levels: 10 for an alternate, 2 for S < 3
+(000494, and the legacy 000484), and 12 for "free 3 < 4" alone (new: 000623, 000640,
+000656, 000663, 000666, 000668, 000673; revised: 000298, 000424, 000516, 000518, 000575).
+The user marked 000484 questionable without an alternate, on its weak support (two free
+lines, the rest blended). The other marks await the user's verdict, level by level, and
+`questionable_levels.txt` (28 levels on 2026-10-16) is to be brought in line with it.
+
 **Step 1 - rebuild the uncertainty basis for the trend work (section 2.6).
 DONE 2026-09-21, except for the ledger rows, which need the user.**
 Sugar's stated uncertainties per character per era, the trend fit on those
@@ -1875,6 +1976,23 @@ rows; the iter_hfs chain (classify_lines, make_LOPT_input, lopt.bat, check_sync,
 sync_IDEN2); make_set3.py and final/'s chain; lopt_perturb.py twice; make_set3.py --levels;
 then `level_positions.py --set iter_hfs --audit`.
 
+*Run by the user, 2026-10-15 (commit 8ced566).* The calibration was run with
+`--hold-kappa` and `--keep-kappa`, writing `[hfs.kappa_spread]`. The ledger got 17
+rows: the six that freeze the reviewed assignments, a seventh of the same kind
+(94177.019, 000165-000638), and ten that keep earlier decisions after the IDEN2
+review of the rerun. 23 lines were added to `inflated_unc_lines.txt`, most of them
+outliers of final/'s IDEN2 and LOPT. The two chains, both `lopt_perturb.py` passes and
+`make_set3.py --levels` followed, and then the audit.
+
+*2026-10-16: A for 000684 (Step 4).* 000684 (even, J = 11/2, 78 % 4f5d6p (3H) 4I) was
+found after the A run of 2026-10-08 and was the one level of the fit without an A row,
+so its lines took S = 0 with no allowance. `hfs_A_theory.py` gives +0.0278 +- 0.0045,
+written as a tier-3 row (a test of the eigenvector; u_A 0.0054). Its own lines, through
+the kappa contrast of its 4 plain 1969, 2 `c` and 1 `d` lines, give +0.019 +- 0.012, in
+agreement. **The chain has not been rerun since.** Until it is, 000684's Eopt in
+`final/` and `levels_pub.xlsx` is about 0.14 cm^-1 too high (2.3 times its unc_tot), and
+unc_tot rises from 0.060 to about 0.066 with the rerun.
+
 **Step 8 - regenerate the tracked outputs and the documentation.**
 `level_positions.csv` and `.xlsx`, `line_classifications.*`, `README.md`.
 Excel must be closed; budget about 10 minutes.
@@ -1884,6 +2002,19 @@ constant table with provenance per level, the adopted uncertainties of Step 1
 with the counts behind them, and a methods section stating every assumption
 that survives - including whatever replaces kappa(flag) = 1 - and carrying the
 reference list of section 9.
+
+*The article's level table, `levels_pub.py` (2026-10-15/16; README, "The article's level
+table").* `levels_pub.xlsx` has one row per level of the Cowan calculation. The tool fills
+its empty `level_id` cells, joining through `IDEN2/IDEN_level_ids.txt` and never by
+energy, and writes eight columns: `lid`, `iden2_id`, `Eopt` (final/'s center of gravity),
+`unc_stat`, `unc_sys`, `unc_tot` (from `final/levels_set3.csv`), `N_lines` and `Notes`
+(N new, R revised, D discarded, and `,Q` for the levels of `questionable_levels.txt`). It
+stops if `levels_set3.csv` belongs to another fit. So it is the last step after any
+rerun: the two chains, `lopt_perturb.py` twice, `make_set3.py --levels`, then
+`python levels_pub.py`. On 2026-10-16: 1037 rows, 653 with an energy of the fit, 62 N,
+29 R, 2 D and 28 Q. The largest shifts from the published energy not explained by a
+revision or by the change of frame (about −(S − S_ground)) are 000493 (+1.43) and 000300
+(−1.00) cm^-1; they are for the user to look at.
 
 *Open item (user, 2026-10-09): the uncertainties of the Set 3 energies and Ritz
 wavenumbers.* A level's cg energy carries several systematic contributions besides
@@ -2201,6 +2332,18 @@ head-measured members as exceptions pulls kappa down, and the next members
 fail: a runaway. The rows were removed and the three inflations restored
 the same day, and the recalibration gave plain_1974 0.809(13).
 
+### Added 2026-10-15 to 2026-10-17
+
+- The third term of the line model: `hfs_kappa.py` (`fit_classes`, `--hold-kappa`),
+  `hfs_correction.py` (`spread_part`), `wavelength_calibration.py` (writes
+  `[hfs.kappa_spread]`), `tests/test_kappa_spread.py`.
+- One uncertainty model in `level_positions.py` (the set's own uncertainties),
+  `tests/test_level_positions_set_unc.py`.
+- `levels_pub.py` and `tests/test_levels_pub.py`: the article's level table.
+- The `[audit]` policy: `config.AuditPolicy`, `level_positions.py` (columns `group`,
+  `S`, `n_pos`, `n_free_adopted`, `free_gain_adopted`, `top_share_adopted`, `q_why`),
+  `tests/test_level_positions.py`.
+
 ### The flags split (2026-10-06)
 
 kappa(flag) = 1 is the anchor (the degeneracy theorem, section 2.1), and its
@@ -2237,6 +2380,16 @@ user).
   reader from the published tabulation. No hidden inflation factors.
 * LOPT's own reported uncertainties are model-dependent and are never
   presented as an absolute sigma scale.
+* LOPT is run by `lopt.bat` (on the `PATH`). Since 2026-11 it runs LOPT 6
+  (`F:\LOPT\v6`; the user's guide is `F:\LOPT\v6\docs\user_manual.pdf`), the
+  user's Python implementation, which reads the version 5 files with the
+  differences of `F:\LOPT\v6\docs\migration_from_v5.md`. Every result of this
+  document dated before 2026-11-18 comes from the Perl 5 build. LOPT 6's
+  centroid model adds separation equations to every blend: its components are
+  taken to coincide within tau = BLEND SEPARATION FACTOR (0.5) × the FWHM of the
+  line group. For a blend whose components lie farther apart than that, the
+  separation equations pull the components together, unless the separations
+  file gives their separation.
 * All text files are written with LF line endings only.
 * Every changed assignment is reviewed by hand before it is accepted.
 * Every external datum is cited to a source the user can check, in section 9,

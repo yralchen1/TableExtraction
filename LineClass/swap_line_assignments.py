@@ -294,6 +294,17 @@ def lopt_step(args):
         print('LOPT finished.  The level table below is the refitted one.')
         return
     print('')
+    levels = os.path.join(where, 'LOPT_output_levels.txt')
+    if os.path.exists(levels) and os.path.getsize(levels) == 0:
+        # LOPT 6 empties every output file when it reads its parameters, so
+        # a run that stopped on an error leaves no energies to fall back on
+        raise SystemExit('ERROR: %s failed - %s - and left %s empty.  Fix '
+                         'the error (LOPT_output_lines_log.txt in %s says '
+                         'what it was), run LOPT by hand and then:\n'
+                         '    python swap_line_assignments.py %s %s '
+                         '--after-lopt'
+                         % (args.lopt_command, trouble, levels, where,
+                            args.id1, args.id2))
     print('WARNING: %s was not run - %s.' % (args.lopt_command, trouble))
     print('LOPT_output_levels.txt therefore still holds the energies as they')
     print('were before the exchange, and the step below will exchange those')

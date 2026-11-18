@@ -162,6 +162,7 @@ import os
 import blend_centroid
 import config
 import hfs_correction
+import lopt_separations
 import output_files
 from swap_paths import working_path
 
@@ -563,7 +564,7 @@ def hfs_line_unc(unc_obs, widths_absent, widths_undet, u_shift, u_undet,
 
 def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
                      hfs_stats=None, components=None, u_ln_blend=0.0,
-                     blend_stats=None):
+                     blend_stats=None, chars_out=None, keys_out=None):
     """Write the LOPT transitions file.
 
     Returns (written, accepted, flagged, widened, dropped).  `w_hfs` is
@@ -592,6 +593,12 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
     calculated intensities leave (centroid_unc), and `blend_stats`, if
     given, gets the number of lines so widened ('widened') and the largest
     u_I ('largest').
+
+    `chars_out`, if given, gets {wavenumber as written, rounded to the
+    field's 3 decimals: Sugar's character} for every accepted record, which
+    lopt_separations.build reads the width allowance of a blend from;
+    `keys_out` the same with the line's wn_key (Sugar's wavenumber), which
+    the registry of blends with an allowance of their own is keyed on.
     """
     w_hfs = w_hfs or {}
     components = components or {}
@@ -689,6 +696,12 @@ def write_lines_file(rows, path, w_hfs=None, hfs=None, shifts_out=None,
         intens = float(r['obs_intens'])
         if is_accepted(r):
             flag, weight = '', weights[id(r)]
+            if chars_out is not None:
+                chars_out.setdefault(round(wn, 3),
+                                     (r.get('char') or '').strip())
+            if keys_out is not None:
+                keys_out.setdefault(round(wn, 3),
+                                    float(r.get('wn_key') or r['wn_obs']))
             if weight > 0 and round(weight, 4) == 0:
                 raise SystemExit(
                     f'the component {r["low_id"]} - {r["upp_id"]} of the '
@@ -793,8 +806,13 @@ def unc_kind_line(line=None):
     return f'{PAR_UNC_KIND:<8}' + line[semi:]
 
 
+#: write_par_file's `separations` default: the sample's separation keys are
+#: copied as they are
+KEEP = object()
+
+
 def write_par_file(sample, path, lines_name, fixlev_name,
-                   lev_out_name, lin_out_name):
+                   lev_out_name, lin_out_name, separations=KEEP):
     """Copy the sample parameter file, replacing only the four file names,
     and saying that the line uncertainties are statistical.
 
@@ -809,6 +827,13 @@ def write_par_file(sample, path, lines_name, fixlev_name,
     would subtract each group's systematic uncertainty from it in
     quadrature.  The key is replaced where the sample has it and appended
     where it does not.
+
+    `separations` is the name of LOPT's separations file
+    (lopt_separations.py): the file is named and LOPT's own separation
+    equations are switched off (BLEND SEPARATION FACTOR = 0).  None removes
+    both keys, so that LOPT's own equations stand; the default copies them
+    as the sample has them (lopt_perturb.py, whose sample is the set's own
+    LOPT.par).
     """
     with open(sample, encoding='utf-8') as fh:
         par = fh.read().splitlines()
@@ -826,6 +851,8 @@ def write_par_file(sample, path, lines_name, fixlev_name,
         par[i] = unc_kind_line(par[i])
     if not kind:
         par.append(unc_kind_line())
+    if separations is not KEEP:
+        par = lopt_separations.set_par_lines(par, separations)
 
     with open(path, 'w', newline='', encoding='utf-8') as fh:
         for text in par:
@@ -912,6 +939,7 @@ def main(argv=None):
     lines_out = in_dir(args.lines_out)
     fixlev_out = in_dir(args.fixlev_out)
     par_out = in_dir(args.par_out)
+    sep_out = in_dir(lopt_separations.DEF_NAME)
 
     # Resolved before anything is read or written, and reported below, so
     # that an input picked up from the project directory rather than from
@@ -930,10 +958,10 @@ def main(argv=None):
     # LOPT's input files are tab-delimited text, and an analyst who has one
     # of them open in Excel would otherwise learn of it only after the whole
     # classification had been re-read and re-written.
-    config.require_unlocked([lines_out, fixlev_out, par_out, shifts_file],
-                            'make_LOPT_input.py', args.unlock)
+    config.require_unlocked([lines_out, fixlev_out, par_out, shifts_file,
+                             sep_out], 'make_LOPT_input.py', args.unlock)
     output_files.require_writable([lines_out, fixlev_out, par_out,
-                                   shifts_file])
+                                   shifts_file, sep_out])
 
     rows = read_classifications(args.classifications)
     hfs = hfs_model(cfg_path, rows, args.classifications)
@@ -948,12 +976,41 @@ def main(argv=None):
                   f'the first is {unknown[0]:.4f}')
     w_hfs = {} if args.no_hfs else read_hfs_widths(hfs_widths)
     shifts, hfs_stats, blend_stats = [], {}, {}
-    u_ln_blend = config.load(cfg_path).blend_u_ln
+    cfg = config.load(cfg_path)
+    u_ln_blend = cfg.blend_u_ln
+    chars, keys = {}, {}
     written, accepted, flagged, widened, dropped = write_lines_file(
         rows, lines_out, w_hfs, hfs=hfs, shifts_out=shifts,
         hfs_stats=hfs_stats,
         components=read_hfs_components(args.classifications),
-        u_ln_blend=u_ln_blend, blend_stats=blend_stats)
+        u_ln_blend=u_ln_blend, blend_stats=blend_stats, chars_out=chars,
+        keys_out=keys)
+    # LOPT's separations file ([blends] separations): written from the
+    # transitions file just written, so that its blends are LOPT's own.  With
+    # the key off, one left from an earlier run is removed with its keys in
+    # the parameter file, and LOPT's own separation equations stand.
+    seps = cfg.blend_seps
+    sep_stats = None
+    if seps.on:
+        own = lopt_separations.read_registry(seps.registry)
+        used = set()
+
+        def own_of(wn_text, wn):
+            key = keys.get(round(wn, 3))
+            f = own.get(round(key, 4)) if key is not None else None
+            if f is not None:
+                used.add(round(key, 4))
+            return f
+
+        text, sep_stats = lopt_separations.build(
+            lopt_separations.read_records(lines_out),
+            lambda wn_text, wn: chars.get(round(wn, 3)),
+            seps.factor, seps.wide_factor, seps.wide_chars, own_of=own_of)
+        lopt_separations.write(sep_out, text)
+        sep_stats['registry_unused'] = sorted(set(own) - used)
+    elif os.path.exists(sep_out):
+        os.remove(sep_out)
+        print(f'{sep_out}: removed ([blends] separations is off)')
     # The record of the shifts describes the transitions file just written,
     # so one left from an earlier run with the correction on is removed
     # when the correction is off: it would describe a file that is gone.
@@ -968,7 +1025,9 @@ def main(argv=None):
     # them; LOPT resolves them next to itself, so bare names are written.
     write_par_file(sample_par, par_out,
                    os.path.basename(lines_out), os.path.basename(fixlev_out),
-                   args.levels_output, args.lines_output)
+                   args.levels_output, args.lines_output,
+                   separations=(os.path.basename(sep_out) if seps.on
+                                else None))
 
     print(f'classifications: {args.classifications}')
     print(f'configuration: {cfg_path}')
@@ -1017,6 +1076,23 @@ def main(argv=None):
                           f'{sum(1 for b in big if b > 0.1)} above 0.1'
                           if big else ''))
         print(f'  {shifts_file}: what was added to each record')
+    if sep_stats is not None:
+        print(f"{sep_out}: {sep_stats['blends']} blends "
+              f"({sep_stats['wide']} of a wide character, "
+              f"{', '.join(seps.wide_chars)}), {sep_stats['records']} "
+              f"records; tau = {seps.factor:g} (wide {seps.wide_factor:g}) "
+              f"x the effective line width; LOPT's own separation equations "
+              f"off")
+        if sep_stats['own']:
+            print(f"  {sep_stats['own']} blend(s) with a factor of their own "
+                  f"from {seps.registry}")
+        if sep_stats['registry_unused']:
+            print(f"  WARNING: {len(sep_stats['registry_unused'])} row(s) of "
+                  f"{seps.registry} match no blend of this set: "
+                  + ', '.join('%.4f' % k for k in sep_stats['registry_unused']))
+        if sep_stats['unknown_char']:
+            print(f"  {sep_stats['unknown_char']} blend(s) of unknown "
+                  f"character, taken as not wide")
     print(f'{fixlev_out}: copied from {sample_fixlev}')
     print(f'{par_out}: copied from {sample_par} with new file names')
     return 0

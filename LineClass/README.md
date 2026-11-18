@@ -2867,6 +2867,61 @@ level fits, but it would loosen the tests for widely spread blends and so admit 
 assignments, each of which would have to be checked by hand. It is left for a later revision
 of the classification, not for the present workflow.
 
+**How far apart the components may lie: LOPT 6's separations file (2026-11-18).** LOPT 6
+(`lopt.bat`, since 2026-11) fits a blend as one observation, the weighted mean of its
+components' Ritz wavenumbers. One number cannot place the components, so LOPT adds a
+*separation equation* for each pair: the components coincide within τ = `BLEND SEPARATION
+FACTOR` (0.5) × the line's FWHM. Without a resolution in the `.par` file it takes the FWHM to
+be 10 times the line's uncertainty (the Perl build: 4 times), so the allowance followed the
+measurement uncertainty, and an inflated line had a very loose one.
+
+`lopt_separations.py` writes these equations itself, as LOPT's separations input file
+`LOPT_separations.txt`, and `make_LOPT_input.py` sets `BLEND SEPARATION FACTOR = 0` and names
+the file in `LOPT.par`. The factor has to be 0, because LOPT adds the file's records to its
+own equations and does not substitute them (`lopt/observations.py`,
+`build_group_observations`). Switched by `[blends] separations` (on in the baseline
+configuration, so in every set).
+- **The width** is the effective line width: `level_shifts.INSTR_FWHM_A` (0.035 Å) and the
+  Doppler width in quadrature, in cm⁻¹ at the line's wavenumber, as in `make_set3.fwhm_cm`.
+- **τ** = `separation_factor` (0.5) × the width, or `wide_separation_factor` (1.0) for a line
+  whose Sugar character, `**` stripped, is one of `wide_characters`: w wide, c complex,
+  d double, and bl, ch, h, cl (the user, 2026-11-18). In LOPT 6's own fit of `iter_hfs` that
+  day, the fitted separations of the components were 0.41 widths rms for the plain blends and
+  0.81 for the w/c/d ones, hence 0.5 and 1.0.
+- **A blend of its own.** `blend_separations.txt` (`files.blend_separations`, hand-kept and
+  shared by every set, like `inflated_unc_lines.txt`) gives a blend its own factor, keyed on
+  Sugar's wavenumber of the line (`wn_key`, 4 decimals). It overrides both factors. Its first
+  nine rows are the blends LOPT still flagged beyond 2σ once the seven characters were wide,
+  each at the smallest multiple of 0.5 for which every pair's allowance u_ij covers its fitted
+  separation (1.5 to 3.0). `make_LOPT_input.py` warns of a row that matches no blend of the
+  set.
+- **The records.** Each pair (i, j) of a blend's components gets
+  `(E_up,i − E_low,i) − (E_up,j − E_low,j) = 0 ± u_ij`, with LOPT's own weights,
+  u_ij = √(Σw / (w_i w_j)), w = 2/τ². A fit with the file is LOPT's own fit with that τ, except
+  that LOPT counts each record as one degree of freedom (its own equations count n − 1 per
+  blend): a blend of 3 components adds 1, one of 4 adds 3. In `iter_hfs` that is 58 of 5029.
+- **The blends are found as LOPT finds them**, from the transitions file: the same text in the
+  wavenumber field and the same unit, no P or M flag, a weight above zero.
+- **Kept in step.** A stale record would hold together two transitions that are no longer one
+  blend, and a new blend would have no equation at all. So every tool that rewrites
+  `LOPT_input_lines.txt` rebuilds the file (`lopt_separations.refresh_beside`):
+  `insert_new_level.py`, `move_level.py` and `discard_level.py` through
+  `insert_new_level.write_lopt_input`, and `swap_line_assignments_LOPT.py`. The rebuild takes
+  the rules and each blend's character from the comments of the file itself, and a new blend's
+  character from the set's `line_classifications.csv`. These tools back the file up and restore
+  it with the others. `lopt_perturb.py` copies it into its run directories: a moved observed
+  line moves as one, so its blends stay the same.
+
+First runs (`iter_hfs`, scratch, 2026-11-18): 538 blends, 647 records.
+- w/c/d wide (80 blends): RSS/dof 0.78; 15 separations beyond 2σ on 14 blends (three `c`,
+  three `bl`, two `ch`, one `h`, five plain).
+- bl, ch, h, cl wide too (146 blends): RSS/dof 0.76; 10 separations on 9 blends (three `c`,
+  one `ch`, five plain).
+- with those nine in `blend_separations.txt`: RSS/dof 0.75 and no separation beyond 2σ; the
+  nine's fitted separations hardly moved (they are set by the lines), all now within 1σ.
+  Against LOPT 6 with its own equations the levels moved by 0.003 cm⁻¹ rms, at most 0.047
+  (000531); against the Perl fit, 0.006 rms, at most 0.085.
+
 ## Lines whose uncertainty is set by hand: `inflated_unc_lines.txt`
 
 Some observed lines do not fit the smooth trend of their block and yet their classification is

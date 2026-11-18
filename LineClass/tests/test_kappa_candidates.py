@@ -77,6 +77,20 @@ def test_leave_one_out():
     assert K.leave_one_out(0.0, 0.05, 0.05)[1:] == (None, None)
 
 
+def test_leave_one_out_takes_lopt6_redundancy_near_h_of_one():
+    # LOPT 6 prints u_obs = 0.36 and u_calc = 0.35 (two digits) and r = 0.08:
+    # the ratio gives h = 0.945, the column h = 0.92, which is used
+    h, r_loo, u_rest = K.leave_one_out(0.02, 0.36, 0.35, redundancy=0.08)
+    assert h == pytest.approx(0.92)
+    assert r_loo == pytest.approx(0.25)
+    assert u_rest == pytest.approx(0.36 * math.sqrt(0.92 / 0.08))
+    # a large redundancy is not used: the ratio is the better there
+    h = K.leave_one_out(0.064, 0.05, 0.03, redundancy=0.6)[0]
+    assert h == pytest.approx(0.36)
+    # r printed 0 or 0.00: nothing else measures the line
+    assert K.leave_one_out(0.0, 0.05, 0.01, redundancy=0.0)[1:] == (None, None)
+
+
 def test_the_residual_under_another_kappa():
     # given at kappa 0.8 with D = +0.5: at the cg it would sit 0.4 lower
     z = K.hypotheses(0.0, 0.8, 0.8, 0.5, 0.1)

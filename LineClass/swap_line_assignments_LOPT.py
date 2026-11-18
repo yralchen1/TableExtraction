@@ -254,6 +254,10 @@ def write_records(path, records, endings):
     with open(path, 'w', encoding='latin-1', newline='') as fh:
         for rec, eol in zip(records, endings):
             fh.write(rec + eol)
+    # the separations file names the levels of each blend's components, so
+    # it is rebuilt from the exchanged records (lopt_separations.py)
+    import lopt_separations
+    lopt_separations.refresh_beside(path, print)
 
 
 # ---------------------------------------------------------------------------

@@ -95,6 +95,9 @@ discarded_levels = "discarded_levels.csv"
 # unc_wn_obs of line_classifications.csv).  A missing file is an empty
 # registry.  Comment the line out to run on the line list's own values.
 inflated_unc = "inflated_unc_lines.txt"
+# blends given a separation allowance of their own (lopt_separations.py,
+# [blends] below), hand-kept and shared by every set, like inflated_unc
+blend_separations = "blend_separations.txt"
 # The magnetic-dipole hyperfine constants A of the levels (columns level_id,
 # cfg, J, A_cm-1, u_A, source, n_flagged), read only when [hfs] apply is on;
 # see that section below.
@@ -357,6 +360,24 @@ max_forced_offset = 5.0
 # of the blends of iter_hfs on 2026-10-09 (maximum likelihood 0.24); 0 or
 # leaving the key out turns the term off.
 u_ln_intensity = 0.33
+#
+# How far apart the components of a blend may lie (LOPT 6, 2026-11-18;
+# lopt_separations.py).  With separations = true, make_LOPT_input.py writes
+# LOPT_separations.txt, one record per pair of components of every blend,
+# 0 +- tau, tau = separation_factor x the effective line width (0.035 A
+# instrumental with Doppler), and sets LOPT's BLEND SEPARATION FACTOR to 0,
+# since LOPT adds the file's records to its own equations rather than
+# replacing them.  A line whose Sugar character ('**' stripped) is one of
+# wide_characters gets wide_separation_factor instead (user: w wide,
+# c complex, d double; bl, ch, h, cl added by the user the same day, after
+# LOPT flagged blends of those characters).  On iter_hfs's LOPT 6 fit of
+# 2026-11-18 the fitted component separations were 0.41 line widths rms for
+# the other blends and 0.81 for the w/c/d ones.  false leaves LOPT's own
+# equations, whose width is 10 times the line uncertainty.
+separations = true
+separation_factor = 0.5
+wide_characters = ["w", "c", "d", "bl", "ch", "h", "cl"]
+wide_separation_factor = 1.0
 
 [hfs]
 # The head-frame hyperfine correction (Work_on_hfs_plan.md, Step 5, agreed
