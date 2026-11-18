@@ -49,8 +49,8 @@ The last work, 2026-10-15 to 10-17:
 * **2026-10-15/16, the article's level table.** `levels_pub.py` fills
   `levels_pub.xlsx` (Step 9).
 * **2026-10-16, A for 000684**, the one level of the fit that had none:
-  +0.0278(54), calculated, tier 3. The chain has **not** been rerun since, so
-  000684's Eopt in `final/` is about 0.14 cm^-1 too high (Step 4).
+  +0.0278(54), calculated, tier 3. Brought in by the chain rerun of 2026-11-18
+  (below).
 * **2026-10-16/17, the dependability policy** of the level audit (`[audit]` of
   the configuration; Step 0). `questionable_levels.txt` now holds 28 levels.
 * **2026-11, LOPT 6.** `lopt.bat` now runs LOPT 6, the user's new Python
@@ -81,23 +81,36 @@ The last work, 2026-10-15 to 10-17:
   factor of their own (1.5 to 3.0) in the hand-kept `blend_separations.txt`.
   Scratch run on iter_hfs: RSS/dof 0.75, no separation beyond 2 sigma; levels
   0.003 cm^-1 rms from LOPT's own equations (at most 0.047, 000531), 0.006 rms
-  from the Perl fit.
+  from the Perl fit. LOPT 6 then changed the record format (one separator
+  character after each of the first three labels; `low1-up1 low2-up2`), and the
+  user added registry rows: 19 blends now have a factor of their own.
+* **2026-11-18, the whole chain on LOPT 6** (the user; commit 1631f86): in
+  iter_hfs and final/ `make_LOPT_input.py`, `lopt.bat`, `check_sync.py`,
+  `sync_IDEN2.py`, `check_sync.py` (no errors in either set); then
+  `lopt_perturb.py --set final` and `--set final --source hfs`,
+  `make_set3.py --levels`, `python levels_pub.py`. Set 3: 653 levels, 7842
+  Ritz records; medians over the 652 excited levels u_stat 0.018, u_cal
+  0.026, u_hfs 0.022, u_kappa 0.0035, D2tot* 0.042 cm^-1. The largest
+  difference between the fit and the source levels moved to the cg is
+  000684's, +0.40 cm^-1 (u_stat 0.046); the next is 0.045. To be checked:
+  whether that is the head-to-cg move of the newly given A (I·A·J) and so
+  expected, or a sign that iter_hfs and final/ hold different A for it.
+  `lopt_perturb` had first failed on every run: LOPT 6 is a Python program and
+  inherited a PYTHONPATH naming the project root, whose `statistics.py` hides
+  the standard library's. Every caller now starts LOPT through `lopt_run.py`,
+  which drops the Python path.
 
 **Next, in order.**
 
-1. Done 2026-11-18: the line width LOPT 6 is told, by the separations file
-   (above). It reaches a set with its next `make_LOPT_input.py`.
-2. Rerun the whole chain once on LOPT 6, which also brings in 000684's A: the
-   iter_hfs and final/ chains, `lopt_perturb.py` twice, `make_set3.py
-   --levels`, `python levels_pub.py`.
-3. The user's verdict on each mark of the `[audit]` policy (column `q_why` of
+1. Check 000684's +0.40 cm^-1 between the fit and the source (above).
+2. The user's verdict on each mark of the `[audit]` policy (column `q_why` of
    `iter_hfs/level_positions.csv`), and `questionable_levels.txt` brought in
    line with it.
-4. Step 8: the tracked outputs and the documentation.
-5. Step 9: the publication tables. Open in it: kappa held against the fit, and
+3. Step 8: the tracked outputs and the documentation.
+4. Step 9: the publication tables. Open in it: kappa held against the fit, and
    the list of contradictions for the paper's discussion.
-6. Step 10: the final line list; the user is to explain the approach.
-7. After the conference: a model of kappa as a function of |D| (or a class of
+5. Step 10: the final line list; the user is to explain the approach.
+6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not
    hold kappa; an intensity or signal-to-noise term in the line model, since
    the scatter grows toward weak lines (1969 rms 1.16 for the weakest sixth
