@@ -179,8 +179,12 @@ class _Done(object):
 def test_a_failed_lopt6_run_is_refused(tmp_path, monkeypatch, code, text):
     # LOPT 6 empties its outputs when it reads the parameters and exits with 1
     # on an error: an empty levels file, or a nonzero status, is a failure
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+
     def fake(cmd, cwd, stdout, stderr, check, env):
         assert env['OMP_NUM_THREADS'] == '1'
+        # LOPT 6 has its own interpreter: the caller's Python path stays out
+        assert 'PYTHONPATH' not in {k.upper() for k in env}
         (tmp_path / L.LEVELS_OUT).write_text(text)
         return _Done(code)
     monkeypatch.setattr(L.subprocess, 'run', fake)

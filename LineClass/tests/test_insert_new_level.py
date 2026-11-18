@@ -1316,7 +1316,9 @@ def test_the_chain_is_told_which_set(a_set):
 def test_lopt_runs_where_its_parameter_file_is(a_set, monkeypatch):
     seen = []
 
-    def fake(cmd, log, cwd=None):
+    def fake(cmd, log, cwd=None, own_python=False):
+        # LOPT 6 has its own interpreter: run() must drop the Python path
+        assert own_python
         seen.append(cwd)
         return 0, 'RSS/degrees_of_freedom = 1.10 (10 degrees_of_freedom)'
     monkeypatch.setattr(INL, 'run', fake)
@@ -1324,6 +1326,22 @@ def test_lopt_runs_where_its_parameter_file_is(a_set, monkeypatch):
     INL.use_set(str(a_set), lambda s: None)
     INL.run_lopt(lambda s: None)
     assert _same(seen[0], ROOT) and _same(seen[1], str(a_set))
+
+
+def test_a_program_of_its_own_python_gets_no_pythonpath(monkeypatch):
+    seen = {}
+
+    class Done(object):
+        returncode, stdout = 0, ''
+
+    def fake(cmd, cwd, env, **kw):
+        seen[cmd[0]] = env
+        return Done()
+    monkeypatch.setattr(INL.subprocess, 'run', fake)
+    INL.run(['chain'], lambda s: None)
+    INL.run(['lopt'], lambda s: None, own_python=True)
+    assert 'PYTHONPATH' in seen['chain']
+    assert 'PYTHONPATH' not in {k.upper() for k in seen['lopt']}
 
 
 def _named(wn, key):

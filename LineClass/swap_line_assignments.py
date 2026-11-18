@@ -123,6 +123,7 @@ import os
 import subprocess
 import sys
 
+import lopt_run
 import swap_line_assignments_IDEN as iden
 import swap_line_assignments_LOPT as lopt
 import swap_line_assignments_pipeline as pipeline
@@ -237,8 +238,10 @@ def run_lopt(command, directory):
     """
     try:
         # shell=True so that a .bat or a shell function is found the way it
-        # would be if the command were typed.
-        code = subprocess.call(command, shell=True, cwd=directory)
+        # would be if the command were typed.  LOPT 6 is a Python program of
+        # its own and gets no PYTHONPATH (lopt_run).
+        code = subprocess.call(command, shell=True, cwd=directory,
+                               env=lopt_run.env())
     except OSError as exc:
         return 'it could not be started (%s)' % exc
     if code != 0:

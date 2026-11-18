@@ -239,6 +239,7 @@ if HERE not in sys.path:
 
 import config
 import cowan_gA
+import lopt_run
 import lopt_separations
 import make_LOPT_input
 import output_files
@@ -1216,7 +1217,7 @@ def nothing_to_do(level_id: str, accepted, rows) -> bool:
 # ---------------------------------------------------------------------------
 # E. LOPT, and the Ritz check
 # ---------------------------------------------------------------------------
-def run(cmd, log, cwd=None):
+def run(cmd, log, cwd=None, own_python=False):
     """Run one program of the chain, echoing its last lines.
 
     Returns ``(status, output)``: the whole of what the program wrote is
@@ -1227,7 +1228,10 @@ def run(cmd, log, cwd=None):
     The programs run in the project directory (`cwd` None), where they live.
     In a working set LINECLASS_CONFIG names the set's configuration as well,
     so that a program that reads it only through classify_lines' import sees
-    the set's and not the baseline's.
+    the set's and not the baseline's.  The project directory's parent goes on
+    PYTHONPATH for the chain's own programs; `own_python` (LOPT 6, a Python
+    program with its own interpreter) takes the Python path out again
+    (lopt_run.env).
     """
     cwd = cwd or HERE
     log('   $ ' + ' '.join(cmd))
@@ -1238,6 +1242,8 @@ def run(cmd, log, cwd=None):
         env['LINECLASS_CONFIG'] = SET_CONFIG
     if UNLOCK:
         env[config.UNLOCK_ENV] = '1'
+    if own_python:
+        env = lopt_run.env(env)
     proc = subprocess.run(cmd, cwd=cwd, env=env, shell=False,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, errors='replace')
@@ -1286,9 +1292,10 @@ def run_lopt(log):
     # outputs, and must never be used here.
     # It runs where its parameter file is, since the file names the others
     # without a directory: the project directory, or the working set.
-    cmd = (['cmd', '/c', 'lopt.bat', os.path.basename(LOPT_PAR)]
-           if os.name == 'nt' else ['lopt.bat', os.path.basename(LOPT_PAR)])
-    status, out = run(cmd, log, cwd=os.path.dirname(os.path.abspath(LOPT_PAR)))
+    # LOPT 6 is a Python program of its own: it gets no PYTHONPATH (lopt_run).
+    cmd = lopt_run.command(os.path.basename(LOPT_PAR))
+    status, out = run(cmd, log, cwd=os.path.dirname(os.path.abspath(LOPT_PAR)),
+                      own_python=True)
     if status != 0:
         raise Abort('lopt.bat returned %d' % status)
     rss, dof = lopt_rss(out)

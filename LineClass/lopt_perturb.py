@@ -129,6 +129,7 @@ import numpy as np
 
 import config
 import hfs_correction
+import lopt_run
 import lopt_separations
 import make_LOPT_input
 
@@ -336,9 +337,9 @@ def run_lopt(run_dir):
     LOPT 6 exits with 1 when it stops on an error, and it creates or empties
     every output file when it reads the parameters, so a failed run leaves an
     empty levels file rather than none: both are checked."""
-    env = dict(os.environ, **LOPT_ENV)
+    env = lopt_run.env(**LOPT_ENV)
     with open(os.path.join(run_dir, 'lopt.log'), 'w') as log:
-        proc = subprocess.run(['cmd', '/c', 'lopt.bat', PAR], cwd=run_dir,
+        proc = subprocess.run(lopt_run.command(PAR), cwd=run_dir,
                               stdout=log, stderr=subprocess.STDOUT,
                               check=False, env=env)
     path = os.path.join(run_dir, LEVELS_OUT)

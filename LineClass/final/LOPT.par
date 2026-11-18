@@ -29,3 +29,5 @@ Y       ; tab-delimited output [Y/N]?
 Y       ; Round input [Y/N]?
 centroid; BLEND TREATMENT [component/centroid]
 stat    ; KIND OF MEASUREMENT UNCERTAINTY GIVEN in the transitions-input file [tot/stat]
+LOPT_separations.txt ; SEPARATIONS INPUT FILE NAME
+0       ; BLEND SEPARATION FACTOR (0: the separations file holds every blend)
