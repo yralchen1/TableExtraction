@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-19 07:48:18
+LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-19 14:08:42
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -27,7 +27,7 @@ Finding Ritz uncertainties for lines...
 Done. (spent 0 sec)
 
 Fitted separations of transitions are written to file LOPT_output_lines_sep.txt
-Numerical precision: level 0 (double), condition number 1.8e+03; largest estimated error 3.1e-05 of the last printed digit.
+Numerical precision: level 0 (double), condition number 1.5e+03; largest estimated error 3.4e-05 of the last printed digit.
 Adding preliminary values...Done.
 
 Rounding levels...Done.

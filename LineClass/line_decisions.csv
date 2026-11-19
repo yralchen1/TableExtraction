@@ -862,5 +862,21 @@ wn_key,low_id,upp_id,decision,date,reason
 43816.4801,059003.000201,059003.000547,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; blend improves cg
 95763.5096,059003.000075,059003.000476,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg; blend improves Iobs/Icalc
 98489.1877,059003.000097,059003.000496,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
-71296.2120,059003.000194,059003.000651,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
-116657.5100,059003.000032,059003.000650,accept,10/15/2026,IDEN2/LOPT: inflation of unc overturns the previous rejection; blend improves cg
+71296.212,059003.000194,059003.000651,accept,10/15/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
+116657.51,059003.000032,059003.000650,accept,10/15/2026,IDEN2/LOPT: inflation of unc overturns the previous rejection; blend improves cg
+44798.9206,059003.000095,059003.000243,reject,11/19/2026,Keep the previous rejection: negligibly small Icalc
+44798.9206,059003.000095,059003.000433,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc. Inflate?
+70582.6308,059003.000060,059003.000304,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc. Inflate?
+68900.9901,059003.000078,059003.000657,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc. Char h supports blend.
+69466.6285,059003.000111,059003.000646,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
+40194.6296,059003.000203,059003.000324,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+40741.1113,059003.000208,059003.000543,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+38891.4089,059003.000433,059003.000555,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+90607.6088,059003.000075,059003.000353,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+92618.4951,059003.000080,059003.000373,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+101214.4866,059003.000046,059003.000630,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+77704.0016,059003.000173,059003.000396,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+93436.4786,059003.000173,059003.000506,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable cg and Iobs/Icalc with blend
+68818.6775,059003.000237,059003.000429,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
+40780.0503,059003.000084,059003.000204,reject,11/19/2026,Keep the previous rejection: too small Icalc
+67216.8115,059003.000255,059003.000661,accept,11/19/2026,IDEN2/LOPT: keep the previously adopted; acceptable obs-Ritz and Iobs/Icalc
