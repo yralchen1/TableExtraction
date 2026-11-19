@@ -50,7 +50,7 @@ def synthetic(n, a, b, s, seed, era_wn=(20000.0, 47000.0)):
 
 def test_the_joint_fit_recovers_the_three_terms():
     groups = {('', 1974): synthetic(4000, 0.0022, 0.016, 0.07, 1)}
-    fitted, s = hfs_kappa.fit_classes(groups)
+    fitted, s, _ = hfs_kappa.fit_classes(groups)
     a, b = fitted[('', 1974)]
     assert a == pytest.approx(0.0022, rel=0.1)
     assert b == pytest.approx(0.016, rel=0.15)
@@ -59,15 +59,15 @@ def test_the_joint_fit_recovers_the_three_terms():
 
 def test_no_spread_is_fitted_where_the_residuals_do_not_grow_with_D():
     groups = {('', 1974): synthetic(3000, 0.0022, 0.02, 0.0, 2)}
-    _, s = hfs_kappa.fit_classes(groups)
+    _, s, _ = hfs_kappa.fit_classes(groups)
     assert s[1974] < 0.02
 
 
 def test_the_two_term_fit_takes_up_the_spread_in_b():
     """Without the term the constant b absorbs it, which is the symptom."""
     groups = {('', 1974): synthetic(4000, 0.0022, 0.016, 0.07, 3)}
-    two, s = hfs_kappa.fit_classes(groups, spread=False)
-    three, _ = hfs_kappa.fit_classes(groups)
+    two, s, _ = hfs_kappa.fit_classes(groups, spread=False)
+    three, _, _ = hfs_kappa.fit_classes(groups)
     assert s == {}
     assert two[('', 1974)][1] > three[('', 1974)][1] * 1.1
 

@@ -2277,6 +2277,7 @@ python wavelength_calibration.py --no-write   # print the report, write nothing
 python wavelength_calibration.py --classifications iter_hfs/line_classifications.csv
 python wavelength_calibration.py --keep-kappa # write the files, leave [hfs.kappa] alone
 python wavelength_calibration.py --kappa-deadband 0  # write every fitted kappa, held or not
+python wavelength_calibration.py --no-intensity  # without the intensity term (2026-11-19)
 ```
 
 **The fitted κ go into the configuration by themselves** (since 2026-10-05). A run that
@@ -2825,6 +2826,49 @@ chi2/dof per class stayed between 0.91 and 1.12 wherever no floor holds the clas
 model. Measured on the plain lines alone, on LOPT's residuals, the constant is 0.017–0.018.
 A model of kappa as a function of |D| (or of |D| over the line width) is left until after the
 conference. `--no-spread` restores the two-term model and writes no spread.
+
+**Weak lines: the intensity term (2026-11-19).** A weak line is set on less accurately than a
+strong one, and the class model did not know it. On the calibration's own residuals (the run
+of 2026-10-15), each divided by its line's uncertainty and by √(1 − h), the rms fell from 1.23
+for the weakest sixth of the lines to 0.81 for the strongest in 1969, and from 1.13 to 0.88–0.94
+in 1974. The measure of strength is the line's signal-to-noise ratio SNR = I / N(λ): Sugar's
+intensity over the detection threshold at its wavelength, from `line_snr.csv`
+(`tools/estimate_snr.py`). The intensity alone would not serve, because the threshold changes
+along the spectrum. The class part of each line's variance is now multiplied by
+
+```
+f(SNR) = (1 + k * SNR^-0.5) / (1 + k * 10^-0.5)            k per era
+u^2 = f(SNR) * [(a * 1e-8 * wn^2)^2 + b^2] + (s * |D|)^2
+```
+
+`hfs_kappa.fit_classes` fits k with the classes' a and b and the spread s, in turn, as it fits
+s (`fit_intensity`). f is 1 at SNR = 10 (`SNR_REF`), so a and b stay the uncertainty of a line of
+ordinary strength. The spread s·|D| belongs to the transition and is not multiplied. The form
+was chosen on those residuals by likelihood, against no term: a variance of the form
+α + β·SNR^−q gained 2ΔlnL = 68 (1969) and 36 (1974) at q = 0.5, 56 and 41 at q = 1, and 33 and
+34 at q = 2. A power law SNR^−2p alone gained 65 and 20. q = 0.5 is fixed (`INTENSITY_POWER`).
+Unlike s, the term is a property of the observed line, so it is in `u_stat_cm1`
+(`unc_own_corr`) and in the character floor: a wide line is compared with a plain line recorded
+as strongly. `kappa_candidates.py` reads k from the report and applies it as well. Lines in
+`inflated_unc_lines.txt` keep their values, and a line without an SNR gets f = 1.
+
+The preview on `iter_hfs`'s table (`--classifications iter_hfs/line_classifications.csv
+--hold-kappa`, outputs to a scratch directory, 2026-11-19) fitted k = 2.56 (1974) and 2.94
+(1969). The factor on u is then:
+
+| SNR | 0.5 | 1 | 3 | 10 | 30 | 100 | 1000 |
+|---|---|---|---|---|---|---|---|
+| 1974 | 1.60 | 1.40 | 1.17 | 1.00 | 0.90 | 0.83 | 0.77 |
+| 1969 | 1.64 | 1.43 | 1.18 | 1.00 | 0.89 | 0.82 | 0.75 |
+
+The rms of the scaled residuals by sixths of SNR, weakest first, went from
+1.19 1.14 1.05 0.92 0.91 0.81 to 1.01 1.06 1.03 0.97 1.03 0.99 (1969), and from
+1.14 1.04 0.98 0.92 0.85 0.88 to 1.01 0.99 0.99 0.96 0.89 0.98 (1974). Over the 6673 lines of the
+list, `u_stat_cm1` changed by a median factor of 1.000. 2158 lines widened by more than 10 % and
+1794 narrowed by more than 10 % (extremes ×1.73 and ×0.67). With the kappas held, the chi2/dof
+of the fit went from 0.924 to 0.927, and s from 0.1045 to 0.0970 (1974) and from 0.2142 to
+0.1953 (1969); `[hfs.kappa_spread]` will take the new s. `--no-intensity` restores the model
+without the term.
 
 **The character floor (2026-10-08).** A line with a character code is never given less than
 twice the uncertainty of a plain line of its era at the same wavenumber

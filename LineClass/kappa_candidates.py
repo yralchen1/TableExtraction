@@ -180,21 +180,46 @@ def read_unc_table(path=REPORT):
     return table
 
 
-def model_unc(table, char, wn):
+def read_intensity(path=REPORT):
+    """`{era: k}`, the intensity coefficients of the calibration report
+    (the lines under `the intensity term, k per era`); empty if the report
+    has none (a run with --no-intensity, or one made before 2026-11-19)."""
+    with open(path, encoding='utf-8') as fh:
+        lines = fh.read().splitlines()
+    start = next((i for i, ln in enumerate(lines)
+                  if ln.startswith('the intensity term, k per era')), None)
+    out = {}
+    if start is None:
+        return out
+    for ln in lines[start + 1:]:
+        parts = ln.split()
+        if not parts:
+            break
+        if parts[0].isdigit() and len(parts) > 1:
+            out[int(parts[0])] = float(parts[1])
+    return out
+
+
+def model_unc(table, char, wn, snr=None, intensity=None):
     """The calibration's statistical uncertainty of a line of character
     `char` at Sugar's wavenumber `wn`, ignoring the inflation registry: its
     class's two-term model, the pooled class `other` of its era for a
     character without one, Sugar's stated value if neither is there; never
-    below `hfs_kappa.character_floor`."""
+    below `hfs_kappa.character_floor`.  With the line's `snr` and the
+    report's `intensity` coefficients (`read_intensity`) the class part
+    carries `hfs_kappa.intensity_factor`, as u_stat_cm1 does."""
     era = hfs_kappa.era_of(wn)
+    factor = hfs_kappa.intensity_factor(snr, (intensity or {}).get(era, 0.0))
     plain = table.get(('', era))
     floor = hfs_kappa.character_floor(char, era, wn,
-                                      (plain.a, plain.b) if plain else None)
+                                      (plain.a, plain.b) if plain else None,
+                                      factor)
     u = table.get((char, era)) or table.get(('other', era))
     if u is None:
         return max(hfs_kappa.stated_uncertainty(char, era, wn),
                    hfs_kappa.FLOOR, floor)
-    return max(hfs_kappa.two_term(u.a, u.b, wn), hfs_kappa.FLOOR, floor)
+    return max(hfs_kappa.two_term(u.a, u.b, wn) * math.sqrt(factor),
+               hfs_kappa.FLOOR, floor)
 
 
 # --- the test --------------------------------------------------------------
@@ -450,6 +475,8 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
     cfg = config.load(os.path.join(set_dir, 'lineclass_config.toml'))
     model = hfs_correction.Model(cfg.hfs)
     unc = read_unc_table(report)
+    intensity = read_intensity(report)
+    snr_of = hfs_kappa.read_snr() if intensity else {}
     registry = hfs_kappa.read_inflated()
     reasons = {}
     with open(os.path.join(HERE, hfs_kappa.INFLATED), encoding='utf-8',
@@ -503,7 +530,9 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
         if r_loo is None or D == 0.0:
             count['untestable'] += 1
             continue
-        u_mod = model_unc(unc, char, key)
+        u_mod = model_unc(unc, char, key,
+                          snr_of.get(round(key, hfs_kappa.KEY_DECIMALS)),
+                          intensity)
         u_shift = float(r['u_hfs_shift'] or 0.0)
         sigma = math.sqrt(u_mod ** 2 + u_shift ** 2 + u_rest ** 2)
         if sigma / abs(D) > max_u_kappa:

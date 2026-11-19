@@ -832,6 +832,10 @@ def main(argv=None):
                     help='leave the spread of kappa out of the uncertainty '
                          'model, the model before 2026-10-15; '
                          '[hfs.kappa_spread] is then not written')
+    ap.add_argument('--no-intensity', action='store_true',
+                    help='leave the intensity term (a weak line is less '
+                         'accurate; hfs_kappa.intensity_factor) out of the '
+                         'uncertainty model, the model before 2026-11-19')
     args = ap.parse_args(argv)
     table_path = classifications_path(args.classifications)
     cfg_path = config_for(table_path, args.config)
@@ -847,6 +851,7 @@ def main(argv=None):
                  for c in config.FITTED_KAPPA_CLASSES if c in previous}
                 if args.hold_kappa else {})
     use_spread = not args.no_spread
+    use_intensity = not args.no_intensity
 
     # The fit takes a minute or two and every file is written at the end of
     # it, so a report left open in Excel would otherwise be discovered only
@@ -867,14 +872,24 @@ def main(argv=None):
     model = hfs_model_of(cfg_path)
     listed = read_line_list()
     chars = list_characters(listed)
+    snr_of = hfs_kappa.read_snr() if use_intensity else {}
     lines = hfs_kappa.read_lines(table_path, raw=True, model=model,
-                                 chars=chars)
+                                 chars=chars, snr=snr_of)
+    if use_intensity:
+        no_snr = sum(1 for ln in lines if ln.snr is None)
+        print('intensity term: SNR from %s for %d of %d line(s)'
+              % (hfs_kappa.SNR_FILE, len(lines) - no_snr, len(lines)))
+        if not snr_of:
+            raise SystemExit('%s is missing or empty; run tools/'
+                             'estimate_snr.py, or --no-intensity'
+                             % hfs_kappa.SNR_FILE)
     fixed = collections.Counter(ln.fixed for ln in lines if ln.fixed)
     print('hfs model of %s: kappa held for %d line(s) (%s)'
           % (os.path.relpath(cfg_path, HERE), sum(fixed.values()),
              ', '.join('%s %d' % kv for kv in sorted(fixed.items()))
              or 'none'))
-    sigma, keep, table, _ = hfs_kappa.adopt_uncertainties(lines)
+    sigma, keep, table, _ = hfs_kappa.adopt_uncertainties(
+        lines, intensity=use_intensity)
     lam = [1e8 / ln.wn for ln in lines]
     blk, binof, counts, span = group_bins(blocks, lam, keep)
     good = sorted(counts)
@@ -901,7 +916,8 @@ def main(argv=None):
         per_line[i] = pre_fit['residual'][r]
         lev_line[i] = float(pre_fit['leverage'][r])
     sigma, table = hfs_kappa.refit_uncertainties(lines, per_line, lev_line,
-                                                 spread=use_spread)
+                                                 spread=use_spread,
+                                                 intensity=use_intensity)
 
     def extent(good):
         """The blocks that carry a parameter, their line counts and the
@@ -1021,7 +1037,8 @@ def main(argv=None):
             lev_line[i] = float(fit['leverage'][r])
         sigma, table = hfs_kappa.refit_uncertainties(lines, per_line,
                                                      lev_line,
-                                                     spread=use_spread)
+                                                     spread=use_spread,
+                                                     intensity=use_intensity)
         parts, fit = run(ncal, terms)
 
     # ---- kappa: how far a few lines move it, and whether it moves ---------
@@ -1453,6 +1470,25 @@ def main(argv=None):
             say('  %d   s = %.4f' % (era, spread[era]))
     else:
         say('no spread of kappa in the model (--no-spread).')
+    intensity = getattr(table, 'intensity', {})
+    say()
+    if intensity:
+        q = hfs_kappa.INTENSITY_POWER
+        say('the intensity term, k per era, fitted with the classes '
+            '(hfs_kappa.intensity_factor):')
+        say('the class variance of a line (a, b) is multiplied by '
+            '(1 + k*SNR^-%g) / (1 + k*%g^-%g);' % (q, hfs_kappa.SNR_REF, q))
+        say('"adopted" and chi2/dof above include it, and so does '
+            'u_stat_cm1.  The factor on u at SNR')
+        grid = (0.5, 1.0, 3.0, 10.0, 30.0, 100.0, 1000.0)
+        say('         k   ' + ''.join('%8g' % x for x in grid))
+        for era in sorted(intensity, reverse=True):
+            k = intensity[era]
+            say('  %d %7.3f ' % (era, k) + ''.join(
+                '%8.2f' % math.sqrt(hfs_kappa.intensity_factor(x, k))
+                for x in grid))
+    else:
+        say('no intensity term in the model (--no-intensity).')
 
     say()
     say('The lines that carry it')
@@ -1569,12 +1605,17 @@ def main(argv=None):
         print('  %s: no observed line has the wn_key of %s'
               % (hfs_kappa.INFLATED, ', '.join(unknown)))
 
+    intensity_k = getattr(table, 'intensity', {})
+
     def u_stat(wn_value, char_value, key_value):
         era_value = hfs_kappa.era_of(wn_value)
         plain = table.get(('', era_value))
+        factor = hfs_kappa.intensity_factor(
+            snr_of.get(round(key_value, hfs_kappa.KEY_DECIMALS)),
+            intensity_k.get(era_value, 0.0))
         floor = hfs_kappa.character_floor(
             char_value, era_value, wn_value,
-            (plain.a, plain.b) if plain else None)
+            (plain.a, plain.b) if plain else None, factor)
         held = fixed_unc.lookup(key_value)
         if held is not None:
             return max(held, floor)
@@ -1583,8 +1624,8 @@ def main(argv=None):
         if u is None:
             return max(hfs_kappa.stated_uncertainty(
                 char_value, era_value, wn_value), hfs_kappa.FLOOR, floor)
-        return max(hfs_kappa.two_term(u.a, u.b, wn_value), hfs_kappa.FLOOR,
-                   floor)
+        return max(hfs_kappa.two_term(u.a, u.b, wn_value)
+                   * math.sqrt(factor), hfs_kappa.FLOOR, floor)
 
     corr = []
     for wn, char, key in observed:

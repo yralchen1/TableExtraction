@@ -200,6 +200,56 @@ def spread_D(ln):
     return abs(ln.D) if ln.cls != 'flag' and ln.D else 0.0
 
 
+#: the intensity term of the line model (2026-11-19).  A weak line is set on
+#: less accurately than a strong one, and the two-term model does not know
+#: it: on the calibration's own residuals of 2026-10-15, scaled by each
+#: line's uncertainty, the rms ran from 1.19 for the weakest sixth to 0.81
+#: for the strongest in 1969, and from 1.13 to 0.89 in 1974.  The measure of
+#: strength is the line's signal-to-noise ratio, SNR = I / N(lambda): Sugar's
+#: intensity over the detection threshold at its wavelength
+#: (tools/estimate_snr.py, `SNR_FILE`), not the intensity alone, because the
+#: threshold changes along the spectrum.  The class part of the variance,
+#: `two_term(a, b, wn)^2`, is multiplied by `intensity_factor`,
+#:     (1 + k * SNR^-q) / (1 + k * SNR_REF^-q),
+#: with one k per era, fitted with the classes (`fit_classes`), and q fixed.
+#: The form and q were chosen on those residuals: q = 0.5 gave 2 dlnL = 68
+#: (1969) and 36 (1974) against no term, q = 1 gave 56 and 41, q = 2 33 and
+#: 34; a power law SNR^-2p alone 65 and 20.  The factor is 1 at SNR_REF, so
+#: a class's a and b stay the uncertainty of a line of ordinary strength.
+#: The spread of kappa (s * |D|) is a property of the transition and is not
+#: multiplied.  A line without an SNR gets the factor 1.
+INTENSITY_POWER = 0.5
+SNR_REF = 10.0
+SNR_FILE = 'line_snr.csv'
+
+
+def intensity_factor(snr, k):
+    """The factor on a line's class variance for its signal-to-noise ratio
+    `snr` under the era's intensity coefficient `k` (`INTENSITY_POWER`):
+    above 1 for a line weaker than `SNR_REF`, below 1 for a stronger one.
+    1 when `k` is 0 or the line has no SNR."""
+    if not k or snr is None or not snr > 0.0:
+        return 1.0
+    q = INTENSITY_POWER
+    return (1.0 + k * snr ** -q) / (1.0 + k * SNR_REF ** -q)
+
+
+def read_snr(path=None):
+    """`{wn rounded to KEY_DECIMALS: SNR}` from `SNR_FILE` (columns `wn`,
+    Sugar's wavenumber, and `snr`).  A missing file is an empty map."""
+    path = path or os.path.join(HERE, SNR_FILE)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding='utf-8-sig', newline='') as fh:
+        for row in csv.DictReader(fh):
+            wn, snr = (row.get('wn') or '').strip(), (row.get('snr') or
+                                                      '').strip()
+            if wn and snr:
+                out[round(float(wn), KEY_DECIMALS)] = float(snr)
+    return out
+
+
 #: lines whose uncertainty is fixed by hand, one per row, tab-delimited:
 #: `wn_key`, `unc_wn`, `date`, `reason`.  `wn_key` is Sugar's observed
 #: wavenumber, the same number the line is named by in
@@ -213,10 +263,11 @@ INFLATED = 'inflated_unc_lines.txt'
 #: registry and the ledger know it by.  `None` means the same as `wn`.
 #: `fixed` names what holds the line's kappa ('' if nothing does; see
 #: `read_lines` with a model): such a line has `cls` 'flag' and D already
-#: multiplied by its kappa.
+#: multiplied by its kappa.  `snr` is the line's signal-to-noise ratio
+#: (`read_snr`), `None` if it has none.
 Line = collections.namedtuple(
-    'Line', 'wn char era cls ucls low upp D dJ key fixed',
-    defaults=(None, ''))
+    'Line', 'wn char era cls ucls low upp D dJ key fixed snr',
+    defaults=(None, '', None))
 
 
 def era_of(wn):
@@ -292,17 +343,19 @@ def shape_of(char):
     return c[:-len(MULTIPLE_MARK)] if c.endswith(MULTIPLE_MARK) else c
 
 
-def character_floor(char, era, wn, plain=None):
+def character_floor(char, era, wn, plain=None, factor=1.0):
     """The least uncertainty a line of character `char` may be given, in
     cm^-1: `CHARACTER_FACTOR` times that of a plain line of its era at the
     same wavenumber, or 0 for a character the rule exempts.
 
     `plain` is the `(a, b)` of the two-term model of the era's plain class;
-    without it Sugar's stated plain value stands in.
+    without it Sugar's stated plain value stands in.  `factor` is the line's
+    `intensity_factor`: the plain line it is compared with is one recorded as
+    strongly.
     """
     if shape_of(char) in CHARACTER_EXEMPT:
         return 0.0
-    u = (two_term(plain[0], plain[1], wn) if plain
+    u = (two_term(plain[0], plain[1], wn) * math.sqrt(factor) if plain
          else stated_uncertainty('', era, wn))
     return CHARACTER_FACTOR * max(u, FLOOR)
 
@@ -535,7 +588,7 @@ def read_levels():
 
 
 def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
-               chars=None):
+               chars=None, snr=None):
     """The accepted, singly assigned lines, with their displacement D.
 
     A line accepted for more than one transition is a blend: its measured
@@ -560,6 +613,9 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
     character is taken from there rather than from the table, which carries
     the character of the line list the classification was run on - one
     round behind an edit of the list (wavelength_calibration.list_characters).
+
+    With `snr`, `{wn_key rounded to 4 decimals: SNR}` (`read_snr`), each line
+    carries its signal-to-noise ratio for the intensity term.
     """
     path = path or os.path.join(HERE, LINES)
     constants = read_A_constants() if constants is None else constants
@@ -595,7 +651,8 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
             lines.append(Line(wn=wn, char=char, era=era,
                               cls=cls, ucls=(char, era),
                               low=low, upp=upp, D=D, dJ=dJ,
-                              key=key, fixed=fixed))
+                              key=key, fixed=fixed,
+                              snr=(snr or {}).get(round(key, 4))))
     return lines
 
 
@@ -725,11 +782,14 @@ ClassUnc = collections.namedtuple('ClassUnc', 'a b n adopted stated')
 
 class ClassTable(dict):
     """`{class key: ClassUnc}`, with `spread`, `{era: s}`, the spread of
-    kappa fitted with them (SPREAD_ROUNDS); empty where none was fitted."""
+    kappa fitted with them (SPREAD_ROUNDS), and `intensity`, `{era: k}`, the
+    intensity coefficient (`intensity_factor`); empty where none was
+    fitted."""
 
-    def __init__(self, *args, spread=None, **kwargs):
+    def __init__(self, *args, spread=None, intensity=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.spread = dict(spread or {})
+        self.intensity = dict(intensity or {})
 
 
 def two_term(a, b, wn):
@@ -763,13 +823,19 @@ def _golden(f, lo, hi, rounds=60):
     return 0.5 * (lo + hi)
 
 
-def fit_two_term(values, fix_a=False, spread=0.0):
+def _snr_of(v):
+    """The SNR of one `values` tuple: its fifth element, `None` if absent."""
+    return v[4] if len(v) > 4 else None
+
+
+def fit_two_term(values, fix_a=False, spread=0.0, intensity=0.0):
     """Maximum-likelihood `(a, b)` for one class, leverage folded in.
 
     `values` are `(residual in cm^-1, leverage, wavenumber)` triples, or
     `(..., |D|)` quadruples when the spread of kappa is to be allowed for:
     each line's variance then holds `(spread * |D|)^2` besides the two
-    terms (`spread_D`, `fit_classes`).  A
+    terms (`spread_D`, `fit_classes`).  A fifth element, the line's SNR,
+    multiplies its two terms by `intensity_factor(SNR, intensity)`.  A
     fitted level value has already followed part of each residual, so what a
     residual measures is not the uncertainty itself but `E[r^2] = (1 - h) u^2`
     with `h` the leverage; the `(1 - h)` therefore sits inside the variance
@@ -791,10 +857,12 @@ def fit_two_term(values, fix_a=False, spread=0.0):
                    1e-3)
     e = np.array([(spread * v[3]) ** 2 if len(v) > 3 else 0.0
                   for v in values], dtype=float)
+    f = np.array([intensity_factor(_snr_of(v), intensity) for v in values],
+                 dtype=float)
     r2, s2 = r * r, s * s
 
     def nll(a, b):
-        v = g * (a * a * s2 + b * b + e)
+        v = g * (f * (a * a * s2 + b * b) + e)
         return float(np.sum(np.log(v) + r2 / v))
 
     golden = _golden
@@ -817,77 +885,141 @@ def fit_two_term(values, fix_a=False, spread=0.0):
     return a, b
 
 
-def fit_spread(items):
+def _era_arrays(items, spread, intensity):
+    """Per line of one era's `items` (`((a, b), values)` per class): the
+    leverage factor, the class variance, the squared residual, the spread
+    variance at `spread`, the intensity factor at `intensity`, and the
+    SNR (nan without)."""
+    rows = [((a, b), v) for (a, b), vals in items for v in vals]
+    if not rows:
+        return None
+    cols = list(zip(*[
+        (max(1.0 - v[1], 1e-3), (a * 1e-8 * v[2] * v[2]) ** 2 + b * b,
+         v[0] * v[0],
+         (spread * v[3]) ** 2 if len(v) > 3 else 0.0,
+         intensity_factor(_snr_of(v), intensity),
+         _snr_of(v) if _snr_of(v) is not None else math.nan)
+        for (a, b), v in rows]))
+    return [np.array(c, dtype=float) for c in cols]
+
+
+def fit_spread(items, intensity=0.0):
     """Maximum-likelihood spread of kappa s for one era.
 
     `items` are `((a, b), values)` per class of the era, `values` the
-    quadruples of `fit_two_term`; each class keeps its own two terms and s
-    is common to all.  0 if no line carries a displacement, or if s = 0 is
-    at least as likely as the best s > 0."""
+    tuples of `fit_two_term`; each class keeps its own two terms and s
+    is common to all.  `intensity` is the era's intensity coefficient, which
+    the two terms are multiplied by.  0 if no line carries a displacement,
+    or if s = 0 is at least as likely as the best s > 0."""
     rows = [((a, b), v) for (a, b), vals in items for v in vals
             if len(v) > 3 and v[3] > 0.0]
     if not rows:
         return 0.0
-    g, base, r2, d2 = (np.array(c, dtype=float) for c in zip(*[
-        (max(1.0 - v[1], 1e-3), (a * 1e-8 * v[2] * v[2]) ** 2 + b * b,
-         v[0] * v[0], v[3] * v[3]) for (a, b), v in rows]))
+    g, base, r2, _, f, _ = _era_arrays([(ab, [v]) for ab, v in rows], 0.0,
+                                       intensity)
+    d2 = np.array([v[3] * v[3] for _, v in rows], dtype=float)
 
     def nll(sp):
-        var = g * (base + sp * sp * d2)
+        var = g * (f * base + sp * sp * d2)
         return float(np.sum(np.log(var) + r2 / var))
 
     s = math.exp(_golden(lambda x: nll(math.exp(x)), -12.0, 1.0))
     return s if nll(s) < nll(0.0) else 0.0
 
 
-def fit_classes(groups, fix_a=None, min_class=1, spread=True):
-    """The two terms of every class and the spread of kappa of every era,
-    fitted together (2026-10-15).
+def fit_intensity(items, spread=0.0):
+    """Maximum-likelihood intensity coefficient k for one era
+    (`intensity_factor`).
 
-    `groups` are `{class key: values}`, `values` the quadruples of
-    `fit_two_term` and the key's last element the era.  The two are fitted
-    in turn - each class's `(a, b)` at the eras' present s, then each era's
-    s at the classes' `(a, b)` - until s stops moving.  A class of fewer
-    than `min_class` lines is not fitted.  `spread` False fits the two terms
-    alone, the model before 2026-10-15.  Returns `({key: (a, b)},
-    {era: s})`."""
+    `items` as in `fit_spread`, the values carrying the SNR as their fifth
+    element; `spread` the era's spread of kappa.  0 if no line has an SNR,
+    or if k = 0 is at least as likely as the best k > 0."""
+    arrays = _era_arrays(items, spread, 0.0)
+    if arrays is None:
+        return 0.0
+    g, base, r2, e, _, snr = arrays
+    have = np.isfinite(snr) & (snr > 0.0)
+    if not have.any():
+        return 0.0
+    q = INTENSITY_POWER
+    x = np.where(have, np.where(have, snr, 1.0) ** -q, 0.0)
+
+    def nll(k):
+        f = np.where(have, (1.0 + k * x) / (1.0 + k * SNR_REF ** -q), 1.0)
+        var = g * (f * base + e)
+        return float(np.sum(np.log(var) + r2 / var))
+
+    k = math.exp(_golden(lambda t: nll(math.exp(t)), -12.0, 4.0))
+    return k if nll(k) < nll(0.0) else 0.0
+
+
+def fit_classes(groups, fix_a=None, min_class=1, spread=True,
+                intensity=True):
+    """The two terms of every class, and the spread of kappa and the
+    intensity coefficient of every era, fitted together (2026-10-15; the
+    intensity term 2026-11-19).
+
+    `groups` are `{class key: values}`, `values` the tuples of
+    `fit_two_term` and the key's last element the era.  They are fitted in
+    turn - each class's `(a, b)` at the eras' present s and k, then each
+    era's s, then its k, at the classes' `(a, b)` - until s and k stop
+    moving.  A class of fewer than `min_class` lines is not fitted.
+    `spread` False leaves the spread of kappa out, `intensity` False the
+    intensity term.  Returns `({key: (a, b)}, {era: s}, {era: k})`."""
     fix_a = fix_a or {}
-    s_era, fitted = {}, {}
-    for _ in range(SPREAD_ROUNDS if spread else 1):
-        fitted = {key: fit_two_term(v, fix_a=fix_a.get(key, False),
-                                    spread=s_era.get(key[1], 0.0))
-                  for key, v in groups.items() if len(v) >= min_class}
-        if not spread:
+    s_era, k_era, fitted = {}, {}, {}
+
+    def classes():
+        return {key: fit_two_term(v, fix_a=fix_a.get(key, False),
+                                  spread=s_era.get(key[1], 0.0),
+                                  intensity=k_era.get(key[1], 0.0))
+                for key, v in groups.items() if len(v) >= min_class}
+
+    rounds = SPREAD_ROUNDS if (spread or intensity) else 1
+    for _ in range(rounds):
+        fitted = classes()
+        if not (spread or intensity):
             break
         by_era = collections.defaultdict(list)
         for key, ab in fitted.items():
             by_era[key[1]].append((ab, groups[key]))
-        new = {era: fit_spread(items) for era, items in by_era.items()}
-        moved = max([abs(new[e] - s_era.get(e, -1.0)) for e in new] + [0.0])
-        s_era = new
+        moved = 0.0
+        if spread:
+            new = {era: fit_spread(items, k_era.get(era, 0.0))
+                   for era, items in by_era.items()}
+            moved = max([abs(new[e] - s_era.get(e, -1.0)) for e in new]
+                        + [moved])
+            s_era = new
+        if intensity:
+            new = {era: fit_intensity(items, s_era.get(era, 0.0))
+                   for era, items in by_era.items()}
+            moved = max([abs(new[e] - k_era.get(e, -1.0)) / max(new[e], 1.0)
+                         for e in new] + [moved])
+            k_era = new
         if moved < 1e-4:
             break
-    if spread:
-        # the two terms once more, at the s finally adopted
-        fitted = {key: fit_two_term(v, fix_a=fix_a.get(key, False),
-                                    spread=s_era.get(key[1], 0.0))
-                  for key, v in groups.items() if len(v) >= min_class}
-    return fitted, s_era
+    if spread or intensity:
+        # the two terms once more, at the s and k finally adopted
+        fitted = classes()
+    return fitted, s_era, k_era
 
 
-def line_sigma(ln, ab, plain, spread):
+def line_sigma(ln, ab, plain, spread, intensity=0.0):
     """The uncertainty of a line of the calibration's fit under the class
     model: the two terms `ab` of its class (Sugar's stated value without),
-    floored at FLOOR and at the character floor (`plain` the era's plain
-    `(a, b)`), and the spread of kappa `spread` of its era times its
-    `spread_D`, in quadrature."""
-    u = (max(two_term(ab[0], ab[1], ln.wn), FLOOR) if ab
+    scaled by the line's `intensity_factor` at its era's coefficient
+    `intensity`, floored at FLOOR and at the character floor (`plain` the
+    era's plain `(a, b)`), and the spread of kappa `spread` of its era times
+    its `spread_D`, in quadrature."""
+    f = intensity_factor(ln.snr, intensity)
+    u = (max(two_term(ab[0], ab[1], ln.wn) * math.sqrt(f), FLOOR) if ab
          else max(stated_uncertainty(ln.char, ln.era, ln.wn), FLOOR))
-    u = max(u, character_floor(ln.char, ln.era, ln.wn, plain))
+    u = max(u, character_floor(ln.char, ln.era, ln.wn, plain, f))
     return math.hypot(u, spread * spread_D(ln))
 
 
-def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True):
+def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True,
+                        intensity=True):
     """The two-term model again, from the residuals of a fit given from
     outside - the calibration fit.
 
@@ -906,7 +1038,9 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True):
 
     The spread of kappa is fitted with the classes (`fit_classes`) and is in
     each line's sigma, and `table.spread` gives it; `spread` False leaves it
-    out, the model before 2026-10-15.
+    out, the model before 2026-10-15.  So is the intensity term, given by
+    `table.intensity`; `intensity` False leaves it out, the model before
+    2026-11-19.
     """
     ucls = uncertainty_classes(lines) if ucls is None else ucls
     held = held_uncertainties(lines)
@@ -919,23 +1053,25 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True):
     for i, ln in enumerate(lines):
         if residual[i] is not None and held[i] is None:
             groups[ucls[i]].append((residual[i], leverage[i], ln.wn,
-                                    spread_D(ln)))
-    fitted, s_era = fit_classes(groups, fix_a, min_class=MIN_CLASS,
-                                spread=spread)
+                                    spread_D(ln), ln.snr))
+    fitted, s_era, k_era = fit_classes(groups, fix_a, min_class=MIN_CLASS,
+                                       spread=spread, intensity=intensity)
 
     sigma = []
     for i, ln in enumerate(lines):
         if held[i] is not None:
             sigma.append(max(held[i], character_floor(
-                ln.char, ln.era, ln.wn, fitted.get(('', ln.era)))))
+                ln.char, ln.era, ln.wn, fitted.get(('', ln.era)),
+                intensity_factor(ln.snr, k_era.get(ln.era, 0.0)))))
         else:
             # a class too thin to measure itself falls back on the plain
             # lines of its own era, which are the bulk of the spectrum and
             # share its plates; Sugar's stated value is the last resort.
             ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
             sigma.append(line_sigma(ln, ab, fitted.get(('', ln.era)),
-                                    s_era.get(ln.era, 0.0)))
-    table = ClassTable(spread=s_era)
+                                    s_era.get(ln.era, 0.0),
+                                    k_era.get(ln.era, 0.0)))
+    table = ClassTable(spread=s_era, intensity=k_era)
     for key, (a_ang, b_wn) in fitted.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
         table[key] = ClassUnc(
@@ -948,7 +1084,8 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True):
 
 
 def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
-                        max_rounds=10, tol=0.01, spread=True):
+                        max_rounds=10, tol=0.01, spread=True,
+                        intensity=True):
     """The Step 1 loop: stated uncertainties in, adopted uncertainties out.
 
     Returns `(sigma, keep, table, fit)`: the adopted uncertainty of every
@@ -977,6 +1114,10 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     and leaving them out lowered kappa further.  On 2026-10-10 that took the
     plain kappa from 0.72 to 0.48 round by round, nine lines rejected, where
     every line kept gave 0.71.
+
+    The spread of kappa and the intensity term (`intensity_factor`) are
+    fitted with the classes (`fit_classes`); `spread` and `intensity` False
+    leave them out.
     """
     ucls = uncertainty_classes(lines)
     held = held_uncertainties(lines)
@@ -992,7 +1133,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
         span[ucls[i]].append(ln.wn)
     fix_a = {k: (max(v) / min(v)) ** 2 < MIN_SPAN for k, v in span.items()}
     table, fit = {}, None
-    s_era = {}
+    s_era, k_era = {}, {}
     kappa_held = None
     # first every line kept, the kappas free; then the filter, with the
     # kappas held where that pass left them
@@ -1011,8 +1152,9 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
             for i, ln in enumerate(lines):
                 if keep[i] and held[i] is None:
                     groups[ucls[i]].append((res[i], lev[i], ln.wn,
-                                            spread_D(ln)))
-            fitted, s_era = fit_classes(groups, fix_a, spread=spread)
+                                            spread_D(ln), ln.snr))
+            fitted, s_era, k_era = fit_classes(groups, fix_a, spread=spread,
+                                               intensity=intensity)
             new = {key: ab + (len(groups[key]),)
                    for key, ab in fitted.items()}
             moved = 0.0
@@ -1023,13 +1165,15 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
             table = new
             for i, ln in enumerate(lines):
                 plain = table.get(('', ln.era))
+                k = k_era.get(ln.era, 0.0)
                 floor = character_floor(ln.char, ln.era, ln.wn,
-                                        plain[:2] if plain else None)
+                                        plain[:2] if plain else None,
+                                        intensity_factor(ln.snr, k))
                 key = ucls[i]
                 if held[i] is None and key in table:
                     sigma[i] = line_sigma(ln, table[key][:2],
                                           plain[:2] if plain else None,
-                                          s_era.get(ln.era, 0.0))
+                                          s_era.get(ln.era, 0.0), k)
                 else:
                     # the registry's value, or the stated one of a class that
                     # has not been measured: floored, never ratcheted.
@@ -1042,7 +1186,7 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     fit = solve(lines, lambda ln: ln.cls, 'flag', 1.0, scale=scale,
                 sigma=sigma, use=keep)
     # the mean adopted value and the mean stated value, for the report
-    out = ClassTable(spread=s_era)
+    out = ClassTable(spread=s_era, intensity=k_era)
     for key, (a_ang, b_wn, n) in table.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
         out[key] = ClassUnc(

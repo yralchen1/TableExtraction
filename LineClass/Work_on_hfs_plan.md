@@ -151,6 +151,15 @@ The last work, 2026-10-15 to 10-17:
    hold kappa; an intensity or signal-to-noise term in the line model, since
    the scatter grows toward weak lines (1969 rms 1.16 for the weakest sixth
    against 0.74 for the strongest); the housekeeping of section 6.
+   **The intensity term is coded (2026-11-19):** the class variance times
+   (1 + k·SNR^-0.5)/(1 + k·10^-0.5), k per era fitted in the calibration
+   (`hfs_kappa.intensity_factor`, `line_snr.csv`; README, "Weak lines: the
+   intensity term"). Preview on iter_hfs: k = 2.56 (1974), 2.94 (1969), and
+   the scaled residuals flat in SNR. To do (the user): the calibration
+   (`--classifications iter_hfs/line_classifications.csv --hold-kappa`,
+   which also rewrites `[hfs.kappa_spread]`), then iter_hfs's chain, the full
+   make_set3.py, final/'s chain, lopt_perturb, `make_set3.py --levels`,
+   levels_pub.py.
 
 ---
 

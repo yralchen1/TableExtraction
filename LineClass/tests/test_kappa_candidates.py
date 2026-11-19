@@ -58,6 +58,29 @@ def test_the_class_table_is_read(tmp_path):
         hfs_kappa.stated_uncertainty('zz', 1974, wn), hfs_kappa.FLOOR))
 
 
+def test_the_intensity_term_is_read_and_applied(tmp_path):
+    """The k per era of the report (2026-11-19) scale the class part of a
+    line's model uncertainty by hfs_kappa.intensity_factor, as u_stat_cm1."""
+    path = tmp_path / 'report.txt'
+    path.write_text(
+        REPORT + '\nthe intensity term, k per era, fitted with the classes '
+        '(hfs_kappa.intensity_factor):\nthe class variance ...\n'
+        '"adopted" ...\n         k        0.5       1\n'
+        '  1974   1.686     1.49    1.32\n  1969   3.027     1.64    1.43\n'
+        '\nThe lines that carry it\n', encoding='utf-8')
+    k = K.read_intensity(str(path))
+    assert k == {1974: 1.686, 1969: 3.027}
+    t = K.read_unc_table(str(path))
+    wn = 30000.0
+    base = K.model_unc(t, '', wn)
+    assert K.model_unc(t, '', wn, 1.0, k) == pytest.approx(
+        base * math.sqrt(hfs_kappa.intensity_factor(1.0, 1.686)))
+    assert K.model_unc(t, '', wn, None, k) == pytest.approx(base)
+    plain = tmp_path / 'plain.txt'
+    plain.write_text(REPORT, encoding='utf-8')
+    assert K.read_intensity(str(plain)) == {}
+
+
 def test_a_report_without_the_table_stops(tmp_path):
     path = tmp_path / 'report.txt'
     path.write_text('nothing here\n', encoding='utf-8')
