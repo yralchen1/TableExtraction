@@ -254,9 +254,11 @@ def read_snr(path=None):
 #: `wn_key`, `unc_wn`, `date`, `reason`.  `wn_key` is Sugar's observed
 #: wavenumber, the same number the line is named by in
 #: `line_decisions.csv`, so that a line keeps its row when a calibrated set
-#: measures it on a corrected scale.  A line listed here keeps the value
-#: written there whatever the model says, and is never set aside by the
-#: outlier filter - it has already been judged by hand.
+#: measures it on a corrected scale.  The registry only widens: a line
+#: listed here gets the larger of the value written there and the model's
+#: own (2026-11-19; before, the registry's value replaced the model's even
+#: where it was the smaller).  It is never set aside by the outlier filter
+#: and never measures its class - it has already been judged by hand.
 INFLATED = 'inflated_unc_lines.txt'
 
 #: `key` is the line's wn_key - Sugar's observed wavenumber, the name the
@@ -1034,7 +1036,8 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True,
 
     `residual` and `leverage` are per line, `None` for a line the fit left
     out.  Returns `(sigma, table)` in the form `adopt_uncertainties` returns
-    them.  Registry lines keep their own value here as well.
+    them.  A registry line gets the larger of its registry value and the
+    model's here as well.
 
     The spread of kappa is fitted with the classes (`fit_classes`) and is in
     each line's sigma, and `table.spread` gives it; `spread` False leaves it
@@ -1059,18 +1062,14 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True,
 
     sigma = []
     for i, ln in enumerate(lines):
-        if held[i] is not None:
-            sigma.append(max(held[i], character_floor(
-                ln.char, ln.era, ln.wn, fitted.get(('', ln.era)),
-                intensity_factor(ln.snr, k_era.get(ln.era, 0.0)))))
-        else:
-            # a class too thin to measure itself falls back on the plain
-            # lines of its own era, which are the bulk of the spectrum and
-            # share its plates; Sugar's stated value is the last resort.
-            ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
-            sigma.append(line_sigma(ln, ab, fitted.get(('', ln.era)),
-                                    s_era.get(ln.era, 0.0),
-                                    k_era.get(ln.era, 0.0)))
+        # a class too thin to measure itself falls back on the plain
+        # lines of its own era, which are the bulk of the spectrum and
+        # share its plates; Sugar's stated value is the last resort.
+        ab = fitted.get(ucls[i]) or fitted.get(('', ln.era))
+        u = line_sigma(ln, ab, fitted.get(('', ln.era)),
+                       s_era.get(ln.era, 0.0), k_era.get(ln.era, 0.0))
+        # the registry only widens
+        sigma.append(u if held[i] is None else max(held[i], u))
     table = ClassTable(spread=s_era, intensity=k_era)
     for key, (a_ang, b_wn) in fitted.items():
         mine = [i for i in range(len(lines)) if ucls[i] == key]
@@ -1100,10 +1099,11 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
     the conversion between the two units changes by a factor of 24, so one
     constant is too generous at one end and too mean at the other.
 
-    A line in the inflation registry keeps the value entered there, whatever
-    the model says, and is not offered to the outlier filter or to the fit of
-    its class: it has been looked at by hand, and letting it measure the class
-    it does not belong to would widen every other line of that class.
+    A line in the inflation registry gets the larger of the value entered
+    there and the model's (the registry only widens, 2026-11-19), and is not
+    offered to the outlier filter or to the fit of its class: it has been
+    looked at by hand, and letting it measure the class it does not belong
+    to would widen every other line of that class.
 
     The outlier filter decides with the kappas held (2026-10-10).  The
     uncertainties are first iterated with every line kept and the kappas
@@ -1170,10 +1170,13 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
                                         plain[:2] if plain else None,
                                         intensity_factor(ln.snr, k))
                 key = ucls[i]
-                if held[i] is None and key in table:
+                if key in table:
                     sigma[i] = line_sigma(ln, table[key][:2],
                                           plain[:2] if plain else None,
                                           s_era.get(ln.era, 0.0), k)
+                    if held[i] is not None:
+                        # the registry only widens
+                        sigma[i] = max(held[i], sigma[i])
                 else:
                     # the registry's value, or the stated one of a class that
                     # has not been measured: floored, never ratcheted.

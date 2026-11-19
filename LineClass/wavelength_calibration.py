@@ -1616,16 +1616,17 @@ def main(argv=None):
         floor = hfs_kappa.character_floor(
             char_value, era_value, wn_value,
             (plain.a, plain.b) if plain else None, factor)
-        held = fixed_unc.lookup(key_value)
-        if held is not None:
-            return max(held, floor)
         key = key_of_char.get((char_value, era_value), ('other', era_value))
         u = table.get(key) or plain
         if u is None:
-            return max(hfs_kappa.stated_uncertainty(
+            model_u = max(hfs_kappa.stated_uncertainty(
                 char_value, era_value, wn_value), hfs_kappa.FLOOR, floor)
-        return max(hfs_kappa.two_term(u.a, u.b, wn_value)
-                   * math.sqrt(factor), hfs_kappa.FLOOR, floor)
+        else:
+            model_u = max(hfs_kappa.two_term(u.a, u.b, wn_value)
+                          * math.sqrt(factor), hfs_kappa.FLOOR, floor)
+        # the registry only widens (2026-11-19)
+        held = fixed_unc.lookup(key_value)
+        return model_u if held is None else max(held, model_u)
 
     corr = []
     for wn, char, key in observed:

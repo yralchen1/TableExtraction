@@ -126,3 +126,29 @@ def test_read_snr(tmp_path):
     got = hfs_kappa.read_snr(str(p))
     assert got == {121663.0955: 8.106, 121585.4079: 12.21}
     assert hfs_kappa.read_snr(str(tmp_path / 'none.csv')) == {}
+
+
+def test_the_registry_only_widens_in_the_calibration(monkeypatch):
+    """A line of inflated_unc_lines.txt gets the larger of its registry
+    value and the model's (2026-11-19); before, the registry replaced the
+    model even where it was the smaller."""
+    rng = np.random.default_rng(7)
+    lines, residual, leverage = [], [], []
+    for i in range(80):
+        wn = 20000.0 + 300.0 * i
+        lines.append(hfs_kappa.Line(wn=wn, char='', era=1974,
+                                    cls='plain_1974', ucls=('', 1974),
+                                    low='a', upp='b%d' % i, D=0.0, dJ=0,
+                                    key=wn, snr=1.0 + i))
+        residual.append(float(rng.normal(0.0, 0.03)))
+        leverage.append(0.1)
+    narrow, wide = lines[3].key, lines[5].key
+    reg = hfs_kappa.Registry({'%.4f' % narrow: 0.0001, '%.4f' % wide: 5.0})
+    monkeypatch.setattr(hfs_kappa, 'read_inflated', lambda *a, **k: reg)
+    sigma, table = hfs_kappa.refit_uncertainties(lines, residual, leverage,
+                                                 spread=False)
+    ab = table[('', 1974)][:2]
+    k = table.intensity.get(1974, 0.0)
+    model = hfs_kappa.line_sigma(lines[3], ab, ab, 0.0, k)
+    assert sigma[3] == pytest.approx(model)        # registry smaller: model
+    assert sigma[5] == 5.0                         # registry larger: kept

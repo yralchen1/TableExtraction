@@ -2849,8 +2849,9 @@ was chosen on those residuals by likelihood, against no term: a variance of the 
 34 at q = 2. A power law SNR^−2p alone gained 65 and 20. q = 0.5 is fixed (`INTENSITY_POWER`).
 Unlike s, the term is a property of the observed line, so it is in `u_stat_cm1`
 (`unc_own_corr`) and in the character floor: a wide line is compared with a plain line recorded
-as strongly. `kappa_candidates.py` reads k from the report and applies it as well. Lines in
-`inflated_unc_lines.txt` keep their values, and a line without an SNR gets f = 1.
+as strongly. `kappa_candidates.py` reads k from the report and applies it as well. A line in
+`inflated_unc_lines.txt` gets the larger of its registry value and the model's, and a line
+without an SNR gets f = 1.
 
 The preview on `iter_hfs`'s table (`--classifications iter_hfs/line_classifications.csv
 --hold-kappa`, outputs to a scratch directory, 2026-11-19) fitted k = 2.56 (1974) and 2.94
@@ -3001,12 +3002,16 @@ wn_key	unc_wn	date	reason
 45994.3206	0.1200	2026-09-19	off the block trend; the classification is sound
 ```
 
-A line listed here keeps the value written in `unc_wn` whatever the class model says, and three
-things follow from that. It is **not offered to the outlier filter**, since it has already been
+A line listed here gets the larger of the value written in `unc_wn` and the class model's own:
+the registry only widens (2026-11-19). Until then the registry's value replaced the model's even
+where it was the smaller, which no row happened to be: on the preview of the intensity term the
+smallest registry value was 1.37 times the model's (17331.4435). `classify_lines.py`,
+`sync_IDEN2.py` and `check_sync.py` already took the larger of the registry and the line list.
+Three things follow from the registry. It is **not offered to the outlier filter**, since it has already been
 judged by hand — before the registry existed the 4-sigma filter was throwing exactly these lines
 out of the calibration fit, which is how two accepted lines came to be missing from
 `wavelength_calibration_points.csv`. It is **not used to measure its class**, since a line that
-does not belong to the class would widen every other line in it. And its value is what
+does not belong to the class would widen every other line in it. And the larger of its value and the model's is what
 `u_stat_cm1` carries into `wavelength_calibration_corrections.csv`, so the corrected sets and
 `dlv.dat` see it too.
 
