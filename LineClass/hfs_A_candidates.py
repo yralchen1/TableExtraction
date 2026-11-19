@@ -104,7 +104,6 @@ THEORY_CSV = os.path.join(HERE, 'hfs_A_theory.csv')
 A_LEVELS = os.path.join(HERE, 'A_hfs_levels.csv')
 LINES = os.path.join(HERE, 'iter_hfs', 'line_classifications.csv')
 ID_MAP = os.path.join(HERE, 'iter_hfs', 'IDEN2', 'IDEN_level_ids.txt')
-QUESTIONABLE = os.path.join(HERE, 'questionable_levels.txt')
 CONFIG = os.path.join(HERE, 'lineclass_config.toml')
 OUT_CSV = os.path.join(HERE, 'hfs_A_candidates.csv')
 
@@ -330,9 +329,11 @@ def main(argv=None):
         print('eigenvector_check.csv not found: no intensity veto')
     table = {r['level_id']: r for r in read_csv(A_LEVELS)}
     iden = {lid: row for row, lid in cowan_gA.read_id_map(ID_MAP).items()}
-    questionable = {r['level_id']: r['status']
-                    for r in read_csv(QUESTIONABLE, '\t')
-                    if r['status'] != 'firm'}
+    # the questionable levels: verdict `?` in the user's verdicts file
+    import config
+    import level_verdicts
+    questionable = {lid for lid, v in level_verdicts.read(
+        config.load(CONFIG).level_verdicts).items() if v.verdict == '?'}
     with open(CONFIG, 'rb') as fh:
         resolved = set(tomllib.load(fh).get('hfs', {})
                        .get('resolved_levels', []))

@@ -511,6 +511,18 @@ max_share (45 per cent) or more of the positive evidence.  `group` names the
 level's group and `q_why` every test that gave the mark.  The marks are for
 the analyst to review; --drop-all-questionable releases every marked level.
 
+THE USER'S VERDICTS (files.level_verdicts, read_verdicts; 2026-11-19).  The
+analyst's own verdict on a questioned level persists from run to run in a
+hand-kept file, and is applied over the marks above.  `firm`: the mark is
+lifted while the level has no alternate, or the alternate it has lies within
+VERDICT_TOL (0.5 cm^-1) of one the verdict lists as looked at and denied
+(E_alt); a different alternate brings the mark back.  `?`: the level stays
+where it is, marked, whatever the scan finds.  q_why says which ("firm
+(user, alternate ... denied) over: ..."; "user ?").  --drop-all-questionable
+applies the verdicts again over the report it reads, so a verdict written
+since the last --audit counts too.  The registry of settled positions below
+is another thing: a cache of scans, which the verdicts do not enter.
+
 The predicted intensities are held fixed while E moves.  Over the few hundred
 cm^-1 of a scan window the Boltzmann factor exp(-E/kT) with kT = 12900 cm^-1
 changes by about two per cent, far below s.
@@ -942,6 +954,7 @@ import cowan_gA                               # noqa: E402
 import level_shifts as ls                     # noqa: E402
 import lopt_lines                             # noqa: E402
 import config                                 # noqa: E402
+import level_verdicts                         # noqa: E402
 from swap_paths import working_path           # noqa: E402
 
 
@@ -3098,20 +3111,48 @@ def policy_reasons(row, tests, policy):
     return out
 
 
-def mark_questions(tab, policy=None):
+def mark_questions(tab, policy=None, verdicts=None):
     """`question` and `q_why` from the alternates and the [audit] policy
-    (section 5).  A table without a `group` column is judged as legacy."""
+    (section 5), and then the user's verdicts (`verdicts`, read_verdicts;
+    none if not given).  A table without a `group` column is judged as
+    legacy."""
     policy = policy or audit_policy()
+    verdicts = verdicts or {}
     groups = (tab['group'] if 'group' in tab.columns
               else pd.Series('legacy', index=tab.index))
-    why = []
+    why, marks = [], []
     for (_, r), g in zip(tab.iterrows(), groups):
         w = ['alternate'] if float(r.get('n_alt', 0) or 0) > 0 else []
         w += policy_reasons(r, policy.tests_of(g), policy)
-        why.append('; '.join(w))
+        base = '; '.join(w)
+        mark = '?' if w else ''
+        rec = (verdicts.get(str(r['level_id']).strip()) if verdicts
+               else None)
+        if rec is not None:
+            mark, words = verdict_mark(r, rec)
+            if mark:
+                base = '; '.join(x for x in (base, words) if x)
+            else:
+                base = words + (' over: ' + base if base else '')
+        why.append(base)
+        marks.append(mark)
     tab['q_why'] = why
-    tab['question'] = ['?' if w else '' for w in why]
+    tab['question'] = marks
     return tab
+
+
+# ---------------------------------------------------------------------------
+# The user's verdicts (files.level_verdicts; level_verdicts.py)
+# ---------------------------------------------------------------------------
+Verdict = level_verdicts.Verdict
+read_verdicts = level_verdicts.read
+verdict_mark = level_verdicts.mark
+
+
+def configured_verdicts():
+    """The verdicts of the configuration in use (files.level_verdicts)."""
+    cfg = getattr(cl, 'CFG', None)
+    return read_verdicts(getattr(cfg, 'level_verdicts', '') or '')
 
 
 def adopted_support(ctx, tab):
@@ -3661,7 +3702,11 @@ def match_kinds(tab):
     ``real``  and it matches a recorded line that counts as evidence for the
               level: within FREE_SIGMA of where it is predicted, not a row the
               `bright` reading won, and with its own ln R_t positive
-    ``free``  and the feature is claimed by no other accepted transition
+    ``free``  and the feature is the level's own: no other accepted
+              transition claims it (C = 0), or the level carries at least
+              [audit] dominant_share (0.5) of its predicted light,
+              I_pred / (I_pred + C) - a blend it dominates (the user's rule A,
+              2026-11-19: 000656 kept only 3 of its 8 lines without it)
 
     support(), print_detail() and the J fingerprint all ask the same question
     of the same table and must get the same answer, so they all ask it here.
@@ -3675,7 +3720,12 @@ def match_kinds(tab):
     r = tab['ln_R'].to_numpy(dtype=float)
     real = (seen & m & ~o & (r > 0.0)
             & (np.abs(d) <= FREE_SIGMA * w / N_SIGMA))
-    return seen, real, real & (c == 0.0)
+    i = (np.nan_to_num(tab['I_pred'].to_numpy(dtype=float), nan=0.0)
+         if 'I_pred' in tab.columns else np.zeros(len(tab)))
+    share = np.where(c > 0.0, i / np.maximum(i + np.maximum(c, 0.0), 1e-300),
+                     0.0)
+    own = (c == 0.0) | (share >= audit_policy().dominant_share)
+    return seen, real, real & own
 
 
 # ---------------------------------------------------------------------------
@@ -3937,7 +3987,9 @@ def support(ctx, level_id, e):
     On a feature other transitions already claim it is the blend test: the
     component's light must improve, or at least not spoil, the account of the
     feature's brightness.  It is FREE support when, in addition, the observed
-    feature is claimed by no other accepted transition (C = 0).  Without
+    feature is the level's own: claimed by no other accepted transition
+    (C = 0), or carrying at least [audit] dominant_share of its predicted
+    light from this level (match_kinds).  Without
     the first condition a prediction with a 1.5 per cent chance of being
     recorded counts as support the moment any line happens to lie within the
     matching window - a coincidence, and the same one that makes n_match the
@@ -4493,14 +4545,17 @@ def register_unknown(ctx, idx, en, trans, mapping, e_meas, id_of, log=print):
     return len(pid)
 
 
-def questionable_levels(path, log=print):
+def questionable_levels(path, log=print, verdicts=None):
     """The levels the last report of ``path`` marks with a question mark.
 
     That is the `question` column of level_positions.csv: '?' wherever the
     scan found an alternate position within --alt-drop of the adopted one, or
     the adopted position fails a test of the [audit] policy (section 5).  It
     is the run's own record of which positions are not settled, written by the
-    last --scan or --audit.
+    last --scan or --audit.  The user's `verdicts` (read_verdicts), if given,
+    are applied again over it (verdict_mark), so that a verdict written after
+    the report counts too: a `firm` level whose alternate was denied is not
+    released, a `?` level is.
     """
     if not os.path.exists(path):
         raise SystemExit(f"{path} not found: --drop-all-questionable needs "
@@ -4509,8 +4564,24 @@ def questionable_levels(path, log=print):
     if 'question' not in t.columns:
         raise SystemExit(f"{path} has no `question` column: it was not "
                          f"written by a --scan or --audit run")
-    q = t[t['question'].astype(str).str.strip() == '?']
-    return [str(x) for x in q['level_id']]
+    marked = (t['question'].fillna('').astype(str).str.strip() == '?')
+    if verdicts:
+        kept, added = [], []
+        for k, r in t.iterrows():
+            rec = verdicts.get(str(r['level_id']).strip())
+            if rec is None:
+                continue
+            mark = verdict_mark(r, rec)[0] == '?'
+            if marked[k] and not mark:
+                kept.append(str(r['level_id']))
+            elif mark and not marked[k]:
+                added.append(str(r['level_id']))
+            marked[k] = mark
+        log(f"  the user's verdicts: {len(kept)} level(s) firm and kept"
+            + (f" ({', '.join(kept)})" if kept else '')
+            + f", {len(added)} questioned that the report did not mark"
+            + (f" ({', '.join(added)})" if added else ''))
+    return [str(x) for x in t.loc[marked, 'level_id']]
 
 
 def release_levels(ctx, ids, args, log=print):
@@ -4702,9 +4773,9 @@ def claimed_observations(ctx, tab, e, level_id, energies):
     """
     if tab is None or not len(tab):
         return []
-    _, real, free = match_kinds(tab)
+    _, real, _ = match_kinds(tab)
     rows = []
-    for (_, r), is_real, is_free in zip(tab.iterrows(), real, free):
+    for (_, r), is_real in zip(tab.iterrows(), real):
         if not is_real:
             continue
         p = str(r['partner'])
@@ -4717,7 +4788,7 @@ def claimed_observations(ctx, tab, e, level_id, energies):
             continue
         # the light this transition carries of what the feature is claimed to
         # carry: 1 on a free feature, its share of the total on a blended one
-        claimed = 0.0 if is_free else float(np.nan_to_num(r['C']))
+        claimed = max(float(np.nan_to_num(r['C'])), 0.0)
         share = float(r['I_pred']) / max(float(r['I_pred']) + claimed, 1e-30)
         up = e > energies.get(p, np.nan)
         rows.append(dict(low_id=p if up else str(level_id),
@@ -5389,7 +5460,9 @@ def parse_args(argv):
                         'default level_positions.csv) marks questionable - '
                         'the levels whose `question` column is `?`, those the '
                         'scan found an alternate position for or that fail '
-                        'a test of the [audit] policy - so that their '
+                        'a test of the [audit] policy, with the user\'s '
+                        'verdicts (files.level_verdicts) applied over it - '
+                        'so that their '
                         'lines are free for the level being searched for.  '
                         'The released levels keep their adopted energies and '
                         'go on serving as partners; only their claim on the '
@@ -5606,7 +5679,8 @@ def main(argv=None):
 
     if args.unknown:
         if args.drop_questionable:
-            release_levels(ctx, questionable_levels(args.out), args)
+            release_levels(ctx, questionable_levels(
+                args.out, verdicts=configured_verdicts()), args)
         en, trans, mapping, e_meas, per_cfg, whole, id_of = unfound_theory(ctx)
         ctx.prior = None if args.no_prior else fit_position_prior(en)
         slots = []
@@ -5768,7 +5842,8 @@ def main(argv=None):
         grp = level_groups(tab['level_id'], policy)
         tab['group'] = [grp[str(i)] for i in tab['level_id']]
         adopted_support(ctx, tab)
-        mark_questions(tab, policy)
+        verdicts = configured_verdicts()
+        mark_questions(tab, policy, verdicts)
         tab['scanned'] = scanned
         n_cached = scanned.count('registry')
         print(f"  windows actually scanned: {len(scanned) - n_cached}"
@@ -5784,7 +5859,7 @@ def main(argv=None):
             tab['S'] = [score_S(j, p, n) if np.isfinite(j) else s0
                         for j, p, n, s0 in zip(rj, tab['ln_P'], tab['n_pos'],
                                                tab['S'])]
-            mark_questions(tab, policy)
+            mark_questions(tab, policy, verdicts)
 
     tab = order_report(tab)
     mc.save_table(tab, args.out, decimals={

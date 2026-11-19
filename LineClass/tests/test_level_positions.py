@@ -855,7 +855,12 @@ def test_a_found_rows_own_lines_are_released_to_the_search():
     assert ctx.unknown_level['n_own'] == 1
 
 
-def test_the_released_lines_make_the_position_the_level_holds_score():
+def test_the_released_lines_make_the_position_the_level_holds_score(
+        monkeypatch):
+    # free as it was before rule A: no other claim at all (a level's own
+    # line counted against it would otherwise pass as a blend it dominates)
+    monkeypatch.setattr(lp, 'audit_policy',
+                        lambda: config.AuditPolicy(dominant_share=1.01))
     ctx, en, trans, mapping, e_meas, id_of = _found_ctx()
     lp.register_unknown(ctx, 4, en, trans, mapping, e_meas, id_of,
                         log=lambda *a: None)
@@ -1796,3 +1801,116 @@ def test_an_unknown_audit_test_is_refused():
     with tempfile.TemporaryDirectory() as d:
         with pytest.raises(config.ConfigError):
             config.load(_set_config(d, 'new = ["S", "fre"]\n'))
+
+
+# ---------------------------------------------------------------------------
+# The user's verdicts (files.level_verdicts)
+# ---------------------------------------------------------------------------
+VERDICT_HEAD = 'level_id\tverdict\tE_alt\tdate\tnote\n'
+
+
+def verdicts_file(d, body, head=VERDICT_HEAD, newline='\n'):
+    path = os.path.join(d, 'level_verdicts.txt')
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        fh.write((head + body).replace('\n', newline))
+    return path
+
+
+def test_the_verdicts_are_read_as_excel_saves_them():
+    with tempfile.TemporaryDirectory() as d:
+        path = verdicts_file(d, (
+            '"# a comment, quoted by Excel"\t\t\t\t\n'
+            'A\tfirm\t100.5\t11/18/2026\t"pair, JK-pure"\n'
+            'A\tFirm\t130.25\t\t\n'
+            'B\t?\t\t\t\n'
+            '\t\t\t\t\n'), newline='\r\n')
+        v = lp.read_verdicts(path)
+    assert set(v) == {'A', 'B'}
+    assert v['A'] == lp.Verdict('firm', (100.5, 130.25), 'pair, JK-pure')
+    assert v['B'] == lp.Verdict('?', (), '')
+    assert lp.read_verdicts('') == {}
+    assert lp.read_verdicts(os.path.join('no', 'such', 'file.txt')) == {}
+
+
+@pytest.mark.parametrize('body, words', [
+    ('A\tfine\t\t\t\n', 'must be one of'),
+    ('A\tfirm\t1.0\t\t\nA\t?\t\t\t\n', 'given the verdicts'),
+    ('A\tfirm\tabc\t\t\n', 'not a number')])
+def test_a_bad_verdicts_row_stops_the_run(body, words):
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(SystemExit, match=words):
+            lp.read_verdicts(verdicts_file(d, body))
+
+
+def test_a_verdicts_file_without_its_columns_is_refused():
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(SystemExit, match='header'):
+            lp.read_verdicts(verdicts_file(d, 'A\tfirm\n', head='id\tv\n'))
+
+
+FIRM = lp.Verdict('firm', (1046.9987,), '')
+
+
+@pytest.mark.parametrize('row, rec, mark, start', [
+    # the alternate denied, found again a little off: the mark is lifted
+    (dict(n_alt=3, E=1000.0, dE_alt=47.2), FIRM, '',
+     'firm (user, alternate 1047.2000 denied)'),
+    # another alternate: not looked at yet, the mark stays
+    (dict(n_alt=3, E=1000.0, dE_alt=-20.0), FIRM, '?',
+     'firm (user), but the alternate at 980.0000'),
+    # no alternate: the policy's marks are lifted
+    (dict(n_alt=0, E=1000.0, dE_alt=np.nan), FIRM, '', 'firm (user)'),
+    # a ? verdict marks whatever the audit found
+    (dict(n_alt=0, E=1000.0, dE_alt=np.nan), lp.Verdict('?', (), ''), '?',
+     'user ?')])
+def test_what_a_verdict_does_to_the_mark(row, rec, mark, start):
+    got = lp.verdict_mark(row, rec)
+    assert got[0] == mark and got[1].startswith(start)
+
+
+def test_the_verdicts_are_applied_over_the_policy():
+    tab = pd.DataFrame({'level_id': ['A', 'B', 'C', 'D'],
+                        'n_alt': [2, 2, 0, 0], 'E': [1000.0] * 4,
+                        'dE_alt': [46.9, -20.0, np.nan, np.nan],
+                        'S': [-0.11, 9.0, 1.0, 9.0]})
+    v = {'A': FIRM, 'B': FIRM, 'C': FIRM, 'D': lp.Verdict('?', (), '')}
+    lp.mark_questions(tab, config.AuditPolicy(), v)
+    assert list(tab['question']) == ['', '?', '', '?']
+    assert tab['q_why'][0] == ('firm (user, alternate 1046.9000 denied) '
+                               'over: alternate; S -0.11 < 3')
+    assert tab['q_why'][1].startswith('alternate; firm (user), but')
+    assert tab['q_why'][2] == 'firm (user) over: S 1.00 < 3'
+    assert tab['q_why'][3] == 'user ?'
+
+
+def test_drop_all_questionable_follows_the_verdicts_over_an_older_report():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, 'level_positions.csv')
+        pd.DataFrame({'level_id': ['A', 'B', 'C', 'D'],
+                      'question': ['?', '?', '', '?'],
+                      'n_alt': [2, 2, 0, 0], 'E': [1000.0] * 4,
+                      'dE_alt': [46.9, -20.0, np.nan, np.nan]}
+                     ).to_csv(path, index=False)
+        said = []
+        got = lp.questionable_levels(
+            path, log=said.append,
+            verdicts={'A': FIRM, 'B': FIRM, 'C': lp.Verdict('?', (), '')})
+    # A is firm and its alternate was denied; B has another alternate; C is
+    # questioned by the user; D is the report's own mark
+    assert got == ['B', 'C', 'D']
+    assert '1 level(s) firm and kept (A)' in said[0]
+    assert '1 questioned that the report did not mark (C)' in said[0]
+
+
+def test_a_blend_the_level_dominates_is_its_own_line():
+    # rule A (2026-11-19): 000656's blends, 90-94 per cent its light, count
+    # as free; a minor component does not
+    tab = pd.DataFrame({'matched': [True] * 4, 'P_obs': [0.8] * 4,
+                        'd': [0.0] * 4, 'C': [0.0, 1514.0, 256015.9, 1514.0],
+                        'over': [False] * 4, 'W': [1.0] * 4,
+                        'ln_R': [4.7, 1.39, 0.68, 1.39],
+                        'I_pred': [10919.1, 16744.5, 1233.6, 1514.0]})
+    seen, real, free = lp.match_kinds(tab)
+    assert list(free) == [True, True, False, True]     # 0.5 exactly counts
+    tab['I_pred'] = [10919.1, 16744.5, 1233.6, 1513.9]
+    assert list(lp.match_kinds(tab)[2]) == [True, True, False, False]

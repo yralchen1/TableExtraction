@@ -3382,7 +3382,7 @@ the empty `level_id` cells and writes eight columns after the existing ones:
 | `unc_sys` | √(u_cal² + u_hfs² + u_kappa²), the parts the two `lopt_perturb.py` passes measure |
 | `unc_tot` | √(unc_stat² + unc_sys²), which is `D2tot*` of `levels_set3.csv` |
 | `N_lines` | LOPT's line count without its "L" and "D" parts |
-| `Notes` | `N` new (`new_levels.txt`), `R` revised (`revised_level_energies.csv`), `D` discarded (`discarded_levels.csv`); letters combine, e.g. `NR`. `Q` questionable (`questionable_levels.txt`, the list kept by hand) follows a comma: `Q` alone, or `NR,Q` |
+| `Notes` | `N` new (`new_levels.txt`), `R` revised (`revised_level_energies.csv`), `D` discarded (`discarded_levels.csv`); letters combine, e.g. `NR`. `Q` questionable (verdict `?` in `level_verdicts.txt`, the user's verdicts) follows a comma: `Q` alone, or `NR,Q` |
 
 The uncertainties are read from `final/levels_set3.csv`. So after any change to the calibration,
 the uncertainty model or kappa, the order is:
@@ -4643,7 +4643,7 @@ given up.
     tables.
 - `action` and the `proposed_*` columns: what `--write` does.
 - `notes`, which mark:
-  - a questionable level (status other than "firm" in `questionable_levels.txt`). Its
+  - a questionable level (verdict `?` in `level_verdicts.txt`). Its
     calculated A is welcome, because whether its lines then line up in IDEN2 tests the
     identification;
   - a resolved level;
@@ -5651,6 +5651,28 @@ free-line test at the adopted position, from `support()`). `q_why` lists every r
 `alternate; S 2.49 < 3; free 3 < 4`. The marks are for review; `--drop-all-questionable` releases
 every marked level.
 
+**Free lines: rule A** (2026-11-19, the user's). A line counts as free for the `free` test when no
+other accepted transition claims it, or when the level carries at least `[audit] dominant_share`
+(0.5) of its predicted light, I_pred / (I_pred + C): a blend the level dominates. Before, any other
+claim disqualified a line, and 000656 kept 3 of its 8 lines (its three blends carry 90-94 % of the
+predicted light); now it has 6. Recounted on the audit of 2026-11-19, 10 of the 20 new or revised
+levels below 4 free lines rose to 4 or more. The definition lives in `match_kinds`, so the
+`--unknown` searches use it too.
+
+**The user's verdicts** (`level_verdicts.txt`, `files.level_verdicts`; 2026-11-19). The verdicts
+made in review persist in this hand-kept, tab-delimited file (Excel-saved is fine): `level_id`,
+`verdict`, `E_alt`, `date`, `note`, one row per alternate position looked at. `firm` lifts the mark
+while the level has no alternate or its alternate lies within 0.5 cm⁻¹ of an `E_alt` (one denied);
+a different alternate brings the mark back. `?` keeps the level marked whatever the scan finds.
+`q_why` says which (`firm (user, alternate ... denied) over: ...`, `user ?`), and
+`--drop-all-questionable` applies the verdicts again over the report it reads, so a firm level's
+lines are not released and a `?` level's are. `prepare_audit.py` shows them in the review copy
+(below). Seeded 2026-11-19 from the review copy: 12 `firm`, 28 `?`. The registry `level_positions_firm.csv` is something else: a cache of settled scans
+(written by every `--scan`/`--audit` run, keyed by a fingerprint of what the scan depends on, so
+that `--use-firm` can skip it), never edited by hand. Since 2026-11-19 this file is also the list of
+questionable levels: `levels_pub.py` marks the `?` levels Q and `hfs_A_candidates.py` notes them;
+the old hand-kept `questionable_levels.txt` is retired (git keeps it).
+
 On 2026-10-16 the policy marked 24 of the 89 new and revised levels:
 - **10 with an alternate.**
 - **2 with S < 3:** 000494, and the legacy 000484.
@@ -6376,7 +6398,21 @@ python level_positions.py --audit                # + what each alternate rests o
 python level_positions.py --scan --alt-drop 3    # a stricter definition of "alternate"
 python level_positions.py --audit --use-firm     # + skip the levels already settled (fast)
 python level_positions.py --lopt LOPT_output_lines.txt   # judge a hand-revised run
+python prepare_audit.py                          # the review copy of the audit (below)
 ```
+
+**The review copy** (`prepare_audit.py`, 2026-11-19). The decisions on questionable levels are
+kept in one place, the verdicts file `level_verdicts.txt` (see "The user's verdicts" above).
+`prepare_audit.py` writes `<set>/level_positions_audit_<set>.xlsx`, a copy of
+`level_positions.xlsx` with seven columns added after `action`: `IDEN_id` (through
+`IDEN2/IDEN_level_ids.txt`), `E_new` = E + dE_alt (the alternate the audit suggests now), and
+from the verdicts file `verdict`, `E_alt` (the denied alternate nearest `E_new`), `d` = E_new -
+E_alt and `note`; and `open`, which says why a questionable level needs looking at: `no verdict`,
+or `new alternate` (no `E_alt` within 0.5 cm⁻¹ of `E_new`). The open levels are the ones to look
+at in IDEN2; a decision goes into the verdicts file, and a rerun of the program shows it. The
+review copy holds nothing of its own and is replaced on every run; `level_positions.xlsx` is only
+read. The summary lists the open levels with their rows, and warns of a level of the verdicts
+file that is not in the audit.
 
 **An empty `action` is not a clean bill of health.** `action` answers one question only — is
 there somewhere better to put this level? — and it is blank whenever the scan found no alternate.
@@ -6778,7 +6814,8 @@ which is to say the levels the scan found an alternate position for — that con
 circular, and a real level can be hidden behind assignments that may not survive the next revision.
 `--drop-all-questionable` removes it. Every accepted assignment of every level whose `question`
 column in `--out` (default `level_positions.csv`) is `?` (an alternate, or since 2026-10-16 a
-failed test of the `[audit]` policy) is dropped before the search: subtracted
+failed test of the `[audit]` policy; since 2026-11-19 with the user's verdicts applied over it,
+see above) is dropped before the search: subtracted
 from `C`, from the count of accepted transitions on each feature, and from the `own_claim` of both
 levels the row joined. In the run of 2026-09-14 that is **263 assignments of 69 levels**, and it
 takes the recorded lines carrying no accepted transition from 2125 to 2314 of 6668.

@@ -103,7 +103,7 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'files.blend_separations',
              'files.hfs_A_levels', 'files.hfs_satellites',
              'files.kappa_exceptions', 'files.hfs_components',
-             'files.start_levels',
+             'files.start_levels', 'files.level_verdicts',
              'hfs.kappa.flag_unlisted',
              'hfs.kappa_spread', 'hfs.kappa_spread.1974',
              'hfs.kappa_spread.1969',
@@ -114,7 +114,7 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'hfs', 'hfs.resolved_levels', 'hfs.iden2_display',
              'audit', 'audit.legacy', 'audit.new', 'audit.revised',
              'audit.revised_as_legacy', 'audit.s_min', 'audit.min_free',
-             'audit.min_gain', 'audit.max_share'}
+             'audit.min_gain', 'audit.max_share', 'audit.dominant_share'}
 
 _SCHEMA = {
     'inherit': str,
@@ -127,7 +127,8 @@ _SCHEMA = {
               'inflated_unc': str, 'blend_separations': str,
               'hfs_A_levels': str,
               'hfs_satellites': str, 'kappa_exceptions': str,
-              'hfs_components': str, 'start_levels': str},
+              'hfs_components': str, 'start_levels': str,
+              'level_verdicts': str},
     'range': {'wn_min': float, 'wn_max': float},
     'levels': {'layout': {'sheet': str, 'columns': _StrMap}},
     'lines': {'layout': {'sheet': str, 'columns': _StrMap}},
@@ -145,7 +146,8 @@ _SCHEMA = {
             'kappa_spread': {e: float for e in ('1974', '1969')}},
     'audit': {'legacy': _StrList, 'new': _StrList, 'revised': _StrList,
               'revised_as_legacy': _StrList, 's_min': float,
-              'min_free': float, 'min_gain': float, 'max_share': float},
+              'min_free': float, 'min_gain': float, 'max_share': float,
+              'dominant_share': float},
 }
 
 
@@ -284,8 +286,9 @@ class AuditPolicy:
       S      S < s_min, S = ln_R_J + ln_P - ln(n_pos), the score --unknown
              ranks a candidate position by
       free   fewer than min_free free lines (observable, well centred, on
-             features no other accepted transition claims), or those lines
-             worth less than min_gain in ln R
+             features no other accepted transition claims, or of whose
+             predicted light the level carries dominant_share), or those
+             lines worth less than min_gain in ln R
       share  one line carrying max_share or more of the positive evidence
 
     The groups are `new` (files.new_levels), `revised` (files.level_overrides,
@@ -304,6 +307,10 @@ class AuditPolicy:
     min_free: float = 4.0
     min_gain: float = 8.0
     max_share: float = 0.45
+    # a line is a level's own (free) when no other accepted transition
+    # claims it, or when the level carries at least this share of its
+    # predicted light (the user's rule A, 2026-11-19)
+    dominant_share: float = 0.5
 
     def tests_of(self, group: str) -> tuple:
         """The tests named for `group` ('legacy', 'new' or 'revised')."""
@@ -348,6 +355,9 @@ class Config:
     # starts the levels from instead of their published energies (the warm
     # start, 2026-10-08; classify_lines.apply_start_levels); '' for none.
     start_levels: str = ''
+    # the user's verdicts on questioned levels (level_positions.py,
+    # read_verdicts); '' for none
+    level_verdicts: str = ''
     # [audit]: the tests level_positions.py applies at the adopted position
     audit: AuditPolicy = AuditPolicy()
 
@@ -694,7 +704,9 @@ def load(path: str = None) -> Config:
             s_min=float(a.get('s_min', d.s_min)),
             min_free=float(a.get('min_free', d.min_free)),
             min_gain=float(a.get('min_gain', d.min_gain)),
-            max_share=float(a.get('max_share', d.max_share)))
+            max_share=float(a.get('max_share', d.max_share)),
+            dominant_share=float(a.get('dominant_share',
+                                       d.dominant_share)))
 
     return Config(
         path=path,
@@ -732,6 +744,8 @@ def load(path: str = None) -> Config:
         blend_seps=_blend_separations(raw.get('blends', {})),
         start_levels=(_p('start_levels')
                       if raw['files'].get('start_levels') else ''),
+        level_verdicts=(_p('level_verdicts')
+                        if raw['files'].get('level_verdicts') else ''),
         audit=audit,
     )
 

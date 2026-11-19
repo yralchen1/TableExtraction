@@ -57,6 +57,14 @@ line_decisions = "line_decisions.csv"
 # its row of IDEN2/enlev.dat, and cowan_lid, its level number in the Cowan
 # calculation.  cowan_lid is what its calculated transitions are found by.
 new_levels = "new_levels.txt"
+# The user's verdicts on the levels the audit questions (level_positions.py,
+# read_verdicts; 2026-11-19), hand-kept and tab-delimited, Excel-saved is
+# fine: level_id, verdict (`firm` or `?`), E_alt (the alternate position
+# looked at and denied), date, note.  A `firm` level loses the audit's
+# question mark while its alternate is one listed in E_alt (within 0.5 cm^-1)
+# or it has none; a `?` level keeps one whatever the audit finds.  The
+# question column, and so --drop-all-questionable, follows them.
+level_verdicts = "level_verdicts.txt"
 # The calculated transitions of those levels, in the layout of Icalc.xlsx.
 # NO LONGER NEEDED, and commented out: a level carrying a cowan_lid has its
 # transitions read straight from the Cowan transition list tp_E1_no_trials.xlsx
@@ -328,6 +336,11 @@ s_min     = 3.0
 min_free  = 4
 min_gain  = 8.0
 max_share = 0.45
+# A free line is one no other accepted transition claims, or one where the
+# level carries at least this share of the predicted light (a blend it
+# dominates; the user's rule A, 2026-11-19 - 000656's three blends of 90-94
+# per cent had not counted).
+dominant_share = 0.5
 
 [decisions]
 # The decision ledger (files.line_decisions) is obeyed to the letter: an

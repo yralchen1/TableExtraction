@@ -185,9 +185,11 @@ def setup(tmp_path):
     (sd / L.ID_MAP).write_text(
         'level_id\tIDEN_id\n%s\t1253\n%s\t1252\n%s\t900\n%s\t658\n'
         % (ID(1), ID(31), ID(50), ID(90)), encoding='utf-8')
-    quest = tmp_path / 'questionable_levels.txt'
-    quest.write_text('level_id\tE\n%s\t141300.5\n%s\t60010.1\n'
-                     % (ID(90), ID(50)), encoding='utf-8')
+    # the user's verdicts: `?` marks Q, `firm` does not
+    quest = tmp_path / 'level_verdicts.txt'
+    quest.write_text('level_id\tverdict\tE_alt\tdate\tnote\n'
+                     '%s\t?\t\t\t\n%s\t?\t\t\t\n%s\tfirm\t\t\t\n'
+                     % (ID(90), ID(50), ID(31)), encoding='utf-8')
     new = tmp_path / 'new_levels.txt'
     new.write_text('level_id\tE\n%s\t141300.5\n' % ID(90), encoding='utf-8')
     rev = tmp_path / 'revised.csv'
@@ -196,15 +198,14 @@ def setup(tmp_path):
     disc.write_text('level_id\n', encoding='utf-8')
     cfg = types.SimpleNamespace(new_levels=str(new), level_overrides=str(rev),
                                 discarded_levels=str(disc))
-    cfg.questionable = str(quest)
+    cfg.level_verdicts = str(quest)
     return pub, sd, cfg
 
 
 def run(pub, sd, cfg, **kw):
     kw.setdefault('calc', CALC)
     kw.setdefault('lid_of_id', LID_OF_ID)
-    return L.build(str(pub), str(sd), cfg, questionable_path=cfg.questionable,
-                   **kw)
+    return L.build(str(pub), str(sd), cfg, **kw)
 
 
 def read_back(path):

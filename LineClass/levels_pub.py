@@ -18,7 +18,8 @@ existing ones:
             without its "L" and "D" parts
   Notes     N new (new_levels.txt), R revised (revised_level_energies.csv),
             D discarded (discarded_levels.csv); letters combine, e.g. "NR".
-            Q questionable (questionable_levels.txt, the list kept by hand)
+            Q questionable (verdict `?` in level_verdicts.txt, the user's
+            verdicts on the audit; files.level_verdicts)
             is added after a comma: "Q" alone, or "NR,Q"
 
 The uncertainties come from final/levels_set3.csv, which make_set3.py
@@ -75,6 +76,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import config                              # noqa: E402
+import level_verdicts                      # noqa: E402
 import output_files                        # noqa: E402
 
 PUB = os.path.join(HERE, 'levels_pub.xlsx')
@@ -84,7 +86,6 @@ SET3_LEVELS = 'levels_set3.csv'
 TOTAL = 'D2tot*'
 
 ID_MAP = os.path.join('IDEN2', 'IDEN_level_ids.txt')
-QUESTIONABLE = os.path.join(HERE, 'questionable_levels.txt')
 
 NEW_COLUMNS = ['lid', 'iden2_id', 'Eopt', 'unc_stat', 'unc_sys', 'unc_tot',
                'N_lines', 'Notes']
@@ -273,6 +274,13 @@ def id_column(path, name='level_id', sep=','):
                 for r in csv.DictReader(fh, delimiter=sep)} - {''}
 
 
+def questionable_ids(path):
+    """The levels the user's verdicts file (level_verdicts.txt) gives the
+    verdict `?`: the questionable levels, which the table marks Q."""
+    return {lid for lid, v in level_verdicts.read(path).items()
+            if v.verdict == '?'}
+
+
 def iden2_rows(set_dir):
     """{level_id: row of the set's IDEN2/enlev.dat}, {} without the table."""
     path = os.path.join(set_dir, ID_MAP)
@@ -420,8 +428,11 @@ def insert_missing(ws, cols, rows, lids, calc, lid_of_id, id_of_lid, wanted):
 
 
 def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None,
-          questionable_path=QUESTIONABLE):
+          verdicts_path=None):
     """Read everything and work the new cells out.
+
+    `verdicts_path` is the user's verdicts file, the configuration's
+    files.level_verdicts if not given.
 
     Returns `(wb, ws, cells, report)`: the workbook, its sheet, the cells to
     write as {(row, column name): value}, and the report's lines.  Raises
@@ -450,7 +461,9 @@ def build(pub_path, set_dir, cfg, calc=None, lid_of_id=None,
     if inserted:
         rows = read_rows(ws, cols)
     lids, problems = match_rows(rows, calc, lid_of_id)
-    questionable = id_column(questionable_path, sep='\t')
+    questionable = questionable_ids(
+        verdicts_path if verdicts_path is not None
+        else getattr(cfg, 'level_verdicts', ''))
     notes = notes_of(id_column(cfg.new_levels, sep='\t'),
                      id_column(cfg.level_overrides), discarded, questionable)
 

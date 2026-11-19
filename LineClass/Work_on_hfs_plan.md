@@ -54,7 +54,8 @@ The last work, 2026-10-15 to 10-17:
   and the hfs columns of iter_hfs's table are classify_lines.py's of
   2026-10-15.
 * **2026-10-16/17, the dependability policy** of the level audit (`[audit]` of
-  the configuration; Step 0). `questionable_levels.txt` now holds 28 levels.
+  the configuration; Step 0). `questionable_levels.txt` now holds 28 levels
+  (retired 2026-11-19: the verdicts file took its place, below).
 * **2026-11, LOPT 6.** `lopt.bat` now runs LOPT 6, the user's new Python
   implementation, in place of the Perl 5 build (section 8). Its default blend
   model is the centroid with separation equations, and it accepts a file of
@@ -130,8 +131,17 @@ The last work, 2026-10-15 to 10-17:
    added (43327.80, 000276 - 000565, 5G, strong Ritz mismatch), which LOPT
    carries as a P record (Ritz records 7842 -> 7843). Medians unchanged.
 2. The user's verdict on each mark of the `[audit]` policy (column `q_why` of
-   `iter_hfs/level_positions.csv`), and `questionable_levels.txt` brought in
-   line with it.
+   `iter_hfs/level_positions.csv`). **Done 2026-11-19.** The verdicts are
+   kept in one place, `level_verdicts.txt` (files.level_verdicts: `firm` or
+   `?`, the alternates denied, a note), which level_positions.py applies over
+   its marks (and --drop-all-questionable over the report) and
+   `prepare_audit.py` shows in the review copy. 55 levels: 26 firm, 29 ?; no
+   questionable level is left open. The free-line test now counts a blend the
+   level dominates (rule A, `[audit] dominant_share` 0.5). levels_pub.py and
+   hfs_A_candidates.py take the questionable levels from the `?` verdicts;
+   `questionable_levels.txt` is retired (it lacked only 000494). To do: the
+   audit rerun (`level_positions.py --set iter_hfs --audit`, then
+   `prepare_audit.py`) and levels_pub.py, for the new marks and 000494's Q.
 3. Step 8: the tracked outputs and the documentation.
 4. Step 9: the publication tables. Open in it: kappa held against the fit, and
    the list of contradictions for the paper's discussion.
@@ -1133,7 +1143,8 @@ Of the 58, the user counts 16 as firm (2026-09-29): the twelve 4f2.5g levels
 000585, 000586, 000587, 000591, 000592, 000599, 000605, 000611, 000613,
 000616, 000617, 000620, and 000642 (the alternate is its other hfs
 component), 000538, 000376 and 000347 (the alternate loses lines). The other
-42 are questionable. The list is `questionable_levels.txt`.
+42 are questionable. The list was `questionable_levels.txt` (retired 2026-11-19 for
+`level_verdicts.txt`).
 *Test:* `check_sync.py` reports no ERROR findings, and `level_positions.py
 --audit` leaves no unreviewed question mark.
 
@@ -2047,7 +2058,8 @@ table").* `levels_pub.xlsx` has one row per level of the Cowan calculation. The 
 its empty `level_id` cells, joining through `IDEN2/IDEN_level_ids.txt` and never by
 energy, and writes eight columns: `lid`, `iden2_id`, `Eopt` (final/'s center of gravity),
 `unc_stat`, `unc_sys`, `unc_tot` (from `final/levels_set3.csv`), `N_lines` and `Notes`
-(N new, R revised, D discarded, and `,Q` for the levels of `questionable_levels.txt`). It
+(N new, R revised, D discarded, and `,Q` for the levels of `questionable_levels.txt`, since
+2026-11-19 the verdict `?` of `level_verdicts.txt`). It
 stops if `levels_set3.csv` belongs to another fit. So it is the last step after any
 rerun: the two chains, `lopt_perturb.py` twice, `make_set3.py --levels`, then
 `python levels_pub.py`. On 2026-10-16: 1037 rows, 653 with an energy of the fit, 62 N,
