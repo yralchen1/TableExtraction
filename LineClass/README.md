@@ -2827,6 +2827,38 @@ model. Measured on the plain lines alone, on LOPT's residuals, the constant is 0
 A model of kappa as a function of |D| (or of |D| over the line width) is left until after the
 conference. `--no-spread` restores the two-term model and writes no spread.
 
+**The held kappas against the fit, rechecked (2026-11-19).** The values held, plain_1974
+0.751 and plain_1969 0.440, date from before the spread and intensity terms. Two runs on
+iter_hfs's table with the reconciliation edits of `kappa_candidates.csv`, both with
+`--no-write`, compared them with the data:
+
+| | held run (`--hold-kappa`) | free run |
+|---|---|---|
+| plain_1974 | 0.751 held; free on the same weights 0.580 ± 0.046 | 0.376 ± 0.039 |
+| plain_1969 | 0.440 held; free on the same weights 0.324 ± 0.038 | 0.202 ± 0.032 |
+| s (1974 / 1969) | 0.096 / 0.206 | 0.175 / 0.136 |
+| k (1974 / 1969) | 3.10 / 3.04 | 4.35 / 3.74 |
+| rms of the residuals | 0.1344 cm⁻¹ | 0.1320 cm⁻¹ |
+| calibration error, rms | 0.00539 Å | 0.00552 Å |
+
+The ± are the jackknife uncertainties (u_jack). The calibration curve is the same within its
+uncertainties either way, so the held kappas cost the calibration nothing. But on the same
+weights the data put the plain kappas about 3.7σ (1974) and 3σ (1969) below the held values:
+**the held values are stale.** The fully free run is not a better measurement. As kappa
+falls, the 1974 spread nearly doubles and down-weights the wide patterns, the only lines
+that measure kappa, so kappa falls further. It is the slide of 2026-10-15 (0.43–0.60) and the
+runaway of the head rows of 2026-10-06, now through the spread term. Its end point is set by
+where the iteration stops, not by the plates. Moving plain_1974 from 0.751 to 0.376 would
+shift each line by 0.375·D (0.19 cm⁻¹ at |D| = 0.5), several times the line uncertainties,
+and would call for a review of the changed assignments.
+
+Decision (user, 2026-11-19): hold kappa for the reruns before Step 9, and record the
+discrepancy as open. The defensible single step, if kappa is to move, is the same-weights
+values (0.58 and 0.32) followed by a review of the assignments they change, not the free
+run's. The lasting fix is the kappa model left open above: kappa as a function of |D|, or a
+class of its own for the wide plain patterns, so that one kappa per class no longer has to
+describe a mixture of lines set at the head and lines set near 0.85.
+
 **Weak lines: the intensity term (2026-11-19).** A weak line is set on less accurately than a
 strong one, and the class model did not know it. On the calibration's own residuals (the run
 of 2026-10-15), each divided by its line's uncertainty and by √(1 − h), the rms fell from 1.23

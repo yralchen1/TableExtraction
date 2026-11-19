@@ -37,3 +37,5 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 23529.3109	059003.000039	059003.000148	head		10/6/2026	"head of 1244-1131 pattern; kappa_line 0.94; inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
 26314.727	059003.000148	059003.000200	head		10/6/2026	head of 1131-1077 pattern
 28596.22183	059003.000141	059003.000202	head		10/6/2026	head of 1138-1076 pattern
+52321.75494161427	059003.000142	059003.000450	head		11/19/2026	"measured at the head of 1139-933 (D = -1.04): z -3.8 at class 0.44, -1.4  at head; no char"
+44134.04010314571	059003.000190	059003.000659	cg	059003.000190	11/19/2026	"between the F = 3 and F = 2 groups of 1089 and at the center of gravity of 903; predicted 0.47 below the head, observed 0.54"

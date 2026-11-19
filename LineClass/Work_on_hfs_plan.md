@@ -142,9 +142,34 @@ The last work, 2026-10-15 to 10-17:
    `questionable_levels.txt` is retired (it lacked only 000494). To do: the
    audit rerun (`level_positions.py --set iter_hfs --audit`, then
    `prepare_audit.py`) and levels_pub.py, for the new marks and 000494's Q.
-3. Step 8: the tracked outputs and the documentation.
-4. Step 9: the publication tables. Open in it: kappa held against the fit, and
-   the list of contradictions for the paper's discussion.
+3. Step 8: the tracked outputs and the documentation. **Done 2026-11-19**
+   (section 5, Step 8).
+3a. Before Step 9 (user, 2026-11-19): reconcile `iter_hfs/kappa_candidates.csv`
+   of 2026-11-19 - 1 candidate-head (52321.755, 000142-000450), 1 audit-fails
+   (22372.691, 000150-000195, a held row that no longer fits) and 6 class-fails
+   (44134.040, 34406.941, 34042.649, 29686.369, 29056.178, 29774.950; the last
+   three fitted their class on 2026-10-07). It may call for another calibration
+   and rerun of both chains.
+   **Decided 2026-11-19** (the user edited the registries): 52321.7549 `head`
+   in kappa_exceptions.txt and its 0.5 inflation deleted; 44134.0401 `cg`
+   with 000190 `unresolved` (like 33934.5817 and 27443.3325) and its 0.4
+   inflation deleted; 22372.6908 inflated 0.06 -> 0.10; 22800.9719 0.05 ->
+   0.08; 44494.0809's 0.23 deleted (fits at its cg row); 29686.3691 0.14 and
+   29774.9500 0.15 added (strong heads 0.15 off, not a kappa effect);
+   29056.1776's 0.17 kept, its reason rewritten without "hfs"; 34406.941
+   0.2 -> 0.17, no kappa row (pulled toward the equally strong blend
+   34406.491, 0.45 below; its pattern too narrow to measure kappa);
+   34042.6488 left at 0.35, which covers it (class-fails stays listed, since
+   the test ignores the inflation of a line not held). Next (the user): the
+   calibration with `--hold-kappa`, then both chains.
+3b. The held kappas are stale (2026-11-19, README "The held kappas against
+   the fit, rechecked"): on the same weights the data give plain_1974
+   0.580(46) and plain_1969 0.324(38) against the held 0.751 and 0.440; a
+   fully free run slides to 0.376 and 0.202 through the spread term, which
+   is not a measurement. The user holds kappa for the reruns before Step 9;
+   the discrepancy stays open for item 6's kappa model.
+4. Step 9: the publication tables. Open in it: kappa held against the fit
+   (item 3b), and the list of contradictions for the paper's discussion.
 5. Step 10: the final line list; the user is to explain the approach.
 6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not
