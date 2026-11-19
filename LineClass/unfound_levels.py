@@ -10,12 +10,12 @@ Run from inside LineClass/:
 
 1.  The question
 ----------------
-Cowan's calculation gives Pr III 1253 levels.  636 of them have been found in
-the spectrum; the other 617 have never been placed, and each of them is an
+Cowan's calculation gives Pr III 1253 levels.  653 of them have been found in
+the spectrum; the other 600 have never been placed, and each of them is an
 energy the calculation predicts and the observed line list has never been
 searched for.  Searching for one is work - it means putting a trial energy into
 IDEN2 and looking at what lines fall on the transitions the level would then
-have - so the question this module answers is which of the 617 are worth the
+have - so the question this module answers is which of the 600 are worth the
 work.
 
 A level can only be found through its lines, so the answer is a count: how many
@@ -272,7 +272,7 @@ def validate(ctx, en, trans, mapping, per_cfg, whole, e_meas,
     A level's ``n_prom`` is computed from the calculation alone - calculated
     energy, calculated gA, the measured plate coverage and noise - and never
     looks at whether any line was in fact assigned to the level.  So it can be
-    scored on the 636 levels that HAVE been found by computing it for them as
+    scored on the 653 levels that HAVE been found by computing it for them as
     though they had not, and comparing it with the number of accepted lines
     each of them really carries in the run.
 

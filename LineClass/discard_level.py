@@ -13,7 +13,7 @@ This tool carries out the decision to stop claiming the position.
 WHAT IS BEING DENIED IS THE POSITION, NOT THE LEVEL
 ===================================================
 Cowan's calculation predicts both levels and will go on predicting them.  Of
-the 1253 calculated levels of Pr III, 636 have been found and 617 have never
+the 1253 calculated levels of Pr III, 653 have been found and 600 have never
 been placed, and what decides which pool a level is in is a single character -
 the ``*`` in columns 39-40 of ``IDEN2/enlev.dat``.  So this tool does not
 delete a level.  It UNFINDS it: puts it back among the levels nobody has

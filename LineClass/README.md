@@ -7170,7 +7170,7 @@ up. It rewrites both of them from the current fit and the current calculated int
 * **`IDEN2/enlev.dat`** — the measured energy of every found level and its uncertainty are
   taken from `LOPT_output_levels.txt`. The uncertainty is the larger of LOPT's `D1` and
   `D2tot`, rounded to a thousandth of a wavenumber, which is the rule the file already
-  follows for all 636 levels. The observed-minus-calculated column is recomputed from each
+  follows for all 653 levels. The observed-minus-calculated column is recomputed from each
   level's own calculated energy. A level that has **not** been found keeps its calculated
   energy as its adopted energy — this run knows nothing better — but its uncertainty is
   rewritten too, and there the column means something else entirely.
@@ -7268,17 +7268,17 @@ which would undo everything the run has done.
 The reader of the Cowan table is `cowan_gA.py`, a module of its own, because
 `level_positions.py` needs it too: it is the only source of a calculated strength for a
 transition of a level that has never been found, and so the only way to say which of the
-617 unfound levels are worth looking for. It also carries the join between the three
+600 unfound levels are worth looking for. It also carries the join between the three
 numberings of the same levels — the calculation's `lid`, IDEN2's row number, and Wyart's
 `level_id` — which it works out by aligning the two energy-ordered level lists and then
-checking the result against all 636 levels whose row number and `level_id` are both known.
+checking the result against all 653 levels whose row number and `level_id` are both known.
 
 ### Which unfound levels are worth searching for: `unfound_levels.py`
 
-**What it answers.** Cowan's calculation gives Pr III 1253 levels. 636 have been found; the
-other 617 have never been placed, and each of them is an energy the calculation predicts and
+**What it answers.** Cowan's calculation gives Pr III 1253 levels. 653 have been found; the
+other 600 have never been placed, and each of them is an energy the calculation predicts and
 the line list has never been searched for. Searching for one is an afternoon's work in IDEN2,
-so the question is which of the 617 to spend it on. A level can only be found through its
+so the question is which of the 600 to spend it on. A level can only be found through its
 lines, so the answer is a count: **how many of the transitions the calculation gives it would
 have been recorded on the plates**. One is never enough — a single line can be made to fit any
 energy, so one coincidence is no evidence — and ten is a position that, if the level is there
@@ -7977,8 +7977,8 @@ python discard_level.py --iden2-row 812 --undo
 ```
 
 **What is denied is the position, not the level.** Cowan's calculation predicts
-both levels and will go on predicting them. Of the 1253 calculated levels, 636
-have been found and 617 have never been placed, and what decides which pool a
+both levels and will go on predicting them. Of the 1253 calculated levels, 653
+have been found and 600 have never been placed, and what decides which pool a
 level is in is a single character — the `*` in columns 39–40 of
 `IDEN2/enlev.dat`. So the tool does not delete a level: it **unfinds** it, and
 `unfound_levels.py` ranks it again by `n_prom` while `level_positions.py

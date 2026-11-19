@@ -54,3 +54,4 @@ level_id	verdict	E_alt	date	note
 059003.000666	firm		11/19/2026	"4f2.5g, JK-pure pair"
 059003.000668	firm		11/19/2026	
 059003.000673	firm		11/19/2026	
+059003.000543	firm		11/19/2026	

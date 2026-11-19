@@ -543,7 +543,7 @@ level whose fingerprint is unchanged is not scanned again.
 The fingerprint is deliberately LOCAL.  A run in which one relocation has been
 accepted differs from the previous one in that level, in its partners, and in
 the lines near it; a fingerprint over the run as a whole would invalidate all
-636 entries and the registry would never save anything.  As written, accepting
+653 entries and the registry would never save anything.  As written, accepting
 a relocation costs a re-scan of the levels that share lines or partners with
 it and of nothing else.
 

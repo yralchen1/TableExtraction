@@ -63,7 +63,7 @@ Three different numberings of the same levels are in play:
                  like, used by every other file of the pipeline
 
 ``IDEN2/IDEN_level_ids.txt`` maps the IDEN2 index to the level_id, but only
-for the 636 levels that have been found; the other 617 have no level_id at
+for the 653 levels that have been found; the other 600 have no level_id at
 all, so for them there is nothing to join on.  :func:`match_to_enlev` supplies
 the missing half.
 
@@ -78,7 +78,7 @@ different J values is forbidden outright, and leaving a level unpaired costs
 ``GAP``.  An order reversal shows up as two adjacent unpaired levels, and a
 second pass pairs those off against each other by energy.
 
-The result is then checked, not trusted: every one of the 636 levels whose
+The result is then checked, not trusted: every one of the 653 levels whose
 IDEN2 index and level_id are both known must come out paired with the
 spreadsheet row carrying that same level_id.  A single disagreement raises
 :class:`MatchError` rather than returning a mapping that is wrong somewhere.

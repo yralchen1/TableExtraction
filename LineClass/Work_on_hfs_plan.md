@@ -2056,6 +2056,20 @@ unc_tot rises from 0.060 to about 0.066 with the rerun.
 `level_positions.csv` and `.xlsx`, `line_classifications.*`, `README.md`.
 Excel must be closed; budget about 10 minutes.
 
+*Done 2026-11-19, after the intensity term and the user's reruns of both chains.*
+`line_classifications.*`, the LOPT files and `levels_pub.xlsx` of iter_hfs and final/
+were already current (the user's commit 8671902). Regenerated: iter_hfs's audit
+(`level_positions.py --set iter_hfs --audit`, about 12 minutes: 653 levels, 37 with an
+alternate, 31 questionable), its review copy (`prepare_audit.py`: 29 settled by a
+verdict, 2 open - 000616, whose alternate moved to 138796.5641 away from the denied
+138863.0524, and 000543, newly marked at S 2.99 < 3) and `kappa_candidates.csv` (last
+made 2026-10-07: 634 lines tested; 1 candidate-head, 52321.755 000142-000450; 1
+audit-fails, 22372.691 000150-000195; 6 class-fails). The prose counts of found
+levels went from 636/617 to 653/600 (the working sets; the baseline's IDEN2 has 652).
+The baseline's own outputs in LineClass/ (`line_classifications.*`,
+`level_positions.*` of 2026-09-23/24) stay as they are: the baseline is locked, and
+regenerating them would mean running classify_lines.py on it.
+
 **Step 9 - the publication tables.** The Set 1 and Set 2 line lists, the A
 constant table with provenance per level, the adopted uncertainties of Step 1
 with the counts behind them, and a methods section stating every assumption
