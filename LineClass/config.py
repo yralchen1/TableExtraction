@@ -85,7 +85,13 @@ _ENUMS = {
 #: `flag_unlisted` is needed only by a configuration that names the list of
 #: Sugar's resolved components (files.hfs_components): it is the class of the
 #: flagged lines whose components he did not list (2026-10-06).
-HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c', 'flag_unlisted')
+#: `plain_1974_wide` splits the plain 1974 class by the width of the pattern
+#: (2026-11-19): a component of a plain 1974 line whose |D| exceeds
+#: [hfs] kappa_wide_D takes it; without it there is one plain 1974 class.
+WIDE_KAPPA_CLASS = 'plain_1974_wide'
+WIDE_KAPPA_ERA = 1974
+HFS_KAPPA_CLASSES = ('flag', 'plain_1974', 'plain_1969', 'c', 'flag_unlisted',
+                     WIDE_KAPPA_CLASS)
 
 #: The tests level_positions.py's audit can apply at a level's adopted
 #: position ([audit], 2026-10-16): `S` the score of the position, `free` its
@@ -104,7 +110,8 @@ _OPTIONAL = {'inherit', 'locked', 'derived_from',
              'files.hfs_A_levels', 'files.hfs_satellites',
              'files.kappa_exceptions', 'files.hfs_components',
              'files.start_levels', 'files.level_verdicts',
-             'hfs.kappa.flag_unlisted',
+             'hfs.kappa.flag_unlisted', 'hfs.kappa.plain_1974_wide',
+             'hfs.kappa_wide_D',
              'hfs.kappa_spread', 'hfs.kappa_spread.1974',
              'hfs.kappa_spread.1969',
              'decisions', 'decisions.max_forced_offset',
@@ -142,6 +149,7 @@ _SCHEMA = {
                'separation_factor': float, 'wide_characters': _StrList,
                'wide_separation_factor': float},
     'hfs': {'apply': bool, 'resolved_levels': _StrList, 'iden2_display': str,
+            'kappa_wide_D': float,
             'kappa': {k: _FloatPair for k in HFS_KAPPA_CLASSES},
             'kappa_spread': {e: float for e in ('1974', '1969')}},
     'audit': {'legacy': _StrList, 'new': _StrList, 'revised': _StrList,
@@ -236,7 +244,10 @@ class HfsSettings:
     `kappa_spread` gives, per era (1974, 1969), the line-to-line spread s
     of kappa about its class: a line of a fitted class gains s*|D| in its
     u_hfs_shift ([hfs.kappa_spread], written by wavelength_calibration.py
-    since 2026-10-15; none without the table).
+    since 2026-10-15; none without the table).  `kappa_wide_D` (cm^-1,
+    [hfs] kappa_wide_D) is where the plain 1974 class splits when
+    [hfs.kappa] gives plain_1974_wide (2026-11-19): a component with |D|
+    beyond it takes that class; 0.0 without the split.
     hfs_correction.py says what each of them means.
     """
     apply: bool = False
@@ -248,6 +259,7 @@ class HfsSettings:
     kappa_spread: tuple = ()    # ((era, s), ...), [hfs.kappa_spread]
     resolved_levels: tuple = ()
     iden2_display: str = 'measured'
+    kappa_wide_D: float = 0.0
 
     def kappa_of(self, cls: str) -> tuple:
         """(kappa, u_kappa) of the class `cls`."""
@@ -429,9 +441,11 @@ def _read(path: str, seen=()) -> dict:
 
 #: the classes of [hfs.kappa] the plate calibration fits; `flag` is its anchor
 #: and is never rewritten.  `flag_unlisted` is fitted only where the
-#: configuration splits the flags (files.hfs_components); the other three
-#: always are.
-FITTED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c', 'flag_unlisted')
+#: configuration splits the flags (files.hfs_components), `plain_1974_wide`
+#: only where it splits the plain 1974 class ([hfs] kappa_wide_D); the other
+#: three always are.
+FITTED_KAPPA_CLASSES = ('plain_1974', 'plain_1974_wide', 'plain_1969', 'c',
+                        'flag_unlisted')
 REQUIRED_KAPPA_CLASSES = ('plain_1974', 'plain_1969', 'c')
 
 #: what begins each comment line `set_hfs_kappa` writes, so that the next run
@@ -663,6 +677,12 @@ def load(path: str = None) -> Config:
             raise ConfigError("files.hfs_components splits the flagged lines, "
                               "so [hfs.kappa] needs flag_unlisted, the class "
                               "of those whose components Sugar did not list")
+        wide_D = float(h.get('kappa_wide_D', 0.0))
+        if (WIDE_KAPPA_CLASS in h['kappa']) != (wide_D > 0.0):
+            raise ConfigError(f"[hfs.kappa] {WIDE_KAPPA_CLASS} and [hfs] "
+                              f"kappa_wide_D (> 0) go together: the class "
+                              f"is the plain 1974 components with |D| beyond "
+                              f"kappa_wide_D")
         hfs = HfsSettings(
             apply=h['apply'], A_levels=a_levels, satellites=satellites,
             kappa_exceptions=exceptions, components=components,
@@ -671,7 +691,7 @@ def load(path: str = None) -> Config:
             kappa_spread=tuple((int(e), float(v)) for e, v in
                                sorted(h.get('kappa_spread', {}).items())),
             resolved_levels=tuple(h.get('resolved_levels', ())),
-            iden2_display=display)
+            iden2_display=display, kappa_wide_D=wide_D)
 
     def _blend_separations(b):
         d = BlendSeparations()

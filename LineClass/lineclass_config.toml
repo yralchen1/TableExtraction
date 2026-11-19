@@ -432,6 +432,13 @@ iden2_display = "measured"
 # 4f2.6s, each standing at its F = 3 sublevel: 059003.000642 (IDEN2 row
 # 1093, the F = 2 lines rejected) and 059003.000190 (IDEN2 row 1089).
 resolved_levels = ["059003.000642", "059003.000190"]
+# Where the plain 1974 class splits by the width of the pattern, cm^-1
+# (2026-11-19, README "kappa by the width of the pattern"): a component of a
+# plain 1974 line whose |D| exceeds it takes plain_1974_wide of [hfs.kappa].
+# Patterns that wide were set near their head; the narrower ones nearer
+# their center of gravity.  The threshold is where a scan of 0.2 - 0.6 fitted
+# best.  It goes together with plain_1974_wide.
+kappa_wide_D = 0.4
 
 [hfs.kappa]
 # [kappa, its uncertainty] per class, as fitted jointly with the plate
@@ -460,16 +467,26 @@ resolved_levels = ["059003.000642", "059003.000190"]
 #               of gravity.  First value 0.895(24), from a scratch calibration
 #               of 2026-10-06 on iter_hfs/'s table of 10:21; the next run of
 #               wavelength_calibration.py replaces it
-#   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974
+#   plain_1974  unflagged lines below 47500 cm^-1, measured in 1974; since
+#               2026-11-19 only the components with |D| up to [hfs]
+#               kappa_wide_D
+#   plain_1974_wide  the components of unflagged 1974 lines with |D| beyond
+#               kappa_wide_D (2026-11-19)
 #   plain_1969  unflagged lines above it, measured in 1969
 #   c           lines Sugar marked complex
 # [wavelength_calibration.py] written 2026-10-11 08:09 from iter_hfs/line_classifications.csv (4493 lines);
 # [wavelength_calibration.py] the values before: plain_1974 0.751(33), plain_1969 0.440(47), c 0.039(42), flag_unlisted 0.900(25)
-flag          = [1.0, 0.0]
-plain_1974    = [0.751, 0.034]
-plain_1969    = [0.440, 0.049]
-c             = [0.039, 0.041]
-flag_unlisted = [0.900, 0.025]
+# 2026-11-19, the split of plain_1974 by the width of the pattern: values
+# that a fit on the weights of a --hold-kappa run gives back unchanged
+# (scratch runs on iter_hfs/'s table, no file written; a free run gives the
+# same), uncertainties u_jack; in place of plain_1974 0.751(34) and
+# plain_1969 0.440(49)
+flag            = [1.0, 0.0]
+plain_1974      = [0.241, 0.038]
+plain_1974_wide = [0.791, 0.063]
+plain_1969      = [0.148, 0.031]
+c               = [0.039, 0.041]
+flag_unlisted   = [0.900, 0.025]
 
 [hfs.kappa_spread]
 # the line-to-line spread s of kappa about its class, per era: a line of

@@ -655,11 +655,21 @@ def model_poly(degrees, ranges, omit=None):
     return len(idx), terms
 
 
+#: [hfs] kappa_wide_D of the configuration in use (hfs_correction.Model
+#: .wide_D), set by main(): a plain 1974 line with |D| beyond it votes on
+#: plain_1974_wide (2026-11-19).  None: one plain class per era.
+WIDE_D = None
+
+
 def kappa_name(ln):
     """The [hfs.kappa] class whose kappa a line of a fitted class votes
-    on: 'c', 'flag_unlisted', or the plain class of its era."""
+    on: 'c', 'flag_unlisted', or the plain class of its era - for a 1974
+    line with |D| beyond WIDE_D, plain_1974_wide."""
     if ln.cls in ('c', hfs_kappa.FLAG_UNLISTED):
         return ln.cls
+    if (WIDE_D is not None and ln.era == config.WIDE_KAPPA_ERA
+            and abs(ln.D) > WIDE_D):
+        return config.WIDE_KAPPA_CLASS
     return 'plain_%d' % ln.era
 
 
@@ -870,6 +880,8 @@ def main(argv=None):
 
     blocks = read_blocks()
     model = hfs_model_of(cfg_path)
+    global WIDE_D
+    WIDE_D = getattr(model, 'wide_D', None)
     listed = read_line_list()
     chars = list_characters(listed)
     snr_of = hfs_kappa.read_snr() if use_intensity else {}

@@ -2859,6 +2859,72 @@ run's. The lasting fix is the kappa model left open above: kappa as a function o
 class of its own for the wide plain patterns, so that one kappa per class no longer has to
 describe a mixture of lines set at the head and lines set near 0.85.
 
+**Kappa by the width of the pattern (2026-11-19).** The model of kappa was measured the same
+day, before any rerun, in scratch runs that wrote nothing. Each was a fit made on the weights
+of a `--hold-kappa` run, with the plain classes cut up in different ways. The test is the χ²
+of that fit (the sum of the squared residuals over their uncertainties) against one kappa per
+era (χ² 3339.0):
+
+| model | parameters | Δχ² |
+|---|---|---|
+| the held values 0.751 / 0.440 | 0 | +72 |
+| 6 bins of \|D\| per era | 12 | −155 |
+| plain 1974 split at \|D\| = 0.4 cm⁻¹, 1969 one class | 3 | −137 |
+| the same split in both eras | 4 | −141 |
+| 6 bins of \|D\|/w per era (w the line width) | 12 | −65 |
+| kappa from the peak of the pattern convolved with the line profile | 0 – 2 | +295 to +1340 |
+
+In 1974 kappa is about flat up to |D| ≈ 0.4 cm⁻¹ and jumps there. The 25 lines beyond it lie on
+many levels, and their own kappas are 0.6 – 1.1. One split at 0.4 takes nearly all the gain of
+the finer bins, and a scan of the threshold from 0.2 to 0.6 puts it best at 0.4. In 1969, where
+the lines are 1 – 3 cm⁻¹ wide and no pattern is resolved, kappa does not rise with |D|, and a
+split gains only 4. The width-scaled variable does worse than |D| itself and does not bring the
+eras together. The model in which Sugar set on the peak of the blended profile fails: it puts
+an unresolved pattern at its center of gravity (kappa ≈ 0), while the narrow patterns have
+0.15 – 0.35.
+
+Part of that narrow-pattern kappa may be the A constants rather than the measuring. In 1969 the
+lines whose D rests on measured A constants (component fits) give kappa = 0.07 ± 0.07, the center
+of gravity, and those resting on calculated ones 0.33 – 0.42, as if the calculated A constants
+overstated D by about 1.5. 1974 shows no such difference (0.34 against 0.39). This is left as a
+question about the calculated A constants and is not folded into kappa (user, 2026-11-19).
+
+**The split adopted (user, 2026-11-19):** `[hfs] kappa_wide_D = 0.4` and the class
+`plain_1974_wide` of `[hfs.kappa]`, which go together (config.py refuses one without the
+other). A component of a plain 1974 line whose |D| exceeds 0.4 takes `plain_1974_wide`; the
+narrower components, and every 1969 line, keep the plain class of their era. The class is a
+property of the transition, since D is: each component of a blend takes the class its own D
+chooses (`hfs_correction.Model.plain_class`, `class_of`, `kappa_of(char, wn_key, D)`,
+`component_kappas(..., Ds)`). The classification predicts a candidate with the wide class's
+factor where its |D| is beyond the threshold (`SpectralLine.hfs_factor_for`); the calibration
+fits or holds the class (`wavelength_calibration.kappa_name`); `kappa_candidates.py` and
+level_positions.py judge a line by the class of the transition; lopt_perturb.py moves it as it
+moves every class.
+
+With the split, holding kappa and fitting it agree. The values first taken from the fit on the
+old weights (narrow 0.35, wide 0.80, 1969 0.22) were held, and a fit on the weights of that run
+moved the narrow classes again, to 0.26 and 0.16. Held at the free fit's values, the run gives
+them back unchanged:
+
+| class | kappa | u_jack | lines |
+|---|---|---|---|
+| plain_1974 (\|D\| ≤ 0.4) | 0.241 | 0.038 | 2123 |
+| plain_1974_wide | 0.791 | 0.063 | 25 |
+| plain_1969 | 0.148 | 0.031 | 1958 |
+
+so the slide of the single class came from the wide lines inside it. c (0.052 fitted, 0.039 held)
+and flag_unlisted (0.934, 0.900) stay held within their uncertainties. In the same run the spread
+of kappa came out at s = 0.130 (1974) and 0.140 (1969), and the intensity term at k = 5.43 and
+3.92 (the factor on u at SNR 1000 0.66 and 0.71). The rms of all residuals is 0.1307 cm⁻¹,
+against 0.1344 with the held single classes.
+
+The cost is in the assignments. The narrow 1974 kappa falls from 0.751 to 0.241, so a plain 1974
+line moves by 0.51·D: of the 2129 accepted single plain 1974 lines of iter_hfs's table, 961
+move by more than their own uncertainty and 335 by more than twice it (largest 0.20 cm⁻¹). The
+level energies take up much of it, but the changed assignments are to be reviewed after
+iter_hfs's chain, as on 2026-10-06. The 1969 lines move by 0.29·D, beyond their uncertainty
+for 74 of 1960.
+
 **Weak lines: the intensity term (2026-11-19).** A weak line is set on less accurately than a
 strong one, and the class model did not know it. On the calibration's own residuals (the run
 of 2026-10-15), each divided by its line's uncertainty and by √(1 − h), the rms fell from 1.23

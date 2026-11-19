@@ -1438,7 +1438,14 @@ def candidate_terms(ctx, tt, pick, nu):
         shift = 0.0
         var = unc ** 2 + w2a
     else:
-        one = 1.0 - ctx.kap_o[pick]
+        # a plain 1974 line takes plain_1974_wide's kappa for a transition
+        # with |D| beyond [hfs] kappa_wide_D (2026-11-19)
+        wide = np.abs(D) > getattr(ctx, 'wide_D', np.inf)
+        kap_w = getattr(ctx, 'kapw_o', ctx.kap_o)
+        ukap_w = getattr(ctx, 'ukapw_o', ctx.ukap_o)
+        kap = np.where(wide, kap_w[pick], ctx.kap_o[pick])
+        ukap = np.where(wide, ukap_w[pick], ctx.ukap_o[pick])
+        one = 1.0 - kap
         head = ctx.head_o[pick]
         shift = one * D
         var = (unc ** 2
@@ -1446,7 +1453,7 @@ def candidate_terms(ctx, tt, pick, nu):
                           w2a + np.maximum(w2u,
                                            one ** 2 * tt['u2u'][:, None]))
                + one ** 2 * tt['u2k'][:, None]
-               + (ctx.ukap_o[pick] * D) ** 2
+               + (ukap * D) ** 2
                + (ctx.spread_o[pick] * D) ** 2)
     acc = pick == tt['acc_i'][:, None]
     d = np.where(acc, tt['acc_wn'][:, None] - nu,
@@ -1539,16 +1546,22 @@ def observed_uncertainties(real, obs):
 def observed_hfs_terms(ctx, key_o, log=print):
     """The line half of sigma_set in a head-frame set, one entry per
     recorded line: kap_o and ukap_o, the kappa of its class and its
-    uncertainty; head_o, true for a line that sits at the head of its pattern
-    (kappa = 1, no level widths); spread_o, s(era) for a line whose kappa is
-    a fitted class, else 0.  Without the correction ctx.hfs is None and the
-    arrays are zero."""
+    uncertainty; kapw_o and ukapw_o the same for a transition with |D|
+    beyond ctx.wide_D ([hfs] kappa_wide_D; infinite without the split of
+    the plain 1974 class, 2026-11-19), which differ from kap_o only for a
+    plain 1974 line; head_o, true for a line that sits at the head of its
+    pattern (kappa = 1, no level widths); spread_o, s(era) for a line whose
+    kappa is a fitted class, else 0.  Without the correction ctx.hfs is None
+    and the arrays are zero."""
     n = len(ctx.wn_o)
     ctx.hfs = hfs_model()
     ctx.kap_o, ctx.ukap_o = np.zeros(n), np.zeros(n)
+    ctx.kapw_o, ctx.ukapw_o = np.zeros(n), np.zeros(n)
+    ctx.wide_D = np.inf
     ctx.head_o = np.zeros(n, dtype=bool)
     ctx.spread_o = np.zeros(n)
     ctx.kappa_ref = (0.0, 0.0)
+    ctx.kappa_ref_wide = 0.0
     if ctx.hfs is None:
         return
     import hfs_kappa
@@ -1557,11 +1570,19 @@ def observed_hfs_terms(ctx, key_o, log=print):
         c = '' if c is None else str(c).strip()
         if m.sits_at_head(c, float(k)):
             ctx.kap_o[i], ctx.head_o[i] = 1.0, True
+            ctx.kapw_o[i] = 1.0
         else:
             ctx.kap_o[i], ctx.ukap_o[i] = m.kappa_of(c, float(k))
+            ctx.kapw_o[i], ctx.ukapw_o[i] = m.kappa_of(c, float(k), np.inf)
     era = np.array([hfs_kappa.era_of(float(k)) for k in key_o])
     ctx.spread_o = np.where(ctx.head_o, 0.0, spread_of(m, era))
     ctx.kappa_ref = (m.kappa['plain_1974'][0], m.kappa['plain_1969'][0])
+    wide_D = getattr(m, 'wide_D', None)
+    if wide_D is not None:
+        ctx.wide_D = wide_D
+        ctx.kappa_ref_wide = m.kappa[config.WIDE_KAPPA_CLASS][0]
+    else:
+        ctx.kappa_ref_wide = ctx.kappa_ref[0]
     sp = getattr(m, 'kappa_spread', None)
     log(f"  hyperfine correction on: lines judged where LOPT would fit them, "
         f"at wn_obs + (1 - kappa) D; {int(ctx.head_o.sum())} of {n} lines "
@@ -2808,8 +2829,11 @@ def ln_ratio(ctx, level_id, e_grid, detail=False):
         # plain kappa of the era; the line found is then judged with its own)
         target = nu_s
         if getattr(ctx, 'hfs', None) is not None:
-            k_ref = np.where(nu_s < ERA_SPLIT, ctx.kappa_ref[0],
-                             ctx.kappa_ref[1])
+            k74 = np.where(np.abs(tt['D'][:, None])
+                           > getattr(ctx, 'wide_D', np.inf),
+                           getattr(ctx, 'kappa_ref_wide', ctx.kappa_ref[0]),
+                           ctx.kappa_ref[0])
+            k_ref = np.where(nu_s < ERA_SPLIT, k74, ctx.kappa_ref[1])
             target = nu_s - (1.0 - k_ref) * tt['D'][:, None]
         j = np.searchsorted(ctx.wn_o, target)
         j1 = np.clip(j, 0, len(ctx.wn_o) - 1)
@@ -3357,6 +3381,12 @@ def run_digest(ctx):
     for a in (getattr(ctx, 'kap_o', ()), getattr(ctx, 'ukap_o', ()),
               getattr(ctx, 'spread_o', ())):
         h.update(np.round(np.asarray(a, dtype=float), 4).tobytes())
+    # the wide plain 1974 class (2026-11-19), only where the set splits it,
+    # so that the cache of a set without the split stays valid
+    if np.isfinite(getattr(ctx, 'wide_D', np.inf)):
+        h.update(('wide %.4f' % ctx.wide_D).encode())
+        for a in (ctx.kapw_o, ctx.ukapw_o):
+            h.update(np.round(np.asarray(a, dtype=float), 4).tobytes())
     # the unrelated-line background: it enters every matched free row
     for a in (ctx.rho_bg_o, ctx.bg_mu_f, ctx.bg_sd_f, ctx.unk_mu_o,
               ctx.unk_sd_o):

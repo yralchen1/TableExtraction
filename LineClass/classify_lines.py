@@ -157,6 +157,16 @@ def apply_hfs_model(levels_dict: dict, observed_lines: list) -> None:
         line.hfs_factor = 1.0 - kappa
         line.hfs_u_kappa = u_kappa
         by_class[kappa] = by_class.get(kappa, 0) + 1
+        # the plain 1974 class split by the width of the pattern
+        # (2026-11-19): a transition with |D| beyond HFS.wide_D takes the
+        # wide class's kappa (SpectralLine.hfs_factor_for)
+        wide = HFS.class_of(line.line_character, line.wn_key, math.inf)
+        if wide == config.WIDE_KAPPA_CLASS:
+            k_w, u_w = HFS.kappa[wide]
+            line.hfs_factor_wide = 1.0 - k_w
+            line.hfs_u_kappa_wide = u_w
+            line.hfs_wide_D = HFS.wide_D
+            by_class[k_w] = by_class.get(k_w, 0)
     HFS_MAX_D = 2.0 * max((abs(lev.hfs_S_pattern)
                            for lev in levels_dict.values()), default=0.0)
     n_S = sum(1 for lev in levels_dict.values()
@@ -310,7 +320,7 @@ def hfs_line_shift(line, weights: dict, known_A_only: bool = False) -> tuple:
            for t in acc]
     fixed = [e[:2] if e else None for e in exc]
     kappas = HFS.component_kappas(line.line_character, line.wn_key, bfs,
-                                  heads, fixed)
+                                  heads, fixed, [t.hfs_D for t in acc])
     # the spread of the line's own kappa about its class's (2026-10-15)
     spreads = HFS.component_spreads(line.wn_key, kappas, heads, fixed)
 
@@ -2501,7 +2511,8 @@ def match_and_grade(observed_lines: list, all_possible_transitions: list,
         # window reaches as far as the largest such offset.
         # A kappa exception can move one candidate further than the line's
         # class does (attach_kappa_exceptions).
-        search_tolerance += max([obs_line.hfs_factor]
+        search_tolerance += max([obs_line.hfs_factor,
+                                 obs_line.hfs_factor_wide or 0.0]
                                 + [1.0 - e[0] for e in
                                    obs_line.hfs_exceptions.values()]) \
             * HFS_MAX_D

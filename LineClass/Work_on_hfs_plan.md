@@ -168,8 +168,26 @@ The last work, 2026-10-15 to 10-17:
    fully free run slides to 0.376 and 0.202 through the spread term, which
    is not a measurement. The user holds kappa for the reruns before Step 9;
    the discrepancy stays open for item 6's kappa model.
-4. Step 9: the publication tables. Open in it: kappa held against the fit
-   (item 3b), and the list of contradictions for the paper's discussion.
+   **Settled the same day by 3c.**
+3c. Kappa by the width of the pattern (2026-11-19, README "Kappa by the
+   width of the pattern"; item 6's kappa model, brought forward before the
+   rerun). Measured in scratch: 1974 kappa jumps at |D| = 0.4 cm^-1; 1969
+   is flat; |D|/width and the peak-of-profile model fail. The user chose two
+   1974 classes split at 0.4 and one 1969 class, without folding the
+   calculated A constants into kappa. Coded: `[hfs] kappa_wide_D = 0.4`,
+   `[hfs.kappa] plain_1974_wide`; the class per component by its own D
+   (hfs_correction, classify_lines/models, wavelength_calibration,
+   kappa_candidates, level_positions; tests/test_kappa_wide.py). Values,
+   self-consistent between held and free: plain_1974 0.241(38),
+   plain_1974_wide 0.791(63), plain_1969 0.148(31). 961 of 2129 accepted
+   plain 1974 lines move by more than their uncertainty. Next (the user):
+   the calibration (`--hold-kappa` or free: they agree), iter_hfs's chain
+   with a review of the changed assignments, then final/'s chain and the
+   rest as after 3a; then kappa_candidates.py. Open: the calculated A
+   constants may overstate D (1969 measured-A lines 0.07(7), calculated-A
+   0.33-0.42).
+4. Step 9: the publication tables. Open in it: the calculated-A question of
+   item 3c, and the list of contradictions for the paper's discussion.
 5. Step 10: the final line list; the user is to explain the approach.
 6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not

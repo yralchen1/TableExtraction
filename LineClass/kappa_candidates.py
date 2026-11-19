@@ -539,7 +539,7 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
             count['untestable'] += 1
             continue
         kappa_now = float(r['kappa'])
-        kappa_class = model.kappa_of(char, key)[0]
+        kappa_class = model.kappa_of(char, key, D)[0]
         exc = model.exception(key, low, upp)
         held = exc.cls if exc else ('head' if (low, upp) in
                                     model.satellites.head_pairs(key) else '')

@@ -71,6 +71,14 @@ class SpectralLine:
     # Sugar flagged, which sits on the Ritz value (see hfs_correction.py).
     hfs_u_kappa: float = 0.0
     # the uncertainty of kappa.
+    hfs_factor_wide: Optional[float] = None
+    hfs_u_kappa_wide: float = 0.0
+    hfs_wide_D: float = 0.0
+    # Where [hfs] splits the plain 1974 class by the width of the pattern
+    # (2026-11-19): 1 - kappa of plain_1974_wide and its uncertainty, which
+    # a transition with |D| beyond hfs_wide_D takes in place of hfs_factor
+    # (hfs_factor_for); None for a line the split does not reach (not a
+    # plain 1974 line, or no split).
     hfs_head_pairs: frozenset = frozenset()
     # The (lower_id, upper_id) pairs whose resolved hfs companions the
     # registry files.hfs_satellites lists: for those this line is the
@@ -118,6 +126,14 @@ class SpectralLine:
     # are the pairs the classification treats as old.  None means the step was
     # never run, and then the transitions seeded from the workbook are taken
     # as the old ones.
+
+    def hfs_factor_for(self, D: float) -> float:
+        """1 - kappa of this line as a measurement of a transition of
+        displacement D: hfs_factor, or hfs_factor_wide where the plain 1974
+        class is split and |D| is beyond hfs_wide_D (2026-11-19)."""
+        if self.hfs_factor_wide is not None and abs(D) > self.hfs_wide_D:
+            return self.hfs_factor_wide
+        return self.hfs_factor
 
 
 @dataclass
@@ -188,13 +204,13 @@ class Transition:
                                            self.upper_level.level_id))
             if exc is not None:
                 return (1.0 - exc[0]) * self.hfs_D_on(line)
-        if not line.hfs_factor:
+        if not line.hfs_factor and line.hfs_factor_wide is None:
             return 0.0
         if line.hfs_head_pairs and (self.lower_level.level_id,
                                     self.upper_level.level_id) \
                 in line.hfs_head_pairs:
             return 0.0
-        return line.hfs_factor * self.hfs_D
+        return line.hfs_factor_for(self.hfs_D) * self.hfs_D
 
     def predicted_for(self, line: Optional['SpectralLine'] = None) -> float:
         """The wavenumber at which `line` (default: the line this transition

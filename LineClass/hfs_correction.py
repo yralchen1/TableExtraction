@@ -177,7 +177,7 @@ measured in:
 
     head    kappa = 1, the strongest component, by definition;
     cg      kappa = 0, the center of gravity, by definition;
-    flag, plain_1974, plain_1969, c, flag_unlisted
+    flag, plain_1974, plain_1969, c, flag_unlisted, plain_1974_wide
             the value [hfs.kappa] gives that class;
     partial:<first>-<last>
             the center of gravity of the rungs first ... last of the
@@ -232,6 +232,7 @@ import math
 import os
 import re
 
+import config
 import hfs_kappa
 import hfs_patterns
 
@@ -304,6 +305,12 @@ class Model(object):
 
     def __init__(self, settings):
         self.kappa = dict(settings.kappa)
+        # the plain 1974 class split by the width of the pattern
+        # (2026-11-19): |D| beyond wide_D takes plain_1974_wide; None
+        # without the split (`plain_class`)
+        wide_D = float(getattr(settings, 'kappa_wide_D', 0.0) or 0.0)
+        self.wide_D = (wide_D if wide_D > 0.0
+                       and config.WIDE_KAPPA_CLASS in self.kappa else None)
         # {era: s}, the line-to-line spread of kappa ([hfs.kappa_spread])
         self.kappa_spread = dict(getattr(settings, 'kappa_spread', ()))
         components = getattr(settings, 'components', '')
@@ -444,21 +451,47 @@ class Model(object):
         return (self.line_class(char, wn_key) == 'flag'
                 or self.is_head_line(wn_key))
 
-    def kappa_of(self, char, wn_key):
-        """`(kappa, u_kappa)` of an observed line with Sugar's character
-        `char`, named by `wn_key` (his own wavenumber, which says the era)."""
-        cls = self.line_class(char, wn_key)
-        if cls == 'plain':
-            cls = 'plain_%d' % hfs_kappa.era_of(wn_key)
-        return self.kappa[cls]
+    def plain_class(self, wn_key, D=None):
+        """The [hfs.kappa] class of a plain line `wn_key` (his own
+        wavenumber, which says the era) as a measurement of a transition
+        whose displacement is `D`: the plain class of its era, or
+        plain_1974_wide for a 1974 component with |D| beyond [hfs]
+        kappa_wide_D where the configuration splits the class (2026-11-19).
+        Patterns that wide were set near their head (kappa about 0.8), the
+        narrower ones nearer their center of gravity (about 0.35).  Without
+        `D` the plain class of the era."""
+        era = hfs_kappa.era_of(wn_key)
+        if (self.wide_D is not None and D is not None
+                and era == config.WIDE_KAPPA_ERA and abs(D) > self.wide_D):
+            return config.WIDE_KAPPA_CLASS
+        return 'plain_%d' % era
 
-    def component_kappas(self, char, wn_key, bfs, heads=None, fixed=None):
+    def class_of(self, char, wn_key, D=None):
+        """The [hfs.kappa] class of an observed line with Sugar's character
+        `char` as a measurement of a transition of displacement `D`
+        (`line_class`, the plain class by `plain_class`)."""
+        cls = self.line_class(char, wn_key)
+        return self.plain_class(wn_key, D) if cls == 'plain' else cls
+
+    def kappa_of(self, char, wn_key, D=None):
+        """`(kappa, u_kappa)` of an observed line with Sugar's character
+        `char`, named by `wn_key` (his own wavenumber, which says the era),
+        as a measurement of a transition of displacement `D` (`class_of`;
+        without `D`, the plain class of the era)."""
+        return self.kappa[self.class_of(char, wn_key, D)]
+
+    def component_kappas(self, char, wn_key, bfs, heads=None, fixed=None,
+                         Ds=None):
         """`[(kappa_i, u_kappa_i)]`, one per accepted component of an observed
         line, `bfs` being their shares of the line (BF) and `heads` saying,
         per component, whether the registry of resolved companions makes the
         line that transition's strongest component.  `fixed` gives, per
         component, the `(kappa, u_kappa)` the exception registry sets, or
         None; a component it sets takes that, whatever the rules below say.
+        `Ds` gives the components' displacements D, which choose a plain
+        component's class where the plain 1974 class is split by the width
+        of the pattern (`plain_class`); without them every plain component
+        takes the plain class of the era.
 
         Every component takes the kappa of the line's class, with two
         exceptions.  A component `heads` marks takes the flag's kappa, and
@@ -470,18 +503,20 @@ class Model(object):
         kappa of the line's era, the one the line would have without the
         flag.
         """
-        k = self.kappa_of(char, wn_key)
-        flagged = self.line_class(char, wn_key) in ('flag',
-                                                    hfs_kappa.FLAG_UNLISTED)
-        plain = self.kappa['plain_%d' % hfs_kappa.era_of(wn_key)]
+        n = len(bfs)
+        Ds = list(Ds) if Ds is not None else [None] * n
+        cls = self.line_class(char, wn_key)
+        flagged = cls in ('flag', hfs_kappa.FLAG_UNLISTED)
+        plain = [self.kappa[self.plain_class(wn_key, d)] for d in Ds]
+        k = plain if cls == 'plain' else [self.kappa[cls]] * n
         if heads and any(heads):
             other = plain if flagged else k
-            out = [self.kappa['flag'] if h else other for h in heads]
-        elif len(bfs) < 2 or not flagged:
-            out = [k] * len(bfs)
+            out = [self.kappa['flag'] if h else o for h, o in zip(heads, other)]
+        elif n < 2 or not flagged:
+            out = list(k)
         else:
-            top = max(range(len(bfs)), key=lambda i: bfs[i])
-            out = [k if i == top else plain for i in range(len(bfs))]
+            top = max(range(n), key=lambda i: bfs[i])
+            out = [k[i] if i == top else plain[i] for i in range(n)]
         if fixed:
             out = [f if f is not None else o for o, f in zip(out, fixed)]
         return out
@@ -576,7 +611,8 @@ class Model(object):
         is_head = [(low, upp) in heads for low, upp, _ in components]
         fixed = [self.row_kappa(r) if r else None for r in rows]
         kappas = self.component_kappas(
-            char, wn_key, [bf for _, _, bf in components], is_head, fixed)
+            char, wn_key, [bf for _, _, bf in components], is_head, fixed,
+            [self.D(low, upp)[0] for low, upp, _ in components])
         spreads = self.component_spreads(wn_key, kappas, is_head, fixed)
         return [(bf,) + k + self.D(low, upp, r.unresolved if r else ())
                 + (s,)
@@ -622,7 +658,8 @@ class Model(object):
         is_head = [(low, upp) in heads for low, upp, _ in components]
         fixed = [self.row_kappa(r) if r else None for r in rows]
         kappas = self.component_kappas(
-            char, wn_key, [bf for _, _, bf in components], is_head, fixed)
+            char, wn_key, [bf for _, _, bf in components], is_head, fixed,
+            [self.D(low, upp)[0] for low, upp, _ in components])
         spreads = self.component_spreads(wn_key, kappas, is_head, fixed)
 
         def terms(known_only):
