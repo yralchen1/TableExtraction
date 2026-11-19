@@ -2856,9 +2856,22 @@ registry row. Their scatter grew with the spread of the components: rms(residual
 where δ/4 < u and 1.06 where δ/4 > 2u. Maximum likelihood gave 0.24 (68 %: 0.14 to 0.33).
 The upper end was adopted because only blends whose centroid fitted were accepted. On that table
 it widens 378 of the 536 blends by more than the written precision: median ×1.04, largest ×1.68.
-None of the plain blends spreads wider than about half the plate's two-line resolution, as
-measured from the deficit of close pairs in the line list (0.06 Å below 1250 Å, rising to 0.13 Å
-at 3200 to 4500 Å).
+How close two lines can lie and still be listed separately was measured on 2026-11-19 from the
+shortage of close pairs in the observed lines of `iter_hfs`. The separations of all line pairs,
+in units of the effective line width w at the pair's wavelength (0.035 Å instrumental with
+Doppler: 0.036 Å at 1000 Å, 0.042 Å at 2800 Å, 0.059 Å at 5700 Å), were fitted with a pair
+density that is flat at large separations and falls to zero at zero separation as
+1 − exp(−x²/2a²). The pairs it lacks are the ones the plate merged into one line, and a is the
+rms of their (signed) separation: **a = 0.86 ± 0.03 w** over 500–11000 Å, and 0.77–0.99 w in each
+of six wavelength bands (2500–3200 Å: 0.92 ± 0.09). The measured gap therefore scales with the
+effective width and supports `INSTR_FWHM_A` = 0.035 Å. A linear ramp fits nearly as well (rms
+0.84 w), and a sharper profile, 1 − exp(−(x/s)⁴), fits worse by 3.6 in ln L and gives 0.60 w. The
+separations of the components of the accepted blends, from the level energies, match the
+allowances: a robust rms of 0.31 w for the 392 plain blends (no Sugar character) and 0.79 w for
+the 146 wide ones. Of the plain blends, 41 spread over more than 0.5 w, as a Gaussian of that rms
+predicts (40), and 6 over more than 1 w, where it predicts 0.4. All 6 have a row in
+`blend_separations.txt`. This replaces an unsourced figure of 0.06–0.13 Å for the resolution
+and the statement that no plain blend spread wider than half of it.
 
 *A possible improvement, deliberately not made (2026-10-09).* The acceptance tests of
 `classify_lines.py` still judge a blend by its centroid without `u_I`: the Ritz test of the
