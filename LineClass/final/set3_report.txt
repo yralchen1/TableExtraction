@@ -1,6 +1,6 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6673 lines, 9009 table rows; moved 5034
+6673 lines, 9010 table rows; moved 5034
 rows of merged lines left out of the table: 29
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
 u_hfs_shift cut to its undetermined part: lowered by median 0.0092, max 0.2107 cm^-1 over 5034 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
@@ -8,7 +8,7 @@ u_hfs_shift cut to its undetermined part: lowered by median 0.0092, max 0.2107 c
   rule head-D         250
   rule none          1639
   rule resolved        21
-  |cg_shift| median 0.0404, 90% 0.1848, max 1.0910 cm^-1
+  |cg_shift| median 0.0403, 90% 0.1838, max 1.0910 cm^-1
 
 Merged companions (hfs_satellites.txt): 25
   20972.0992      -> 20971.7476     
@@ -73,20 +73,20 @@ Flags whose side disagrees with the sign of D: 2
   36667.3188 *r   D -0.0297
   29151.1276 *r   D -0.1110
 
-Characters changed: 400
+Characters changed: 401
   ''   -> hfs,l      4  (companions)
   ''   -> hfs,s      3  (F = 2 partner)
   ''   -> hfs,s     14  (companions)
   *r   -> hfs,l    151  (flag)
   *v   -> hfs,s    145  (flag)
-  c    -> hfs,l      9  (width)
+  c    -> hfs,l     11  (width)
   c    -> hfs,s     18  (width)
   ch   -> hfs,l     11  (width)
   ch   -> hfs,s     13  (width)
   cl   -> hfs,s      1  (companions)
   d    -> hfs,l      3  (width)
   d    -> hfs,s      1  (companions)
-  d    -> hfs,s      5  (width)
+  d    -> hfs,s      4  (width)
   h    -> hfs,s      1  (width)
   w    -> hfs,l     12  (width)
   w    -> hfs,s      1  (F = 2 partner)
@@ -134,9 +134,11 @@ Characters changed: 400
     16041.2169 w    -> hfs,l  D +0.1921  width 0.1597
     16180.9425 d    -> hfs,l  D +0.1793  width 0.1615
     18303.9525 w    -> hfs,l  D +0.2216  width 0.1908
-    20866.0038 d    -> hfs,s  D -0.9281  width 0.2295
+    20866.0038 d    -> hfs,s  D -0.5459  width 0.2295
     22630.6621 d    -> hfs,l  D +0.6193  width 0.2584
+    25657.6628 c    -> hfs,l  D +0.4329  width 0.3124
     26409.0895 d    -> hfs,s  D -0.6277  width 0.3267
+    27509.0171 c    -> hfs,l  D +0.4524  width 0.3483
     28596.2218 c    -> hfs,l  D +0.7006  width 0.3704
     29164.2576 c    -> hfs,s  D -0.4028  width 0.3823
     30126.3092 c    -> hfs,l  D +0.5904  width 0.4028
@@ -150,7 +152,6 @@ Characters changed: 400
     33491.8879 c    -> hfs,s  D -0.8512  width 0.4795
     33650.9814 c    -> hfs,s  D -0.5119  width 0.4834
     34141.4997 c    -> hfs,l  D +0.5403  width 0.4952
-    34350.0584 d    -> hfs,s  D -0.5625  width 0.5003
     34395.4816 w    -> hfs,s  D -0.8606  width 0.5014
     34581.8595 w    -> hfs,s  D -0.6730  width 0.5060
     34757.5489 w    -> hfs,s  D -0.6413  width 0.5103

@@ -49,8 +49,10 @@ The last work, 2026-10-15 to 10-17:
 * **2026-10-15/16, the article's level table.** `levels_pub.py` fills
   `levels_pub.xlsx` (Step 9).
 * **2026-10-16, A for 000684**, the one level of the fit that had none:
-  +0.0278(54), calculated, tier 3. Brought in by the chain rerun of 2026-11-18
-  (below).
+  +0.0278(54), calculated, tier 3. **Not yet in the lines** (checked
+  2026-11-19, below): the chain of 2026-11-18 started at make_LOPT_input.py,
+  and the hfs columns of iter_hfs's table are classify_lines.py's of
+  2026-10-15.
 * **2026-10-16/17, the dependability policy** of the level audit (`[audit]` of
   the configuration; Step 0). `questionable_levels.txt` now holds 28 levels.
 * **2026-11, LOPT 6.** `lopt.bat` now runs LOPT 6, the user's new Python
@@ -92,9 +94,21 @@ The last work, 2026-10-15 to 10-17:
   Ritz records; medians over the 652 excited levels u_stat 0.018, u_cal
   0.026, u_hfs 0.022, u_kappa 0.0035, D2tot* 0.042 cm^-1. The largest
   difference between the fit and the source levels moved to the cg is
-  000684's, +0.40 cm^-1 (u_stat 0.046); the next is 0.045. To be checked:
-  whether that is the head-to-cg move of the newly given A (I·A·J) and so
-  expected, or a sign that iter_hfs and final/ hold different A for it.
+  000684's, +0.40 cm^-1 (u_stat 0.046); the next is 0.045. Checked
+  2026-11-19: neither expected nor an A disagreement, but a stale table.
+  `iter_hfs/line_classifications.csv` (classify_lines.py, 2026-10-15 17:50)
+  and `final/line_classifications.csv` (make_set3.py, 17:54) predate 000684's
+  A row (2026-10-16 08:11), so its 9 accepted lines carry hfs_D, hfs_shift
+  and cg_shift with S(000684) = 0; every other line of the table agrees with
+  the current model to 1e-4. `make_set3.py --levels` and `lopt_perturb.py`
+  build the model from the current A table, so the source is taken to the cg
+  by S = I·A·J = 0.382 that its lines never carried. That accounts for +0.382,
+  and the remaining +0.021 is ordinary. A scratch LOPT run on final/'s input,
+  with the 9 lines moved to the current model's cg_shift (by -0.015 to -0.287),
+  puts 000684 at 120805.4150, 0.147 lower (the -0.14 foreseen on 2026-10-16),
+  with D1 0.046 -> 0.060. The other levels move by 0.030 at most (000457).
+  The full make_set3.py would have refused the table (its identity check),
+  but `--levels` does not run that check.
   `lopt_perturb` had first failed on every run: LOPT 6 is a Python program and
   inherited a PYTHONPATH naming the project root, whose `statistics.py` hides
   the standard library's. Every caller now starts LOPT through `lopt_run.py`,
@@ -102,7 +116,19 @@ The last work, 2026-10-15 to 10-17:
 
 **Next, in order.**
 
-1. Check 000684's +0.40 cm^-1 between the fit and the source (above).
+1. Bring 000684's A into its lines (above): new hfs columns in iter_hfs's table
+   (a rerun of classify_lines.py, or a refresh of the hfs columns alone), then
+   iter_hfs's chain, the full make_set3.py, final/'s chain, lopt_perturb twice,
+   `make_set3.py --levels`, levels_pub.py. The user chose the rerun of
+   classify_lines.py (2026-11-19). The check of the tables against the model
+   (`make_set3.require_current`) is in `--levels` and lopt_perturb since
+   2026-11-19; on the old tables it stops on exactly 000684's 9 lines.
+   **Done 2026-11-19** (the user ran the whole chain): 000684 at 120805.3774,
+   0.185 lower; fit - source 0.029 (largest |diff| now 0.045, 000676);
+   D2tot* 0.065 -> 0.067. The rerun changed no acceptance: 13 grades moved
+   by one step (mostly lines of 000684), and one rejected candidate was
+   added (43327.80, 000276 - 000565, 5G, strong Ritz mismatch), which LOPT
+   carries as a P record (Ritz records 7842 -> 7843). Medians unchanged.
 2. The user's verdict on each mark of the `[audit]` policy (column `q_why` of
    `iter_hfs/level_positions.csv`), and `questionable_levels.txt` brought in
    line with it.

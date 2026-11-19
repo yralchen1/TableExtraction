@@ -9,6 +9,11 @@ Work_on_hfs_plan.md, Step 9.  Run from LineClass/:
 
 16 LOPT runs are made at a time (--jobs).
 
+Before any run the tables are checked against the present hfs model
+(make_set3.require_current): for a derived set its own table and its
+source's, for any other set applying the hfs correction its own.  A table
+older than the A constants, the kappas or the registries stops the program.
+
 WHY NOT LOPT'S OWN GROUPS
 =========================
 LOPT carries a systematic error as groups of lines: each group is shifted by
@@ -823,6 +828,20 @@ def run_hfs(args, set_dir, cfg, records, work):
     return rows, names, base, modes, text
 
 
+def require_current(set_dir):
+    """Stop before any run unless the tables are the ones the present hfs
+    model writes (make_set3.require_current): for a derived set its own
+    table and its source's, otherwise the set's own (if it applies the hfs
+    correction).  A table older than the A constants, the kappas or the
+    registries holds a fit of other line positions, which the hfs patterns
+    and Set 3's totals would then be laid over."""
+    import make_set3
+    if config.derived_from(set_dir):
+        make_set3.require_current(make_set3.SOURCE_SET, set_dir)
+    else:
+        make_set3.require_current(set_dir)
+
+
 OUTPUTS = {'calibration': ('calibration_sys_levels.csv',
                            'calibration_sys_modes.csv',
                            'calibration_sys_report.txt'),
@@ -855,6 +874,7 @@ def main(argv=None):
     set_dir = os.path.join(HERE, args.set_dir) \
         if not os.path.isabs(args.set_dir) else args.set_dir
     cfg = config.load(os.path.join(set_dir, config.CONFIG_NAME))
+    require_current(set_dir)
     out_dir = args.out or set_dir
     out_paths = [os.path.join(out_dir, n) for n in OUTPUTS[args.source]]
     import output_files

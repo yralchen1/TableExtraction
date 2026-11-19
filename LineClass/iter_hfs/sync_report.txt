@@ -1,38 +1,39 @@
 check_sync.py - are the files describing the same identification?
 working set: F:\UMD\AI\as-ai\LineClass\iter_hfs
 file                             last written
-line_classifications.csv         2026-10-15 21:50
-line_classifications.xlsx        2026-10-15 21:50
-LOPT_input_lines.txt             2026-11-18 21:11
-LOPT_output_lines.txt            2026-11-18 21:11
-LOPT_output_levels.txt           2026-11-18 21:11
+line_classifications.csv         2026-11-19 12:39
+line_classifications.xlsx        2026-11-19 12:39
+LOPT_input_lines.txt             2026-11-19 12:40
+LOPT_output_lines.txt            2026-11-19 12:40
+LOPT_output_levels.txt           2026-11-19 12:40
 line_decisions.csv               2026-10-15 21:48
 revised_level_energies.csv       2026-10-14 16:06
-unstable_candidates.csv          2026-10-15 21:50
+unstable_candidates.csv          2026-11-19 12:39
 level_positions.csv              2026-10-16 16:05
 Pr3_lines.xlsx                   2026-10-09 19:33
 lineclass_config.toml            2026-10-08 18:17
-IDEN2/enlev.dat                  2026-11-18 21:18
-IDEN2/trans.dat                  2026-11-18 21:18
-IDEN2/dlv.dat                    2026-11-18 21:18
+IDEN2/enlev.dat                  2026-11-19 12:41
+IDEN2/trans.dat                  2026-11-19 12:41
+IDEN2/dlv.dat                    2026-11-19 12:41
 
 Freshness
 ---------
   warn  level_positions.csv is older than what it is built from:
-         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 33.2 days)
-         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 33.2 days)
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 33.9 days)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 33.9 days)
+         line_classifications.xlsx (line_classifications.xlsx newer by 33.9 days)
 
 Classification
 --------------
-    ok  the csv and the workbook hold the same 7872 classified transitions, on the same lines and with the same verdicts
+    ok  the csv and the workbook hold the same 7873 classified transitions, on the same lines and with the same verdicts
 
 LOPT
 ----
     ok  every observed line in LOPT_input_lines.txt carries one uncertainty
     ok  every transition in LOPT_input_lines.txt is written once
   warn  30 rejected candidates are in the classification and nowhere else: absent from LOPT_input_lines.txt and unassigned in IDEN2. They are counted, not listed - carrying no weight and no line, they say the same thing in all three files, and the rebuild that puts them on paper belongs at the end of the analysis.
-    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (7842 of them), weighted as accepted
-    ok  the fit was made on the transitions file that is on disk now (7842 lines)
+    ok  LOPT_input_lines.txt holds every classified transition that bears on the fit (7843 of them), weighted as accepted
+    ok  the fit was made on the transitions file that is on disk now (7843 lines)
     ok  the line output and the level output agree about every level energy
 
 Revisions

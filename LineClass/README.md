@@ -3335,6 +3335,11 @@ LOPT's D2stat.
 
 After both `lopt_perturb.py` passes on the set's present fit, `make_set3.py --levels` writes
 `final/levels_set3.csv`, `final/ritz_set3.csv` and `final/levels_set3_report.txt` (2026-10-11).
+It, and `lopt_perturb.py` before its runs, first checks that the tables are the ones the present
+hfs model writes (2026-11-19): iter_hfs's `hfs_shift` and final/'s `cg_shift`, line by line. A
+table written before a change of `A_hfs_levels.csv`, the kappas or the registries stops the
+program, with the lines and their levels and what to rerun. (The A row of 000684 had come after
+both tables, and that level stood 0.38 cm^-1 off.)
 Nothing is rounded: the user rounds in Excel, with RoundRule(E, D2tot*, min(D1, D2), 1), and
 LOPT.par's rounding rule is 99999. An excited level's uncertainty is relative to the ground level:
 

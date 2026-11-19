@@ -83,7 +83,14 @@ inflated_unc_lines.txt  the source set's registry of hand-set uncertainties
                         the one edited.
 
 After LOPT has been run on the set, and lopt_perturb.py on its fit (both
-sources), `python make_set3.py --levels` writes the totals (THE TOTALS):
+sources), `python make_set3.py --levels` writes the totals (THE TOTALS).
+It first checks that both tables are the ones the present model writes
+(require_current): the source's hfs_shift by the identity above, the set's
+cg_shift against Model.cg_shift.  A table written before a change of the A
+constants, the kappas or the registries stops it, with the lines and their
+levels; lopt_perturb.py makes the same check before its runs.  (2026-11-19:
+000684's A row had come after both tables, and its level stood 0.38 cm^-1
+off the source moved to the cg.)
 
 levels_set3.csv         every level of the set's fit: E_cg; LOPT's D1 and
                         D2stat and u_stat; u_cal, u_hfs, u_kappa; their
@@ -364,7 +371,6 @@ def move_lines(lines, model, report):
     Keep only the undetermined part of the line's u_hfs_shift (u_shift3;
     see "THE UNCERTAINTIES"), and report how closely the model's two terms
     rebuild the table's u_hfs_shift."""
-    bad = []
     u_gap = 0.0
     for ln in lines.values():
         ln.cg = model.cg_shift(ln.char, ln.wn_key, ln.components)
@@ -378,21 +384,124 @@ def move_lines(lines, model, report):
             # independent from line to line, which no perturbation run of a
             # class's kappa can carry
             ln.u_shift3 = math.hypot(min(ln.u_hfs_undet, ln.u_hfs_shift), u_s)
-            gap = ln.hfs_shift - ln.cg.shift - (ln.cg.D + ln.cg.R)
-            if abs(gap) > IDENTITY_TOL:
-                bad.append((ln.wn_key, ln.hfs_shift, ln.cg.shift, gap))
             ln.rule = ('resolved' if ln.cg.R else
                        'head-D' if abs(ln.cg.kappa - 1.0) < 1e-12 else
                        'class kappa')
+    bad = identity_gaps(lines, model)
     if bad:
-        lines_ = ['make_set3.py: the table\'s hfs_shift disagrees with the '
-                  'model on %d line(s) - the table is not the one this '
-                  'model writes; rerun the source set\'s chain first:' % len(bad)]
-        lines_ += ['  %.4f  hfs_shift %+.4f  cg_shift %+.4f  gap %+.5f' % b
-                   for b in bad[:20]]
-        raise SystemExit('\n'.join(lines_))
+        raise SystemExit(stale_source_text(bad, lines, 'the table'))
     report['moved'] = sum(1 for ln in lines.values() if ln.components)
     report['u_shift_gap'] = u_gap
+
+
+# ---------------------------------------------------------------------------
+# Are the tables the ones the present model writes?
+# ---------------------------------------------------------------------------
+def identity_gaps(lines, model):
+    """`[(wn_key, hfs_shift, cg_shift, gap)]`: the lines of a head-frame
+    table whose hfs_shift is not the one `model` writes, the identity
+    hfs_shift - cg_shift = sum BF (D + R) broken by more than IDENTITY_TOL.
+    A line without an accepted transition is not checked."""
+    bad = []
+    for ln in lines.values():
+        if not ln.components:
+            continue
+        cg = (ln.cg if ln.cg is not None
+              else model.cg_shift(ln.char, ln.wn_key, ln.components))
+        gap = ln.hfs_shift - cg.shift - (cg.D + cg.R)
+        if abs(gap) > IDENTITY_TOL:
+            bad.append((ln.wn_key, ln.hfs_shift, cg.shift, gap))
+    return bad
+
+
+def cg_gaps(lines, model):
+    """`[(wn_key, cg_shift of the table, cg_shift of the model, gap)]`: the
+    lines of a derived set's table (written by `write_table`) moved by
+    another cg_shift than `model` gives them now, by more than
+    IDENTITY_TOL.  A line without an accepted transition is not checked."""
+    bad = []
+    for ln in lines.values():
+        if not ln.components:
+            continue
+        written = float(ln.rows[0].get('cg_shift') or 0.0)
+        now = model.cg_shift(ln.char, ln.wn_key, ln.components).shift
+        if abs(written - now) > IDENTITY_TOL:
+            bad.append((ln.wn_key, written, now, written - now))
+    return bad
+
+
+def levels_of(bad, lines):
+    """`[(level_id, n)]`: the levels of the accepted transitions of the
+    lines in `bad`, with how many of those lines each has, most first."""
+    count = {}
+    for b in bad:
+        for low, upp, _bf in lines[key4(b[0])].components:
+            for lid in (low, upp):
+                count[lid] = count.get(lid, 0) + 1
+    return sorted(count.items(), key=lambda x: (-x[1], x[0]))
+
+
+def stale_text(head, bad, lines, labels, todo):
+    """The message of a table the model did not write: what, the lines
+    (at most 20), their levels, and what to rerun."""
+    out = [head % len(bad)]
+    out += [('  %%.4f  %s %%+.4f  %s %%+.4f  gap %%+.5f' % labels) % b
+            for b in bad[:20]]
+    if len(bad) > 20:
+        out.append('  ... and %d more' % (len(bad) - 20))
+    out.append('  the levels of these lines (lines each): ' + ', '.join(
+        '%s (%d)' % x for x in levels_of(bad, lines)[:10]))
+    out.append(todo)
+    return '\n'.join(out)
+
+
+def stale_source_text(bad, lines, what):
+    return stale_text(
+        'make_set3.py: ' + what.replace('%', '%%') + '\'s hfs_shift disagrees'
+        ' with the model on %d line(s) - the table is not the one this model '
+        '(A table, kappas, registries) writes:', bad, lines,
+        ('hfs_shift', 'cg_shift'),
+        '  rerun classify_lines.py in the source set and its chain, then '
+        'make_set3.py (without --levels) and the derived set\'s chain.')
+
+
+def require_current(source, out_dir=None, model=None):
+    """Stop unless the source set's table, and the derived set's in
+    `out_dir` if given, are the ones the present model writes.
+
+    A table written before a change of the A constants, the kappas or the
+    registries keeps the old hfs_shift (the source's) or cg_shift (the
+    derived set's), and its LOPT fit the old line positions; a program that
+    takes levels to the center of gravity with the new model then moves
+    them by an S their lines never carried.  `move_lines` checks the source
+    table when the set is built; `make_set3.py --levels` and lopt_perturb.py
+    call this, since they read the model afresh.  Nothing is checked if the
+    source set has the hfs correction off."""
+    src_cfg = config.load(os.path.join(source, config.CONFIG_NAME))
+    if not src_cfg.hfs.apply:
+        return
+    if model is None:
+        model = hfs_correction.Model(src_cfg.hfs)
+    msgs = []
+    lines = read_table(src_cfg.output_csv)[2]
+    bad = identity_gaps(lines, model)
+    if bad:
+        msgs.append(stale_source_text(bad, lines, src_cfg.output_csv))
+    if out_dir is not None:
+        dst_cfg = config.load(os.path.join(out_dir, config.CONFIG_NAME))
+        lines = read_table(dst_cfg.output_csv)[2]
+        bad = cg_gaps(lines, model)
+        if bad:
+            msgs.append(stale_text(
+                'make_set3.py: ' + dst_cfg.output_csv.replace('%', '%%')
+                + '\'s cg_shift disagrees with the model on %d line(s) - '
+                'the set was built with another model:', bad, lines,
+                ('table', 'model'),
+                '  rerun make_set3.py (without --levels) and the derived '
+                'set\'s chain (make_LOPT_input.py, lopt.bat, check_sync.py, '
+                'sync_IDEN2.py, lopt_perturb.py).'))
+    if msgs:
+        raise SystemExit('\n'.join(msgs))
 
 
 def merge_companions(lines, model, report):
@@ -1125,6 +1234,7 @@ def write_levels(out_dir, source):
     import output_files
     src_cfg = config.load(os.path.join(source, config.CONFIG_NAME))
     model = hfs_correction.Model(src_cfg.hfs)
+    require_current(source, out_dir, model)
     fit = pd.read_csv(os.path.join(out_dir, LOPT_LEVELS), sep='\t',
                       dtype=str, keep_default_na=False)
     fit = fit.rename(columns=lambda c: c.strip())

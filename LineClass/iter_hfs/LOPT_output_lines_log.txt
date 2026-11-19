@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-18 16:11:46
+LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-19 07:40:38
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -17,7 +17,7 @@ Done.
 
 Group 1 of 1: 653 levels.
 Finding energies and uncertainties (0 exact constraints)...
-Done. (spent 0 sec)
+Done. (spent 1 sec)
 Adjusting weights...Done.
 Adjusting dispersions...Done.
 

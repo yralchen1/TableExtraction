@@ -347,6 +347,125 @@ def test_a_table_the_model_did_not_write_stops_the_run(tmp_path):
         M3.move_lines(lines, m, {})
 
 
+def write_rows(path, rows):
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return str(path)
+
+
+def two_sets(tmp_path, monkeypatch, src_rows, dst_rows=None):
+    """A source set and a derived set, each a table; config.load gives the
+    table of the directory asked for."""
+    src = write_rows(tmp_path / 'src.csv', src_rows)
+    dst = write_rows(tmp_path / 'dst.csv', dst_rows) if dst_rows else None
+
+    def load(path):
+        table = dst if os.path.basename(os.path.dirname(path)) == 'dst' \
+            else src
+        return type('Cfg', (), {'hfs': type('Hfs', (), {'apply': True}),
+                                'output_csv': table})
+    monkeypatch.setattr(M3.config, 'load', load)
+    return str(tmp_path / 'src'), str(tmp_path / 'dst')
+
+
+def current_rows(m):
+    """A source table row and its derived row, as the model `m` writes
+    them: a line of LOW - UPP and one of LOW - OTHER, and one without a
+    transition."""
+    rows = [row(30000.0, LOW, UPP, '1', '1.0'),
+            row(25000.0, LOW, OTHER, '1', '1.0'), row(20000.0)]
+    derived = []
+    for r in rows:
+        ln = M3.Line(M3.key4(r['wn_key']), [r])
+        r['hfs_shift'] = repr(m.line_shift('', ln.wn_key,
+                                           ln.components)[0])
+        d = dict(r, hfs_shift='0.0',
+                 cg_shift='%.6f' % (m.cg_shift('', ln.wn_key,
+                                               ln.components).shift
+                                    if ln.components else 0.0))
+        derived.append(d)
+    return rows, derived
+
+
+def test_tables_the_model_writes_pass(tmp_path, monkeypatch):
+    m = make_model(tmp_path)
+    rows, derived = current_rows(m)
+    src, dst = two_sets(tmp_path, monkeypatch, rows, derived)
+    M3.require_current(src, dst, m)
+
+
+def test_a_source_table_older_than_an_A_row_stops_the_run(tmp_path,
+                                                         monkeypatch):
+    # the source's table was written when OTHER had no A (S = 0): its line
+    # keeps the old hfs_shift, and the levels would be taken to the cg by
+    # an S its lines never carried
+    m = make_model(tmp_path)
+    rows, derived = current_rows(m)
+    J, A, u_A, det = m.levels[OTHER]
+    m.levels[OTHER] = (J, 0.0, u_A, det)
+    old = m.line_shift('', 25000.0, [(LOW, OTHER, 1.0)])[0]
+    m.levels[OTHER] = (J, A, u_A, det)
+    rows[1]['hfs_shift'] = repr(old)
+    src, dst = two_sets(tmp_path, monkeypatch, rows, derived)
+    with pytest.raises(SystemExit) as e:
+        M3.require_current(src, dst, m)
+    text = str(e.value)
+    assert "hfs_shift disagrees with the model on 1 line(s)" in text
+    assert '25000.0000' in text and '30000.0000' not in text
+    assert OTHER + ' (1)' in text and 'classify_lines.py' in text
+    assert 'cg_shift disagrees' not in text      # the derived set is current
+
+
+def test_a_derived_table_of_another_model_stops_the_run(tmp_path,
+                                                       monkeypatch):
+    m = make_model(tmp_path)
+    rows, derived = current_rows(m)
+    derived[0]['cg_shift'] = '%.6f' % (float(derived[0]['cg_shift']) + 0.01)
+    src, dst = two_sets(tmp_path, monkeypatch, rows, derived)
+    with pytest.raises(SystemExit) as e:
+        M3.require_current(src, dst, m)
+    text = str(e.value)
+    assert "cg_shift disagrees with the model on 1 line(s)" in text
+    assert 'gap +0.01000' in text and 'without --levels' in text
+    assert 'hfs_shift disagrees' not in text
+    # the source table alone is current
+    M3.require_current(src, None, m)
+
+
+def test_nothing_is_checked_without_the_hfs_correction(tmp_path,
+                                                       monkeypatch):
+    monkeypatch.setattr(M3.config, 'load', lambda path: type(
+        'Cfg', (), {'hfs': type('Hfs', (), {'apply': False}),
+                    'output_csv': str(tmp_path / 'absent.csv')}))
+    M3.require_current(str(tmp_path))
+
+
+def test_lopt_perturb_checks_the_tables_before_any_run(tmp_path,
+                                                       monkeypatch):
+    import lopt_perturb as L
+    calls = []
+
+    def stop(source, out_dir=None, model=None):
+        calls.append((source, out_dir))
+        raise SystemExit('stale')
+    monkeypatch.setattr(M3, 'require_current', stop)
+    monkeypatch.setattr(L.config, 'load', lambda path: None)
+    monkeypatch.setattr(L, 'read_records',
+                        lambda path: pytest.fail('ran past the check'))
+    d = derived_set(tmp_path)
+    with pytest.raises(SystemExit, match='stale'):
+        L.main(['--set', str(d), '--source', 'hfs'])
+    assert calls == [(M3.SOURCE_SET, str(d))]
+    own = tmp_path / 'own'
+    own.mkdir()
+    (own / config.CONFIG_NAME).write_text('', encoding='utf-8')
+    with pytest.raises(SystemExit, match='stale'):
+        L.main(['--set', str(own)])
+    assert calls[-1] == (str(own), None)
+
+
 # ---------------------------------------------------------------------------
 # A derived set refuses the tools that write assignments
 # ---------------------------------------------------------------------------
@@ -554,6 +673,7 @@ def no_source(monkeypatch):
     monkeypatch.setattr(M3.hfs_correction, 'Model', lambda h: Model())
     monkeypatch.setattr(M3, 'read_lopt_levels', lambda path: {})
     monkeypatch.setattr(M3, 'level_cg', lambda m, lopt: {})
+    monkeypatch.setattr(M3, 'require_current', lambda s, o, m: None)
 
 
 FIT_LEVELS = [(GROUND, '0.0000000', '0.0070000', '0.0000000', '0', '0', '3',

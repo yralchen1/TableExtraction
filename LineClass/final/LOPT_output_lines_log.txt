@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-18 17:02:36
+LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-19 07:48:18
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
