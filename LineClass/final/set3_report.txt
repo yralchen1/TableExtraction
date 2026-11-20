@@ -1,11 +1,11 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6673 lines, 8952 table rows; moved 5037
+6673 lines, 8943 table rows; moved 5037
 rows of merged lines left out of the table: 29
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-u_hfs_shift cut to its undetermined part: lowered by median 0.0275, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 6.9e-17 cm^-1
-  rule class kappa   4765
-  rule head-D         252
+u_hfs_shift cut to its undetermined part: lowered by median 0.0275, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
+  rule class kappa   4764
+  rule head-D         253
   rule none          1636
   rule resolved        20
   |cg_shift| median 0.0136, 90% 0.0646, max 1.0910 cm^-1
@@ -45,26 +45,26 @@ Companions whose head is not observed (kept, char hfs): 2
   21963.2509     
 
 Resolved levels: F = 2 partners merged: 4
-  21847.1970      (059003.000642) partner 21848.7454, predicted 21848.7244
-  29724.6026      (059003.000642) partner 29726.1171, predicted 29726.1170
-  30088.5807      (059003.000642) partner 30090.1195, predicted 30090.0758
-  33372.1081 w    (059003.000642) partner 33373.6009, predicted 33373.6618
+  21847.1970      (059003.000642) partner 21848.7452, predicted 21848.7242
+  29724.6026      (059003.000642) partner 29726.1166, predicted 29726.1165
+  30088.5807      (059003.000642) partner 30090.1193, predicted 30090.0756
+  33372.1081 w    (059003.000642) partner 33373.6007, predicted 33373.6616
   lines whose partner is in hfs_satellites.txt: 2
   no partner, or more than one: 14
-  20897.9067      (059003.000190) predicted 20897.4632: none
-  28019.7124 c    (059003.000190) predicted 28019.2294: none
-  28508.8216 d    (059003.000190) predicted 28508.3431: none
-  28658.9908      (059003.000642) predicted 28660.4983: none
-  28873.1623 *r   (059003.000190) predicted 28872.6766: none
-  31243.9493      (059003.000642) predicted 31245.4696: none
-  31623.1012 *r   (059003.000190) predicted 31622.6226: none
-  32156.5523 *r   (059003.000190) predicted 32156.0619: none
-  32556.6902 c    (059003.000190) predicted 32556.2340: none
-  33401.3293      (059003.000190) predicted 33400.8971: none
-  33722.4702 w    (059003.000190) predicted 33722.0323: none
-  33772.3202      (059003.000642) predicted 33773.8684: none
-  35150.3212      (059003.000642) predicted 35151.8258: none
-  40667.1510      (059003.000642) predicted 40668.6468: none
+  20897.9067      (059003.000190) predicted 20897.4630: none
+  28019.7124 c    (059003.000190) predicted 28019.2292: none
+  28508.8216 d    (059003.000190) predicted 28508.3430: none
+  28658.9908      (059003.000642) predicted 28660.4981: none
+  28873.1623 *r   (059003.000190) predicted 28872.6763: none
+  31243.9493      (059003.000642) predicted 31245.4693: none
+  31623.1012 *r   (059003.000190) predicted 31622.6224: none
+  32156.5523 *r   (059003.000190) predicted 32156.0616: none
+  32556.6902 c    (059003.000190) predicted 32556.2338: none
+  33401.3293      (059003.000190) predicted 33400.8968: none
+  33722.4702 w    (059003.000190) predicted 33722.0319: none
+  33772.3202      (059003.000642) predicted 33773.8680: none
+  35150.3212      (059003.000642) predicted 35151.8256: none
+  40667.1510      (059003.000642) predicted 40668.6464: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 

@@ -5286,14 +5286,16 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     df = build_output(observed_lines, weights)
     if decisions:
         report_unapplied_decisions(decisions)
+    # The ledger before the table: check_sync warns about a table older than
+    # the ledger it was made from, which the other order always produced.
+    if keep is not None:
+        report_keep_iden2(keep, keep_rows, keep_log_rows, keep_log,
+                          write_files)
     if write_files:
         write_output(df)
         write_unstable_report(observed_lines, blacklist,
                               os.path.join(os.path.dirname(OUTPUT_CSV),
                                            'unstable_candidates.csv'))
-    if keep is not None:
-        report_keep_iden2(keep, keep_rows, keep_log_rows, keep_log,
-                          write_files)
 
     print("=" * 60)
     print("Done.")

@@ -33,9 +33,9 @@ wn_key	unc_wn	date	reason
 37336.7713	0.3	9/27/2026	blend
 68213.5741	0.5	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
 56993.5991	0.5	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
-43594.5694	0.14	9/27/2026	head of 1129-961 pattern
+43594.5694	0.18	11/20/2026	head of 1129-961 pattern (was 0.14, raised by kappa_candidates 11/20/2026: z +3.1 at the head)
 25555.9702	0.09	10/3/2026	head of 1129-1079 pattern
-22372.6908	0.1	11/19/2026	blend of head and rung 1 components; questionable because no char was given
+22372.6908	0.22	11/20/2026	blend of head and rung 1 components; questionable because no char was given (was 0.1, raised by kappa_candidates 11/20/2026: z -7.4 at partial:0-1)
 50210.3292	0.3	9/27/2026	hfs of f26s
 29056.1776	0.17	11/19/2026	strong *r head, 0.15 off the Ritz value; not a kappa effect
 39768.8314	0.2	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
@@ -46,7 +46,6 @@ wn_key	unc_wn	date	reason
 38038.6285	0.115	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
 32105.4086	0.35	9/28/2026	blend
 24866.9222	0.08	9/28/2026	head of 1116-1067 pattern
-26937.8332	0.3	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
 33818.0984	0.1	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
 59111.2243	0.3	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
 96710.6875	1	9/28/2026	outlier in IDEN2/LOPT, OK with inflated unc
@@ -68,7 +67,6 @@ wn_key	unc_wn	date	reason
 31664.7593	0.12	9/30/2026	outlier in IDEN2/LOPT, OK with inflated unc
 38052.9185	0.12	9/30/2026	outlier in IDEN2/LOPT, OK with inflated unc
 54936.1186	0.4	9/30/2026	hfs of f26s
-35972.5687	0.5	10/1/2026	measured near c.g., char d
 40790.2001	0.35	10/1/2026	measured near c.g.
 58102.308	0.7	10/2/2026	hfs of f26s
 43105.9493	0.18	10/2/2026	outlier in IDEN2/LOPT, OK with inflated unc
@@ -99,7 +97,7 @@ wn_key	unc_wn	date	reason
 66477.4764	0.44	10/11/2026	very weak observed line, 4 times weaker than predicted; 3.6 sigma from Ritz in Set 3; no other candidates
 49077.8771	0.4	10/11/2026	outlier in final IDEN2/LOPT, OK with inflated unc
 23083.6428	0.2	10/15/2026	blended with rung 1 of 000182-000653 (companion of 23082.919), which LOPT cannot model; held 000384 0.085 above its 14 VUV lines
-34042.6488	0.35	10/15/2026	*r head of 000188-000448 doubtful: the other 9 lines of 000448 put it 0.35 off, and the printed component spacing disagrees with the head offset; 000187-000298 may be mixed in
+34042.6488	0.42	11/20/2026	*r head of 000188-000448 doubtful: the other 9 lines of 000448 put it 0.35 off, and the printed component spacing disagrees with the head offset; 000187-000298 may be mixed in (was 0.35, raised by kappa_candidates 11/20/2026: z -4.7)
 54489.4089	0.3	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc; 000572 questionable
 67489.8694	0.5	10/15/2026	outlier in final IDEN2/LOPT, OK with inflated unc; 000677 questionable
 53268.5544	0.28	10/15/2026	observed 26 times stronger than predicted: mostly an unidentified line
@@ -121,5 +119,5 @@ wn_key	unc_wn	date	reason
 40163.2089	0.12	10/15/2026	outlier in final IDEN2/LOPT; disagrees with the legacy 39533.681 on 000130
 24350.6202	0.23	10/15/2026	double line (char d, Sugar: a blend of two lines); its setting fits the center of gravity, not the head
 100117.4188	0.7	10/15/2026	Weak line on the level of noise, pulls 000493 too hard
-29686.3692	0.14	11/19/2026	strong *v head, 0.15 off the Ritz value; not a kappa effect (kappa_line 0.75 +- 0.08)
+29686.3692	0.09	11/20/2026	strong *v head, 0.15 off the Ritz value; not a kappa effect (kappa_line 0.75 +- 0.08) (was 0.14, lowered by kappa_candidates 11/20/2026 to the size of the residual (0.09))
 29774.9501	0.15	11/19/2026	strong *r head, 0.15 off the Ritz value; not a kappa effect (kappa_line 1.20 +- 0.06)
