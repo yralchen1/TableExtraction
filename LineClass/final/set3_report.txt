@@ -1,14 +1,14 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6673 lines, 8934 table rows; moved 5036
+6673 lines, 8952 table rows; moved 5037
 rows of merged lines left out of the table: 29
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-u_hfs_shift cut to its undetermined part: lowered by median 0.0266, max 0.2107 cm^-1 over 5036 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
-  rule class kappa   4764
+u_hfs_shift cut to its undetermined part: lowered by median 0.0275, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 6.9e-17 cm^-1
+  rule class kappa   4765
   rule head-D         252
-  rule none          1637
+  rule none          1636
   rule resolved        20
-  |cg_shift| median 0.0136, 90% 0.0641, max 1.0910 cm^-1
+  |cg_shift| median 0.0136, 90% 0.0646, max 1.0910 cm^-1
 
 Merged companions (hfs_satellites.txt): 25
   20972.0992      -> 20971.7476     
@@ -45,26 +45,26 @@ Companions whose head is not observed (kept, char hfs): 2
   21963.2509     
 
 Resolved levels: F = 2 partners merged: 4
-  21847.1970      (059003.000642) partner 21848.7462, predicted 21848.7252
-  29724.6026      (059003.000642) partner 29726.1073, predicted 29726.1072
-  30088.5807      (059003.000642) partner 30090.1205, predicted 30090.0768
-  33372.1081 w    (059003.000642) partner 33373.5982, predicted 33373.6591
+  21847.1970      (059003.000642) partner 21848.7454, predicted 21848.7244
+  29724.6026      (059003.000642) partner 29726.1171, predicted 29726.1170
+  30088.5807      (059003.000642) partner 30090.1195, predicted 30090.0758
+  33372.1081 w    (059003.000642) partner 33373.6009, predicted 33373.6618
   lines whose partner is in hfs_satellites.txt: 2
   no partner, or more than one: 14
-  20897.9067      (059003.000190) predicted 20897.4648: none
-  28019.7124 c    (059003.000190) predicted 28019.2282: none
+  20897.9067      (059003.000190) predicted 20897.4632: none
+  28019.7124 c    (059003.000190) predicted 28019.2294: none
   28508.8216 d    (059003.000190) predicted 28508.3431: none
   28658.9908      (059003.000642) predicted 28660.4983: none
-  28873.1623 *r   (059003.000190) predicted 28872.6761: none
-  31243.9493      (059003.000642) predicted 31245.4681: none
-  31623.1012 *r   (059003.000190) predicted 31622.6275: none
-  32156.5523 *r   (059003.000190) predicted 32156.0627: none
-  32556.6902 c    (059003.000190) predicted 32556.2326: none
-  33401.3293      (059003.000190) predicted 33400.8944: none
-  33722.4702 w    (059003.000190) predicted 33722.0303: none
-  33772.3202      (059003.000642) predicted 33773.8664: none
-  35150.3212      (059003.000642) predicted 35151.8246: none
-  40667.1510      (059003.000642) predicted 40668.6457: none
+  28873.1623 *r   (059003.000190) predicted 28872.6766: none
+  31243.9493      (059003.000642) predicted 31245.4696: none
+  31623.1012 *r   (059003.000190) predicted 31622.6226: none
+  32156.5523 *r   (059003.000190) predicted 32156.0619: none
+  32556.6902 c    (059003.000190) predicted 32556.2340: none
+  33401.3293      (059003.000190) predicted 33400.8971: none
+  33722.4702 w    (059003.000190) predicted 33722.0323: none
+  33772.3202      (059003.000642) predicted 33773.8684: none
+  35150.3212      (059003.000642) predicted 35151.8258: none
+  40667.1510      (059003.000642) predicted 40668.6468: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 
@@ -137,7 +137,7 @@ Characters changed: 401
     22630.6621 d    -> hfs,l  D +0.6193  width 0.2584
     25657.6628 c    -> hfs,l  D +0.4329  width 0.3124
     26409.0895 d    -> hfs,s  D -0.6277  width 0.3267
-    27509.0171 c    -> hfs,l  D +0.4524  width 0.3483
+    27509.0171 c    -> hfs,l  D +0.5294  width 0.3483
     28596.2218 c    -> hfs,l  D +0.7006  width 0.3704
     29164.2576 c    -> hfs,s  D -0.4028  width 0.3823
     30126.3092 c    -> hfs,l  D +0.5904  width 0.4028
@@ -173,14 +173,13 @@ Characters changed: 401
     38164.6091 c    -> hfs,s  D -0.6176  width 0.5986
     38355.8597 c    -> hfs,s  D -0.6395  width 0.6038
 
-Printed components against head - D: 228 lines; |cg difference| median 0.0096, 90% 0.0456 cm^-1; beyond 3 sigma: 8
+Printed components against head - D: 228 lines; |cg difference| median 0.0093, 90% 0.0448 cm^-1; beyond 3 sigma: 7
   line            n      D       s   head-sD - (head-D)   z
   29151.1276 *r    1 -0.1110  -9.744   -1.1926     21.3
   29753.5924 *v    1 -0.7906   1.878   +0.6945    -18.5
   32105.4086 *v    3 -0.8529   0.895   -0.0895      5.6
   32294.9185 *r    1 +0.6184   0.613   +0.2393     -5.3
   28477.5676 *v    5 -0.7556   0.949   -0.0385      4.4
-  24593.4169 *r    2 +0.4950   1.183   -0.0905      3.7
   33185.8488 *r    1 +0.3929   1.401   -0.1576      3.6
   31945.1479 *v    3 -0.6336   1.071   +0.0448     -3.0
 

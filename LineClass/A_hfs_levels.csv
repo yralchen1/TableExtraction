@@ -47,7 +47,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000075,f25d,4.5,+0.0293,0.0032,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000076,f25d,2.5,+0.0351,0.0041,"calculated, hfs_A_theory 2026-10-07, tier 2",1
 059003.000077,4f3,1.5,+0.0181,0.0019,"calculated, hfs_A_theory 2026-10-07, tier 1",0
-059003.000078,f25d,1.5,+0.0031,0.0052,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",1
+059003.000078,f25d,1.5,-0.0008,0.0024,"resolved components with calculated prior, 1 pattern, 1 position (Step 4 anchored fit, 2026-11-20)",1
 059003.000079,f25d,6.5,+0.0196,0.0021,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000080,f25d,3.5,+0.0283,0.0031,"calculated, hfs_A_theory 2026-10-07, tier 2",0
 059003.000081,f25d,2.5,+0.0334,0.0046,"calculated, hfs_A_theory 2026-10-07, tier 2",0
@@ -279,7 +279,7 @@ level_id,cfg,J,A_cm-1,u_A,source,n_flagged
 059003.000307,f5d6s,4.5,+0.0240,0.0139,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000308,f5d6s,3.5,+0.0357,0.0170,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000309,f5d2,2.5,+0.0213,0.0118,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
-059003.000310,f5d6s,5.5,-0.0051,0.0109,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
+059003.000310,f5d6s,5.5,-0.0107,0.0042,"resolved components with calculated prior, 1 pattern, 2 positions (Step 4 anchored fit, 2026-11-20)",0
 059003.000311,f5d2,3.5,+0.0282,0.0065,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000312,f5d6s,4.5,-0.0045,0.0126,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0
 059003.000313,f5d6s,3.5,+0.0636,0.0153,"calculated, hfs_A_theory 2026-10-08, tier 3, a test of the eigenvector",0

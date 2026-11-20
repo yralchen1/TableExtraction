@@ -1,27 +1,27 @@
 F:\UMD\AI\as-ai\LineClass\final\levels_set3.csv: 653 levels
-F:\UMD\AI\as-ai\LineClass\final\ritz_set3.csv: 7773 records
-u_stat = max(D1, D2stat), 0 for the fixed ground level: D1 the larger for 274 of 652 levels
+F:\UMD\AI\as-ai\LineClass\final\ritz_set3.csv: 7797 records
+u_stat = max(D1, D2stat), 0 for the fixed ground level: D1 the larger for 282 of 652 levels
 the ground level's common part, its own u_hfs and D2tot*, in no excited level's: 0.0051 cm^-1
-  the levels' response to the ground level's A: median 2.695 cm^-1 per cm^-1, 10-90% 2.693 to 2.696
+  the levels' response to the ground level's A: median 2.698 cm^-1 per cm^-1, 10-90% 2.696 to 2.699
   radial:4f3/4f.a01          dA(ground) +0.001809 cm^-1, common shift +0.00488 cm^-1
   level:059003.000001        dA(ground) +0.000581 cm^-1, common shift +0.00157 cm^-1
   radial:5d.a10              dA(ground) -0.000003 cm^-1, common shift -0.00001 cm^-1
   radial:5d.a01              dA(ground) +0.000003 cm^-1, common shift +0.00001 cm^-1
   radial:4f.a01              dA(ground) +0.000001 cm^-1, common shift +0.00000 cm^-1
 medians over the levels (ground excluded), cm^-1:
-  E 0-50000       160 levels: u_stat 0.0092, u_cal 0.0078, u_hfs 0.0075, u_kappa 0.0033; D2tot* 0.0157, D2tot* / D2stat 1.67
-  E 50000-100000  175 levels: u_stat 0.0170, u_cal 0.0187, u_hfs 0.0091, u_kappa 0.0039; D2tot* 0.0287, D2tot* / D2stat 1.91
-  E 100000-       317 levels: u_stat 0.0270, u_cal 0.0322, u_hfs 0.0078, u_kappa 0.0029; D2tot* 0.0444, D2tot* / D2stat 1.75
-  all             652 levels: u_stat 0.0180, u_cal 0.0254, u_hfs 0.0081, u_kappa 0.0031; D2tot* 0.0340, D2tot* / D2stat 1.78
-Ritz wavenumbers, 7773 records; medians, cm^-1: uWnCstat 0.0190, u_cal 0.0141, u_hfs 0.0109, u_kappa 0.0024, u_ritz 0.0304
-fit - source moved to the cg: largest |diff| 0.0711 cm^-1 over 653 levels
-  059003.000621 +0.0711 (u_stat 0.0230)
-  059003.000577 -0.0644 (u_stat 0.0190)
-  059003.000676 -0.0569 (u_stat 0.0590)
-  059003.000390 +0.0502 (u_stat 0.0200)
-  059003.000304 +0.0489 (u_stat 0.0390)
-  059003.000448 +0.0477 (u_stat 0.0500)
-  059003.000457 +0.0461 (u_stat 0.0550)
-  059003.000616 +0.0451 (u_stat 0.0370)
-  059003.000569 +0.0447 (u_stat 0.0850)
-  059003.000532 +0.0403 (u_stat 0.0330)
+  E 0-50000       160 levels: u_stat 0.0089, u_cal 0.0077, u_hfs 0.0076, u_kappa 0.0025; D2tot* 0.0152, D2tot* / D2stat 1.66
+  E 50000-100000  175 levels: u_stat 0.0170, u_cal 0.0182, u_hfs 0.0094, u_kappa 0.0030; D2tot* 0.0282, D2tot* / D2stat 1.93
+  E 100000-       317 levels: u_stat 0.0270, u_cal 0.0313, u_hfs 0.0076, u_kappa 0.0025; D2tot* 0.0436, D2tot* / D2stat 1.71
+  all             652 levels: u_stat 0.0180, u_cal 0.0246, u_hfs 0.0080, u_kappa 0.0026; D2tot* 0.0336, D2tot* / D2stat 1.77
+Ritz wavenumbers, 7797 records; medians, cm^-1: uWnCstat 0.0190, u_cal 0.0137, u_hfs 0.0110, u_kappa 0.0019, u_ritz 0.0301
+fit - source moved to the cg: largest |diff| 0.0692 cm^-1 over 653 levels
+  059003.000621 +0.0692 (u_stat 0.0230)
+  059003.000448 +0.0617 (u_stat 0.0470)
+  059003.000577 -0.0610 (u_stat 0.0210)
+  059003.000457 +0.0568 (u_stat 0.0610)
+  059003.000676 -0.0535 (u_stat 0.0600)
+  059003.000684 +0.0500 (u_stat 0.0450)
+  059003.000304 +0.0498 (u_stat 0.0400)
+  059003.000390 +0.0494 (u_stat 0.0200)
+  059003.000616 +0.0445 (u_stat 0.0380)
+  059003.000569 +0.0435 (u_stat 0.0840)

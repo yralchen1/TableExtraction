@@ -39,3 +39,6 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 28596.22183	059003.000141	059003.000202	head		10/6/2026	head of 1138-1076 pattern
 52321.75494161427	059003.000142	059003.000450	head		11/19/2026	"measured at the head of 1139-933 (D = -1.04): z -3.8 at class 0.44, -1.4  at head; no char"
 44134.04010314571	059003.000190	059003.000659	cg	059003.000190	11/19/2026	"between the F = 3 and F = 2 groups of 1089 and at the center of gravity of 903; predicted 0.47 below the head, observed 0.54"
+24039.48113122768	059003.000039	059003.000150	plain_1974_wide		11/20/2026	"|D| = 0.377, just below the 0.4 split, measured as a wide pattern: O-C -0.264 (z -4.5) at plain_1974, -0.057 at plain_1974_wide"
+11710.21564073009	059003.000335	059003.000388	plain_1974		11/20/2026	"|D| = 0.409, just above the 0.4 split, measured as a narrow pattern: O-C +0.205 (z +3.7) at plain_1974_wide, -0.020 at plain_1974"
+42162.94011430247	059003.000194	059003.000314	plain_1974		11/20/2026	"|D| = 0.447, above the 0.4 split, measured as a narrow pattern: O-C -0.269 (z -3.7) at plain_1974_wide, -0.023 at plain_1974; kept IDEN2 assignment"

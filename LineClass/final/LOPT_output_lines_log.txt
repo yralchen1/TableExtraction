@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file lopt.par; started 2026-11-20 09:45:09
+LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 11:37:20
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -12,7 +12,7 @@ Done.
 Counting assigned lines...Done.
 Reading fixed levels...
 Done.
-Reading separations... 648 separation(s) read.
+Reading separations... 651 separation(s) read.
 Done.
 
 Group 1 of 1: 653 levels.
@@ -21,15 +21,15 @@ Done. (spent 0 sec)
 Adjusting weights...Done.
 Adjusting dispersions...Done.
 
-RSS/degrees_of_freedom = 0.82 (5032 degrees_of_freedom)
+RSS/degrees_of_freedom = 0.82 (5036 degrees_of_freedom)
 
 Finding Ritz uncertainties for lines...
 Done. (spent 0 sec)
 
 Warnings on separations of transitions (details in file LOPT_output_lines_sep.txt):
-  separation in line 1014 of LOPT_separations.txt: fitted 0.674, given 0.000 +/- 0.292 cm-1
-  separation in line 1115 of LOPT_separations.txt: fitted 0.729, given 0.000 +/- 0.363 cm-1
-Numerical precision: level 0 (double), condition number 1.6e+03; largest estimated error 3.6e-05 of the last printed digit.
+  separation in line 1018 of LOPT_separations.txt: fitted 0.676, given 0.000 +/- 0.292 cm-1
+  separation in line 1119 of LOPT_separations.txt: fitted 0.726, given 0.000 +/- 0.363 cm-1
+Numerical precision: level 0 (double), condition number 1.5e+03; largest estimated error 3.1e-05 of the last printed digit.
 Adding preliminary values...Done.
 
 Rounding levels...Done.

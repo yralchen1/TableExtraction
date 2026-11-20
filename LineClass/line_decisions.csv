@@ -256,7 +256,7 @@ wn_key,low_id,upp_id,decision,date,reason
 14332.722,059003.000036,059003.000105,accept,9/27/2026,"Negligibly small predicted intensity, but a possible explanation is found"
 14755.108,059003.000035,059003.000106,accept,9/27/2026,"Negligibly small predicted intensity, but a possible explanation is found"
 21496.541,059003.000043,059003.000149,accept,9/9/2026,Negligibly small predicted intensity; mark as questionable in pub list; line char consistent with large hfs in other classified lines of this level.
-86884.296,059003.000096,059003.000351,reject,9/9/2026,Line is well explained by another strong transition; this one is too far from Ritz; include in pub line list as masked.
+86884.296,059003.000096,059003.000351,accept,11/20/2026,IDEN2/LOPT: Improves cg
 48572.079,059003.000108,059003.000268,accept,9/9/2026,IDEN2/LOPT
 54296.804,059003.000069,059003.000268,accept,9/9/2026,IDEN2/LOPT
 92977.225,059003.000075,059003.000365,reject,9/9/2026,Line is well explained by another strong transition; this one is farther from Ritz; include in pub line list as masked.
@@ -330,7 +330,7 @@ wn_key,low_id,upp_id,decision,date,reason
 25574.7671,059003.000180,059003.000631,reject,9/16/2026,IDEN2
 68083.769,059003.000105,059003.000309,reject,9/16/2026,Too small Icalc to explain Iobs
 68093.31,059003.000104,059003.000309,reject,9/16/2026,IDEN2/LOPT: Icalc contribution to blend is negligibly small.
-58431.4181,059003.000097,059003.000633,reject,9/16/2026,Too large obs-Ritz=-0.8 cm-1
+58431.4181,059003.000097,059003.000633,accept,11/20/2026,IDEN2: improves cg and Iobs/Icalc
 96366.6929,059003.000093,059003.000634,accept,9/16/2026,IDEN2/LOPT
 97471.1063,059003.000087,059003.000635,accept,9/16/2026,IDEN2/LOPT
 94964.8822,059003.000108,059003.000635,accept,9/16/2026,IDEN2/LOPT
@@ -796,7 +796,7 @@ wn_key,low_id,upp_id,decision,date,reason
 76345.7202,059003.000149,059003.000459,reject,10/8/2026,"Too small Icalc, too far from Ritz"
 90128.8127,059003.000135,059003.000411,reject,10/8/2026,"Too small Icalc, too far from Ritz, pulls cg in wrong direction"
 118547.7144,059003.000050,059003.000514,reject,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
-118547.7144,059003.000047,059003.000510,reject,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
+118547.7144,059003.000047,059003.000510,accept,11/20/2026,IDEN2/LOPT: Reasonable obs-Ritz for a blended line (char bl)
 67489.8694,059003.000247,059003.000677,accept,10/8/2026,IDEN2/LOPT: Too far from Ritz. Check LOPT?
 23396.8679,059003.000364,059003.000593,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc; char w supports blend"
 23396.8679,059003.000378,059003.000612,accept,10/8/2026,"IDEN2/LOPT: blend improves cg, fair Iobs/Icalc; char w supports blend"
@@ -893,3 +893,4 @@ wn_key,low_id,upp_id,decision,date,reason
 71713.6262,059003.000180,059003.000624,accept,11/20/2026,kept IDEN2 assignment
 78332.3261,059003.000145,059003.000364,accept,11/20/2026,kept IDEN2 assignment
 59273.8323,059003.000098,059003.000294,accept,11/20/2026,"IDEN2: reasonable obs-Ritz, perfect Iobs/Icalc"
+33445.1883,059003.000304,059003.000670,reject,11/20/2026,kept IDEN2 rejection
