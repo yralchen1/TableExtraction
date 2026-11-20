@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 16:06:50
+LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 16:19:53
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -29,7 +29,7 @@ Done. (spent 0 sec)
 Warnings on separations of transitions (details in file LOPT_output_lines_sep.txt):
   separation in line 1018 of LOPT_separations.txt: fitted 0.693, given 0.000 +/- 0.292 cm-1
   separation in line 1119 of LOPT_separations.txt: fitted 0.726, given 0.000 +/- 0.363 cm-1
-Numerical precision: level 0 (double), condition number 1.5e+03; largest estimated error 3.9e-05 of the last printed digit.
+Numerical precision: level 0 (double), condition number 1.5e+03; largest estimated error 3.8e-05 of the last printed digit.
 Adding preliminary values...Done.
 
 Rounding levels...Done.
@@ -40,4 +40,4 @@ Writing levels...Done.
 Writing lines...Done.
 Writing NP plot data...Done.
 Ok.
-Total time spent: 1 sec
+Total time spent: 2 sec

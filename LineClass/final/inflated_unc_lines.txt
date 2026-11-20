@@ -35,7 +35,7 @@ wn_key	unc_wn	date	reason
 56993.5991	0.5	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
 43594.5694	0.18	11/20/2026	head of 1129-961 pattern (was 0.14, raised by kappa_candidates 11/20/2026: z +3.1 at the head)
 25555.9702	0.09	10/3/2026	head of 1129-1079 pattern
-22372.6908	0.22	11/20/2026	blend of head and rung 1 components; questionable because no char was given (was 0.1, raised by kappa_candidates 11/20/2026: z -7.4 at partial:0-1)
+22372.6908	0.23	11/20/2026	blend of head and rung 1 components; questionable because no char was given (was 0.1, raised by kappa_candidates 11/20/2026: z -7.4 at partial:0-1; 0.22 raised to 0.23 on 11/20/2026 after the 1974 spread fell to 0.0798)
 50210.3292	0.3	9/27/2026	hfs of f26s
 29056.1776	0.17	11/19/2026	strong *r head, 0.15 off the Ritz value; not a kappa effect
 39768.8314	0.2	9/27/2026	outlier in IDEN2/LOPT, OK with inflated unc
