@@ -198,6 +198,22 @@ The last work, 2026-10-15 to 10-17:
    sigma. Most of the era gap thus sits on 1969 lines through levels seen
    only in 1969, whose A are mostly calculated. The test is marked xfail
    (strict) until the question is settled.
+   Counted the same day on the calibration's own model (the 1974 split
+   held, `--no-write`): of the 1960 plain 1969 lines in the calibration,
+   1729 take at least half of their sum |S| from levels with a calculated
+   A (418 such levels; median |D| 0.072 cm^-1), and 231 from measured A
+   (76 levels; median 0.087). Free kappa per group: calculated 0.196(32),
+   measured 0.059(46), a difference of 0.137(56), 2.4 sigma; the 0.33-0.42
+   above was on the single 1974 class, before the split absorbed part of
+   it. Read as a scale error, the calculated D are about 15(6)% too large,
+   about 0.01 cm^-1 per line; not excluded is a difference in measurement
+   between the two groups' levels (the measured-A lines run largely
+   through 000127-000451). Questionable levels (verdict ?) play no part:
+   37 calculated-group lines touch 18 of them (all 18 among the calculated
+   carriers, 1-5 lines each), 8 measured-group lines touch 6 through the
+   other level; fitted as a class of their own they leave 0.195 against
+   0.062. If it holds, the remedy is a scale on the calculated A, not a
+   change to any level.
 4. Step 9: the publication tables. Open in it: the calculated-A question of
    item 3c, and the list of contradictions for the paper's discussion.
 5. Step 10: the final line list; the user is to explain the approach.

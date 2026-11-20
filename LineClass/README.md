@@ -618,6 +618,45 @@ matching tolerance — and is listed at the end of the run by
 means the identification is **not** in this run's output, which is why it is
 printed.
 
+#### Holding the run to IDEN2: `--keep-IDEN2-ids` (2026-11-20)
+
+Once the identifications are stable, IDEN2 is where they are kept, and copying
+each disagreement into the ledger by hand is slow. With `--keep-IDEN2-ids`
+(also spelled `--keep_IDEN2_ids`) a run reproduces exactly what the set's
+`IDEN2/trans.dat` identifies:
+
+* every transition IDEN2 identifies with a line is accepted on that line. It is
+  laid on as an `accept` verdict, so it is forced onto the line when the
+  matching does not reach it and wins its transition against any other line;
+* every other candidate is rejected at the end of the weeding
+  (`apply_line_decisions`).
+
+Each enforced verdict that changes what the run would otherwise have done goes
+into the ledger, dated today, so that later runs with or without the option
+keep it:
+
+| case | ledger row |
+|---|---|
+| an IDEN2 assignment the matching did not propose, or the weeding rejected | `accept`, "kept IDEN2 assignment" |
+| an assignment the weeding accepted that IDEN2 does not show | `reject`, "kept IDEN2 rejection" |
+| a ledger row that contradicts IDEN2 | reversed in place, its old verdict and reason kept in the reason |
+
+An assignment the run accepts, or rejects, on its own needs no row. An accepted
+assignment whose Ritz wavenumber misses its line by more than
+`decisions.max_forced_offset` is warned of rather than stopped on, and its row
+carries `offset-ok` as well, so that later runs don't stop on it either. Every
+enforced decision is counted in a console warning and listed in
+`keep_IDEN2_log.txt` in the set's directory, which each such run rewrites.
+
+The join follows the project's rules. Levels are joined through
+`IDEN2/IDEN_level_ids.txt`. Lines are joined through `IDEN2/dlv_keys.txt` (the
+`wn_key` each `dlv.dat` row was written for); a row edited in IDEN2 since is
+matched by its wavenumber within 0.01 cm⁻¹. A join that fails stops the run, as
+does an IDEN2 assignment that still isn't accepted at the end, or any other
+assignment that is. Nothing is written in either case. The code is in
+`keep_iden2.py`, with tests in `tests/test_keep_iden2.py`. The ledger is shared
+by all the sets, so the rows written serve the other sets too.
+
 ## Output
 
 Two files are written to the `LineClass/` directory (`OUTPUT_FILE`, `OUTPUT_CSV`):

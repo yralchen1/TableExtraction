@@ -32,6 +32,7 @@ import blend_centroid
 import gA_imputation
 import hfs_correction
 import hfs_kappa
+import keep_iden2 as keep_iden2_mod
 import output_files
 from models import EnergyLevel, SpectralLine, Transition, UNASSIGNED
 
@@ -1535,14 +1536,27 @@ def apply_line_decisions(line) -> None:
     accepted set instead of re-deriving a slightly different one.  The
     automatic verdict it replaces is kept in notes2, so the disagreements can
     be read off the output.
+
+    Under --keep-IDEN2-ids (`line.iden2_pairs` is not None) the verdicts of
+    IDEN2 have been laid on the line as ledger verdicts (keep_iden2.lay_on),
+    and every candidate they do not name is rejected here; the algorithm's
+    own verdict is kept in `algo_accepted` and `algo_note`, for
+    keep_iden2.finish to tell which enforced verdicts changed anything.
     """
-    if not line.decisions:
+    keep = line.iden2_pairs is not None
+    if not line.decisions and not keep:
         return
     for t in line.assigned_transitions:
         if t is UNASSIGNED:
             continue
+        if keep:
+            t.algo_accepted, t.algo_note = t.accepted, t.notes2
         verdict = manual_verdict(t, line)
         if verdict is None:
+            if keep and t.lower_level and t.upper_level:
+                if t.accepted == 1:
+                    t.notes2 = f"Kept IDEN2 rejection (overrides): {t.notes2}"
+                t.accepted = 0
             continue
         decision, reason = verdict
         want = 1 if decision == DECISIONS_ACCEPT else 0
@@ -1585,8 +1599,13 @@ def report_unapplied_decisions(sites: list) -> int:
     return len(missing)
 
 
-def check_forced_decisions(sites: list, levels_dict: dict) -> None:
+def check_forced_decisions(sites: list, levels_dict: dict,
+                           lenient=frozenset()) -> list:
     """Abort if a ledger row cannot be carried out exactly as it is written.
+
+    `lenient` holds the keys whose forced offset is reported rather than
+    stopped on (--keep-IDEN2-ids: an assignment IDEN2 holds is meant); they
+    are returned as [(key, offset)], and every other fault still stops.
 
     An "accept" row is an order: the assignment it names is put into the run
     whether or not the automatic matching ever proposes it (see
@@ -1631,9 +1650,10 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
     All the faults are collected and reported together, so a file with several
     mistakes in it is fixed in one pass instead of one row per run.
     """
-    faults = []
+    faults, warned = [], []
     accepted_at = {}
-    for (wn, low, upp), line, (decision, reason) in sorted(sites):
+    for (wn, low, upp), line, (decision, reason) in sorted(
+            sites, key=lambda s: (s[0], s[2])):
         lev_lo, lev_up = levels_dict.get(low), levels_dict.get(upp)
         for lid, lev in ((low, lev_lo), (upp, lev_up)):
             if lev is None:
@@ -1659,6 +1679,10 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
                           f"[{WN_MIN:g}, {WN_MAX:g}] cm^-1 of this run")
         offset = ritz - wn
         if (abs(offset) > MAX_FORCED_OFFSET
+                and OFFSET_OK not in (reason or '').lower()
+                and (wn, low, upp) in lenient):
+            warned.append(((wn, low, upp), offset))
+        elif (abs(offset) > MAX_FORCED_OFFSET
                 and OFFSET_OK not in (reason or '').lower()):
             fault = (f"{wn:12.4f}  {low}-{upp}  accept: the Ritz wavenumber "
                      f"{ritz:.4f} cm^-1 ({lev_up.energy:.4f} - "
@@ -1690,6 +1714,7 @@ def check_forced_decisions(sites: list, levels_dict: dict) -> None:
     if faults:
         raise ValueError("the decision ledger cannot be carried out:\n    "
                          + "\n    ".join(faults))
+    return warned
 
 
 def force_ledger_assignments(obs_line, matches: list, proto: dict,
@@ -1738,6 +1763,7 @@ def force_ledger_assignments(obs_line, matches: list, proto: dict,
             orig_u_calc=t.orig_u_calc,
             is_imputed=t.is_imputed,
         )
+        forced.forced = True
         obs_line.assigned_transitions.append(forced)
         matches.append(forced)
         n_forced[0] += 1
@@ -3064,6 +3090,7 @@ def reset_weeding_state(observed_lines: list) -> None:
             t.accepted = None
             t.notes2 = ""
             t.manual = ""
+            t.algo_accepted, t.algo_note = None, ""
 
 
 def trans_key(t) -> tuple:
@@ -4854,6 +4881,39 @@ def clear_assignments(all_possible: list, lines: list):
 # ===========================================================================
 # MAIN
 # ===========================================================================
+def report_keep_iden2(keep, rows, log_rows, log_path, write_files) -> None:
+    """Write the ledger rows and the log of --keep-IDEN2-ids, and warn.
+
+    Without `write_files` nothing is written and the warning says what
+    would have been."""
+    n_new = n_rev = 0
+    if write_files:
+        n_new, n_rev = keep_iden2_mod.update_ledger(
+            LINE_DECISIONS, rows, keep, DECISIONS_ACCEPT, OFFSET_OK)
+        count = keep_iden2_mod.write_log(log_path, log_rows, keep,
+                                         os.path.basename(LINE_DECISIONS),
+                                         n_new, n_rev)
+    else:
+        count = {c: sum(1 for r in log_rows if r[0] == c)
+                 for c in keep_iden2_mod.CATEGORIES}
+    n = sum(count.values())
+    if not n:
+        print("  --keep-IDEN2-ids: the run agrees with IDEN2; nothing "
+              "enforced.")
+        return
+    print(f"  WARNING: --keep-IDEN2-ids enforced {n} decision(s):")
+    for c in keep_iden2_mod.CATEGORIES:
+        if count[c]:
+            print(f"    {count[c]:4d}  {c}")
+    if write_files:
+        print(f"    {os.path.basename(LINE_DECISIONS)}: {n_new} row(s) "
+              f"appended, {n_rev} reversed; every one is listed in "
+              f"{log_path}")
+    else:
+        print(f"    (no files written: {len(rows)} ledger row(s) to append, "
+              f"{len(keep.reversed)} to reverse)")
+
+
 def output_paths() -> list:
     """Every file a full run writes: the workbook, its csv twin, the report."""
     return [OUTPUT_FILE, OUTPUT_CSV,
@@ -5028,7 +5088,8 @@ def check_double_acceptances(observed_lines: list, input_energies: dict,
 
 
 def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
-         decoy_shift: float = 0.0, decoy_ids=None) -> pd.DataFrame:
+         decoy_shift: float = 0.0, decoy_ids=None,
+         keep_iden2: bool = False) -> pd.DataFrame:
     """Run the full classification pipeline.
 
     Args:
@@ -5044,9 +5105,21 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
                   are used unchanged.
         decoy_ids: ids of the levels to copy as decoys (defaults to the
                   levels absent from ASD).
+        keep_iden2: hold the run to the identifications of the set's
+                  IDEN2/trans.dat and write the verdicts that takes into the
+                  decision ledger (--keep-IDEN2-ids; keep_iden2.py).
 
     Returns the output DataFrame.
     """
+    if keep_iden2 and (wn_shift != 0.0 or decoy_shift != 0.0):
+        raise ValueError("--keep-IDEN2-ids is for the real classification, "
+                         "not a chance-coincidence or decoy run")
+    if keep_iden2 and not LINE_DECISIONS:
+        raise ValueError("--keep-IDEN2-ids writes into the decision ledger, "
+                         "and the configuration names none "
+                         "(files.line_decisions)")
+    set_dir = os.path.dirname(OUTPUT_CSV)
+    keep_log = os.path.join(set_dir, keep_iden2_mod.LOG_NAME)
     print("=" * 60)
     print("classify_lines.py — Spectral Line Classification for Pr III")
     if wn_shift != 0.0:
@@ -5063,6 +5136,9 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         config.require_own_output(CFG.path, output_paths(), 'classify_lines.py')
         config.require_unlocked(output_paths(), 'classify_lines.py', UNLOCK)
         output_files.require_writable(output_paths())
+        if keep_iden2:
+            output_files.require_writable([LINE_DECISIONS, keep_log],
+                                          'ledger or log')
 
     # Step 1: Read energy levels
     levels_dict, levels_list = read_energy_levels()
@@ -5098,6 +5174,17 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     decisions = {}
     if LINE_DECISIONS and wn_shift == 0.0 and decoy_shift == 0.0:
         decisions = attach_line_decisions(observed_lines, LINE_DECISIONS)
+    # IDEN2's identifications, laid over the ledger's verdicts.
+    keep = None
+    if keep_iden2:
+        keep = keep_iden2_mod.lay_on(
+            observed_lines, levels_dict, decisions,
+            os.path.join(set_dir, 'IDEN2'), DECISIONS_ACCEPT,
+            DECISIONS_REJECT, DECISIONS_WN_MATCH)
+        print(f"  --keep-IDEN2-ids: {keep.n_iden2} identifications read "
+              f"from IDEN2; {len(keep.provisional)} not yet accepted in the "
+              f"ledger, {len(keep.reversed)} ledger row(s) contradicting "
+              f"IDEN2 reversed.")
     # The resolved hfs companions are identifications made by hand as well,
     # and are left out of the calibration runs for the same reason.
     if HFS_SATELLITES and wn_shift == 0.0 and decoy_shift == 0.0:
@@ -5110,7 +5197,15 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     # A ledger row that cannot be obeyed stops the run here, before any of the
     # work is done, rather than being reported as unapplied at the end of it.
     if decisions:
-        check_forced_decisions(decisions, levels_dict)
+        lenient = (keep_iden2_mod.lenient_keys(keep, decisions,
+                                               DECISIONS_ACCEPT)
+                   if keep is not None else frozenset())
+        warned = check_forced_decisions(decisions, levels_dict, lenient)
+        if keep is not None:
+            where = {key: line for key, line, _v in decisions}
+            for key, off in warned:
+                keep.offset.append((where[key], key[1:], off))
+                keep.offset_keys.add(key)
 
     # The energies the fit starts from, kept so that check_double_acceptances()
     # can say how far each level has been moved by the run itself.
@@ -5160,6 +5255,12 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
     check_double_acceptances(observed_lines, input_energies, weights,
                              strict=(wn_shift == 0.0 and decoy_shift == 0.0))
 
+    # Whether the run obeyed IDEN2, checked before anything is written.
+    if keep is not None:
+        keep_rows, keep_log_rows = keep_iden2_mod.finish(
+            observed_lines, keep, DECISIONS_ACCEPT, DECISIONS_REJECT,
+            OFFSET_OK, UNASSIGNED)
+
     df = build_output(observed_lines, weights)
     if decisions:
         report_unapplied_decisions(decisions)
@@ -5168,6 +5269,9 @@ def main(max_cycles: int = 20, wn_shift: float = 0.0, write_files: bool = True,
         write_unstable_report(observed_lines, blacklist,
                               os.path.join(os.path.dirname(OUTPUT_CSV),
                                            'unstable_candidates.csv'))
+    if keep is not None:
+        report_keep_iden2(keep, keep_rows, keep_log_rows, keep_log,
+                          write_files)
 
     print("=" * 60)
     print("Done.")
@@ -5196,12 +5300,22 @@ def cli(argv=None) -> None:
                     help='write a locked set (one whose own '
                          'lineclass_config.toml says locked = true, as the '
                          'baseline\'s does)')
+    ap.add_argument('--keep-IDEN2-ids', '--keep_IDEN2_ids',
+                    action='store_true', dest='keep_iden2',
+                    help='hold the classification to the identifications of '
+                         'the set\'s IDEN2/trans.dat: accept every transition '
+                         'IDEN2 identifies, reject every other candidate, and '
+                         'write each verdict that changes anything into the '
+                         'decision ledger (reasons "kept IDEN2 assignment" / '
+                         '"kept IDEN2 rejection"); every enforced decision is '
+                         'listed in keep_IDEN2_log.txt in the set\'s '
+                         'directory')
     args = ap.parse_args(argv)
     global UNLOCK
     UNLOCK = args.unlock
     apply_config(config.load(args.config), policy=args.missing_gA)
     try:
-        main(max_cycles=args.max_cycles)
+        main(max_cycles=args.max_cycles, keep_iden2=args.keep_iden2)
     except ValueError as exc:
         # check_forced_decisions() and check_double_acceptances() stop the run
         # on data the analysis must not be carried out on.  What they have to

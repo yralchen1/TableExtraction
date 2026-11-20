@@ -1,0 +1,9 @@
+classify_lines.py --keep-IDEN2-ids, 2026-11-20 09:41
+5626 identifications read from IDEN2
+line_decisions.csv: 0 rows appended, 0 reversed
+
+   0  IDEN2 assignment not proposed by the matching: forced, accepted
+   0  IDEN2 assignment rejected by the weeding: accepted
+   0  accepted by the weeding, not in IDEN2: rejected
+   0  ledger row contradicting IDEN2: reversed
+   0  IDEN2 assignment beyond decisions.max_forced_offset: offset-ok

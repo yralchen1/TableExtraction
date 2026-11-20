@@ -121,5 +121,5 @@ wn_key	unc_wn	date	reason
 40163.2089	0.12	10/15/2026	outlier in final IDEN2/LOPT; disagrees with the legacy 39533.681 on 000130
 24350.6202	0.23	10/15/2026	"double line (char d, Sugar: a blend of two lines); its setting fits the center of gravity, not the head"
 100117.4188	0.7	10/15/2026	"Weak line on the level of noise, pulls 000493 too hard"
-29686.3691	0.14	11/19/2026	"strong *v head, 0.15 off the Ritz value; not a kappa effect (kappa_line 0.75 +- 0.08)"
-29774.95	0.15	11/19/2026	"strong *r head, 0.15 off the Ritz value; not a kappa effect (kappa_line 1.20 +- 0.06)"
+29686.3692	0.14	11/19/2026	"strong *v head, 0.15 off the Ritz value; not a kappa effect (kappa_line 0.75 +- 0.08)"
+29774.9501	0.15	11/19/2026	"strong *r head, 0.15 off the Ritz value; not a kappa effect (kappa_line 1.20 +- 0.06)"

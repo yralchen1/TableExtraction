@@ -1,16 +1,16 @@
-lopt_perturb.py --source calibration, 2026-11-19 14:12
-set: F:\UMD\AI\as-ai\LineClass\final (7859 records)
+lopt_perturb.py --source calibration, 2026-11-20 09:48
+set: F:\UMD\AI\as-ai\LineClass\final (7773 records)
 corrections F:\UMD\AI\as-ai\LineClass\wavelength_calibration_corrections.csv; covariance F:\UMD\AI\as-ai\LineClass\wavelength_calibration_cov.csv
 groups 150; patterns run 150 of 150, the largest carrying 25.8% of the variance
-corrections against covariance: largest relative difference of a group's u 1.35%
-records not moved: 0 not in the table, 61 without a group, 0 in a group the covariance does not hold
+corrections against covariance: largest relative difference of a group's u 1.03%
+records not moved: 0 not in the table, 60 without a group, 0 in a group the covariance does not hold
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
-linearity: the pattern p001 at half size differs by 2.28e-07 cm^-1 at most (its largest level shift 0.0300)
-152 runs, 16 at a time, 22 s
+linearity: the pattern p001 at half size differs by 4.17e-07 cm^-1 at most (its largest level shift 0.0278)
+152 runs, 16 at a time, 21 s
 
-u_cal over 652 levels (ground excluded): median 0.0265, 90% 0.0369, max 0.0874 cm^-1; / D2stat median 1.09, 90% 2.00
-  E      0-50000 : 160 levels, median u_cal 0.0081, median D2stat 0.0092
-  E  50000-100000: 175 levels, median u_cal 0.0195, median D2stat 0.0160
-  E 100000-      : 317 levels, median u_cal 0.0334, median D2stat 0.0260
-the largest pattern's share of u_cal^2: median 0.53
+u_cal over 652 levels (ground excluded): median 0.0254, 90% 0.0355, max 0.0859 cm^-1; / D2stat median 1.07, 90% 1.94
+  E      0-50000 : 160 levels, median u_cal 0.0078, median D2stat 0.0089
+  E  50000-100000: 175 levels, median u_cal 0.0187, median D2stat 0.0150
+  E 100000-      : 317 levels, median u_cal 0.0322, median D2stat 0.0260
+the largest pattern's share of u_cal^2: median 0.48
 written: F:\UMD\AI\as-ai\LineClass\final\calibration_sys_levels.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_modes.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_report.txt

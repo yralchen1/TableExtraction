@@ -63,6 +63,11 @@ class SpectralLine:
     # ('accept'|'reject', reason), read from the decision ledger by
     # classify_lines.attach_line_decisions().  Empty unless the ledger names
     # this line.
+    iden2_pairs: Optional[set] = field(default=None, compare=False,
+                                       repr=False)
+    # The (lower_id, upper_id) pairs IDEN2 identifies with this line, under
+    # classify_lines --keep-IDEN2-ids (keep_iden2.py); None without it.  In
+    # that mode every candidate of the line not named here is rejected.
     hfs_factor: float = 0.0
     # 1 - kappa, the fraction of a transition's hyperfine displacement D by
     # which this line was measured below the head-frame Ritz wavenumber;
@@ -153,6 +158,15 @@ class Transition:
     orig_u_calc: Optional[float] = None           # original u_calc from input, never modified
     manual: str = ""                          # 'accept' / 'reject' if the decision ledger rules on
                                               #     this assignment, '' if it does not
+    # Under --keep-IDEN2-ids (keep_iden2.py): `forced`, the candidate was put
+    # on the line by force_ledger_assignments because the matching did not
+    # reach it; `algo_accepted` and `algo_note`, the algorithm's own verdict
+    # and reason in the last weeding pass, before the enforced one replaced
+    # them.  Not compared, so that equality of transitions is unchanged.
+    forced: bool = field(default=False, compare=False, repr=False)
+    algo_accepted: Optional[int] = field(default=None, compare=False,
+                                         repr=False)
+    algo_note: str = field(default="", compare=False, repr=False)
     is_imputed: int = 0                       # 1 = the pair is absent from the calculated-transition
                                               #     file, so its intensity was imputed from the
                                               #     printing cutoff of gA (see gA_imputation.py);
