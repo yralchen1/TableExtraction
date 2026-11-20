@@ -1,0 +1,151 @@
+MERGED LINES OF SUGAR'S LIST - the full account
+================================================
+
+Kept by hand.  The short notes in Pr3_lines.xlsx (and so in
+final/Pr3_lines_set3.xlsx) point here.  Two kinds of merge are recorded:
+
+A. MERGED IN THE LINE LIST (Pr3_lines.xlsx).  Two of Sugar's lines are one
+   line in every set from then on: one row, one wn_key, one position the fit
+   uses.  Done with LineClass/Devel/sugar_duplicates_2026-11-20/merge_lines.py,
+   which also re-keys line_decisions.csv, kappa_exceptions.txt,
+   inflated_unc_lines.txt, line_snr.csv and iter_hfs/IDEN2 (dlv.dat,
+   dlv_keys.txt, dlv_shown.txt).  The merged line keeps the identified row,
+   with its character and stated uncertainty.  Its wavenumber is the plain
+   average of the two.  Its intensity (Iorig, Icor) is the mean of the two
+   for two readings of one line, and the sum for two parts of one feature.
+
+B. COMPANIONS (hfs_satellites.txt).  The second line stays in the line list
+   with grade hfs, out of LOPT and IDEN2.  make_set3.py merges it into its
+   main line in Set 3, adding its intensity.  The fit uses the main line
+   alone, held at the head of its pattern (kappa = 1), unless
+   kappa_exceptions.txt says otherwise.
+
+Positions are given from the center of gravity (cg) of the transition, the
+Ritz value of LOPT's final fit (2026-11-20).  "Peaks" are the maxima of the
+calculated hyperfine pattern (A_hfs_levels.csv, hfs_patterns.components)
+with each component broadened to the effective line width (make_set3.fwhm_cm:
+0.035 A instrumental with the Doppler width).  The scatter of ln(Iobs/Icalc)
+of single 1974 lines is 0.90 (robust), so a factor of 2 in intensity
+decides nothing alone.
+
+How the cases were found: Devel/sugar_duplicates_2026-11-20/close_pairs.py
+(neighbors closer than one line width: 109 pairs, 70 of 1969, 39 of 1974) and
+inside_pattern.py (an unidentified line inside an identified neighbor's
+broadened pattern, above half its peak height: 8 lines on 2026-11-20).
+
+
+A. MERGED IN THE LINE LIST
+==========================
+
+1. 36875.8141 = 36875.7593 (c, I 3) + 36875.8689 (w, I 4)        11/20/2026
+   000134-000239.  Two readings of one line: 0.008 A (0.110 cm-1) apart,
+   0.19 line widths.  The Doppler width alone is 0.30 cm-1 at 2712 A, and
+   the pattern spans 1.18 cm-1, so no spectrograph order could resolve them
+   (Sugar measured some lines in higher orders).  Broadened, the pattern has
+   one maximum, +0.034 from the cg (0.064 of D = +0.530), and is 1.40 cm-1
+   wide at half height.  Readings, calibrated: c +0.049, w +0.158 from the
+   cg (Sugar had the identification on the c line; the user moved it to the
+   w line on 9/28/2026).
+   Merged: plain average; intensity the MEAN (3.5; Icor 6029), since each
+   reading is of the whole line; character c, since the maximum sits where
+   class c sets a line (kappa 0.039) and Sugar used c for one reading;
+   uncertainty by the c convention of the 1974 list (0.0338 A).
+   Withdrawn: kappa_exceptions partial:0-3 of 10/5/2026 (as w, |D| > 0.4
+   put the line in the wide class, 0.36 cm-1 off).
+   Result (round 5): fits class c, z +0.8 (kappa_candidates); LOPT +0.083
+   (0.8 sigma).
+   Intensity: Icalc 13319; the mean gives ln(Iobs/Icalc) -0.79, the sum
+   -0.10.
+
+2. 32742.5601 = 32742.9015 (I 8) + 32742.2186 (I 8)                11/20/2026
+   000150-000247 (D = +0.446).  Two edges of one pattern: the pattern
+   broadened to 0.462 cm-1 has a single maximum (+0.030) with shoulders at
+   -0.398 and +0.426; the lines sit at +0.326 and -0.357, equal in
+   intensity.  Their average is -0.016 from the cg; the identified line
+   alone (wide class, kappa 0.875) left -0.065 (-1.5 sigma).  As a
+   companion it would be held at the head and leave -0.12.
+   Merged: plain average; intensity the SUM (16; Icor 58955); no character
+   (Sugar gave none to either); stated uncertainty of the identified row.
+   kappa_exceptions: cg row added (the merged line is the cg; with no
+   character and |D| > 0.4 its class would be the wide one).
+   Withdrawn: the commented-out companion row of hfs_satellites.txt
+   (9/30/2026, "left out until settled").
+   Intensity: Icalc 51267; sum 1.15, mean 0.57, each line 0.57.  000150
+   lines are known measurement failures; this pair is one explanation.
+
+3. 33492.1179 = 33491.8879 (c, I 5) + 33492.3479 (c, I 5)          11/20/2026
+   000191-000449 (D = -0.851).  Two peaks of one resolved pattern: broadened
+   to 0.480 cm-1 it has four maxima, -0.849, -0.159, +0.419, +0.790 (heights
+   1.00, 0.84, 0.72, 0.66); the lines sit at -0.167 and +0.293.  Their
+   average is +0.063 from the cg; the identified line alone (class c) left
+   -0.134.  As a companion it would be held at the head, 0.7 cm-1 off.
+   Merged: plain average; intensity the SUM (10; Icor 31500); character c;
+   stated uncertainty of the identified row (c convention).  No kappa row:
+   class c predicts a residual of about +0.10 (1 sigma).
+   Intensity: Icalc 6983; sum 4.5, mean 2.3, each line 2.3: high either way.
+
+4. 34396.0209 = 34395.4816 (w, I 2) + 34396.5603 (I 7)             11/20/2026
+   000148-000255 (D = -0.861).  Two halves of a wide, flat-topped pattern:
+   broadened to 0.501 cm-1 it has four maxima of nearly equal height,
+   -0.840, -0.294, +0.200, +0.575 (1.00, 0.93, 0.90, 0.89), 2.2 cm-1 wide at
+   half height; the lines sit symmetrically at -0.541 and +0.537.  Their
+   plain average is -0.002 from the cg (the intensity-weighted one +0.298).
+   Merged: plain average; intensity the SUM (9; Icor 20081); character w;
+   stated uncertainty of the identified row.  The two ledger rows of
+   34395.482 (accept 000148-000255, reject 000313-000421) re-keyed.
+   kappa_exceptions: partial:0-1 of 10/5/2026 ("blend of head and rung 1
+   components") replaced by a cg row.
+   Intensity: Icalc 9389.  The MEAN of the two (Icor 10040) agrees with it
+   far better (1.07) than either line (0.48 and 1.66) or the sum (2.14)
+   (user, 2026-11-20).
+   Suspicion of a blend, documented and NOT acted on (user, 2026-11-20):
+   the intensities 2 and 7 are unequal although the pattern is nearly
+   symmetric, so the stronger line (34396.5603) might carry a blend with an
+   unidentified line.  No candidate transition was found for it.
+
+
+B. COMPANIONS (hfs_satellites.txt, 11/20/2026)
+==============================================
+
+5. 15505.0470 (I 4), companion of 15504.9460 (I 5), 000065-000143.
+   Both levels J = 1/2.  The pair is the F = 2 and F = 3 groups of the
+   lower level 000065: peaks at -0.064 (1.00) and +0.083 (0.75), lines at
+   -0.030 and +0.071 (intensities 5 and 4).  They are 0.101 apart against
+   0.147 calculated with A(000065) = +0.053 (calculated, tier 1): the
+   doublet puts A(000065) nearer +0.034, another case of the calculated A
+   values running high (Work_on_hfs_plan.md item 3c).  Intensity: the sum
+   matches Icalc (0.93; the main line alone 0.51).  Sugar identified
+   15505.05; the identification was moved to 15504.95, which agrees better
+   with Sugar's own Ritz wavenumber, hence the note "err in Sugar" (user,
+   2026-11-20).  The doublet supports that move: 15504.95 is the stronger
+   group (calculated peak height 1.00 against 0.75), the one the
+   identification belongs on.
+
+6. 23532.8329 (d, I 10), companion of 23533.7483 (I 8), 000192-000274.
+   Peaks at -0.446 (0.60), -0.030 (0.77), +0.505 (1.00); the main line sits
+   on the violet head (+0.504; already held there by kappa_exceptions), the
+   companion on the red peak (-0.411).  The intensity-weighted mean of the
+   two is the cg (-0.004).  The middle peak is not listed; the companion's
+   d (double) may include it.
+
+7. 29724.4007 (I 7) and 29725.8174 (I 6), companions of 29724.6026 (I 8),
+   000642-000444.  Both levels J = 1/2, so the pattern has four components,
+   and Sugar listed all four:
+       29724.4007  -0.763   F 3->2  calculated -0.784  (strength 1.94)
+       29724.6026  -0.561   F 3->3  calculated -0.522  (1.56)  identified
+       29725.8174  +0.654   F 2->2  calculated +0.731  (0.56)
+       29726.1177  +0.954   F 2->3  calculated +0.993  (1.94)  merged by
+                                     make_set3.py as the F = 2 partner of
+                                     the resolved level 000642
+   The splittings within the two groups, 0.202 and 0.300 (mean 0.251), are
+   the upper level's: 3 A(000444) = 0.262 with the composition value
+   +0.0874, which they confirm.
+
+8. 30879.5492 (Iorig 2.18, estimated), companion of 30879.9787 (*r, I 3),
+   000150-000229.  Sugar printed it as rung 1 of this pattern (Intens 0),
+   not as a line of his list.  The pattern broadened to 0.419 cm-1 has one
+   maximum (+0.029) with shoulders at -0.303 and +0.328; the companion lies
+   on the maximum (-0.008), the *r reading near the violet shoulder
+   (+0.421).  Its position stays out of the A fit, as decided on 10/9/2026
+   (hfs_components.DISMISSED).  As the head, the main line's residual goes
+   from +0.096 to about +0.073.

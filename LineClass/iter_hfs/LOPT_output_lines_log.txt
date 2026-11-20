@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 15:09:12
+LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 16:06:31
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -17,7 +17,7 @@ Done.
 
 Group 1 of 1: 653 levels.
 Finding energies and uncertainties (0 exact constraints)...
-Done. (spent 0 sec)
+Done. (spent 1 sec)
 Adjusting weights...Done.
 Adjusting dispersions...Done.
 
@@ -28,7 +28,7 @@ Done. (spent 0 sec)
 
 Warnings on separations of transitions (details in file LOPT_output_lines_sep.txt):
   separation in line 1179 of LOPT_separations.txt: fitted 0.205, given 0.000 +/- 0.088 cm-1
-Numerical precision: level 0 (double), condition number 4.2e+03; largest estimated error 6.2e-05 of the last printed digit.
+Numerical precision: level 0 (double), condition number 4.0e+03; largest estimated error 5.8e-05 of the last printed digit.
 Adding preliminary values...Done.
 
 Rounding levels...Done.

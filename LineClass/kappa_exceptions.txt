@@ -28,7 +28,7 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 56820.89432	059003.000142	059003.000629	head		10/5/2026	head of 1139-918 pattern
 35193.65836	059003.000125	059003.000210	partial:0-2		10/5/2026	halfway between the head and the center of gravity of 1156-1067; questionable because no char was given
 31478.92163	059003.000140	059003.000217	partial:0-1		10/5/2026	blend of head and rung 1 components (plus some rung 2); questionable because no char was given
-34395.48159	059003.000148	059003.000255	partial:0-1		10/5/2026	blend of head and rung 1 components; char w
+34396.02094290628	059003.000148	059003.000255	cg		11/20/2026	"merged 11/20/2026 from 34395.4816 (w, I 2) and 34396.5603 (I 7), the two halves of a wide, flat-topped pattern; their plain average is the center of gravity (-0.002); replaces partial:0-1 of 10/5/2026"
 22372.69081	059003.000150	059003.000195	partial:0-1		10/5/2026	blend of head and rung 1 components; questionable because no char was given
 22524.4601	059003.000182	059003.000243	head		10/6/2026	"head of 1098-1028 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
 22524.4601	059003.000182	059003.000433	head		10/6/2026	"head of 1098-1031 pattern; measured at the head (kappa_line ~1); inflated, so out of the kappa fit (scratch calibration 2026-10-06: plain_1974 -0.003)"
@@ -44,3 +44,4 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 26937.83321021198	059003.000160	059003.000218	head		11/20/2026	"char c, measured at the head of 1120-1057 (D = +0.318, kappa_line 1.17(24)): z +4.8 at class c, +0.7 at the head; inflation 0.3 withdrawn"
 35972.56871372538	059003.000127	059003.000218	cg		11/20/2026	"char d, measured near the center of gravity of 1154-1057 (D = -0.468, kappa_line 0.07(26)): z +3.1 at plain_1974_wide, -0.3 at cg; inflation 0.5 withdrawn"
 42064.87120604494	059003.000197	059003.000325	plain_1974		11/20/2026	"|D| = 0.402, just above the 0.4 split, measured as a narrow pattern: blend component (BF 0.91) with LOPT O-C +0.186 (z +3.6) at plain_1974_wide, about -0.05 at plain_1974"
+32742.560067303923	059003.000150	059003.000247	cg		11/20/2026	"merged 11/20/2026 from 32742.9015 and 32742.2186 (I 8 each), the two edges of one pattern; their average is the center of gravity (-0.016)"

@@ -479,19 +479,19 @@ kappa_wide_D = 0.4
 # (scratch runs on iter_hfs/'s table, no file written; a free run gives the
 # same), uncertainties u_jack; in place of plain_1974 0.751(34) and
 # plain_1969 0.440(49)
-# [wavelength_calibration.py] written 2026-11-20 15:08 from iter_hfs/line_classifications.csv (4497 lines);
-# [wavelength_calibration.py] the values before: plain_1974 0.241(28), plain_1974_wide 0.875(45), plain_1969 0.148(29), c 0.039(29), flag_unlisted 0.934(23)
+# [wavelength_calibration.py] written 2026-11-20 16:06 from iter_hfs/line_classifications.csv (4497 lines);
+# [wavelength_calibration.py] the values before: plain_1974 0.241(28), plain_1974_wide 0.875(40), plain_1969 0.148(29), c 0.039(29), flag_unlisted 0.934(22)
 flag            = [1.0, 0.0]
 plain_1974      = [0.241, 0.028]
-plain_1974_wide = [0.875, 0.039]
+plain_1974_wide = [0.875, 0.040]
 plain_1969      = [0.148, 0.029]
-c               = [0.039, 0.029]
+c               = [0.039, 0.028]
 flag_unlisted   = [0.934, 0.021]
 
 [hfs.kappa_spread]
 # the line-to-line spread s of kappa about its class, per era: a line of
 # a fitted class (not flag) gains s*|D| in its u_hfs_shift; see hfs_kappa.py,
 # SPREAD_ROUNDS.  Written by wavelength_calibration.py.
-# [wavelength_calibration.py] written 2026-11-20 15:08 from iter_hfs\line_classifications.csv (4497 lines); before: 1969 0.1436  1974 0.0969
-1974 = 0.0821
-1969 = 0.1448
+# [wavelength_calibration.py] written 2026-11-20 16:06 from iter_hfs\line_classifications.csv (4497 lines); before: 1969 0.1438  1974 0.0870
+1974 = 0.0798
+1969 = 0.1442

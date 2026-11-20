@@ -1,5 +1,5 @@
-lopt_perturb.py --source hfs, 2026-11-20 15:11
-set: F:\UMD\AI\as-ai\LineClass\final (7790 records)
+lopt_perturb.py --source hfs, 2026-11-20 16:09
+set: F:\UMD\AI\as-ai\LineClass\final (7789 records)
 source set F:\UMD\AI\as-ai\LineClass\iter_hfs; A table F:\UMD\AI\as-ai\LineClass\A_hfs_levels.csv
 calculated constants: 35 correlated patterns (7 radial, 8 factors, 20 configurations)
 semiempirical scale: 7 levels; fitted constants: 113 patterns over 113 levels, the fit reproducing the table to 0.00005 cm^-1
@@ -7,28 +7,28 @@ levels whose correlated parts reach their u_A (no own part left): 58, largest ra
 records without a line: 0; patterns that move no record: 0
 patterns run: 749 (149 correlated, 595 own, 5 kappa)
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
-linearity: the pattern radial:4f.a01 at half size differs by 8.43e-08 cm^-1 at most (its largest level shift 0.0028)
-751 runs, 16 at a time, 98 s
+linearity: the pattern radial:4f.a01 at half size differs by 4.21e-08 cm^-1 at most (its largest level shift 0.0028)
+751 runs, 16 at a time, 103 s
 
-u_hfs over 652 levels (ground excluded): median 0.0094, 90% 0.0165, max 0.1265 cm^-1; / D2stat median 0.58, 90% 1.35
-  E      0-50000 : 160 levels, median u_hfs 0.0091, median D2stat 0.0087
+u_hfs over 652 levels (ground excluded): median 0.0095, 90% 0.0163, max 0.1291 cm^-1; / D2stat median 0.59, 90% 1.37
+  E      0-50000 : 160 levels, median u_hfs 0.0091, median D2stat 0.0086
   E  50000-100000: 175 levels, median u_hfs 0.0104, median D2stat 0.0150
   E 100000-      : 317 levels, median u_hfs 0.0091, median D2stat 0.0260
-u_hfs_corr over 652 levels (ground excluded): median 0.0084, 90% 0.0136, max 0.1133 cm^-1; / D2stat median 0.49, 90% 1.18
-  E      0-50000 : 160 levels, median u_hfs_corr 0.0082, median D2stat 0.0087
-  E  50000-100000: 175 levels, median u_hfs_corr 0.0087, median D2stat 0.0150
+u_hfs_corr over 652 levels (ground excluded): median 0.0084, 90% 0.0136, max 0.1135 cm^-1; / D2stat median 0.49, 90% 1.19
+  E      0-50000 : 160 levels, median u_hfs_corr 0.0082, median D2stat 0.0086
+  E  50000-100000: 175 levels, median u_hfs_corr 0.0086, median D2stat 0.0150
   E 100000-      : 317 levels, median u_hfs_corr 0.0084, median D2stat 0.0260
-u_hfs_own over 652 levels (ground excluded): median 0.0030, 90% 0.0092, max 0.1256 cm^-1; / D2stat median 0.20, 90% 0.58
-  E      0-50000 : 160 levels, median u_hfs_own 0.0030, median D2stat 0.0087
+u_hfs_own over 652 levels (ground excluded): median 0.0030, 90% 0.0094, max 0.1281 cm^-1; / D2stat median 0.20, 90% 0.59
+  E      0-50000 : 160 levels, median u_hfs_own 0.0031, median D2stat 0.0086
   E  50000-100000: 175 levels, median u_hfs_own 0.0031, median D2stat 0.0150
   E 100000-      : 317 levels, median u_hfs_own 0.0030, median D2stat 0.0260
-u_kappa over 652 levels (ground excluded): median 0.0026, 90% 0.0051, max 0.0226 cm^-1; / D2stat median 0.13, 90% 0.39
-  E      0-50000 : 160 levels, median u_kappa 0.0026, median D2stat 0.0087
-  E  50000-100000: 175 levels, median u_kappa 0.0030, median D2stat 0.0150
-  E 100000-      : 317 levels, median u_kappa 0.0024, median D2stat 0.0260
-  kappa:c: median 0.0000, max 0.0072 cm^-1
-  kappa:flag_unlisted: median 0.0000, max 0.0026 cm^-1
-  kappa:plain_1969: median 0.0014, max 0.0091 cm^-1
+u_kappa over 652 levels (ground excluded): median 0.0026, 90% 0.0051, max 0.0234 cm^-1; / D2stat median 0.13, 90% 0.39
+  E      0-50000 : 160 levels, median u_kappa 0.0026, median D2stat 0.0086
+  E  50000-100000: 175 levels, median u_kappa 0.0029, median D2stat 0.0150
+  E 100000-      : 317 levels, median u_kappa 0.0025, median D2stat 0.0260
+  kappa:c: median 0.0000, max 0.0070 cm^-1
+  kappa:flag_unlisted: median 0.0000, max 0.0027 cm^-1
+  kappa:plain_1969: median 0.0014, max 0.0092 cm^-1
   kappa:plain_1974: median 0.0017, max 0.0102 cm^-1
-  kappa:plain_1974_wide: median 0.0001, max 0.0226 cm^-1
+  kappa:plain_1974_wide: median 0.0001, max 0.0234 cm^-1
 written: F:\UMD\AI\as-ai\LineClass\final\hfs_sys_levels.csv, F:\UMD\AI\as-ai\LineClass\final\hfs_sys_modes.csv, F:\UMD\AI\as-ai\LineClass\final\hfs_sys_report.txt
