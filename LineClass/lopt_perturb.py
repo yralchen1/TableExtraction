@@ -2,12 +2,16 @@
 
 Work_on_hfs_plan.md, Step 9.  Run from LineClass/:
 
-    python lopt_perturb.py --set final                  # the calibration
+    python lopt_perturb.py --set final                  # both passes
+    python lopt_perturb.py --set final --source calibration   # one alone
     python lopt_perturb.py --set final --source hfs     # the A constants
                                                         # and the kappas
     python lopt_perturb.py --set final --jobs 4 --out DIR
 
-16 LOPT runs are made at a time (--jobs).
+16 LOPT runs are made at a time (--jobs).  The two passes, the calibration
+and the hyperfine model, are independent: each reads only the set's own LOPT
+input and writes its own three files, so one call makes both (the default,
+--source all; until 2026-11-20 they were two calls).
 
 Before any run the tables are checked against the present hfs model
 (make_set3.require_current): for a derived set its own table and its
@@ -540,7 +544,9 @@ def theory_patterns(table):
 def fit_patterns(table):
     """The patterns of the constants fitted to Sugar's resolved components
     (rows whose source begins 'resolved components'): the eigenvectors of
-    their covariance in the anchored fit (hfs_A_fit), recomputed here.
+    their covariance in the anchored fit (hfs_A_fit), recomputed here, with
+    the calculated priors where no composition prior reaches a pattern
+    (hfs_A_fit.full_fit), as the table was written.
     Returns `[(name, {level_id: dA})]`, `{level_id: variance}` and the
     largest difference between the fit's values and the table's."""
     import hfs_A_fit as F
@@ -550,8 +556,9 @@ def fit_patterns(table):
     anchors = F.anchors_of(rows, priors=priors)
     pats_, _ = F.read_patterns(os.path.join(HERE, F.LINES), rows,
                                hfs_kappa.read_levels())
-    res = F.fit(pats_, anchors)
-    M, _b, _n = F._equations(pats_, anchors, res.ids)
+    res, extra, _dep = F.full_fit(pats_, anchors, F.calc_priors_of(rows,
+                                                                    priors))
+    M, _b, _n = F._equations(pats_, dict(anchors, **extra), res.ids)
     cov = np.linalg.pinv(M.T @ M, rcond=1e-12)
     ids = [lid for lid, r in table.items()
            if r['source'].startswith('resolved components')
@@ -847,12 +854,16 @@ OUTPUTS = {'calibration': ('calibration_sys_levels.csv',
                            'calibration_sys_report.txt'),
            'hfs': ('hfs_sys_levels.csv', 'hfs_sys_modes.csv',
                    'hfs_sys_report.txt')}
+#: the passes of --source all, in the order they are run
+SOURCES = ('calibration', 'hfs')
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    p.add_argument('--source', choices=sorted(OUTPUTS), default='calibration',
-                   help='what is perturbed (default: %(default)s)')
+    p.add_argument('--source', choices=sorted(OUTPUTS) + ['all'],
+                   default='all',
+                   help='what is perturbed: the calibration, the hfs model, '
+                        'or both, one after the other (default: %(default)s)')
     p.add_argument('--set', default='final', dest='set_dir',
                    help='the set whose LOPT input is perturbed '
                         '(default: %(default)s)')
@@ -876,26 +887,35 @@ def main(argv=None):
     cfg = config.load(os.path.join(set_dir, config.CONFIG_NAME))
     require_current(set_dir)
     out_dir = args.out or set_dir
-    out_paths = [os.path.join(out_dir, n) for n in OUTPUTS[args.source]]
+    sources = SOURCES if args.source == 'all' else (args.source,)
+    out_paths = {s: [os.path.join(out_dir, n) for n in OUTPUTS[s]]
+                 for s in sources}
     import output_files
-    output_files.require_writable(out_paths)
+    # every file of every pass is checked now, not after the first pass
+    output_files.require_writable(
+        [q for s in sources for q in out_paths[s]])
 
     records = read_records(os.path.join(set_dir, LINES_IN))
     work = args.work or tempfile.mkdtemp(prefix='lopt_perturb_')
     os.makedirs(work, exist_ok=True)
-    run = run_calibration if args.source == 'calibration' else run_hfs
-    rows, names, base, modes, body = run(args, set_dir, cfg, records, work)
-
-    write_rows(out_paths[0], rows)
-    write_modes(out_paths[1], base, names, modes)
-    text = ['lopt_perturb.py --source %s, %s' % (
-                args.source,
-                datetime.datetime.now().strftime('%Y-%m-%d %H:%M')),
-            'set: %s (%d records)' % (set_dir, len(records))] + body
-    text.append('written: %s' % ', '.join(out_paths))
-    with open(out_paths[2], 'w', encoding='utf-8', newline='\n') as fh:
-        fh.write('\n'.join(text) + '\n')
-    print('\n'.join(text))
+    for source in sources:
+        # each pass in a directory of its own, so that --keep keeps both
+        sub = os.path.join(work, source) if len(sources) > 1 else work
+        os.makedirs(sub, exist_ok=True)
+        run = run_calibration if source == 'calibration' else run_hfs
+        rows, names, base, modes, body = run(args, set_dir, cfg, records, sub)
+        paths = out_paths[source]
+        write_rows(paths[0], rows)
+        write_modes(paths[1], base, names, modes)
+        text = ['lopt_perturb.py --source %s, %s' % (
+                    source,
+                    datetime.datetime.now().strftime('%Y-%m-%d %H:%M')),
+                'set: %s (%d records)' % (set_dir, len(records))] + body
+        text.append('written: %s' % ', '.join(paths))
+        with open(paths[2], 'w', encoding='utf-8', newline='\n') as fh:
+            fh.write('\n'.join(text) + '\n')
+        print('\n'.join(text))
+        print()
     if not args.keep and not args.work:
         shutil.rmtree(work, ignore_errors=True)
     return 0

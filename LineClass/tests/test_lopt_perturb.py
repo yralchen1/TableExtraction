@@ -190,3 +190,41 @@ def test_a_failed_lopt6_run_is_refused(tmp_path, monkeypatch, code, text):
     monkeypatch.setattr(L.subprocess, 'run', fake)
     with pytest.raises(RuntimeError, match='LOPT failed'):
         L.run_lopt(str(tmp_path))
+
+
+# ---- one call, both passes (2026-11-20) ------------------------------------
+
+@pytest.mark.parametrize('source, expected', [
+    (None, ['calibration', 'hfs']), ('all', ['calibration', 'hfs']),
+    ('hfs', ['hfs']), ('calibration', ['calibration'])])
+def test_one_call_makes_both_passes(monkeypatch, tmp_path, source, expected):
+    """The two passes are independent, so the default call runs both, the
+    calibration first, each writing its own three files; --source still
+    runs one alone."""
+    import lopt_perturb as LP
+    ran = []
+
+    def fake(name):
+        def run(args, set_dir, cfg, records, work):
+            ran.append(name)
+            assert os.path.isdir(work)
+            return ([{'level_id': 'L1', 'x': '1'}], ['p1'],
+                    {'L1': (1.0, 0.0, 0.0)}, {'L1': [0.5]}, [name])
+        return run
+    monkeypatch.setattr(LP, 'run_calibration', fake('calibration'))
+    monkeypatch.setattr(LP, 'run_hfs', fake('hfs'))
+    monkeypatch.setattr(LP.config, 'load', lambda *a, **k: None)
+    monkeypatch.setattr(LP, 'require_current', lambda *a: None)
+    monkeypatch.setattr(LP, 'read_records', lambda *a: [])
+    argv = ['--set', str(tmp_path), '--out', str(tmp_path)]
+    if source:
+        argv += ['--source', source]
+    assert LP.main(argv) == 0
+    assert ran == expected
+    for s in ('calibration', 'hfs'):
+        names = LP.OUTPUTS[s]
+        there = [os.path.exists(tmp_path / n) for n in names]
+        assert all(there) == (s in expected) and any(there) == (s in expected)
+        if s in expected:
+            report = (tmp_path / names[2]).read_text(encoding='utf-8')
+            assert report.startswith('lopt_perturb.py --source %s,' % s)

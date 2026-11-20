@@ -83,7 +83,7 @@ inflated_unc_lines.txt  the source set's registry of hand-set uncertainties
                         the one edited.
 
 After LOPT has been run on the set, and lopt_perturb.py on its fit (both
-sources), `python make_set3.py --levels` writes the totals (THE TOTALS).
+passes, which one call makes), `python make_set3.py --levels` writes the totals (THE TOTALS).
 It first checks that both tables are the ones the present model writes
 (require_current): the source's hfs_shift by the identity above, the set's
 cg_shift against Model.cg_shift.  A table written before a change of the A

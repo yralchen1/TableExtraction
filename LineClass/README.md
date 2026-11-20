@@ -3323,8 +3323,7 @@ lopt.bat LOPT.par
 python ../check_sync.py
 python ../sync_IDEN2.py
 cd ..
-python lopt_perturb.py --set final     # the systematic parts, on final's fit
-python lopt_perturb.py --set final --source hfs
+python lopt_perturb.py --set final     # the systematic parts, on final's fit (both passes)
 python make_set3.py --levels           # the totals: final/levels_set3.csv, ritz_set3.csv
 ```
 
@@ -3497,9 +3496,13 @@ check) take about 5 minutes. The set's files are only read. Written into the set
 - `calibration_sys_report.txt`.
 
 ```
-python lopt_perturb.py --set final            # after the final chain
-python lopt_perturb.py --set final --source hfs
+python lopt_perturb.py --set final            # after the final chain: both passes
+python lopt_perturb.py --set final --source hfs   # one pass alone (or --source calibration)
 ```
+
+The two passes are independent - each reads only the set's LOPT input and writes its own three
+files - so one call makes both, the calibration first (the default `--source all`, since
+2026-11-20; they were two calls before).
 
 **The hyperfine model, `--source hfs`** (2026-10-10). In Set 3, `cg_shift = −Σ BF (κD + R)`
 moves every line to the center of gravity of its pattern, so an error in an A constant or a κ
@@ -3886,6 +3889,49 @@ priors would count the spacings twice. A table row whose source says `with compo
 (`hfs_kappa.is_combined`) is on the measured scale and is not multiplied by `A_SCALE` again.
 It is no pure measurement either, so `hfs_A_theory.read_measured` leaves it out. A second run
 recomputes every combined value from the priors and the current patterns.
+
+**Calculated priors where no composition prior reaches (2026-11-20, `hfs_A_fit.full_fit`).** A
+pattern whose levels no composition prior reaches, even through other patterns, leaves them
+undetermined. Between levels of equal J, for instance, the printed components measure only the
+difference of the two A. The first case was 24593.418 `*r` (000310–000655, J = 11/2–11/2,
+accepted 2026-11-20): its two companions give A(000655) − A(000310) = 0.0426 ± 0.0015, against
+0.036 ± 0.012 calculated.
+
+For such a part of the fit, and nowhere else, the levels' calculated A (`hfs_A_theory`) become
+priors. Calculated constants are never global anchors (user, 2026-11-20). The rest of the fit
+is joined to that part by no pattern, so it doesn't move (to 10⁻¹⁵ on 2026-11-20).
+
+`--combine-priors` writes a level's combination when one of these holds:
+
+* it brings the level's calculated u_A down to `CALC_GAIN` = 0.7 of its value or less (at least
+  half the variance gone), without pulling the prior beyond 3σ;
+* the level's row is `not determined` or a flag interval, so it has no value of its own.
+
+The new source begins `resolved components with calculated prior` (`hfs_kappa.is_calc_combined`),
+and the calculated row it replaces moves to `A_hfs_priors.csv`, as a composition prior does. Such
+a row:
+
+* isn't rescaled by `A_SCALE`;
+* is left out of `hfs_A_theory`'s fit of its radial parameters, which must not be fitted to its
+  own values;
+* is kept by `hfs_A_candidates.py`, which never replaces it with the bare calculated value. When
+  the calculation changes, `--write` renews the prior in `A_hfs_priors.csv` (action `refresh the
+  prior …`), and `hfs_A_fit.py --combine-priors` is then run to recombine it.
+
+`lopt_perturb.fit_patterns` recomputes the same fit, so its patterns reproduce the table.
+
+The label is not "semiempirical": that word here names the composition and Reader–Sugar constants,
+which `scaled_A` rescales and which anchor the whole fit.
+
+On 2026-11-20 four levels were in such parts: 000310–000655 (24593.42) and 000034–000078
+(11777.63).
+
+| level | calculated | combined | u ratio | |
+|---|---|---|---|---|
+| 000310 | −0.0051(109) | −0.0107(42) | 0.39 | written |
+| 000078 | +0.0031(52) | −0.0008(24) | 0.46 | written |
+| 000655 | +0.0309(43) | +0.0318(40) | 0.93 | stays calculated, the prior of its partner |
+| 000034 | +0.0342(23) | +0.0350(21) | 0.92 | stays calculated, the prior of its partner |
 
 **000229 and the components of 30879.98 (2026-10-09).** 000229 (IDEN2 1044, J = 5/2) was held
 out of the combination at first. Its spacings gave +0.0568 ± 0.0043 against its prior

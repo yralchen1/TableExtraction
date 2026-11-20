@@ -542,6 +542,24 @@ def is_combined(source):
     return COMBINED_TAG in source
 
 
+#: what the source of a row says when its A is Sugar's resolved components
+#: combined with a calculated A (hfs_A_theory) as the prior
+#: (`hfs_A_fit.py --combine-priors`, 2026-11-20).  The calculated priors are
+#: used only for a pattern no composition prior reaches, whose levels the
+#: spacings alone leave undetermined, and the combination is written only
+#: where it improves on the calculated value.  Like COMBINED_TAG's rows, such
+#: a value is no pure measurement: its prior, kept in `A_hfs_priors.csv`, is
+#: in it.  Not "semiempirical", which here names the composition and Reader
+#: and Sugar constants that `scaled_A` rescales.
+CALC_COMBINED_TAG = 'with calculated prior'
+
+
+def is_calc_combined(source):
+    """True if a row with this source holds the resolved components combined
+    with a calculated prior (CALC_COMBINED_TAG)."""
+    return CALC_COMBINED_TAG in source
+
+
 def scaled_A(A, u_A, source):
     """`(A, u_A)` on the measured scale: a semiempirical constant multiplied by
     `A_SCALE`, with the scale's own uncertainty added in quadrature; any

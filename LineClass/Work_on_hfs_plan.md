@@ -2106,7 +2106,8 @@ conferences).* README, "The spread of kappa: a third term".
 
 To run, in order: the calibration with `--hold-kappa` on iter_hfs's table; the six ledger
 rows; the iter_hfs chain (classify_lines, make_LOPT_input, lopt.bat, check_sync,
-sync_IDEN2); make_set3.py and final/'s chain; lopt_perturb.py twice; make_set3.py --levels;
+sync_IDEN2); make_set3.py and final/'s chain; lopt_perturb.py (both passes in one call
+since 2026-11-20); make_set3.py --levels;
 then `level_positions.py --set iter_hfs --audit`.
 
 *Run by the user, 2026-10-15 (commit 8ced566).* The calibration was run with

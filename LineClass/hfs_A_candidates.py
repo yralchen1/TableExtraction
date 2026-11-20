@@ -106,6 +106,7 @@ LINES = os.path.join(HERE, 'iter_hfs', 'line_classifications.csv')
 ID_MAP = os.path.join(HERE, 'iter_hfs', 'IDEN2', 'IDEN_level_ids.txt')
 CONFIG = os.path.join(HERE, 'lineclass_config.toml')
 OUT_CSV = os.path.join(HERE, 'hfs_A_candidates.csv')
+PRIORS = os.path.join(HERE, 'A_hfs_priors.csv')   # hfs_A_fit.PRIORS
 
 I_NUC = 2.5
 CANCEL_MAX = 2.0
@@ -132,6 +133,12 @@ USER_DECISIONS = {
 
 SUPERSEDED_FIELDS = ('level_id', 'cfg', 'J', 'A_cm-1', 'u_A', 'source',
                      'n_flagged', 'superseded_on', 'reason')
+
+#: the action of a row combined with a calculated prior (hfs_A_fit.py
+#: --combine-priors) when the calculation now gives another value: --write
+#: renews the prior in A_hfs_priors.csv, and hfs_A_fit.py --combine-priors
+#: must then be run to recombine it with the spacings
+PRIOR_REFRESH = 'refresh the prior in A_hfs_priors.csv'
 
 
 def _f(text):
@@ -173,13 +180,16 @@ def undetermined_u(A, u_total, cancel):
 
 
 def kind_of(source):
-    """What a table row is: absent, undetermined, calculated, semiempirical
-    or measured."""
+    """What a table row is: absent, undetermined, calculated, combined (the
+    resolved components with a calculated prior, hfs_A_fit.py
+    --combine-priors), semiempirical or measured."""
     import hfs_A_theory
     import hfs_correction
     import hfs_kappa
     if source is None:
         return 'absent'
+    if hfs_kappa.is_calc_combined(source):
+        return 'combined'
     if source.startswith(hfs_A_theory.CALC_SOURCE):
         return 'calculated'
     if not hfs_correction.is_determined(source):
@@ -189,11 +199,18 @@ def kind_of(source):
     return 'measured'
 
 
-def action_of(tier, kind, better, agrees, decided, resolved, trial=False):
+def action_of(tier, kind, better, agrees, decided, resolved, trial=False,
+              stale_prior=False):
     """What --write does: 'add', 'replace' (either possibly 'as a test:
-    tier 3'), or a reason for leaving the row alone.  `trial`: the table's
-    row is a calculated one already adopted from tier 3 as a test
-    (is_trial_row)."""
+    tier 3'), PRIOR_REFRESH, or a reason for leaving the row alone.
+    `trial`: the table's row is a calculated one already adopted from tier 3
+    as a test (is_trial_row).  `stale_prior`: the row is combined with a
+    calculated prior that the calculation no longer gives."""
+    if kind == 'combined':
+        # the table's value holds the spacings: the calculation can only
+        # renew the prior it was combined with, in A_hfs_priors.csv
+        return (PRIOR_REFRESH if stale_prior
+                else 'keep: calculated prior combined with the spacings')
     if kind == 'calculated':
         return ('in the table' if tier < 3 or trial
                 else 'replace as a test: tier 3')
@@ -307,6 +324,34 @@ def write_table(out, path=A_LEVELS, date=DATE):
     return added, replaced, len(superseded)
 
 
+def refresh_priors(out, path=PRIORS):
+    """Renew in `path` the calculated priors of the rows whose action is
+    PRIOR_REFRESH: the A, u_A and source the calculation now gives, every
+    other column kept.  The table's combined rows are not touched; they are
+    recombined by hfs_A_fit.py --combine-priors.  Returns the level ids."""
+    import hfs_A_fit
+    import output_files
+    rows = [x for x in out if x['action'] == PRIOR_REFRESH]
+    if not rows:
+        return []
+    output_files.require_writable([path])
+    priors = hfs_A_fit.read_priors(path)
+    with open(path, encoding='utf-8', newline='') as fh:
+        fields = csv.DictReader(fh).fieldnames
+    for x in rows:
+        p = priors.setdefault(x['level_id'], {f: '' for f in fields})
+        p.update({'level_id': x['level_id'], 'J': p.get('J') or x['J'],
+                  'cfg': p.get('cfg') or x['proposed_cfg'],
+                  'A_cm-1': x['proposed_A'], 'u_A': x['proposed_u_A'],
+                  'source': x['proposed_source']})
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        wr = csv.DictWriter(fh, fieldnames=fields, lineterminator='\n',
+                            extrasaction='ignore')
+        wr.writeheader()
+        wr.writerows(priors.values())
+    return [x['level_id'] for x in rows]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--lines', default=LINES,
@@ -328,6 +373,7 @@ def main(argv=None):
     if not eig:
         print('eigenvector_check.csv not found: no intensity veto')
     table = {r['level_id']: r for r in read_csv(A_LEVELS)}
+    priors = hfs_A_fit.read_priors(PRIORS)
     iden = {lid: row for row, lid in cowan_gA.read_id_map(ID_MAP).items()}
     # the questionable levels: verdict `?` in the user's verdicts file
     import config
@@ -386,6 +432,8 @@ def main(argv=None):
                 continue
             if not ((better and agrees) or lid in USER_DECISIONS):
                 keeps_table.add(lid)
+        if kind == 'combined':
+            keeps_table.add(lid)      # its partners see the combined value
         candidates[lid] = (r, kind)
 
     def partner(lid):
@@ -490,7 +538,25 @@ def main(argv=None):
         decided = lid in USER_DECISIONS
         trial = (tier == 3 and not decided and lid not in resolved
                 and kind in ('absent', 'undetermined', 'calculated'))
-        if trial:
+        stale_prior = False
+        if kind == 'combined':
+            # the proposal is the calculated prior, as a calculated row of
+            # its tier would be written; the table's row is not touched
+            prop_A = A
+            prop_u = trial_u(A, u_total, cancel) if tier == 3 else u_total
+            prop_src = '%s, hfs_A_theory %s, tier %d%s' % (
+                hfs_A_theory.CALC_SOURCE, DATE, tier,
+                ', ' + TRIAL_TAG if tier == 3 else '')
+            p = priors.get(lid)
+            stale_prior = (p is None
+                           or abs(float(p['A_cm-1']) - prop_A) > 5e-5
+                           or abs(float(p['u_A']) - prop_u) > 5e-5)
+            notes.append('combined with the spacings by hfs_A_fit.py; its '
+                         'calculated prior %s'
+                         % ('is renewed by --write: run hfs_A_fit.py '
+                            '--combine-priors after it' if stale_prior
+                            else 'is current'))
+        elif trial:
             notes.append('tier 3 adopted as a test: its lines show whether '
                          'the calculated A holds')
             prop_A, prop_u = A, trial_u(A, u_total, cancel)
@@ -535,7 +601,7 @@ def main(argv=None):
             'A_components': ('' if comp is None else '%+.4f +- %.4f (%d)'
                              % comp),
             'action': action_of(tier, kind, better, agrees, decided,
-                                lid in resolved, trial),
+                                lid in resolved, trial, stale_prior),
             'proposed_cfg': r['leading'].split()[1],
             'proposed_A': '%+.4f' % prop_A,
             'proposed_u_A': '%.4f' % prop_u,
@@ -578,6 +644,12 @@ def main(argv=None):
         print('A_hfs_levels.csv: %d rows added, %d replaced (%d measured '
               'rows to %s)' % (added, replaced, old,
                                hfs_A_theory.SUPERSEDED_NAME))
+        renewed = refresh_priors(out)
+        if renewed:
+            print('%s: %d calculated priors renewed (%s); run hfs_A_fit.py '
+                  '--combine-priors to recombine them with the spacings'
+                  % (os.path.basename(PRIORS), len(renewed),
+                     ', '.join(renewed)))
     if not args.no_write:
         import output_files
         output_files.require_writable([OUT_CSV])

@@ -1112,7 +1112,8 @@ def read_measured(path=A_LEVELS_FILE):
     """{level_id: (A, u_A, source)} of the measured constants.
 
     Semiempirical rows (composition, Reader & Sugar), composition priors
-    combined with the spacings (hfs_kappa.is_combined), undetermined ones,
+    combined with the spacings (hfs_kappa.is_combined), calculated priors
+    combined with them (hfs_kappa.is_calc_combined), undetermined ones,
     hand estimates, rows marked CONFLICT and rows taken from this program
     (CALC_SOURCE) are left out.  A measured row that a calculated one has
     replaced (`hfs_A_candidates.py --write`) is read back from
@@ -1123,9 +1124,12 @@ def read_measured(path=A_LEVELS_FILE):
     import hfs_kappa
 
     # A composition prior combined with the spacings (hfs_kappa.is_combined)
-    # carries the semiempirical value in it, so it is left out too.
+    # carries the semiempirical value in it, so it is left out too; a
+    # calculated prior combined with them (is_calc_combined) carries this
+    # program's own value, which must not be fitted to itself.
     def usable(src):
         return not (hfs_kappa.is_semiempirical(src) or hfs_kappa.is_combined(src)
+                    or hfs_kappa.is_calc_combined(src)
                     or src == 'not determined' or src.startswith('estimate')
                     or 'CONFLICT' in src or src.startswith(CALC_SOURCE))
 

@@ -24,9 +24,9 @@ existing ones:
 
 The uncertainties come from final/levels_set3.csv, which make_set3.py
 --levels writes from the set's LOPT fit and the two lopt_perturb.py passes
-(user, 2026-10-11).  Its unc_tot is that table's D2tot*.  So the order after
+(user, 2026-10-11; one call makes both since 2026-11-20).  Its unc_tot is that table's D2tot*.  So the order after
 any change to the calibration, the uncertainty model or kappa is: the chains
-of iter_hfs and final, lopt_perturb.py twice, make_set3.py --levels, and then
+of iter_hfs and final, lopt_perturb.py, make_set3.py --levels, and then
 this tool.  It stops if levels_set3.csv does not belong to the fit in
 final/LOPT_output_levels.txt (another energy or line count), or has no
 systematic parts.
@@ -231,7 +231,7 @@ def level_values(lopt_rows, set3_rows):
             continue
         if not s.get(TOTAL) or not s.get('u_cal') or not s.get('u_hfs'):
             raise SystemExit('%s has no systematic parts for %s: run '
-                             'lopt_perturb.py twice and make_set3.py --levels'
+                             'lopt_perturb.py and make_set3.py --levels'
                              % (SET3_LEVELS, lid))
         u_stat = float(s['u_stat'])
         u_sys = math.sqrt(sum(float(s[k] or 0.0) ** 2
@@ -247,7 +247,7 @@ def level_values(lopt_rows, set3_rows):
         raise SystemExit(
             '%s does not belong to the fit in %s (%d levels differ in energy '
             'or line count, e.g. %s; %d not in the fit): run lopt_perturb.py '
-            'twice and make_set3.py --levels on the present fit first'
+            'and make_set3.py --levels on the present fit first'
             % (SET3_LEVELS, LOPT_LEVELS, len(stale),
                ', '.join(stale[:3]) or '-', len(extra)))
     return out

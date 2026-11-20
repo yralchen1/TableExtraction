@@ -72,6 +72,28 @@ leaves it out of the fit of its radial parameters.  A level whose prior the
 spacings contradict can be left as it is (NOT_COMBINED) for the user to
 decide; none is now.
 
+CALCULATED PRIORS WHERE NO COMPOSITION PRIOR REACHES (2026-11-20)
+=================================================================
+A pattern between two levels that no composition prior reaches, even
+through other patterns, leaves both on a singular direction: a pattern of a
+transition between equal J measures only the difference of the two A, and
+others hardly more.  Where such levels have a calculated A (hfs_A_theory),
+those values become priors for that part of the fit only (`full_fit`), so
+that the spacings can improve on them; the rest of the fit, and every level
+a composition prior reaches, is unchanged.  The calculated constants are no
+priors anywhere else (user, 2026-11-20: not a global use).
+
+`--combine-priors` writes the combination for a level whose calculated
+uncertainty it brings down to CALC_GAIN or less (it at least halves the
+variance), whose prior it pulls by no more than AGREE_SIGMA, and for a
+"not determined" or "flag interval" level of such a part, which has only
+the spacings and its partners' priors; its source then begins
+CALC_COMBINED_PREFIX (hfs_kappa.CALC_COMBINED_TAG), and the calculated row
+it replaces is kept in `A_hfs_priors.csv`, as a composition prior is.  A
+level whose combination gains less keeps its calculated row and still acts
+as the prior of its partner.  First case, 24593.418 *r (000310 - 000655,
+J 11/2 - 11/2): A(000310) -0.0051(109) calculated, -0.0107(42) combined.
+
 THE CHECKS
 ==========
 * per pattern: each free level's A from each of its patterns alone, the
@@ -117,6 +139,17 @@ PRIORS = 'A_hfs_priors.csv'
 
 #: the source of a prior combined with the spacings (--combine-priors)
 COMBINED_PREFIX = 'resolved components %s, ' % hfs_kappa.COMBINED_TAG
+
+#: the source of a calculated prior combined with the spacings, used only
+#: where no composition prior reaches the pattern (full_fit)
+CALC_COMBINED_PREFIX = 'resolved components %s, ' % \
+    hfs_kappa.CALC_COMBINED_TAG
+
+#: a calculated prior's combination is written only if it brings u_A down
+#: to this fraction of the calculated one or less: at least half the
+#: variance gone (user, 2026-11-20: calculated priors only where they
+#: improve the value)
+CALC_GAIN = 0.7
 
 #: priors the spacings contradict, not combined (--combine-priors) but left
 #: in the table as they are, with the reason.  Empty since 000229 was
@@ -210,10 +243,11 @@ def anchors_of(table, contradicted=CONTRADICTED, priors=None):
     for lid, r in table.items():
         src = r['source']
         if lid in priors and (hfs_kappa.is_combined(src)
+                              or hfs_kappa.is_calc_combined(src)
                               or hfs_kappa.is_semiempirical(src)):
             r = priors[lid]
             src = r['source']
-        elif hfs_kappa.is_combined(src):
+        elif hfs_kappa.is_combined(src) or hfs_kappa.is_calc_combined(src):
             raise SystemExit('hfs_A_fit.py: %s is a combined value (%s) but '
                              '%s has no prior for it' % (lid, src, PRIORS))
         if (lid in contradicted
@@ -223,6 +257,70 @@ def anchors_of(table, contradicted=CONTRADICTED, priors=None):
         out[lid] = hfs_kappa.scaled_A(float(r['A_cm-1']), float(r['u_A']),
                                       src)
     return out
+
+
+def calc_priors_of(table, priors=None):
+    """`{level_id: (A, u_A)}` of the calculated constants: every row taken
+    from hfs_A_theory (its source begins hfs_A_theory.CALC_SOURCE), and for a
+    row that is already a calculated prior combined with the spacings, the
+    prior kept in `priors` - never the combined value, which would count
+    the spacings twice.  Such a row without its prior stops the run."""
+    priors = priors or {}
+    out = {}
+    for lid, r in table.items():
+        src = r['source']
+        if hfs_kappa.is_calc_combined(src):
+            if lid not in priors:
+                raise SystemExit('hfs_A_fit.py: %s is a combined value (%s) '
+                                 'but %s has no prior for it'
+                                 % (lid, src, PRIORS))
+            r = priors[lid]
+        elif not src.startswith(hfs_A_theory.CALC_SOURCE):
+            continue
+        out[lid] = (float(r['A_cm-1']), float(r['u_A']))
+    return out
+
+
+def full_fit(patterns, anchors, calc):
+    """`(result, extra, dependent)`: the fit on the composition priors, and
+    where it leaves levels undetermined, again with the calculated constants
+    of those levels (`calc`, calc_priors_of) as priors too.
+
+    `extra` holds the calculated priors used; `dependent` the levels
+    determined only through them.  The levels the composition priors reach
+    are untouched: an undetermined part of the fit is joined to the rest by
+    no pattern, so adding priors to it moves nothing else."""
+    res0 = fit(patterns, anchors)
+    extra = {x: calc[x] for x in res0.null if x in calc}
+    if not extra:
+        return res0, {}, set()
+    res = fit(patterns, dict(anchors, **extra))
+    return res, extra, res0.null - res.null
+
+
+def calc_combinable(lid, table, result, extra, dependent):
+    """True if `--combine-priors` writes the level as the spacings combined
+    with calculated priors: a level determined only through them
+    (`dependent`) whose own calculated prior the combination brings down to
+    CALC_GAIN or less of its u_A without pulling it beyond AGREE_SIGMA, or
+    that was combined so before, or whose row is "not determined" or a flag
+    interval (it has no value of its own to improve on)."""
+    r = table.get(lid)
+    if (r is None or lid not in dependent or lid in HOLD
+            or lid in NOT_COMBINED):
+        return False
+    if lid in extra:
+        return (hfs_kappa.is_calc_combined(r['source'])
+                or (result.u[lid] <= CALC_GAIN * extra[lid][1]
+                    and abs(result.pulls[lid]) <= AGREE_SIGMA))
+    return r['source'] in REPLACEABLE
+
+
+def calc_combined_source(n_patterns, n_positions, date):
+    return (CALC_COMBINED_PREFIX + '%d pattern%s, %d position%s '
+            '(Step 4 anchored fit, %s)'
+            % (n_patterns, '' if n_patterns == 1 else 's', n_positions,
+               '' if n_positions == 1 else 's', date))
 
 
 def read_patterns(line_list, table, J_of, set_aside=SET_ASIDE):
@@ -400,12 +498,17 @@ def fitted_u(result, lid):
     return math.hypot(result.u[lid], result.A[lid] * hfs_kappa.U_A_SCALE)
 
 
-def adoptable(lid, table, result):
-    """True if `--write-levels` replaces the row of `lid`."""
+def adoptable(lid, table, result, dependent=()):
+    """True if `--write-levels` replaces the row of `lid`.  A level
+    determined only through calculated priors (`dependent`, full_fit) is not
+    a measurement and is never written here; `--combine-priors` writes it
+    (calc_combinable)."""
     r = table.get(lid)
-    if r is None or lid not in result.A or lid in result.null or lid in HOLD:
+    if (r is None or lid not in result.A or lid in result.null or lid in HOLD
+            or lid in dependent):
         return False
-    if r['source'].startswith(hfs_A_theory.CALC_SOURCE):
+    if (r['source'].startswith(hfs_A_theory.CALC_SOURCE)
+            or hfs_kappa.is_calc_combined(r['source'])):
         return much_more_accurate(result.A[lid], fitted_u(result, lid),
                                   float(r['A_cm-1']), float(r['u_A']))
     return (r['source'] in REPLACEABLE or lid in CONTRADICTED
@@ -433,18 +536,24 @@ def combined_source(n_patterns, n_positions, date):
 
 
 def write_combined(table, priors, result, anchors, counts, path, priors_path,
-                   date):
+                   date, extra=None, dependent=()):
     """`--combine-priors`: write the combined values into `path` and keep the
-    composition rows they replace in `priors_path`.  Returns the level ids
+    rows they replace in `priors_path` - the composition priors, and the
+    calculated ones of `extra` (calc_combinable).  Returns the level ids
     written.  The priors file is written first, so that no prior is ever
     lost."""
+    extra = extra or {}
     with open(path, encoding='utf-8', newline='') as fh:
         fields = csv.DictReader(fh).fieldnames
-    changed = []
+    changed, calc = [], set()
     for lid, r in table.items():
-        if not combinable(lid, table, result, anchors):
+        if calc_combinable(lid, table, result, extra, dependent):
+            calc.add(lid)
+        elif not combinable(lid, table, result, anchors):
             continue
-        if lid not in priors:
+        # a "not determined" row combined through its partners' priors has
+        # no prior of its own to keep
+        if lid not in priors and (lid not in calc or lid in extra):
             priors[lid] = dict(r)
             priors[lid]['moved'] = date
         changed.append(lid)
@@ -456,6 +565,13 @@ def write_combined(table, priors, result, anchors, counts, path, priors_path,
     for lid in changed:
         r = table[lid]
         r['A_cm-1'] = '%+.4f' % result.A[lid]
+        if lid in calc:
+            # on the measured scale through the calculated priors, not
+            # through the composition scale
+            r['u_A'] = '%.4f' % result.u[lid]
+            r['source'] = calc_combined_source(counts[lid][0],
+                                               counts[lid][1], date)
+            continue
         r['u_A'] = '%.4f' % fitted_u(result, lid)
         r['source'] = combined_source(counts[lid][0], counts[lid][1], date)
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
@@ -465,7 +581,7 @@ def write_combined(table, priors, result, anchors, counts, path, priors_path,
     return changed
 
 
-def write_levels(table, result, counts, path, date):
+def write_levels(table, result, counts, path, date, dependent=()):
     """Rewrite `A_hfs_levels.csv` with the adoptable fitted values.
 
     The value is the fitted A; its uncertainty `fitted_u`.  Every other
@@ -475,7 +591,7 @@ def write_levels(table, result, counts, path, date):
         fields = csv.DictReader(fh).fieldnames
     changed = []
     for lid, r in table.items():
-        if not adoptable(lid, table, result):
+        if not adoptable(lid, table, result, dependent):
             continue
         A, u = result.A[lid], fitted_u(result, lid)
         r['A_cm-1'] = '%+.4f' % A
@@ -520,12 +636,14 @@ def main(argv=None):
     for wn, why in SET_ASIDE.items():
         print('      %.3f: %s' % (wn, why))
 
-    res = fit(patterns, anchors)
-    print('\n%d positions, %d priors, %d levels; chi2/dof %.3f; rms of the '
-          'positions %.4f cm^-1'
-          % (res.n_positions, res.n_priors, len(res.ids), res.chi2 / res.dof,
-             res.resid_rms))
-    pulled = sorted((abs(v), x) for x, v in res.pulls.items() if abs(v) > 2)
+    res, extra, dependent = full_fit(patterns, anchors,
+                                     calc_priors_of(table, priors))
+    print('\n%d positions, %d priors (%d of them calculated), %d levels; '
+          'chi2/dof %.3f; rms of the positions %.4f cm^-1'
+          % (res.n_positions, res.n_priors, len(extra), len(res.ids),
+             res.chi2 / res.dof, res.resid_rms))
+    pulled = sorted((abs(v), x) for x, v in res.pulls.items()
+                    if abs(v) > 2 and x in anchors)
     for _, x in reversed(pulled):
         print('   prior pulled %+.1f sigma: %s, %+.4f -> %+.4f'
               % (res.pulls[x], x, anchors[x][0], res.A[x]))
@@ -565,7 +683,8 @@ def main(argv=None):
                  if own else None)
         status = ('not determined' if x in res.null else
                   'held' if x in HOLD else
-                  'adopt' if adoptable(x, table, res) else '')
+                  'adopt' if adoptable(x, table, res, dependent) else
+                  'calc prior' if x in dependent else '')
         print('%-14s %-6s %4.1f %3d %3d %+9.4f %7.4f  %9s %7s  %-17s %-17s '
               '%-17s %s%s'
               % (x, r['cfg'] if r else '', J_of[x], counts[x][0],
@@ -604,7 +723,8 @@ def main(argv=None):
         print('\nwrote %s (%d levels)' % (args.out, len(rows_out)))
     if args.write_levels:
         date = datetime.date.today().isoformat()
-        changed = write_levels(table, res, counts, args.levels, date)
+        changed = write_levels(table, res, counts, args.levels, date,
+                               dependent)
         print('\nwrote %s: %d levels replaced' % (args.levels, len(changed)))
     combine = [x for x in res.ids if combinable(x, table, res, anchors)]
     print('\npriors the spacings tighten: %d' % len(combine))
@@ -616,12 +736,28 @@ def main(argv=None):
                  2.5 * J_of[x] * p[1], 2.5 * J_of[x] * fitted_u(res, x)))
     for x, why in NOT_COMBINED.items():
         print('not combined: %s - %s' % (x, why))
+    print('\nlevels no composition prior reaches, determined through '
+          'calculated priors: %d (written if u_A falls to %.2f of the '
+          'calculated one or less)' % (len(dependent), CALC_GAIN))
+    for x in sorted(dependent):
+        r = table.get(x)
+        p = extra.get(x)
+        print('   %s J %.1f  %s -> combined %+.4f(%.4f)%s  [%s]'
+              % (x, J_of[x],
+                 'calculated %+.4f(%.4f), pulled %+.1f sigma'
+                 % (p[0], p[1], res.pulls[x]) if p else
+                 'no calculated A (%s)' % (r['source'] if r else 'absent'),
+                 res.A[x], res.u[x],
+                 '  u ratio %.2f' % (res.u[x] / p[1]) if p else '',
+                 'write' if calc_combinable(x, table, res, extra, dependent)
+                 else 'keep'))
     if args.combine_priors:
         import output_files
         output_files.require_writable([args.levels, priors_path])
         date = datetime.date.today().isoformat()
         changed = write_combined(table, priors, res, anchors, counts,
-                                 args.levels, priors_path, date)
+                                 args.levels, priors_path, date, extra,
+                                 dependent)
         print('\nwrote %s: %d priors combined with the spacings; the priors '
               'are kept in %s' % (args.levels, len(changed), priors_path))
     return 0
