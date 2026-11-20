@@ -1527,6 +1527,29 @@ def manual_verdict(transition, line=None):
                                transition.upper_level.level_id))
 
 
+#: the `manual` column of a verdict that comes from IDEN2 rather than from a
+#: ledger row written by hand: one --keep-IDEN2-ids lays on, a ledger row it
+#: wrote (reason "kept IDEN2 ..."), and a candidate it rejects that the
+#: weeding had accepted.  A hand-written row shows "accept" or "reject".
+IDEN2_MARK = 'IDEN2'
+
+
+def is_iden2_verdict(reason) -> bool:
+    """True if a verdict's reason says --keep-IDEN2-ids made it
+    (keep_iden2.ACCEPT_REASON or REJECT_REASON, or a row it reversed)."""
+    return (reason or '').startswith((keep_iden2_mod.ACCEPT_REASON,
+                                      keep_iden2_mod.REJECT_REASON))
+
+
+def origin_of(t, published='published identification') -> str:
+    """Where an accepted assignment comes from, for the reports."""
+    if t.manual == IDEN2_MARK:
+        return 'IDEN2'
+    if t.manual:
+        return 'ledger: ' + t.manual
+    return published if t.new == 0 else 'new'
+
+
 def apply_line_decisions(line) -> None:
     """Overwrite this line's decisions with the verdicts of the ledger.
 
@@ -1556,12 +1579,13 @@ def apply_line_decisions(line) -> None:
             if keep and t.lower_level and t.upper_level:
                 if t.accepted == 1:
                     t.notes2 = f"Kept IDEN2 rejection (overrides): {t.notes2}"
+                    t.manual = IDEN2_MARK
                 t.accepted = 0
             continue
         decision, reason = verdict
         want = 1 if decision == DECISIONS_ACCEPT else 0
         word = 'Accepted' if want else 'Rejected'
-        t.manual = decision
+        t.manual = IDEN2_MARK if is_iden2_verdict(reason) else decision
         if t.accepted == want:
             t.notes2 = f"Manual {word} (agrees): {t.notes2}"
         else:
@@ -4971,8 +4995,7 @@ def _pull_on_level(level, weights: dict, limit: int = 8) -> list:
         if w is None:
             u = t.assigned_to.wn_uncertainty
             w = 1.0 / u ** 2 if u else 0.0
-        origin = ('ledger: ' + t.manual) if t.manual else (
-            'published identification' if t.new == 0 else 'new')
+        origin = origin_of(t)
         rows.append((w, t, origin))
     rows.sort(key=lambda r: -r[0])
     out = []
@@ -5039,8 +5062,7 @@ def check_double_acceptances(observed_lines: list, input_energies: dict,
         for t in sorted(trans, key=lambda x: x.assigned_to.wavenumber):
             line = t.assigned_to
             o_c = line.wavenumber - t.predicted_for(line)
-            origin = ('ledger: ' + t.manual) if t.manual else (
-                'published' if t.new == 0 else 'new')
+            origin = origin_of(t, 'published')
             out.append(f"        {line.wavenumber:12.4f}  "
                        f"u ={line.wn_uncertainty:8.4f}  "
                        f"I ={line.intensity:10.3g}  "

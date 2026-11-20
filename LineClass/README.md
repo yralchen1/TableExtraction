@@ -641,7 +641,10 @@ keep it:
 | an assignment the weeding accepted that IDEN2 does not show | `reject`, "kept IDEN2 rejection" |
 | a ledger row that contradicts IDEN2 | reversed in place, its old verdict and reason kept in the reason |
 
-An assignment the run accepts, or rejects, on its own needs no row. An accepted
+An assignment the run accepts, or rejects, on its own needs no row. In the output's `manual`
+column, a verdict that comes from IDEN2 reads `IDEN2`: one the option laid on, a ledger row it
+wrote (in any later run too), or a candidate it rejected that the weeding had accepted. A
+verdict from a hand-written ledger row reads `accept` or `reject`, as before. An accepted
 assignment whose Ritz wavenumber misses its line by more than
 `decisions.max_forced_offset` is warned of rather than stopped on, and its row
 carries `offset-ok` as well, so that later runs don't stop on it either. Every

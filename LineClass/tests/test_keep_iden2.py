@@ -151,6 +151,37 @@ def test_a_line_iden2_leaves_empty_loses_all_its_candidates(world):
     assert t.accepted == 0
 
 
+def test_the_manual_column_says_where_a_verdict_comes_from(world):
+    lv, l1, _ = world
+    lo, up, up3 = lv['000100'], lv['000200'], lv['000300']
+    held = cand(lo, up, l1, accepted=0)             # laid on from IDEN2
+    hand = cand(lo, up3, l1, accepted=1)            # a hand-written row
+    l1.iden2_pairs = {('000100', '000200'), ('000100', '000300')}
+    l1.decisions[('000100', '000200')] = (A, K.ACCEPT_REASON)
+    l1.decisions[('000100', '000300')] = (A, 'by eye in IDEN2')
+    cl.apply_line_decisions(l1)
+    assert held.manual == cl.IDEN2_MARK and hand.manual == A
+    # a ledger row the mode wrote, read in a run without the mode
+    _, l2, _ = world
+    l2.decisions[('000100', '000200')] = (
+        R, K.REJECT_REASON + ' (was accept: old)')
+    t = cand(lo, up, l2, accepted=1)
+    cl.apply_line_decisions(l2)
+    assert t.manual == cl.IDEN2_MARK and t.accepted == 0
+    assert cl.origin_of(t) == 'IDEN2'
+
+
+def test_a_rejection_the_mode_enforces_is_marked_only_if_it_overrides(world):
+    lv, l1, _ = world
+    was_on = cand(lv['000100'], lv['000200'], l1, accepted=1)
+    was_off = cand(lv['000100'], lv['000300'], l1, accepted=0)
+    l1.iden2_pairs = set()
+    cl.apply_line_decisions(l1)
+    assert was_on.manual == cl.IDEN2_MARK
+    assert was_off.manual == ''
+    assert cl.origin_of(was_off) == 'new'
+
+
 def test_without_the_mode_nothing_changes(world):
     lv, l1, _ = world
     t = cand(lv['000100'], lv['000200'], l1, accepted=1)
