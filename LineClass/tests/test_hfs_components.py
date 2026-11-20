@@ -82,9 +82,15 @@ def test_pairing_does_not_depend_on_the_rule(extracted):
 
 
 def test_written_file_matches_the_workbook(extracted, written):
+    """class_ids is compared as a set: the order of the competing
+    classifications carries no meaning, and until 2026-11-20 it followed the
+    row order of the line list, which a rerun of the chain may change."""
+    def same(rec):
+        out = {k: str(v) for k, v in rec.items()}
+        out['class_ids'] = sorted(out['class_ids'].split(';'))
+        return out
     records, _ = extracted
-    assert [dict(r) for r in written] == [
-        {k: str(v) for k, v in rec.items()} for rec in records]
+    assert [same(r) for r in written] == [same(rec) for rec in records]
 
 
 # --- the file itself --------------------------------------------------------

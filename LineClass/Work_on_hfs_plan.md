@@ -186,6 +186,18 @@ The last work, 2026-10-15 to 10-17:
    rest as after 3a; then kappa_candidates.py. Open: the calculated A
    constants may overstate D (1969 measured-A lines 0.07(7), calculated-A
    0.33-0.42).
+   More evidence (2026-11-20): tests/test_hfs_kappa.py's shared-level era
+   test fails since 55bd901 (2026-10-08), which added ~300 calculated A
+   constants. In hfs_kappa's Step 3 fit (two-term model; its kappa is not
+   on the calibration's scale, only the differences carry over): all lines
+   0.939(13) for 1974 against 0.682(38) for 1969, 6.9 sigma; confined to
+   the 410 levels seen in both eras, 0.915(17) against 0.804(50), 2.3
+   sigma; with the shared levels chosen by measured A only (rough),
+   0.921(15) against 0.710(40), 5.4 sigma. With 55bd901's code and the A
+   table before it, 234 shared levels, 5.3 sigma; with its own table, 1.4
+   sigma. Most of the era gap thus sits on 1969 lines through levels seen
+   only in 1969, whose A are mostly calculated. The test is marked xfail
+   (strict) until the question is settled.
 4. Step 9: the publication tables. Open in it: the calculated-A question of
    item 3c, and the list of contradictions for the paper's discussion.
 5. Step 10: the final line list; the user is to explain the approach.
@@ -866,7 +878,10 @@ lines.** Three things were done before accepting that.
   different levels, and a systematic error in the A constants of the levels
   peculiar to one of them would look the same. It is not that: confined to the
   74 levels that carry a displacement in **both** eras, the split is 0.938 +-
-  0.015 against 0.653 +- 0.037, unchanged.
+  0.015 against 0.653 +- 0.037, unchanged. *(Out of date since 2026-10-08:
+  with the calculated A constants added then, the shared levels number 410
+  and the split falls to 0.915 +- 0.017 against 0.804 +- 0.050, 2.3 sigma.
+  See item 3c of the list at the top.)*
 * *Is it real at all?* Permuting the displacements gives -0.003 +- 0.006.
 
 **Test 2 passes: no per-line geometric factor is needed.** Splitting the flag

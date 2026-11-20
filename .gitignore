@@ -77,6 +77,7 @@ LineClass/level_positions_audit.xlsx
 LineClass/sync_report.txt
 # LineClass/Work_on_hfs_plan.md
 LineClass/params.txt
+LineClass/Devel/
 
 # Excel lock files
 ~$*.xlsx

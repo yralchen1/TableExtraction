@@ -301,8 +301,10 @@ def build(path=None, line_list=None):
             'wl_line': line['wl'],
             'wl_component': component['wl'],
             'n_class': len(accepted),
-            'class_ids': (';'.join('%s+%s' % (r['low_id'], r['upp_id'])
-                                   for r in accepted)
+            # sorted, so that the order does not follow the row order of the
+            # line list, which a rerun of the chain may change
+            'class_ids': (';'.join(sorted('%s+%s' % (r['low_id'], r['upp_id'])
+                                          for r in accepted))
                           if len(accepted) > 1 else ''),
             'origin': ('curated_duplicate' if component in kept_voided
                        else 'sugar_component'),

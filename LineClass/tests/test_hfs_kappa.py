@@ -229,12 +229,21 @@ def test_the_two_eras_disagree(fitted):
     assert d / u > 5.0
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    'fails since 55bd901 (2026-10-08): with ~300 calculated A constants '
+    'added, the shared levels number 410 and the split falls to 2.3 sigma; '
+    'open question of Work_on_hfs_plan.md item 3c (calculated A may '
+    'overstate D)'))
 def test_the_era_difference_is_not_an_artifact_of_the_constants(fitted):
     """The same split, confined to the levels both eras have in common.
 
     If the two eras differed only because they see different levels with
     differently reliable A constants, this would wash the difference out.  It
-    does not.
+    did not on the A table of September 2026 (74 shared levels, about 7
+    sigma; 234 levels and 5.3 sigma just before 2026-10-08).  Since the
+    calculated A constants of 2026-10-08 it largely does, so the test is an
+    expected failure until item 3c of the plan is settled; strict, so that
+    it says so when it passes again.
     """
     lines, sigma, keep, _, _ = fitted
     fit, shared, counts = hfs_kappa.shared_level_test(lines, sigma, keep)
