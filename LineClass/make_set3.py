@@ -264,7 +264,8 @@ def key4(wn):
 
 
 def base_char(char):
-    """Sugar's character without the repeat marker ('w**' -> 'w')."""
+    """Sugar's character without the user's '**' (a line multiply
+    classified in Sugar's papers; not one of Sugar's codes): 'w**' -> 'w'."""
     char = (char or '').strip()
     return char[:-len(REPEAT)] if char.endswith(REPEAT) else char
 

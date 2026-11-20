@@ -1,8 +1,8 @@
-lopt_perturb.py --source calibration, 2026-11-20 13:13
-set: F:\UMD\AI\as-ai\LineClass\final (7789 records)
+lopt_perturb.py --source calibration, 2026-11-20 15:10
+set: F:\UMD\AI\as-ai\LineClass\final (7790 records)
 corrections F:\UMD\AI\as-ai\LineClass\wavelength_calibration_corrections.csv; covariance F:\UMD\AI\as-ai\LineClass\wavelength_calibration_cov.csv
 groups 150; patterns run 150 of 150, the largest carrying 25.3% of the variance
-corrections against covariance: largest relative difference of a group's u 1.37%
+corrections against covariance: largest relative difference of a group's u 1.38%
 records not moved: 0 not in the table, 60 without a group, 0 in a group the covariance does not hold
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
 linearity: the pattern p001 at half size differs by 2.02e-07 cm^-1 at most (its largest level shift 0.0269)

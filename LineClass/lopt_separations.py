@@ -71,7 +71,8 @@ DEF_NAME = 'LOPT_separations.txt'
 #: LOPT's parameter keys (matched in upper case anywhere in a line)
 PAR_SEP_FILE_KEY = 'SEPARATIONS INPUT FILE NAME'
 PAR_SEP_FACTOR_KEY = 'BLEND SEPARATION FACTOR'
-#: the '**' Sugar's list puts after a multiply classified line
+#: the '**' the user appended in Pr3_lines.xlsx to the character of a line
+#: multiply classified in Sugar's papers (not one of Sugar's codes)
 MULTIPLE_MARK = '**'
 #: one record: four labels of the label field's width, each followed by one
 #: separator character LOPT does not read (required since 2026-11-18): '-'

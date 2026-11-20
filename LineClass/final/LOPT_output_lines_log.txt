@@ -1,4 +1,4 @@
-LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 13:13:11
+LOPT 6.0.0.dev0; parameter file LOPT.par; started 2026-11-20 15:09:31
 Reading parameters...Done.
 
 Treating the input line uncertainties as statistical ones.
@@ -17,14 +17,14 @@ Done.
 
 Group 1 of 1: 653 levels.
 Finding energies and uncertainties (0 exact constraints)...
-Done. (spent 1 sec)
+Done. (spent 0 sec)
 Adjusting weights...Done.
 Adjusting dispersions...Done.
 
 RSS/degrees_of_freedom = 0.82 (5036 degrees_of_freedom)
 
 Finding Ritz uncertainties for lines...
-Done. (spent 0 sec)
+Done. (spent 1 sec)
 
 Warnings on separations of transitions (details in file LOPT_output_lines_sep.txt):
   separation in line 1018 of LOPT_separations.txt: fitted 0.692, given 0.000 +/- 0.292 cm-1

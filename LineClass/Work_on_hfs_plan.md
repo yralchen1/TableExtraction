@@ -2281,7 +2281,71 @@ The list for the database is to contain:
 
 Columns still to be specified include Sugar's line characters (the list given earlier
 was incomplete) and a column of coded notes: one-letter codes, comma-delimited where
-several apply. For example:
+several apply.
+
+*Line characters in the published tables (user, 2026-11-20).* The published
+characters follow the NIST ASD convention. Snapshot of the NIST ASD Help for Lines,
+as given by the user:
+
+| Code | Meaning |
+|---|---|
+| `*` | Intensity is shared by several lines (typically, for multiply classified lines). |
+| `:` | Observed value given is actually the rounded Ritz value, e.g., Ar IV, λ = 443.40 Å. |
+| `-` | Somewhat lower intensity than the value given. |
+| `a` | Observed in absorption. |
+| `b` | Band head. |
+| `bl` | Blended with another line that may affect the wavelength and intensity. |
+| `B` | Line or feature having large width due to autoionization broadening. |
+| `c` | Complex line. |
+| `d` | Diffuse line. |
+| `D` | Double line. |
+| `E` | Broad due to overexposure in the quoted reference. |
+| `f` | Forbidden line. |
+| `g` | Transition involving a level of the ground term. |
+| `G` | Line position roughly estimated. |
+| `H` | Very hazy line. |
+| `h` | Hazy line (same as "diffuse"). |
+| `hfs` | Line has hyperfine structure. |
+| `i` | Identification uncertain. |
+| `j` | Wavelength smoothed along isoelectronic sequence. |
+| `l` | Shaded to longer wavelengths; NB: this may look like a "one" at the end of the number! |
+| `m` | Masked by another line (no wavelength measurement). |
+| `p` | Perturbed by a close line. Both wavelength and intensity may be affected. |
+| `q` | Asymmetric line. |
+| `r` | Easily reversed line. |
+| `s` | Shaded to shorter wavelengths. |
+| `t` | Tentatively classified line. |
+| `u` | Unresolved from a close line. |
+| `w` | Wide line. |
+| `x` | Extrapolated wavelength. |
+
+Rules for joining (user):
+- Codes are joined without a comma.
+- A comma is needed where the joined codes would read as a multi-symbol code (`b` and
+  `l` would give `bl`; there are no band heads in this spectrum, so it does not arise)
+  or where one of them is itself a multi-symbol code (`hfs,l`, `c,bl`).
+- `*` is appended as the last symbol.
+- The `**` in `Pr3_lines.xlsx` (`w**`, `cl**`, bare `**`) is **not one of Sugar's
+  codes**. The user appended it to the lines that were multiply classified in Sugar's
+  original papers. It is removed in the published tables. A line multiply classified
+  in the final list gets a single `*` as the last symbol instead.
+
+Translating Sugar's codes. The codes in `Pr3_lines.xlsx` are: 1974 `w`, `*r`, `*v`,
+`c`, `ch`, `d`, `h`; 1969 `h`, `cl`, `bl`, `w`; Wyart `w`, `ch`.
+- **Settled with the user (2026-11-20):**
+  - Sugar's `d` ("a blend of two lines") is NIST `D` (double line), not NIST `d`
+    (diffuse).
+  - Sugar's `*r`/`*v` become `hfs,l`/`hfs,s` (Step 7b, `make_set3.py`). They are never
+    printed as such: his `*` is the hyperfine flag and `r`/`v` the side the pattern is
+    shaded to, while in NIST `*` is a shared intensity and `r` an easily reversed line.
+  - Sugar's 1969 `cl` is "complex line": the same as `c` in 1974 and NIST `c`.
+- **To be confirmed:** `ch` joins `c` and `h` without a comma under the rules above,
+  since `ch` is no NIST code; whether Sugar's `ch` means exactly complex and hazy.
+
+The coded notes are a separate column, so their letters may repeat character codes
+(a `D` note, "discarded", is not the `D` character).
+
+Coded notes, for example:
 - D: a transition Sugar identified with an observed line, now discarded;
 - R: a reclassified line;
 - N: a new identification.
