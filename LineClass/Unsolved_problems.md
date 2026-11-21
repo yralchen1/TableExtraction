@@ -13,6 +13,16 @@ and what would be needed to settle it.
 
 ## 1. The line at 10682.643 cm-1 - a perfect identification that the level network refuses
 
+**Resolved 9/28/2026.** After the wavelength calibration of the working sets
+the level network accepts the line: `line_decisions.csv` has an `accept` row
+for `(10682.643, 059003.000328, 059003.000369)` of 9/28/2026 ("IDEN2/LOPT
+after wl correction. Before, it was rejected due to insufficient evidence to
+force the levels to accommodate this line."). In Set 3 (`final/`, 2026-11-20)
+it is accepted, grade 2B, obs - Ritz = -0.015 cm^-1 against an uncertainty of
+0.016. The account below is the case as it stood before the calibration, kept
+as an example of a disagreement the calibration removed; its "Current
+disposition" is that of before 9/28.
+
 ### The observation
 
 `Pr3_lines.xlsx` carries an observed line at **10682.6425 cm^-1**, measured
@@ -140,11 +150,11 @@ at this level are expected to occur, and this is what one looks like.
    photographic plate, but no level may be moved on that hypothesis without
    independent evidence, and the outcome for the fit is the same.
 
-### Current disposition
+### Current disposition (before 9/28/2026)
 
-The line is left unassigned and out of the LOPT input. A `reject` row in
-`line_decisions.csv` for `(10682.6425, 059003.000328, 059003.000369)` records
-the reason so the candidate does not resurface on the next classification run.
+The line was left unassigned and out of the LOPT input. (The `reject` row this paragraph
+once named was never written; the ledger's row for the transition is the
+`accept` of 9/28/2026 above.)
 In a published line list the honest note is "possibly 878 - 778,
 O - C = -0.068 cm^-1, not used".
 

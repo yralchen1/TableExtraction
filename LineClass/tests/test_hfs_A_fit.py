@@ -326,3 +326,18 @@ def test_a_combined_value_is_measured_scale_and_no_pure_measurement(tmp_path):
                     'patterns, 3 positions (Step 4 anchored fit, '
                     '2026-10-05)",0\n' % src, encoding='utf-8', newline='\n')
     assert set(hfs_A_theory.read_measured(str(path))) == {'K'}
+
+
+def test_a_rerun_that_changes_nothing_keeps_the_date():
+    """--combine-priors and --write-levels redate a row only when its A,
+    its u_A or its counts change (2026-11-21)."""
+    import hfs_A_fit as F
+    old = F.combined_source(2, 4, '2026-10-09')
+    r = {'A_cm-1': '+0.0500', 'u_A': '0.0040', 'source': old}
+    keep = F._keep_date(r, '+0.0500', '0.0040', F.combined_source, 2, 4,
+                        '2026-11-21')
+    assert keep == old
+    assert '2026-11-21' in F._keep_date(r, '+0.0510', '0.0040',
+                                        F.combined_source, 2, 4, '2026-11-21')
+    assert '2026-11-21' in F._keep_date(r, '+0.0500', '0.0040',
+                                        F.combined_source, 3, 4, '2026-11-21')

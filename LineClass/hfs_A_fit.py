@@ -123,6 +123,7 @@ import csv
 import datetime
 import math
 import os
+import re
 
 import numpy as np
 
@@ -264,7 +265,9 @@ def calc_priors_of(table, priors=None):
     from hfs_A_theory (its source begins hfs_A_theory.CALC_SOURCE), and for a
     row that is already a calculated prior combined with the spacings, the
     prior kept in `priors` - never the combined value, which would count
-    the spacings twice.  Such a row without its prior stops the run."""
+    the spacings twice.  Such a row without its prior stops the run.  The
+    calculated constants of a configuration hfs_kappa.CALC_CFG_SCALE names
+    are taken on its scale (hfs_kappa.scaled_A)."""
     priors = priors or {}
     out = {}
     for lid, r in table.items():
@@ -277,7 +280,11 @@ def calc_priors_of(table, priors=None):
             r = priors[lid]
         elif not src.startswith(hfs_A_theory.CALC_SOURCE):
             continue
-        out[lid] = (float(r['A_cm-1']), float(r['u_A']))
+        # on the pipeline's scale (hfs_kappa.CALC_CFG_SCALE, 2026-11-21);
+        # the cfg is the table's, which a prior row may lack
+        out[lid] = hfs_kappa.scaled_A(float(r['A_cm-1']), float(r['u_A']),
+                                      r['source'],
+                                      table[lid].get('cfg') or r.get('cfg'))
     return out
 
 
@@ -535,6 +542,19 @@ def combined_source(n_patterns, n_positions, date):
                '' if n_positions == 1 else 's', date))
 
 
+def _keep_date(r, A, u, source_fn, n_patterns, n_positions, date):
+    """The source to write for a row given the values `A`, `u` (as written):
+    the row's own source if neither value changed and the source, with its own
+    date, would read the same; else `source_fn` with today's `date`.  A rerun
+    that changes nothing then leaves the table's dates alone (2026-11-21; it
+    used to redate every combined row)."""
+    if r.get('A_cm-1') == A and r.get('u_A') == u:
+        m = re.search(r'(\d{4}-\d{2}-\d{2})\)\s*$', r.get('source', ''))
+        if m and source_fn(n_patterns, n_positions, m.group(1)) == r['source']:
+            return r['source']
+    return source_fn(n_patterns, n_positions, date)
+
+
 def write_combined(table, priors, result, anchors, counts, path, priors_path,
                    date, extra=None, dependent=()):
     """`--combine-priors`: write the combined values into `path` and keep the
@@ -564,16 +584,16 @@ def write_combined(table, priors, result, anchors, counts, path, priors_path,
         w.writerows(priors.values())
     for lid in changed:
         r = table[lid]
-        r['A_cm-1'] = '%+.4f' % result.A[lid]
+        A = '%+.4f' % result.A[lid]
         if lid in calc:
             # on the measured scale through the calculated priors, not
             # through the composition scale
-            r['u_A'] = '%.4f' % result.u[lid]
-            r['source'] = calc_combined_source(counts[lid][0],
-                                               counts[lid][1], date)
-            continue
-        r['u_A'] = '%.4f' % fitted_u(result, lid)
-        r['source'] = combined_source(counts[lid][0], counts[lid][1], date)
+            u, fn = '%.4f' % result.u[lid], calc_combined_source
+        else:
+            u, fn = '%.4f' % fitted_u(result, lid), combined_source
+        r['source'] = _keep_date(r, A, u, fn, counts[lid][0], counts[lid][1],
+                                 date)
+        r['A_cm-1'], r['u_A'] = A, u
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator='\n')
         w.writeheader()
@@ -593,10 +613,10 @@ def write_levels(table, result, counts, path, date, dependent=()):
     for lid, r in table.items():
         if not adoptable(lid, table, result, dependent):
             continue
-        A, u = result.A[lid], fitted_u(result, lid)
-        r['A_cm-1'] = '%+.4f' % A
-        r['u_A'] = '%.4f' % u
-        r['source'] = source_of(counts[lid][0], counts[lid][1], date)
+        A, u = '%+.4f' % result.A[lid], '%.4f' % fitted_u(result, lid)
+        r['source'] = _keep_date(r, A, u, source_of, counts[lid][0],
+                                 counts[lid][1], date)
+        r['A_cm-1'], r['u_A'] = A, u
         changed.append(lid)
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator='\n')

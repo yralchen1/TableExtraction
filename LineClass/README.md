@@ -3994,7 +3994,15 @@ does this for the pipeline and for the fits of κ alike (`hfs_kappa.py`,
 `wavelength_calibration.py`), so the κ are fitted with the same D the pipeline applies. One listed as *not determined* (79 levels since 2026-10-07: `059003.000453`, which no
 usable pattern reaches, and the 78 tier-3 levels of `hfs_A_candidates.py`) carries S = 0 and
 the unknown A as the uncertainty I·J·u_A. A *calculated* A (source beginning `calculated`, 149
-levels since 2026-10-07) is used as written, like a measured one. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
+levels since 2026-10-07) is used as written, like a measured one, except where its
+configuration has a measured scale: since 2026-11-21 the calculated 4f²5d constants (104
+levels) are multiplied by 0.87 ± 0.04, `hfs_kappa.CALC_CFG_SCALE`, with the scale's uncertainty
+added to u_A, the same way as `A_SCALE`. The scale was measured on the line positions: each
+calculated 4f²5d A multiplied by a trial factor t and the calibration's free fit repeated, the
+likelihood is largest at t = 0.872(39), 3.3σ from 1, while the other calculated levels give
+1.044(34) (Work_on_hfs_plan.md item 3c). No measured A tests 4f²5d's radial parameters. The
+table keeps the calculated values; `scaled_A` applies the scale wherever the table is read
+with its `cfg`, and `lopt_perturb.py` gives the scale's uncertainty a pattern of its own. One not listed carries S = 0 and no uncertainty. A level in `[hfs]
 resolved_levels` counts S = 0 because each of its lines ends on one sublevel. There are two,
 both J = 1/2 levels of 4f<sup>2</sup>6s standing at their F = 3 sublevels: `059003.000642`
 (IDEN2 row 1093) and `059003.000190` (IDEN2 row 1089). A line that does not separate such a

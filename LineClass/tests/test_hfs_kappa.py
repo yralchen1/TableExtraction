@@ -83,8 +83,26 @@ def test_the_project_table_is_read_on_the_measured_scale():
             assert A == 0.0
         elif hfs_kappa.is_semiempirical(r['source']):
             assert A == pytest.approx(hfs_kappa.A_SCALE * float(r['A_cm-1']))
+        elif hfs_kappa.calc_scale(r['source'], r['cfg']) is not None:
+            sc = hfs_kappa.CALC_CFG_SCALE[r['cfg']][0]
+            assert A == pytest.approx(sc * float(r['A_cm-1']))
         else:
             assert A == float(r['A_cm-1'])
+
+
+def test_calculated_constants_of_a_scaled_configuration():
+    """A calculated 4f2.5d constant takes its configuration's scale, with
+    the scale's uncertainty in quadrature; another configuration's, a
+    measured one, or a row read without its cfg, does not."""
+    sc, u = hfs_kappa.CALC_CFG_SCALE['f25d']
+    src = 'calculated, hfs_A_theory 2026-10-07, tier 2'
+    A, uA = hfs_kappa.scaled_A(0.05, 0.01, src, 'f25d')
+    assert A == pytest.approx(sc * 0.05)
+    assert uA == pytest.approx(math.hypot(sc * 0.01, 0.05 * u))
+    assert hfs_kappa.scaled_A(0.05, 0.01, src, 'f26d') == (0.05, 0.01)
+    assert hfs_kappa.scaled_A(0.05, 0.01, src) == (0.05, 0.01)
+    meas = 'resolved components, 1 pattern, 2 positions'
+    assert hfs_kappa.scaled_A(0.05, 0.01, meas, 'f25d') == (0.05, 0.01)
 
 
 def test_era_and_class_of_a_line():
@@ -229,21 +247,18 @@ def test_the_two_eras_disagree(fitted):
     assert d / u > 5.0
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    'fails since 55bd901 (2026-10-08): with ~300 calculated A constants '
-    'added, the shared levels number 410 and the split falls to 2.3 sigma; '
-    'open question of Work_on_hfs_plan.md item 3c (calculated A may '
-    'overstate D)'))
 def test_the_era_difference_is_not_an_artifact_of_the_constants(fitted):
     """The same split, confined to the levels both eras have in common.
 
     If the two eras differed only because they see different levels with
     differently reliable A constants, this would wash the difference out.  It
     did not on the A table of September 2026 (74 shared levels, about 7
-    sigma; 234 levels and 5.3 sigma just before 2026-10-08).  Since the
-    calculated A constants of 2026-10-08 it largely does, so the test is an
-    expected failure until item 3c of the plan is settled; strict, so that
-    it says so when it passes again.
+    sigma; 234 levels and 5.3 sigma just before 2026-10-08).  The calculated
+    A constants of 2026-10-08 brought it down to 2.3 sigma (an expected
+    failure from then on): their 4f2.5d constants were about 13 per cent too
+    large.  With them on their measured scale, hfs_kappa.CALC_CFG_SCALE
+    (2026-11-21, plan item 3c), it passes again: 410 shared levels, 5.6
+    sigma (2.3 without the scale).
     """
     lines, sigma, keep, _, _ = fitted
     fit, shared, counts = hfs_kappa.shared_level_test(lines, sigma, keep)

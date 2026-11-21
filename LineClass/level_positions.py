@@ -249,7 +249,8 @@ nothing whatever beyond it (1579 lines of 1974, rms of residual/sigma = 1.00).
 
 The last two terms are the line's recorded character.  Every blend and
 resolution code - w wide, d double, bl blended, ch complex and hazy, c complex
-(1974), cl perturbed by a close neighbouring line (1969, the NIST code 'p'),
+(1974), cl complex line (1969; the same as the 1974 c and NIST c, user
+2026-11-20 - read before as "perturbed by a close neighbouring line"),
 h hazy - widens the feature by an amount of its own, fitted by maximum
 likelihood on the accepted lines of the run.
 
@@ -263,13 +264,14 @@ constant in wavenumber, the same number of cm^-1 wherever the line falls;
 these are CHAR_DWN, in cm^-1.  Each code is fitted both ways and given the
 form its own residuals prefer.
 
-Most codes choose the wavelength form, which is what they should choose: c is
-a complex feature and cl a line pulled off centre by a close neighbour, and
-both are difficulties of deciding where on the plate the line lies.  (They are
-not the same code differently spelled - c is complex, cl is perturbed - and
-their widths, 0.034 A and 0.0044 A, have no reason to agree.)  w (wide) chooses
-the other form, by 12 units of ln L over its 312
-lines, and says so twice over: split into four bands of wavenumber the fitted
+Most codes choose the wavelength form, which is what they should choose: c and
+cl are complex features, a difficulty of deciding where on the plate the line
+lies.  (They are the same code in the two eras - Sugar's 1969 cl is "complex
+line", user 2026-11-20 - but on different plates and instruments, so their
+widths, 0.034 A for 1974 and 0.0044 A for 1969, need not agree.)  w (wide)
+chooses the other form, by 12 units of ln L over its 312 accepted
+lines (the fit of 2026-09-12 on the baseline, whose level_hfs_widths.csv it
+wrote; the numbers here are that fit's), and says so twice over: split into four bands of wavenumber the fitted
 excess is 0.023, 0.030, 0.019, 0.045 cm^-1 - flat within its errors - while
 the same four bands expressed as a wavelength fall 0.0060, 0.0027, 0.0013,
 0.0025 A, a factor of five across the range.  That is what 'wide' should mean
@@ -991,6 +993,14 @@ K_FLOOR = 0.2        # the smallest k: even the strongest transition's
                      # u_calc is believed to this extent
 
 # --- the wavenumber-uncertainty model of section 4 -------------------------
+# The baseline's.  In the working sets (iter_hfs, final/) the line
+# uncertainties are the calibration's class model (wavelength_calibration,
+# hfs_kappa: two terms per character and era, the spread of kappa, the
+# intensity term), and these constants reach LOPT only through the widths of
+# level_hfs_widths.csv, which make_LOPT_input applies to levels whose
+# hyperfine structure is not computed: 2 levels (000513, 000561; 0.007 and
+# 0.012 cm^-1) in final/ on 2026-11-21.  They are kept as fitted on
+# 2026-09-12 and not refitted (the baseline is locked).
 UNC_FLOOR = 0.0055   # cm^-1, the precision floor every measurement carries
 ERA_SPLIT = 47500.0  # cm^-1: above it the 1969 measurements, below the 1974
 DLAM_ERA = {'1974': 0.0030, '1969': 0.0040}   # A, the plain reading error
@@ -1001,19 +1011,20 @@ CHAR_DLAM = {        # A, the wavelength-constant excess of each character,
     ('1974', 'c'): 0.0337,     # complex
     ('1974', 'bl'): 0.0085,    # blended (2 lines; the 1969 value)
     ('1974', 'h'): 0.0082,     # hazy (3 lines; the 1969 value)
-    ('1969', 'cl'): 0.0044,    # perturbed by a close neighbouring line
-                               # (Sugar's own words); the NIST code 'p'
+    ('1969', 'cl'): 0.0044,    # complex line (= 1974 c, NIST c; user,
+                               # 2026-11-20)
     ('1969', 'h'): 0.0082,     # hazy
     ('1969', 'bl'): 0.0085,    # blended
-    ('1969', 'w'): 0.0104,     # wide: 21 lines in the list, one of which
-                     # survives the Ritz cut, so the 1974 refit below could
-                     # not be repeated here; the wavelength value is kept
-                     # because it is the larger of the two
+    ('1969', 'w'): 0.0104,     # wide: 21 lines in the list, 13 of which
+                     # survive the Ritz cut, too few to repeat the 1974 refit
+                     # below; the wavelength value is kept because it is the
+                     # larger of the two
 }
 CHAR_DWN = {         # cm^-1, the WAVENUMBER-constant excess of a character:
                      # a width belonging to the line itself rather than to the
                      # reading of the plate (see section 4)
-    ('1974', 'w'): 0.0251,     # wide (312 lines)
+    ('1974', 'w'): 0.0251,     # wide (312 accepted lines in the fit of
+                               # 2026-09-12)
 }
 # The files of a working set.  These are the baseline's; --set rebinds all
 # four (and the classification table, through the set's configuration) to the

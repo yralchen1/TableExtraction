@@ -111,9 +111,18 @@ B. COMPANIONS (hfs_satellites.txt, 11/20/2026)
    Both levels J = 1/2.  The pair is the F = 2 and F = 3 groups of the
    lower level 000065: peaks at -0.064 (1.00) and +0.083 (0.75), lines at
    -0.030 and +0.071 (intensities 5 and 4).  They are 0.101 apart against
-   0.147 calculated with A(000065) = +0.053 (calculated, tier 1): the
-   doublet puts A(000065) nearer +0.034, another case of the calculated A
-   values running high (Work_on_hfs_plan.md item 3c).  Intensity: the sum
+   0.145 calculated with A(000065) = +0.053 (calculated, tier 1, 4f3).
+   Corrected 2026-11-21: this entry first read the doublet as A(000065)
+   near +0.034, taking the two readings for the unblended centers of the
+   two F groups.  Broadened to the line width (0.153 cm-1 at 6449 A), the
+   pattern shows two peaks only for A(000065) >= 0.050, and their
+   separation then runs from 0.118 (A = 0.050) to 0.145 (A = 0.053): no A
+   gives 0.101 at this width, and the nearest, a just-resolved doublet at
+   A = 0.050, is 0.017 away, about what the readings of a barely resolved
+   pair allow.  A = 0.034 would need a width of 0.09 cm-1, below the
+   Doppler width alone (about 0.13).  So the doublet agrees with the
+   calculated A(000065) = +0.053(3) and is no evidence of calculated A
+   running high.  Intensity: the sum
    matches Icalc (0.93; the main line alone 0.51).  Sugar identified
    15505.05; the identification was moved to 15504.95, which agrees better
    with Sugar's own Ritz wavenumber, hence the note "err in Sugar" (user,

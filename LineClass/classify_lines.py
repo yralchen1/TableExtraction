@@ -4310,15 +4310,16 @@ def weed_assignments_line(line: SpectralLine, u_obs_ln: float=np.log(2), S: floa
                             # rejected in Step 3. This removes new IDs accepted on weak
                             # positional evidence (the moderate-tail NP-plot humps).
                             z_thresh = 1.0 if ritz_sigma <= 2.5 else 0.0
-                            # OPEN QUESTION (2026-08-30): the intensity threshold here
-                            # is 0.2, where every other call site passes 1.0. With 1.0
-                            # the rejection threshold is relaxed only when the predicted
+                            # A DELIBERATE CHOICE (the user, 2026-11-21; first noted as an
+                            # open question 2026-08-30): the intensity threshold here is
+                            # 0.2, where every other call site passes 1.0. With 1.0 the
+                            # rejection threshold is relaxed only when the predicted
                             # intensity actually exceeds the observed one; with 0.2 it is
                             # relaxed whenever the prediction reaches a fifth of the
                             # observation, i.e. for most candidates. The commented-out
-                            # line below shows the same 1/5 intent, so this looks
-                            # deliberate, but the reason for it is no longer on record.
-                            # Revisit if related anomalies show up in the output.
+                            # line below shows the same 1/5 intent. The user chose the
+                            # different ratios on purpose; the detailed reasoning is not
+                            # on record. Leave it as it is.
                             F = _fudge_factor_for_asym_intensity([trans],trans.calc_intensity,line.intensity, 
                                                                  0.2)
                             # F = 2.0 if d_signed > np.log(1.0/5) else 1.0

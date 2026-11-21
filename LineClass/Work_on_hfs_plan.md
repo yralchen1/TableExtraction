@@ -115,6 +115,32 @@ The last work, 2026-10-15 to 10-17:
   the standard library's. Every caller now starts LOPT through `lopt_run.py`,
   which drops the Python path.
 
+* **2026-11-20, the finalization rounds** (`Devel/finalize/run_round.sh`,
+  rounds 1-8; commits ed4e50d to d4e5c7d). Each round: the calibration, both
+  chains with `--keep-IDEN2-ids` (IDEN2's assignments enforced), lopt_perturb,
+  `make_set3.py --levels`, levels_pub.py, kappa_candidates.py. The registry
+  changes of kappa_candidates, the |D| split confirmed at 0.4, and Sugar's
+  close pairs: four pairs merged in `Pr3_lines.xlsx` and five companions
+  added (`final/merged_lines_log.txt`). Round 8 a fixed point: 5629
+  assignments, no check_sync errors, 0 audit failures.
+* **2026-11-21, the 4f²5d scale** (item 3c below): the calculated 4f²5d A
+  constants multiplied by 0.87(4) (`hfs_kappa.CALC_CFG_SCALE`), then rounds 9
+  and 10. Round 10 a fixed point: 5629 assignments unchanged; the held kappas
+  unchanged (free fit plain_1974 0.218, plain_1969 0.129, within their
+  deadbands); kappa spread 1969 0.144 -> 0.154; Set 3 levels moved by a median
+  0.16 D1, 7 by more than 2 D1 (largest 000076, +0.016 cm^-1). The era test
+  of tests/test_hfs_kappa.py passes again.
+* **2026-11-21, other work.** `Pr3_lines.xlsx`: the merge script had left the
+  array formulas of columns O and P (N_class, N_id) naming their old rows
+  below each deleted row, which Excel repaired; all 6982 rewritten to their
+  own rows (the data columns equal the committed ones; the merge script now
+  translates formulas). 000616's second alternate denied in
+  level_verdicts.txt. Section 6's housekeeping disposed of. The draft list of
+  contradictions for the paper: `Contradictions_for_paper.md`, with the
+  level shifts from Sugar's energies split into calibration, hyperfine and
+  the rest, and a new finding: close pairs of lines are measured too close
+  together (its item 9).
+
 **Next, in order.**
 
 1. Bring 000684's A into its lines (above): new hfs columns in iter_hfs's table
@@ -214,8 +240,40 @@ The last work, 2026-10-15 to 10-17:
    other level; fitted as a class of their own they leave 0.195 against
    0.062. If it holds, the remedy is a scale on the calculated A, not a
    change to any level.
-4. Step 9: the publication tables. Open in it: the calculated-A question of
-   item 3c, and the list of contradictions for the paper's discussion.
+   **Measured 2026-11-21** (scratch, `Devel/calc_A_scale_2026-11-21/
+   scan_scale.py`; nothing written): on the weights of a `--hold-kappa`
+   calibration of the converged iter_hfs table (round 8), the A of a group
+   of calculated levels multiplied by t, every line's D recomputed, and the
+   free fit (energies, curve, every kappa) repeated. The criterion is
+   -2 ln L = chi^2 + 2 sum ln sigma, since the spread term s|D| widens sigma
+   with t and chi^2 alone rewards a large t. Each line's kappa class is held
+   at its t = 1 class; the outlier selection is the run's.
+   - All 527 calculated levels: t = 0.952(33), 1.5 sigma from 1.
+   - By tier: tier 1 1.075(38), tier 2 0.867(35), tier 3 1.13(10).
+   - By configuration: **4f2.5d (104 levels, 3220 fitted lines touch one)
+     0.872(39), Delta(-2 ln L) = 10.8 at t = 1, 3.3 sigma**; the other 423
+     calculated levels 1.044(34); 4f2.5f 0.99(8). Tier 2's deficit is its 81
+     4f2.5d levels (the 10-07 tier-2 batch 0.879(35); the 10-08 outer-shell
+     batch 0.71(14), weak).
+   - 4f2.5d by era (each era's share of -2 ln L; the energies are shared, so
+     not independent): 1969 0.66(10), 1974 0.905(42). Both below 1; the
+     1969 lines want more than one scale gives.
+   - With the class free to follow the scaled |D| (the wide split): 0.881,
+     the same.
+   4f2.5d is the "untested" leading configuration of tier 2: no measured A
+   checks its radial parameters. A scale of 0.87 moves the S of its levels
+   (median |S| 0.23, at most 0.55 cm^-1) by about 0.03, at most 0.07 cm^-1.
+   **Adopted by the user the same day** as 0.87(4) (`hfs_kappa.
+   CALC_CFG_SCALE`, applied in `scaled_A` like A_SCALE, with the scale's
+   uncertainty in u_A and a pattern of its own in lopt_perturb); rounds 9 and
+   10 run, round 10 a fixed point. The era test (410 shared levels) gives
+   5.6 sigma with the scale against 2.3 without, so its xfail is removed.
+4. Step 9: the publication tables. The calculated-A question of item 3c is
+   settled (the 4f²5d scale, 2026-11-21); the list of contradictions is
+   drafted in `Contradictions_for_paper.md` for the user's review. Open: what
+   to do about the pull between close lines (its item 9), and the user's
+   review of the four further level shifts it names (000305, 000506, 000450,
+   000310).
 5. Step 10: the final line list; the user is to explain the approach.
 6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not
@@ -2339,8 +2397,9 @@ Translating Sugar's codes. The codes in `Pr3_lines.xlsx` are: 1974 `w`, `*r`, `*
     printed as such: his `*` is the hyperfine flag and `r`/`v` the side the pattern is
     shaded to, while in NIST `*` is a shared intensity and `r` an easily reversed line.
   - Sugar's 1969 `cl` is "complex line": the same as `c` in 1974 and NIST `c`.
-- **To be confirmed:** `ch` joins `c` and `h` without a comma under the rules above,
-  since `ch` is no NIST code; whether Sugar's `ch` means exactly complex and hazy.
+  - Sugar's `ch` means exactly complex and hazy (user, 2026-11-21). It is printed
+    `ch`, `c` and `h` joined without a comma under the rules above, since `ch` is
+    no NIST code.
 
 The coded notes are a separate column, so their letters may repeat character codes
 (a `D` note, "discarded", is not the `D` character).
@@ -2373,6 +2432,42 @@ uncertainties.
 
 These are small and unrelated to the physics, but they must not be lost: they
 belong to the uncertainty model the hfs work sits on.
+
+**Disposed of 2026-11-21 (the user asked for the items to be acted on).** The
+uncertainty model these items belong to, the character constants and level
+widths of `level_positions.py` section 4 (fitted 2026-09-12), is the
+baseline's. In the working sets the line uncertainties have been the
+calibration's class model since 2026-10-15 (two terms per character and era,
+the spread of kappa, the intensity term), refitted in every calibration run;
+the old model reaches LOPT only through `level_hfs_widths.csv`, which
+`make_LOPT_input.py` applies to levels whose hyperfine structure is not
+computed: 2 levels in final/ (000513 0.007, 000561 0.012 cm^-1). The baseline
+is locked. Item by item:
+1. Second calibration pass of the character constants: obsolete; the
+   calibration's classes are iterated to convergence in every run.
+2. Stale text: done. `level_positions.py` now dates the section-4 numbers
+   (the fit of 2026-09-12, 312 accepted `w` lines), says that 13 of the 21
+   1969 `w` lines survive the Ritz cut, and calls 1969 `cl` a complex line
+   (the user, 2026-11-20) instead of "perturbed by a close neighbouring line";
+   a note before the constants says where they still act. The README line
+   the item named has moved, and the README holds no stale statement of them.
+3. `CHAR_DLAM[('1969','cl')]`: moot; in the working sets the 107 1969 `cl`
+   lines are a class of the calibration with their own two terms.
+4. The `c` width above 38356 cm^-1: moot; the calibration fits the 1974 `c`
+   class on all its lines (1 accepted line above 38356 in final/).
+5. `Unsolved_problems.md` entry 1: done. The line has been accepted since
+   9/28/2026 (ledger `accept`, after the calibration); the entry now says so
+   at its head, and its "Current disposition" is marked as before 9/28. The
+   `reject` row it named never existed.
+6. `HFS_APPLY`: moot (the widths act on 2 levels).
+7. Rewriting `unc_own` and `dlv.dat` by hand: superseded; the calibration
+   writes the uncertainties and `sync_IDEN2.py` rewrites `dlv.dat` in every
+   chain.
+8. Keep or roll back the uncertainty-model trial: superseded by the
+   calibration's model, adopted 2026-10-15 and checked with `check_sync.py`
+   in every chain since.
+
+The original list, as written:
 
 * Second calibration pass: the character constants in `level_positions.py`
   were fitted against the *old* fit's residuals. They must be iterated to

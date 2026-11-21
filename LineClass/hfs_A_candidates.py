@@ -394,7 +394,7 @@ def main(argv=None):
         if r is None or not hfs_correction.is_determined(r['source']):
             return None
         return hfs_kappa.scaled_A(float(r['A_cm-1']), float(r['u_A']),
-                                  r['source'])
+                                  r['source'], r.get('cfg'))
 
     def calc(lid):
         r = theory.get(lid)

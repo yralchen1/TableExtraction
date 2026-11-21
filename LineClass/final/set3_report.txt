@@ -1,14 +1,14 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6669 lines, 8939 table rows; moved 5037
+6669 lines, 8942 table rows; moved 5037
 rows of merged lines left out of the table: 33
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-u_hfs_shift cut to its undetermined part: lowered by median 0.0275, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
+u_hfs_shift cut to its undetermined part: lowered by median 0.0267, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
   rule class kappa   4762
   rule head-D         255
   rule none          1632
   rule resolved        20
-  |cg_shift| median 0.0136, 90% 0.0640, max 1.0910 cm^-1
+  |cg_shift| median 0.0119, 90% 0.0649, max 1.0910 cm^-1
 
 Merged companions (hfs_satellites.txt): 30
   20972.0992      -> 20971.7476     
@@ -50,33 +50,33 @@ Companions whose head is not observed (kept, char hfs): 2
   21963.2509     
 
 Resolved levels: F = 2 partners merged: 3
-  21847.1970      (059003.000642) partner 21848.7447, predicted 21848.7237
-  30088.5807      (059003.000642) partner 30090.1194, predicted 30090.0757
-  33372.1081 w    (059003.000642) partner 33373.5994, predicted 33373.6603
+  21847.1970      (059003.000642) partner 21848.7445, predicted 21848.7235
+  30088.5807      (059003.000642) partner 30090.1200, predicted 30090.0763
+  33372.1081 w    (059003.000642) partner 33373.6006, predicted 33373.6615
   lines whose partner is in hfs_satellites.txt: 3
   no partner, or more than one: 14
-  20897.9067      (059003.000190) predicted 20897.4630: none
-  28019.7124 c    (059003.000190) predicted 28019.2295: none
-  28508.8216 d    (059003.000190) predicted 28508.3420: none
-  28658.9908      (059003.000642) predicted 28660.4971: none
-  28873.1623 *r   (059003.000190) predicted 28872.6765: none
-  31243.9493      (059003.000642) predicted 31245.4676: none
-  31623.1012 *r   (059003.000190) predicted 31622.6225: none
-  32156.5523 *r   (059003.000190) predicted 32156.0621: none
-  32556.6902 c    (059003.000190) predicted 32556.2337: none
-  33401.3293      (059003.000190) predicted 33400.8956: none
-  33722.4702 w    (059003.000190) predicted 33722.0314: none
-  33772.3202      (059003.000642) predicted 33773.8675: none
-  35150.3212      (059003.000642) predicted 35151.8254: none
-  40667.1510      (059003.000642) predicted 40668.6464: none
+  20897.9067      (059003.000190) predicted 20897.4616: none
+  28019.7124 c    (059003.000190) predicted 28019.2301: none
+  28508.8216 d    (059003.000190) predicted 28508.3433: none
+  28658.9908      (059003.000642) predicted 28660.4984: none
+  28873.1623 *r   (059003.000190) predicted 28872.6784: none
+  31243.9493      (059003.000642) predicted 31245.4680: none
+  31623.1012 *r   (059003.000190) predicted 31622.6233: none
+  32156.5523 *r   (059003.000190) predicted 32156.0634: none
+  32556.6902 c    (059003.000190) predicted 32556.2345: none
+  33401.3293      (059003.000190) predicted 33400.8967: none
+  33722.4702 w    (059003.000190) predicted 33722.0324: none
+  33772.3202      (059003.000642) predicted 33773.8685: none
+  35150.3212      (059003.000642) predicted 35151.8267: none
+  40667.1510      (059003.000642) predicted 40668.6479: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 
 Flags whose side disagrees with the sign of D: 2
-  36667.3188 *r   D -0.0297
-  29151.1276 *r   D -0.1110
+  36667.3188 *r   D -0.0019
+  29151.1276 *r   D -0.0768
 
-Characters changed: 403
+Characters changed: 397
   ''   -> hfs,l      5  (companions)
   ''   -> hfs,s      2  (F = 2 partner)
   ''   -> hfs,s     16  (companions)
@@ -84,27 +84,23 @@ Characters changed: 403
   *v   -> hfs,s    145  (flag)
   c    -> hfs,l     11  (width)
   c    -> hfs,s     18  (width)
-  ch   -> hfs,l     11  (width)
+  ch   -> hfs,l     10  (width)
   ch   -> hfs,s     13  (width)
   cl   -> hfs,s      1  (companions)
   d    -> hfs,l      3  (width)
   d    -> hfs,s      1  (companions)
-  d    -> hfs,s      4  (width)
+  d    -> hfs,s      5  (width)
   h    -> hfs,s      1  (width)
-  w    -> hfs,l     12  (width)
+  w    -> hfs,l      7  (width)
   w    -> hfs,s      1  (F = 2 partner)
-  w    -> hfs,s      8  (width)
+  w    -> hfs,s      7  (width)
   the wide characters made hfs (|D| >= one line width):
-    10006.1086 w    -> hfs,s  D -0.1442  width 0.0894
-    10789.6938 w    -> hfs,l  D +0.1039  width 0.0976
+    10006.1086 w    -> hfs,s  D -0.1777  width 0.0894
     11476.0922 ch   -> hfs,s  D -0.2470  width 0.1050
     11513.7962 ch   -> hfs,l  D +0.1881  width 0.1054
-    11668.6378 w    -> hfs,l  D +0.1216  width 0.1071
-    12100.3613 w    -> hfs,l  D +0.1147  width 0.1119
-    12227.9514 ch   -> hfs,s  D -0.1451  width 0.1133
+    12227.9514 ch   -> hfs,s  D -0.1429  width 0.1133
     12516.3340 ch   -> hfs,s  D -0.3071  width 0.1166
-    12561.0322 w    -> hfs,l  D +0.1658  width 0.1171
-    12582.6294 w    -> hfs,l  D +0.1615  width 0.1174
+    12582.6294 w    -> hfs,l  D +0.1402  width 0.1174
     12596.4603 ch   -> hfs,l  D +0.2104  width 0.1175
     12609.2196 ch   -> hfs,l  D +0.2551  width 0.1177
     12622.4428 ch   -> hfs,l  D +0.2276  width 0.1178
@@ -125,18 +121,15 @@ Characters changed: 403
     12972.8289 ch   -> hfs,s  D -0.3400  width 0.1218
     13005.1834 ch   -> hfs,l  D +0.1730  width 0.1222
     13010.6876 ch   -> hfs,l  D +0.1743  width 0.1223
-    13277.2320 ch   -> hfs,l  D +0.1358  width 0.1254
     13318.3370 h    -> hfs,s  D -0.1350  width 0.1259
-    13510.9991 w    -> hfs,l  D +0.1496  width 0.1281
-    13741.7232 w    -> hfs,l  D +0.1801  width 0.1309
-    14243.0895 w    -> hfs,s  D -0.1530  width 0.1369
-    14437.9562 w    -> hfs,s  D -0.1437  width 0.1393
-    14800.5701 w    -> hfs,l  D +0.1576  width 0.1438
+    13510.9991 w    -> hfs,l  D +0.1299  width 0.1281
+    13741.7232 w    -> hfs,l  D +0.1310  width 0.1309
+    14437.9562 w    -> hfs,s  D -0.1631  width 0.1393
+    14666.3325 d    -> hfs,s  D -0.1497  width 0.1422
     15910.3756 w    -> hfs,l  D +0.3413  width 0.1580
     16007.8025 w    -> hfs,l  D +0.1886  width 0.1593
     16041.2169 w    -> hfs,l  D +0.1921  width 0.1597
-    16180.9425 d    -> hfs,l  D +0.1793  width 0.1615
-    18303.9525 w    -> hfs,l  D +0.2216  width 0.1908
+    18303.9525 w    -> hfs,l  D +0.2664  width 0.1908
     20866.0038 d    -> hfs,s  D -0.5459  width 0.2295
     22630.6621 d    -> hfs,l  D +0.6193  width 0.2584
     25657.6628 c    -> hfs,l  D +0.4329  width 0.3124
@@ -156,7 +149,7 @@ Characters changed: 403
     33650.9814 c    -> hfs,s  D -0.5119  width 0.4834
     34141.4997 c    -> hfs,l  D +0.5403  width 0.4952
     34396.0209 w    -> hfs,s  D -0.8606  width 0.5014
-    34581.8595 w    -> hfs,s  D -0.6730  width 0.5060
+    34581.8595 w    -> hfs,s  D -0.6704  width 0.5060
     34757.5489 w    -> hfs,s  D -0.6413  width 0.5103
     34861.8898 c    -> hfs,s  D -0.5571  width 0.5129
     35206.6198 c    -> hfs,s  D -0.5853  width 0.5215
@@ -164,7 +157,7 @@ Characters changed: 403
     35980.6308 c    -> hfs,s  D -0.6008  width 0.5411
     36002.9702 c    -> hfs,s  D -0.7945  width 0.5417
     36302.2109 d    -> hfs,s  D -0.7751  width 0.5494
-    36316.3719 d    -> hfs,s  D -0.6941  width 0.5498
+    36316.3719 d    -> hfs,s  D -0.6918  width 0.5498
     36411.2208 c    -> hfs,s  D -0.6010  width 0.5522
     36773.8798 c    -> hfs,s  D -0.8566  width 0.5616
     36887.6208 c    -> hfs,l  D +0.6338  width 0.5646
@@ -173,13 +166,14 @@ Characters changed: 403
     37243.1807 c    -> hfs,l  D +0.6242  width 0.5740
     37622.2493 c    -> hfs,s  D -0.8076  width 0.5840
     37682.9108 w    -> hfs,s  D -0.8086  width 0.5857
+    37906.5593 d    -> hfs,l  D +0.6121  width 0.5917
     37968.4191 c    -> hfs,s  D -0.7314  width 0.5933
     38164.6091 c    -> hfs,s  D -0.6176  width 0.5986
     38355.8597 c    -> hfs,s  D -0.6395  width 0.6038
 
 Printed components against head - D: 228 lines; |cg difference| median 0.0093, 90% 0.0448 cm^-1; beyond 3 sigma: 7
   line            n      D       s   head-sD - (head-D)   z
-  29151.1276 *r    1 -0.1110  -9.744   -1.1926     21.3
+  29151.1276 *r    1 -0.0768 -15.189   -1.2430     20.6
   29753.5924 *v    1 -0.7906   1.878   +0.6945    -18.5
   32105.4086 *v    3 -0.8529   0.895   -0.0895      5.6
   32294.9185 *r    1 +0.6184   0.613   +0.2393     -5.3

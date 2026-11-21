@@ -102,7 +102,10 @@ groups:
   constant is first multiplied by Step 2's scale, `hfs_kappa.A_SCALE`,
   and the scale's uncertainty added to u_A (`hfs_kappa.scaled_A`): the
   semiempirical constants are a few per cent too large against Sugar's measured
-  component spacings, and the kappas are fitted with D on this same scale;
+  component spacings, and the kappas are fitted with D on this same scale.
+  A calculated constant of 4f2.5d is multiplied the same way by its own
+  scale, `hfs_kappa.CALC_CFG_SCALE` (0.87(4), measured on the line
+  positions, 2026-11-21);
 * **undetermined** - listed, with the source "not determined" (the 41 4f5d2
   and 4f3 levels of the plan's section 3.1, 4 since `hfs_A_fit.py` gave the
   rest an A on 2026-10-04), or with a source reporting a conflict.  S = 0, and the unknown A is carried as the uncertainty I*J*u_A
@@ -332,7 +335,8 @@ class Model(object):
             for row in csv.DictReader(fh):
                 src = row['source']
                 A, u_A = hfs_kappa.scaled_A(float(row['A_cm-1']),
-                                            float(row['u_A']), src)
+                                            float(row['u_A']), src,
+                                            row.get('cfg'))
                 self.levels[row['level_id'].strip()] = (
                     float(row['J']), A, u_A, is_determined(src))
         # a partial class's kappa comes from the transition's pattern: a row

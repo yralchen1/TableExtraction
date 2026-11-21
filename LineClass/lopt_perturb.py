@@ -88,6 +88,9 @@ parameter move together.  The patterns (hfs_patterns, kappa_patterns):
   10% of the part of A that configuration gives, each configuration on its
   own (user, 2026-10-10);
 * the semiempirical scale hfs_kappa.U_A_SCALE, on the composition constants;
+* the measured scale of a configuration's calculated constants
+  (hfs_kappa.CALC_CFG_SCALE: 4f2.5d, 2026-11-21), one per configuration; the
+  patterns of the calculated constants above are on that scale too;
 * the constants fitted to Sugar's resolved components: the eigenvectors of
   their covariance in the anchored fit (hfs_A_fit), which is recomputed and
   must reproduce the table;
@@ -123,6 +126,7 @@ per run, removed afterwards unless --keep.  The set's own files are only
 read.
 """
 import argparse
+import collections
 import concurrent.futures
 import csv
 import datetime
@@ -534,6 +538,13 @@ def theory_patterns(table):
                 d[lid] = fraction * part
         pats.append(('config:' + conf, d))
     pats = [(n, d) for n, d in pats if d]
+    # a configuration whose calculated constants the pipeline rescales
+    # (hfs_kappa.CALC_CFG_SCALE, 2026-11-21) moves on that scale too
+    import hfs_kappa
+    sc = {lid: hfs_kappa.calc_scale(table[lid]['source'],
+                                    table[lid].get('cfg')) for lid in calc}
+    pats = [(n, {lid: x * (sc[lid][0] if sc.get(lid) else 1.0)
+                 for lid, x in d.items()}) for n, d in pats]
     var = {}
     for _n, d in pats:
         for lid, x in d.items():
@@ -597,13 +608,29 @@ def hfs_patterns(model, table):
         pats.append(('scale', scale))
         for lid, x in scale.items():
             var[lid] = var.get(lid, 0.0) + x * x
+    # the measured scale of a configuration's calculated constants
+    # (hfs_kappa.CALC_CFG_SCALE): one pattern per configuration, the
+    # unscaled A times the scale's uncertainty
+    cscale = collections.defaultdict(dict)
+    for lid, r in table.items():
+        sc = hfs_kappa.calc_scale(r['source'], r.get('cfg'))
+        if sc is not None and sc[1] > 0:
+            cscale[r['cfg'].strip()][lid] = float(r['A_cm-1']) * sc[1]
+    for cfg, d in sorted(cscale.items()):
+        pats.append(('calc_scale:' + cfg, d))
+        for lid, x in d.items():
+            var[lid] = var.get(lid, 0.0) + x * x
     fpats, fvar, worst = fit_patterns(table)
     pats += fpats
     for lid, v in fvar.items():
         var[lid] = var.get(lid, 0.0) + v
-    notes.append('semiempirical scale: %d levels; fitted constants: %d '
+    notes.append('semiempirical scale: %d levels; calculated scale: %s; '
+                 'fitted constants: %d '
                  'patterns over %d levels, the fit reproducing the table to '
-                 '%.5f cm^-1' % (len(scale), len(fpats), len(fvar), worst))
+                 '%.5f cm^-1' % (len(scale), ', '.join(
+                     '%s %d levels' % (c, len(d))
+                     for c, d in sorted(cscale.items())) or 'none',
+                     len(fpats), len(fvar), worst))
     over = []
     for lid in sorted(model.levels):
         J, A, u_A, det = model.levels[lid]

@@ -134,6 +134,18 @@ STATED_OTHER = 0.0070
 A_SCALE = 0.9638
 U_A_SCALE = 0.0079
 
+#: the scale of the calculated A constants (hfs_A_theory) of a configuration,
+#: `{cfg of A_hfs_levels.csv: (scale, u)}`, measured on the line positions.
+#: 4f2.5d (2026-11-21, adopted by the user the same day): the A of every
+#: calculated 4f2.5d level multiplied by t in the calibration's free fit on
+#: the weights of a --hold-kappa run, -2 ln L at its minimum for t =
+#: 0.872(39), 3.3 sigma from 1, while the other 423 calculated levels give
+#: 1.044(34) (Work_on_hfs_plan.md item 3c; Devel/calc_A_scale_2026-11-21).
+#: 4f2.5d is a configuration no measured A tests (tier 2 of
+#: hfs_A_candidates).  Applied in `scaled_A` like A_SCALE, the scale's
+#: uncertainty added to u_A in quadrature.
+CALC_CFG_SCALE = {'f25d': (0.87, 0.04)}
+
 #: a line this far from the fit in units of its own uncertainty is set aside
 #: as probably misassigned.
 OUTLIER_SIGMA = 4.0
@@ -560,19 +572,35 @@ def is_calc_combined(source):
     return CALC_COMBINED_TAG in source
 
 
-def scaled_A(A, u_A, source):
+def calc_scale(source, cfg):
+    """`(scale, u)` of a calculated constant of a configuration that
+    CALC_CFG_SCALE rescales, None for any other row."""
+    if cfg and source.startswith('calculated'):
+        return CALC_CFG_SCALE.get(cfg.strip())
+    return None
+
+
+def scaled_A(A, u_A, source, cfg=None):
     """`(A, u_A)` on the measured scale: a semiempirical constant multiplied by
-    `A_SCALE`, with the scale's own uncertainty added in quadrature; any
-    other constant unchanged.  `hfs_correction.Model` reads the table through
-    this too, so that the pipeline and the fits of kappa use the same D."""
-    if not is_semiempirical(source):
-        return A, u_A
-    return A_SCALE * A, math.hypot(A_SCALE * u_A, A * U_A_SCALE)
+    `A_SCALE`, a calculated constant of a configuration in CALC_CFG_SCALE
+    (`cfg`, the table's cfg column) by its scale, each with the scale's own
+    uncertainty added in quadrature; any other constant unchanged.
+    `hfs_correction.Model` reads the table through this too, so that the
+    pipeline and the fits of kappa use the same D.  A caller that reads a row
+    of the table passes its cfg: without it a calculated constant is not
+    rescaled."""
+    if is_semiempirical(source):
+        return A_SCALE * A, math.hypot(A_SCALE * u_A, A * U_A_SCALE)
+    sc = calc_scale(source, cfg)
+    if sc is not None:
+        return sc[0] * A, math.hypot(sc[0] * u_A, A * sc[1])
+    return A, u_A
 
 
 def read_A_constants(path=None):
     """`level_id -> (J, A, u_A, source)` from `A_hfs_levels.csv`, with the
-    semiempirical constants put on the measured scale (`scaled_A`).
+    semiempirical constants and the calculated ones of CALC_CFG_SCALE put on
+    the measured scale (`scaled_A`).
 
     A level whose constant is undetermined, and a level whose calculated
     constant contradicts its own flags (section 3.2), are both given A = 0
@@ -585,7 +613,8 @@ def read_A_constants(path=None):
     with open(path, encoding='utf-8', newline='') as fh:
         for row in csv.DictReader(fh):
             src = row['source']
-            A, u_A = scaled_A(float(row['A_cm-1']), float(row['u_A']), src)
+            A, u_A = scaled_A(float(row['A_cm-1']), float(row['u_A']), src,
+                              row.get('cfg'))
             if src == 'not determined' or 'CONFLICT' in src:
                 A = 0.0
             out[row['level_id']] = (float(row['J']), A, u_A, src)
