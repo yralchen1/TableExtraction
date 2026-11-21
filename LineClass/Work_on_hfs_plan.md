@@ -208,6 +208,17 @@ The last work, 2026-10-15 to 10-17:
    `questionable_levels.txt` is retired (it lacked only 000494). To do: the
    audit rerun (`level_positions.py --set iter_hfs --audit`, then
    `prepare_audit.py`) and levels_pub.py, for the new marks and 000494's Q.
+   **Rerun 2026-11-21** on round 15: 31 questionable, as on 11-19; no level
+   newly questionable and no firm grounds for relocation. 7 open for the
+   user: firm 000599 (its denied alternate now found at 136549.78, 1.7 from
+   136548.11) and firm 000673 (a first alternate, 111250.53, +177; present
+   ln_R 5.29 against 3.04); five `?` levels whose best alternate moved
+   (000545, 000566, 000600, 000522, 000568). **Settled by the user the same
+   day:** each moved alternate added as a second denied alternate in
+   level_verdicts.txt (000568 stays `?`); 000673 stays firm, its alternate
+   probably the unidentified 4f2.6d (1G)2H J=4.5 level (Ec 111244.7, top
+   line 39271.94 free) but the evidence too weak for a new level.
+   prepare_audit: 0 open.
 3. Step 8: the tracked outputs and the documentation. **Done 2026-11-19**
    (section 5, Step 8).
 3a. Before Step 9 (user, 2026-11-19): reconcile `iter_hfs/kappa_candidates.csv`
