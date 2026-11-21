@@ -1,27 +1,27 @@
 check_sync.py - are the files describing the same identification?
 working set: F:\UMD\AI\as-ai\LineClass\final
 file                             last written
-line_classifications.csv         2026-11-21 17:41
-line_classifications.xlsx        2026-11-21 17:42
-LOPT_input_lines.txt             2026-11-21 17:42
-LOPT_output_lines.txt            2026-11-21 17:42
-LOPT_output_levels.txt           2026-11-21 17:42
+line_classifications.csv         2026-11-21 18:57
+line_classifications.xlsx        2026-11-21 18:57
+LOPT_input_lines.txt             2026-11-21 18:57
+LOPT_output_lines.txt            2026-11-21 18:57
+LOPT_output_levels.txt           2026-11-21 18:57
 line_decisions.csv               2026-11-20 20:57
 revised_level_energies.csv       2026-10-14 16:06
 unstable_candidates.csv          2026-09-25 12:46
 level_positions.csv              2026-09-22 21:25
 Pr3_lines.xlsx                   2026-11-21 16:04
 lineclass_config.toml            2026-10-11 19:24
-IDEN2/enlev.dat                  2026-11-21 17:42
-IDEN2/trans.dat                  2026-11-21 17:42
-IDEN2/dlv.dat                    2026-11-21 17:42
+IDEN2/enlev.dat                  2026-11-21 18:57
+IDEN2/trans.dat                  2026-11-21 18:57
+IDEN2/dlv.dat                    2026-11-21 18:57
 
 Freshness
 ---------
   warn  level_positions.csv is older than what it is built from:
-         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 59.8 days)
-         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 59.8 days)
-         line_classifications.xlsx (line_classifications.xlsx newer by 59.8 days)
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 59.9 days)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 59.9 days)
+         line_classifications.xlsx (line_classifications.xlsx newer by 59.9 days)
 
 Classification
 --------------
@@ -58,7 +58,7 @@ IDEN2/dlv.dat
          line 5693 at record 5669 (22686.017)
     ok  all 5629 identifications in trans.dat name a line that dlv.dat has
     ok  the wavelength of each of the 6635 rows of dlv.dat is the standard one for its wavenumber
-    ok  all 6635 matched rows of dlv.dat carry the own_cg and the uncertainty the pipeline uses, or for the 2266 lines the fit uses what LOPT is given (179 of them differ in the last printed digit, by up to 0.0005 cm^-1)
+    ok  all 6635 matched rows of dlv.dat carry the own_cg and the uncertainty the pipeline uses, or for the 2267 lines the fit uses what LOPT is given (179 of them differ in the last printed digit, by up to 0.0005 cm^-1)
 
 Stability
 ---------

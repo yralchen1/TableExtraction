@@ -154,6 +154,32 @@ The last work, 2026-10-15 to 10-17:
   levels are Wyart's unpublished ones. Companion candidates assessed: 11747.74
   likely, 13595.34 possible, 22686.17 not (and 22685.95's existing row
   doubtful); not acted on.
+* **2026-11-21, the companions decided** (the user): 11747.7366 (-> 11747.5942,
+  000044-000112) and 13595.3449 (-> 13595.2137, 000065-000138) added to
+  `hfs_satellites.txt`; 22685.9497 withdrawn (commented out: its rung 1
+  needed A(000245) = +0.005 against the adopted +0.0222(18)). In
+  `kappa_exceptions.txt`: 11747.5942 `plain_1974` (the main line keeps its
+  class instead of the companion rule's kappa = 1) and 22685.2332 `head` (it
+  had been held at the head through the withdrawn companion). 22686.17 is
+  not a companion: rung 2 of 000182-000245 (A +0.1492(49), +0.0222(18)) is
+  predicted at cg +0.339(14), the line lies at +0.161(23) from the Ritz cg
+  22686.051(10), 6 sigma off. Rounds 13 and 14 (commit 31766d1); round 14 a
+  fixed point: 5629 assignments unchanged, no check_sync errors, 0 audit
+  failures; plain_1974 kappa 0.241 -> 0.213(26) in round 13, the other
+  classes unchanged (plain_1974_wide 0.875(41), plain_1969 0.148(29), c
+  0.039(28), flag_unlisted 0.934(20)); spread 1974 0.0799, 1969 0.1507;
+  calibration chi2/dof 0.924. Set 3: 27 lines beyond 3 sigma, one beyond 4,
+  the blend 33520.122 (000126-000203) at +4.00 (+3.96 in round 10).
+* **2026-11-21, round 15** (the user: inflate the apparent outlier): the
+  blend 33520.122 (000126-000203 + 000146-000247; z +4.02 in final/, +2.93
+  in iter_hfs) inflated 0.0423 -> 0.11 in `inflated_unc_lines.txt`; LOPT's
+  uncertainty of the line 0.060 -> 0.12, z +2.04 in final/ (+1.85 in
+  iter_hfs). A fixed point: assignments, kappas and spread unchanged, levels
+  moved at most 0.2 D1 (000247); final/ 26 lines beyond 3 sigma, none beyond
+  4; iter_hfs 9 beyond 3; no check_sync errors, 0 audit failures. Also: the
+  free pattern fit (`hfs_A_from_patterns.csv`) marked superseded; 000161's
+  October discrepancy rechecked and gone (Step 5); the three level tools
+  declared not to need hfs (final/ takes no level decisions).
 
 **Next, in order.**
 
@@ -285,9 +311,10 @@ The last work, 2026-10-15 to 10-17:
 4. Step 9: the publication tables. The calculated-A question of item 3c is
    settled (the 4f²5d scale, 2026-11-21); the list of contradictions is
    drafted in `Contradictions_for_paper.md` for the user's review; the pull
-   between close lines is an uncertainty term since 2026-11-21. Open: the
-   user's decision on the companion candidates 11747.74 and 13595.34 and on
-   the existing companion row of 22685.95.
+   between close lines is an uncertainty term since 2026-11-21. The
+   companion candidates are decided (2026-11-21): 11747.74 and 13595.34
+   added, 22685.95's row withdrawn, 22686.17 not a companion; round 14 a
+   fixed point.
 5. Step 10: the final line list; the user is to explain the approach.
 6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not
@@ -302,7 +329,8 @@ The last work, 2026-10-15 to 10-17:
    (`--classifications iter_hfs/line_classifications.csv --hold-kappa`,
    which also rewrites `[hfs.kappa_spread]`), then iter_hfs's chain, the full
    make_set3.py, final/'s chain, lopt_perturb, `make_set3.py --levels`,
-   levels_pub.py.
+   levels_pub.py. **Done** in every finalization round (2026-11-20/21,
+   rounds 1-14), whose calibration fits k with the classes.
 
 ---
 
@@ -1913,11 +1941,22 @@ kappa. Either the four main lines were measured a little below their heads,
 or the upper levels 000203, 000204, 000205 and 000215 are misplaced by a few
 hundredths; the rungs themselves agree with the A constants (000205 needs
 A = +0.0222 against +0.0223 listed). Left for the user to judge.
+**Rechecked 2026-11-21 on round 14 (settled).** The three precise main lines
+now have companions in `hfs_satellites.txt` (25787.29, 24087.34, 23792.55:
+their rung 1 printed, 9/30/2026), so they are read at the head with
+kappa = 1 like the flags (23792.50 also `head` in kappa_exceptions, 10/5),
+and 40015.2007 was rejected (ledger, 10/1). In iter_hfs's LOPT output the
+three main lines give a weighted mean obs - Ritz of -0.006(15) cm^-1 and the
+10 unblended `*v` lines -0.003(8); every unblended fitted line of 000161 is
+within 1.7 sigma (largest 37191.585 `*v`, -1.65). Set 3 the same (-0.006,
+-0.004). Nothing is left low (`Devel/review_2026-11-21/level_161.py`).
 
 The A constants. Each rung-k interval gives k/2 * ((2F_low + 1 - k) A_low -
 (2F_upp + 1 - k) A_upp), one linear equation in the two A values
 (`hfs_patterns.rung`). The registry holds what is needed to add these to the
 pattern fit of `hfs_A_from_patterns.csv` and to Step 4; not done yet.
+(Superseded: Step 4's anchored fit, `hfs_A_fit.py`, gives the adopted A
+constants; `hfs_A_from_patterns.csv` is kept as a record only, 2026-11-21.)
 
 *Not yet hfs-aware.* `insert_new_level.py`, `move_level.py` and
 `discard_level.py` edit the baseline's `LOPT_input_lines.txt` record by
@@ -1925,6 +1964,11 @@ record and do not read the shift record; they must not be used on a set with
 the switch on. `level_positions.py` and `review_mismatches.py` recompute
 residuals as wn_obs - Ritz from the table and do not yet subtract the
 correction.
+**Not needed (user, 2026-11-21).** The three level tools are not to be made
+hfs-aware: no level decision or line assignment is made in final/, whose
+apparent alignment of lines can mislead (README, "No level analysis in
+`final/`"; Step 7b, 2026-10-11), and all three refuse a derived set in code
+(`config.require_not_derived`, through `insert_new_level.require_unlocked`).
 
 *History: the center-of-gravity frame, superseded.* The first version of this
 step (D1, D11 of 2026-09-29) put the levels at their centers of gravity and
@@ -2529,7 +2573,7 @@ is next regenerated.
 | `hfs_components.csv` | **written** - the 500 measured hfs component positions of section 3.5, joined to their parent lines; a tracked input, extracted from the 1974 workbook |
 | `hfs_components.py` | **written** - the extraction, the pairing and the side check |
 | `hfs_patterns.py` | **written** - the interval rule, the 6-j intensities, the scale tests and the global fit of section 3.5 |
-| `hfs_A_from_patterns.csv` | **written** - the A constants the measured patterns give, with the caveat on their absolute scale; not an input to anything yet |
+| `hfs_A_from_patterns.csv` | **superseded** (2026-11-21) - the free fit of 2026-09-29 (`hfs_patterns.py --out`), whose common offset is undetermined; read by no program. The adopted A constants come from `hfs_A_fit.py`'s anchored fit into `A_hfs_levels.csv`. Kept as a record, not refreshed |
 | `hfs_kappa.py` | **written** - the adopted uncertainties of section 2.6, the convention fit of section 2.2 and the two tests of section 3.3 |
 | `hfs_uncertainties.csv` | **written** - the adopted uncertainty per character per era with the count behind it; the Step 1 deliverable |
 | `hfs_misassigned_candidates.csv` | **written** - the lines the trend fit rejects beyond 4 sigma, for review in IDEN2; no ledger row is written from it |

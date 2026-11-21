@@ -121,3 +121,4 @@ wn_key	unc_wn	date	reason
 100117.4188	0.7	10/15/2026	"Weak line on the level of noise, pulls 000493 too hard"
 29686.3692	0.09	11/20/2026	"strong *v head, 0.15 off the Ritz value; not a kappa effect (kappa_line 0.75 +- 0.08) (was 0.14, lowered by kappa_candidates 11/20/2026 to the size of the residual (0.09))"
 29774.9501	0.15	11/19/2026	"strong *r head, 0.15 off the Ritz value; not a kappa effect (kappa_line 1.20 +- 0.06)"
+33520.0809	0.11	11/21/2026	"blend of 000126-000203 and 000146-000247; apparent outlier in final/ (z +4.02, iter_hfs +2.93) (was 0.0423)"

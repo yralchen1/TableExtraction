@@ -1,4 +1,4 @@
-lopt_perturb.py --source hfs, 2026-11-21 12:44
+lopt_perturb.py --source hfs, 2026-11-21 14:00
 set: F:\UMD\AI\as-ai\LineClass\final (7799 records)
 source set F:\UMD\AI\as-ai\LineClass\iter_hfs; A table F:\UMD\AI\as-ai\LineClass\A_hfs_levels.csv
 calculated constants: 35 correlated patterns (7 radial, 8 factors, 20 configurations)
@@ -8,7 +8,7 @@ records without a line: 0; patterns that move no record: 0
 patterns run: 751 (150 correlated, 596 own, 5 kappa)
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
 linearity: the pattern radial:4f.a01 at half size differs by 8.43e-08 cm^-1 at most (its largest level shift 0.0022)
-753 runs, 16 at a time, 97 s
+753 runs, 16 at a time, 122 s
 
 u_hfs over 652 levels (ground excluded): median 0.0083, 90% 0.0154, max 0.1341 cm^-1; / D2stat median 0.53, 90% 1.26
   E      0-50000 : 160 levels, median u_hfs 0.0077, median D2stat 0.0086

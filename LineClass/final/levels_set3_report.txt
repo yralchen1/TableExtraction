@@ -16,12 +16,12 @@ medians over the levels (ground excluded), cm^-1:
 Ritz wavenumbers, 7799 records; medians, cm^-1: uWnCstat 0.0190, u_cal 0.0135, u_hfs 0.0099, u_kappa 0.0016, u_ritz 0.0294
 fit - source moved to the cg: largest |diff| 0.0707 cm^-1 over 653 levels
   059003.000621 +0.0707 (u_stat 0.0230)
-  059003.000577 -0.0627 (u_stat 0.0210)
+  059003.000577 -0.0628 (u_stat 0.0210)
   059003.000448 +0.0614 (u_stat 0.0470)
-  059003.000457 +0.0569 (u_stat 0.0620)
+  059003.000457 +0.0568 (u_stat 0.0620)
   059003.000390 +0.0501 (u_stat 0.0200)
   059003.000676 -0.0498 (u_stat 0.0570)
   059003.000684 +0.0485 (u_stat 0.0460)
   059003.000304 +0.0485 (u_stat 0.0400)
   059003.000376 +0.0455 (u_stat 0.0840)
-  059003.000620 +0.0451 (u_stat 0.0850)
+  059003.000620 +0.0452 (u_stat 0.0850)
