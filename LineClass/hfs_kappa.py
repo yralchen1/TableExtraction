@@ -262,6 +262,81 @@ def read_snr(path=None):
     return out
 
 
+#: the pull of a partly resolved neighbor (2026-11-21; adopted by the user the
+#: same day as an uncertainty, not a correction).  Two lines of Sugar's list
+#: closer than about two effective line widths are measured too close
+#: together: on the 617 pairs with both lines identified (final/, round 10;
+#: Devel/close_pair_pull_2026-11-21), each line reads toward its partner by
+#: on average  sep * share * g(x),  g(x) = PULL_G0 * exp(-x / PULL_X0),  with
+#: x = sep / FWHM (make_set3.fwhm_cm) and share the partner's part of the two
+#: lines' summed intensity (Sugar's Iorig): the weaker line of a pair is
+#: pulled about three times as far as the stronger (0.11 against 0.04 of
+#: sep/2).  The model takes chi^2 from 1068 to 995 over the 1234 lines;
+#: added to each line's uncertainty in quadrature, it brings the rms z of the
+#: lines below 1.2 FWHM from 0.97-1.42 to 0.79-1.17, the others' being about
+#: 0.92.  Beyond PULL_XMAX the term is below 0.1 per cent of sep.
+PULL_G0 = 0.98
+PULL_X0 = 0.37
+PULL_XMAX = 2.5
+
+
+def pull_term(sep, fwhm, share):
+    """The pull of one neighbor `sep` cm^-1 away, cm^-1: sep * share * g(x)
+    (PULL_G0), 0 beyond PULL_XMAX widths."""
+    x = sep / fwhm
+    if x >= PULL_XMAX:
+        return 0.0
+    return sep * share * PULL_G0 * math.exp(-x / PULL_X0)
+
+
+def pair_uncertainties(lines, fwhm=None):
+    """`{wn rounded to KEY_DECIMALS: u_pair}` for `lines`, `[(wn, I)]`: each
+    line's close-pair term, the pulls of its neighbor below and its neighbor
+    above (`pull_term`) in quadrature; 0 for a line with neither within
+    PULL_XMAX widths.  `fwhm(wn)` is the effective line width, by default
+    make_set3.fwhm_cm.  A missing or zero intensity counts as equal shares."""
+    if fwhm is None:
+        import make_set3
+        fwhm = make_set3.fwhm_cm
+    pts = sorted((float(w), float(i or 0.0)) for w, i in lines)
+    out = {}
+    for n, (w, I) in enumerate(pts):
+        terms = []
+        for m in (n - 1, n + 1):
+            if not 0 <= m < len(pts):
+                continue
+            w2, I2 = pts[m]
+            sep = abs(w2 - w)
+            if sep <= 0.0:
+                continue
+            share = I2 / (I + I2) if I > 0 and I2 > 0 else 0.5
+            terms.append(pull_term(sep, fwhm(0.5 * (w + w2)), share))
+        out[round(w, KEY_DECIMALS)] = math.sqrt(sum(t * t for t in terms))
+    return out
+
+
+def read_pair_uncertainties(source=None):
+    """`pair_uncertainties` of the line list `source` (default
+    Pr3_lines.xlsx): its `own` wavenumbers and `Iorig` intensities, one entry
+    per line."""
+    import openpyxl
+    source = source or os.path.join(HERE, 'Pr3_lines.xlsx')
+    wb = openpyxl.load_workbook(source, read_only=True, data_only=True)
+    rows = wb[wb.sheetnames[0]].iter_rows(values_only=True)
+    header = [str(h).strip() if h is not None else '' for h in next(rows)]
+    i_wn, i_I = header.index('own'), header.index('Iorig')
+    seen, pts = set(), []
+    for rec in rows:
+        wn = rec[i_wn]
+        if not isinstance(wn, (int, float)) or round(wn, 6) in seen:
+            continue
+        seen.add(round(wn, 6))
+        I = rec[i_I]
+        pts.append((float(wn), float(I) if isinstance(I, (int, float)) else 0.0))
+    wb.close()
+    return pair_uncertainties(pts)
+
+
 #: lines whose uncertainty is fixed by hand, one per row, tab-delimited:
 #: `wn_key`, `unc_wn`, `date`, `reason`.  `wn_key` is Sugar's observed
 #: wavenumber, the same number the line is named by in
@@ -280,8 +355,8 @@ INFLATED = 'inflated_unc_lines.txt'
 #: multiplied by its kappa.  `snr` is the line's signal-to-noise ratio
 #: (`read_snr`), `None` if it has none.
 Line = collections.namedtuple(
-    'Line', 'wn char era cls ucls low upp D dJ key fixed snr',
-    defaults=(None, '', None))
+    'Line', 'wn char era cls ucls low upp D dJ key fixed snr pair',
+    defaults=(None, '', None, 0.0))
 
 
 def era_of(wn):
@@ -637,7 +712,7 @@ def read_levels():
 
 
 def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
-               chars=None, snr=None):
+               chars=None, snr=None, pair=None):
     """The accepted, singly assigned lines, with their displacement D.
 
     A line accepted for more than one transition is a blend: its measured
@@ -664,7 +739,9 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
     round behind an edit of the list (wavelength_calibration.list_characters).
 
     With `snr`, `{wn_key rounded to 4 decimals: SNR}` (`read_snr`), each line
-    carries its signal-to-noise ratio for the intensity term.
+    carries its signal-to-noise ratio for the intensity term; with `pair`,
+    `{wn_key rounded to 4 decimals: u_pair}` (`read_pair_uncertainties`), its
+    close-pair term.
     """
     path = path or os.path.join(HERE, LINES)
     constants = read_A_constants() if constants is None else constants
@@ -701,7 +778,8 @@ def read_lines(path=None, constants=None, J_of=None, raw=False, model=None,
                               cls=cls, ucls=(char, era),
                               low=low, upp=upp, D=D, dJ=dJ,
                               key=key, fixed=fixed,
-                              snr=(snr or {}).get(round(key, 4))))
+                              snr=(snr or {}).get(round(key, 4)),
+                              pair=(pair or {}).get(round(key, 4), 0.0)))
     return lines
 
 
@@ -877,6 +955,13 @@ def _snr_of(v):
     return v[4] if len(v) > 4 else None
 
 
+def _pair_var(v):
+    """The close-pair variance of one `values` tuple (`pair_uncertainties`
+    squared, cm^-2): its sixth element, 0 if absent.  A fixed part of the
+    line's variance; nothing is fitted to it."""
+    return (v[5] or 0.0) if len(v) > 5 else 0.0
+
+
 def fit_two_term(values, fix_a=False, spread=0.0, intensity=0.0):
     """Maximum-likelihood `(a, b)` for one class, leverage folded in.
 
@@ -884,8 +969,9 @@ def fit_two_term(values, fix_a=False, spread=0.0, intensity=0.0):
     `(..., |D|)` quadruples when the spread of kappa is to be allowed for:
     each line's variance then holds `(spread * |D|)^2` besides the two
     terms (`spread_D`, `fit_classes`).  A fifth element, the line's SNR,
-    multiplies its two terms by `intensity_factor(SNR, intensity)`.  A
-    fitted level value has already followed part of each residual, so what a
+    multiplies its two terms by `intensity_factor(SNR, intensity)`, and a
+    sixth, the square of its close-pair term, is added to its variance as it
+    is (`_pair_var`).  A fitted level value has already followed part of each residual, so what a
     residual measures is not the uncertainty itself but `E[r^2] = (1 - h) u^2`
     with `h` the leverage; the `(1 - h)` therefore sits inside the variance
     rather than being divided out afterwards, which is what lets lines of very
@@ -908,10 +994,11 @@ def fit_two_term(values, fix_a=False, spread=0.0, intensity=0.0):
                   for v in values], dtype=float)
     f = np.array([intensity_factor(_snr_of(v), intensity) for v in values],
                  dtype=float)
+    pv = np.array([_pair_var(v) for v in values], dtype=float)
     r2, s2 = r * r, s * s
 
     def nll(a, b):
-        v = g * (f * (a * a * s2 + b * b) + e)
+        v = g * (f * (a * a * s2 + b * b) + e + pv)
         return float(np.sum(np.log(v) + r2 / v))
 
     golden = _golden
@@ -937,8 +1024,8 @@ def fit_two_term(values, fix_a=False, spread=0.0, intensity=0.0):
 def _era_arrays(items, spread, intensity):
     """Per line of one era's `items` (`((a, b), values)` per class): the
     leverage factor, the class variance, the squared residual, the spread
-    variance at `spread`, the intensity factor at `intensity`, and the
-    SNR (nan without)."""
+    variance at `spread`, the intensity factor at `intensity`, the SNR (nan
+    without), and the close-pair variance (`_pair_var`)."""
     rows = [((a, b), v) for (a, b), vals in items for v in vals]
     if not rows:
         return None
@@ -947,7 +1034,8 @@ def _era_arrays(items, spread, intensity):
          v[0] * v[0],
          (spread * v[3]) ** 2 if len(v) > 3 else 0.0,
          intensity_factor(_snr_of(v), intensity),
-         _snr_of(v) if _snr_of(v) is not None else math.nan)
+         _snr_of(v) if _snr_of(v) is not None else math.nan,
+         _pair_var(v))
         for (a, b), v in rows]))
     return [np.array(c, dtype=float) for c in cols]
 
@@ -964,12 +1052,12 @@ def fit_spread(items, intensity=0.0):
             if len(v) > 3 and v[3] > 0.0]
     if not rows:
         return 0.0
-    g, base, r2, _, f, _ = _era_arrays([(ab, [v]) for ab, v in rows], 0.0,
-                                       intensity)
+    g, base, r2, _, f, _, pv = _era_arrays([(ab, [v]) for ab, v in rows],
+                                           0.0, intensity)
     d2 = np.array([v[3] * v[3] for _, v in rows], dtype=float)
 
     def nll(sp):
-        var = g * (f * base + sp * sp * d2)
+        var = g * (f * base + sp * sp * d2 + pv)
         return float(np.sum(np.log(var) + r2 / var))
 
     s = math.exp(_golden(lambda x: nll(math.exp(x)), -12.0, 1.0))
@@ -986,7 +1074,7 @@ def fit_intensity(items, spread=0.0):
     arrays = _era_arrays(items, spread, 0.0)
     if arrays is None:
         return 0.0
-    g, base, r2, e, _, snr = arrays
+    g, base, r2, e, _, snr, pv = arrays
     have = np.isfinite(snr) & (snr > 0.0)
     if not have.any():
         return 0.0
@@ -995,7 +1083,7 @@ def fit_intensity(items, spread=0.0):
 
     def nll(k):
         f = np.where(have, (1.0 + k * x) / (1.0 + k * SNR_REF ** -q), 1.0)
-        var = g * (f * base + e)
+        var = g * (f * base + e + pv)
         return float(np.sum(np.log(var) + r2 / var))
 
     k = math.exp(_golden(lambda t: nll(math.exp(t)), -12.0, 4.0))
@@ -1059,12 +1147,14 @@ def line_sigma(ln, ab, plain, spread, intensity=0.0):
     scaled by the line's `intensity_factor` at its era's coefficient
     `intensity`, floored at FLOOR and at the character floor (`plain` the
     era's plain `(a, b)`), and the spread of kappa `spread` of its era times
-    its `spread_D`, in quadrature."""
+    its `spread_D` and its close-pair term (`pair_uncertainties`), in
+    quadrature."""
     f = intensity_factor(ln.snr, intensity)
     u = (max(two_term(ab[0], ab[1], ln.wn) * math.sqrt(f), FLOOR) if ab
          else max(stated_uncertainty(ln.char, ln.era, ln.wn), FLOOR))
     u = max(u, character_floor(ln.char, ln.era, ln.wn, plain, f))
-    return math.hypot(u, spread * spread_D(ln))
+    return math.sqrt(u * u + (spread * spread_D(ln)) ** 2
+                     + (getattr(ln, 'pair', 0.0) or 0.0) ** 2)
 
 
 def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True,
@@ -1103,7 +1193,8 @@ def refit_uncertainties(lines, residual, leverage, ucls=None, spread=True,
     for i, ln in enumerate(lines):
         if residual[i] is not None and held[i] is None:
             groups[ucls[i]].append((residual[i], leverage[i], ln.wn,
-                                    spread_D(ln), ln.snr))
+                                    spread_D(ln), ln.snr,
+                                    (getattr(ln, 'pair', 0.0) or 0.0) ** 2))
     fitted, s_era, k_era = fit_classes(groups, fix_a, min_class=MIN_CLASS,
                                        spread=spread, intensity=intensity)
 
@@ -1199,7 +1290,9 @@ def adopt_uncertainties(lines, scale=1.0, outlier=OUTLIER_SIGMA,
             for i, ln in enumerate(lines):
                 if keep[i] and held[i] is None:
                     groups[ucls[i]].append((res[i], lev[i], ln.wn,
-                                            spread_D(ln), ln.snr))
+                                            spread_D(ln), ln.snr,
+                                            (getattr(ln, 'pair', 0.0) or 0.0)
+                                            ** 2))
             fitted, s_era, k_era = fit_classes(groups, fix_a, spread=spread,
                                                intensity=intensity)
             new = {key: ab + (len(groups[key]),)

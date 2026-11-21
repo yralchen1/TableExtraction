@@ -1,16 +1,16 @@
 Set 3 (make_set3.py), from F:\UMD\AI\as-ai\LineClass\iter_hfs
 
-6669 lines, 8942 table rows; moved 5037
-rows of merged lines left out of the table: 33
+6669 lines, 8949 table rows; moved 5037
+rows of merged lines left out of the table: 34
 single accepted lines: |dif_wn_O-C - (wn_obs - rwn)| at most 5.1e-05 cm^-1
-u_hfs_shift cut to its undetermined part: lowered by median 0.0267, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
-  rule class kappa   4762
-  rule head-D         255
+u_hfs_shift cut to its undetermined part: lowered by median 0.0275, max 0.2107 cm^-1 over 5037 lines; the model rebuilds the source set's u_hfs_shift to 5.6e-17 cm^-1
+  rule class kappa   4761
+  rule head-D         256
   rule none          1632
   rule resolved        20
-  |cg_shift| median 0.0119, 90% 0.0649, max 1.0910 cm^-1
+  |cg_shift| median 0.0112, 90% 0.0609, max 1.0910 cm^-1
 
-Merged companions (hfs_satellites.txt): 30
+Merged companions (hfs_satellites.txt): 31
   20972.0992      -> 20971.7476     
   34140.3907      -> 34139.9601     
   25787.7794      -> 25787.2879     
@@ -21,7 +21,6 @@ Merged companions (hfs_satellites.txt): 30
   22545.9883      -> 22545.6519     
   57127.7778 cl   -> 57126.9929 cl  
   21872.7340      -> 21872.0023     
-  22685.9497      -> 22685.2332     
   17019.5411      -> 17018.9475     
   27350.8376 d    -> 27351.4799     
   54967.4317      -> 54966.4344     
@@ -41,6 +40,8 @@ Merged companions (hfs_satellites.txt): 30
   29724.4007      -> 29724.6026     
   29725.8174      -> 29724.6026     
   30879.5492      -> 30879.9787 *r  
+  11747.7366      -> 11747.5942     
+  13595.3449      -> 13595.2137     
 Blended companions, kept as lines: 3
   23083.6428      gave 51.2 of 139.8 to 23082.9190     
   24671.3726      gave 85.5 of 187.1 to 24670.6422     
@@ -50,25 +51,25 @@ Companions whose head is not observed (kept, char hfs): 2
   21963.2509     
 
 Resolved levels: F = 2 partners merged: 3
-  21847.1970      (059003.000642) partner 21848.7445, predicted 21848.7235
-  30088.5807      (059003.000642) partner 30090.1200, predicted 30090.0763
-  33372.1081 w    (059003.000642) partner 33373.6006, predicted 33373.6615
+  21847.1970      (059003.000642) partner 21848.7454, predicted 21848.7244
+  30088.5807      (059003.000642) partner 30090.1211, predicted 30090.0774
+  33372.1081 w    (059003.000642) partner 33373.6030, predicted 33373.6639
   lines whose partner is in hfs_satellites.txt: 3
   no partner, or more than one: 14
-  20897.9067      (059003.000190) predicted 20897.4616: none
-  28019.7124 c    (059003.000190) predicted 28019.2301: none
-  28508.8216 d    (059003.000190) predicted 28508.3433: none
-  28658.9908      (059003.000642) predicted 28660.4984: none
-  28873.1623 *r   (059003.000190) predicted 28872.6784: none
-  31243.9493      (059003.000642) predicted 31245.4680: none
-  31623.1012 *r   (059003.000190) predicted 31622.6233: none
-  32156.5523 *r   (059003.000190) predicted 32156.0634: none
+  20897.9067      (059003.000190) predicted 20897.4622: none
+  28019.7124 c    (059003.000190) predicted 28019.2315: none
+  28508.8216 d    (059003.000190) predicted 28508.3445: none
+  28658.9908      (059003.000642) predicted 28660.4996: none
+  28873.1623 *r   (059003.000190) predicted 28872.6773: none
+  31243.9493      (059003.000642) predicted 31245.4690: none
+  31623.1012 *r   (059003.000190) predicted 31622.6245: none
+  32156.5523 *r   (059003.000190) predicted 32156.0645: none
   32556.6902 c    (059003.000190) predicted 32556.2345: none
-  33401.3293      (059003.000190) predicted 33400.8967: none
-  33722.4702 w    (059003.000190) predicted 33722.0324: none
-  33772.3202      (059003.000642) predicted 33773.8685: none
-  35150.3212      (059003.000642) predicted 35151.8267: none
-  40667.1510      (059003.000642) predicted 40668.6479: none
+  33401.3293      (059003.000190) predicted 33400.8992: none
+  33722.4702 w    (059003.000190) predicted 33722.0330: none
+  33772.3202      (059003.000642) predicted 33773.8691: none
+  35150.3212      (059003.000642) predicted 35151.8277: none
+  40667.1510      (059003.000642) predicted 40668.6490: none
 
 Main lines of companions not moved (transition not accepted in the source set): 0
 
@@ -76,10 +77,10 @@ Flags whose side disagrees with the sign of D: 2
   36667.3188 *r   D -0.0019
   29151.1276 *r   D -0.0768
 
-Characters changed: 397
+Characters changed: 398
   ''   -> hfs,l      5  (companions)
   ''   -> hfs,s      2  (F = 2 partner)
-  ''   -> hfs,s     16  (companions)
+  ''   -> hfs,s     17  (companions)
   *r   -> hfs,l    151  (flag)
   *v   -> hfs,s    145  (flag)
   c    -> hfs,l     11  (width)
@@ -183,4 +184,4 @@ Printed components against head - D: 228 lines; |cg difference| median 0.0093, 9
 
 F:\UMD\AI\as-ai\LineClass\final\inflated_unc_lines.txt: written without the rows of 1 merged line(s) (32947.1485)
 
-IDEN2: 33 merged line(s) removed from dlv.dat (line 2064 57127.7778, 2182 54967.4317, 4617 34140.3907, 4722 33373.5622, 4788 32947.1485, 4850 32426.0902, 4980 30090.1394, 5021 29725.8174, 5023 29724.4007, 5062 29294.2095, 5123 28086.3315, 5124 28085.7491, 5170 27350.8376, 5271 25787.7794, 5372 24111.1521, 5373 24110.7219, 5381 24087.7004, 5430 23792.9207, 5482 23532.8329, 5583 23133.4479, 5584 23133.0573, 5692 22685.9497, 5729 22545.9883, 5745 22486.1899, 5825 21872.7340, 5831 21848.7330, 5875 21273.9335, 5902 20972.0992, 6094 17019.5411, 6222 15505.0470, 6670 11477.6693, 6671 33540.4279, 6672 30879.5492)
+IDEN2: 34 merged line(s) removed from dlv.dat (line 2064 57127.7778, 2182 54967.4317, 4617 34140.3907, 4722 33373.5622, 4788 32947.1485, 4850 32426.0902, 4980 30090.1394, 5021 29725.8174, 5023 29724.4007, 5062 29294.2095, 5123 28086.3315, 5124 28085.7491, 5170 27350.8376, 5271 25787.7794, 5372 24111.1521, 5373 24110.7219, 5381 24087.7004, 5430 23792.9207, 5482 23532.8329, 5583 23133.4479, 5584 23133.0573, 5729 22545.9883, 5745 22486.1899, 5825 21872.7340, 5831 21848.7330, 5875 21273.9335, 5902 20972.0992, 6094 17019.5411, 6222 15505.0470, 6336 13595.3449, 6562 11747.7366, 6670 11477.6693, 6671 33540.4279, 6672 30879.5492)

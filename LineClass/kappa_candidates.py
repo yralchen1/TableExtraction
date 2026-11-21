@@ -200,6 +200,16 @@ def read_intensity(path=REPORT):
     return out
 
 
+def read_no_pair(report=REPORT):
+    """True if the calibration report says the close-pair term was left out
+    of the uncertainty model (wavelength_calibration --no-pair)."""
+    try:
+        with open(report, encoding='utf-8') as fh:
+            return 'no close-pair term in the model' in fh.read()
+    except OSError:
+        return False
+
+
 def model_unc(table, char, wn, snr=None, intensity=None):
     """The calibration's statistical uncertainty of a line of character
     `char` at Sugar's wavenumber `wn`, ignoring the inflation registry: its
@@ -477,6 +487,10 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
     unc = read_unc_table(report)
     intensity = read_intensity(report)
     snr_of = hfs_kappa.read_snr() if intensity else {}
+    # the close-pair term, as the calibration applies it (2026-11-21),
+    # unless its report says it was left out (--no-pair)
+    pair_of = ({} if read_no_pair(report)
+               else hfs_kappa.read_pair_uncertainties())
     registry = hfs_kappa.read_inflated()
     reasons = {}
     with open(os.path.join(HERE, hfs_kappa.INFLATED), encoding='utf-8',
@@ -533,6 +547,8 @@ def analyse(set_dir, dchi2_min=DCHI2, fit_sigma=FIT_SIGMA,
         u_mod = model_unc(unc, char, key,
                           snr_of.get(round(key, hfs_kappa.KEY_DECIMALS)),
                           intensity)
+        u_mod = math.hypot(u_mod, pair_of.get(
+            round(key, hfs_kappa.KEY_DECIMALS), 0.0))
         u_shift = float(r['u_hfs_shift'] or 0.0)
         sigma = math.sqrt(u_mod ** 2 + u_shift ** 2 + u_rest ** 2)
         if sigma / abs(D) > max_u_kappa:

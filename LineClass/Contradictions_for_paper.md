@@ -169,34 +169,56 @@ summed intensity of the two lines matches the calculated one (ratio 0.93).
 
 **13595.21/13595.34**, a transition from the same lower level (000065–000138,
 upper J = 3/2), has a second line 0.131 cm⁻¹ above the classified one, also
-with the note "err in Sugar". Here the calculated pattern has a single maximum
-(the upper level's structure fills the gap between the groups), and the
-F = 2 group lies at +0.06, not +0.125. It is left as it is; whether it is a
-companion is for the user.
+with the note "err in Sugar" on both, as at 15505. At the modeled width and
+the adopted A values the calculated pattern has a single maximum (the upper
+level's structure, A(000138) = +0.0112, scaled, tier 3, fills the gap between
+the groups). A second maximum, the F = 2 group of 000065, appears only with
+A(000138) near the low end of its uncertainty and a width below the modeled
+one, and then 0.09-0.13 cm⁻¹ from the first against 0.131 observed; its
+height, 0.74 of the first, matches Sugar's 15/20 = 0.75, as the 15505
+doublet's 4/5 matches its 0.75. A possible companion, not a proven one.
 
-## 8. Shifts of the level energies from Sugar's published values
+## 8. Shifts of the level energies from their published values
 
-A level's energy differs from Sugar's for three reasons, separated by three
-LOPT fits of Set 3's input: (a) the wavelength calibration of the lines, (b)
-the hyperfine correction to the cg, (c) the rest: changed assignments, new
-lines, blends, and Sugar's own fit (`Devel/calib_level_shifts_2026-11-21`).
-Over the 562 levels Sugar published that are neither new, revised nor
-discarded, rms 0.20 cm⁻¹ in all: calibration 0.08, hyperfine 0.14, rest 0.13.
+A level's energy differs from the published one for three reasons, separated
+by three LOPT fits of Set 3's input: (a) the wavelength calibration of the
+lines, (b) the hyperfine correction to the cg, (c) the rest: changed
+assignments, new lines, blends, and the published fit itself
+(`Devel/calib_level_shifts_2026-11-21`; the line-by-line check in
+`Devel/review_2026-11-21/level_review.py`). Over the 562 published levels
+that are neither new, revised nor discarded, rms 0.20 cm⁻¹ in all:
+calibration 0.08, hyperfine 0.14, rest 0.13.
 
-| Level | Shift | Calibration | Hyperfine (cg) | Rest | The user's account |
-|---|---|---|---|---|---|
-| 000493 | +1.453 | +0.165 | +0.056 | +1.232 | No classified lines in Sugar's lists. His position was probably based on a few lines, all now found heavily blended by transitions from other levels; only 4 of its 15 assigned lines belong to it alone. Nothing alarming. |
-| 000300 | −0.914 | +0.118 | +0.043 | −1.075 | Unexplained by the lines: his 5 lines, all accepted now, and the 2 new ones (53175.40, 47789.63) cannot move it by more than about 0.05. With Sugar's own uncalibrated wavenumbers all 7 agree on 84429.91(10), 1.07 below his 84430.98. Probably a misprint by 1 cm⁻¹ (84429.98). |
-| 000457 | +0.321 | +0.153 | −0.521 | +0.688 | No classified lines in Sugar's lists; his position cannot be explained by the observed lines. |
-| 000455 | +0.042 | +0.189 | −0.567 | +0.421 | No classified lines in Sugar's lists; his position cannot be explained by the observed lines. |
-| 000488 | −0.408 | +0.072 | +0.043 | −0.524 | No classified lines in Sugar's lists. Probably based on four lines, all heavily blended by transitions from other levels. |
-| 000461 | −0.393 | −0.079 | +0.057 | −0.371 | No classified lines in Sugar's lists; his position cannot be explained by the observed lines. |
+**Whose value.** Only three of the ten levels below are Sugar's (`L3974` in
+`TableExtraction/Pr3_lev_Wyart_1999.xlsm`, the levels in NIST ASD): 000300,
+000305, 000310. The other seven are Wyart's unpublished levels (`u#`), whose
+energies were never finalized; that is why none of them has a classified line
+in Sugar's lists. None of the ten has a verdict in `level_verdicts.txt` or a
+mark of the audit (2026-11-19).
 
-The present positions are well supported by the assigned lines and are
-considered firm (user, 2026-11-21). The calibration accounts for 0.07–0.19
-cm⁻¹ of these shifts, not for their size. Four more unmarked levels have a
-"rest" above 0.45 cm⁻¹ and are not yet reviewed: 000305 (−0.75), 000506
-(+0.68), 000450 (+0.54), 000310 (−0.47).
+"Calibration", "hyperfine" and "rest" are measured in that order, so a strong
+flagged line read at its head counts in "rest" until the hyperfine step; the
+last column says what the lines show in Set 3's own terms (calibrated
+wavenumbers at the cg, the other levels at their Set 3 energies).
+
+| Level | Source | Shift | Calibration | Hyperfine (cg) | Rest | Account |
+|---|---|---|---|---|---|---|
+| 000493 | Wyart | +1.453 | +0.165 | +0.056 | +1.232 | No classified lines in Sugar's lists. Wyart's position was probably based on a few lines, all now found heavily blended by transitions from other levels; only 4 of its 15 assigned lines belong to it alone. Nothing alarming (user). |
+| 000300 | Sugar | −0.914 | +0.118 | +0.043 | −1.075 | His 5 lines, all accepted now, and the 2 new ones (53175.40, 47789.63) cannot move it by more than about 0.05 (user). With Sugar's own uncalibrated wavenumbers all 7 agree on 84429.91(10), 1.07 below his 84430.98: probably a misprint by 1 cm⁻¹ (84429.98). |
+| 000457 | Wyart | +0.321 | +0.153 | −0.521 | +0.688 | No classified lines in Sugar's lists; the position cannot be explained by the observed lines (user). |
+| 000455 | Wyart | +0.042 | +0.189 | −0.567 | +0.421 | No classified lines in Sugar's lists; the position cannot be explained by the observed lines (user). |
+| 000488 | Wyart | −0.408 | +0.072 | +0.043 | −0.524 | No classified lines in Sugar's lists. Probably based on four lines, all heavily blended by transitions from other levels (user). |
+| 000461 | Wyart | −0.393 | −0.079 | +0.057 | −0.371 | No classified lines in Sugar's lists; the position cannot be explained by the observed lines (user). |
+| 000305 | Sugar | −0.826 | +0.037 | −0.118 | −0.746 | Inherited from its lower levels. Sugar classified 3 lines (1969: 50500.18 h, 53657.57, 58215.01), all accepted now and unblended; they go to 000133, 000148 and 000161, 4f²6s levels with large hyperfine structure (S 1.05-1.10) whose energies moved −0.69 to −0.76 to their cg. In Set 3's terms his 3 lines put 000305 at −0.69(12) from his value and its 12 new lines (to other levels; 24906.60 the most precise) at −0.85(3): they agree. With uncorrected wavenumbers they would disagree by 0.7. |
+| 000506 | Wyart | +0.531 | −0.164 | +0.013 | +0.683 | No classified lines in Sugar's lists. Three lines now (96636.63, 93436.48 blended, 86524.12), implying +0.42(10) in Set 3's terms (spread −0.03 to +0.56); the position cannot be explained by the observed lines, and the level rests on few lines. |
+| 000450 | Wyart | +0.770 | −0.019 | +0.248 | +0.541 | No classified lines in Sugar's lists. Its 9 lines agree on +0.74(4) in Set 3's terms. Wyart's value matches the uncorrected wavenumber of one of them, 52321.75 (to 000142), within 0.03: a line held at the head of a wide hyperfine pattern (000142, S = 0.81; its cg shift +1.04). Read without the hyperfine correction, that line gives Wyart's value. |
+| 000310 | Sugar | −0.091 | +0.103 | +0.275 | −0.468 | No real shift: in Set 3 it is 0.09 below Sugar's value. His 9 lines, all accepted, put it at −0.05(4), the 6 new lines at −0.09(2). It appears here because the most precise new line, 24593.42 `*r`, is read at its head, 0.57 from its cg, in the uncorrected fit. |
+
+The calibration accounts for 0.04-0.19 cm⁻¹ of these shifts, not for their
+size. Two of the larger ones come from the hyperfine structure (000305 through
+its lower levels, 000450 through a head reading); one is a probable misprint
+(000300); 000310 is not shifted; the Wyart levels without lines of Sugar's
+differ from values that were never finalized.
 
 ## 9. Close pairs of lines are measured too close together
 
@@ -205,13 +227,25 @@ identified, with different transitions (51 of 1969, 15 of 1974). Each line
 fits its own Ritz wavenumber (rms z 1.01 over the 132 lines, none beyond 3σ),
 so they are genuinely two lines each, resolved by Sugar down to about half the
 modeled width. But in 53 of the 66 pairs the measured separation is smaller
-than the Ritz separation: by 0.20(3) cm⁻¹ on average, 7σ. The shortfall grows
-as the lines approach each other: 27% of the separation below 0.7 FWHM, 17%
-at 0.7–0.85, 7% at 0.85–1.0, in both eras (1974 0.096(23), 1969 0.229(37)
-cm⁻¹). This is the pull of two partly resolved images toward each other. Each
-line of such a pair is displaced toward its partner by about half the
-shortfall, 0.05–0.18 cm⁻¹, which its uncertainty does not include. Not yet
-acted on.
+than the Ritz separation: by 0.20(3) cm⁻¹ on average, 7σ. This is the pull of
+two partly resolved images toward each other.
+
+Measured on all 617 pairs closer than 2.5 widths with both lines identified
+(`Devel/close_pair_pull_2026-11-21`), each line reads toward its partner by
+on average sep · share · g(x), with x = sep/FWHM, g(x) = 0.98 exp(−x/0.37)
+(0.25 at x = 0.5, 0.09 at 0.9, 0.02 at 1.5), and share the partner's part of
+the two lines' summed intensity: the weaker line of a pair is pulled about
+three times as far as the stronger. The model lowers χ² from 1068 to 995 over
+the 1234 lines.
+
+**Acted on (user, 2026-11-21: as an uncertainty, not a correction).** Every
+line of the list now carries this amount, from its neighbors below and above
+in quadrature, as a fixed part of its variance: in the calibration's weights
+and class fit, and in the uncertainty it writes for the line, which the
+classification, LOPT and IDEN2 take (`hfs_kappa.pair_uncertainties`). 1660 of
+the 6669 lines have such a term, 795 above 0.01 cm⁻¹, the largest 0.47. On
+the lines below 1.2 widths it brings the rms z from 0.97-1.42 to 0.79-1.17,
+the other lines' being about 0.92.
 
 ---
 

@@ -2967,6 +2967,30 @@ level energies take up much of it, but the changed assignments are to be reviewe
 iter_hfs's chain, as on 2026-10-06. The 1969 lines move by 0.29·D, beyond their uncertainty
 for 74 of 1960.
 
+**Close pairs: the pull of a partly resolved neighbor (2026-11-21).** Two of Sugar's lines
+closer than about two effective line widths (`make_set3.fwhm_cm`) are measured too close
+together. On the 617 adjacent pairs of `Pr3_lines.xlsx` closer than 2.5 widths with both lines
+identified (Set 3 of round 10; `LineClass/Devel/close_pair_pull_2026-11-21`), each line reads
+toward its partner by on average
+
+```
+pull = sep * share * g(x),   g(x) = 0.98 * exp(-x / 0.37),   x = sep / FWHM
+```
+
+with `share` the partner's part of the two lines' summed intensity (Sugar's `Iorig`): the weaker
+line of a pair is pulled about three times as far as the stronger (0.11 against 0.04 of sep/2
+below 1.2 widths). g is 0.25 at x = 0.5, 0.09 at 0.9 and 0.02 at 1.5. The model lowers chi^2
+from 1068 to 995 over the 1234 lines. The user adopted it as an uncertainty, not a correction:
+`hfs_kappa.pair_uncertainties` gives every line of the list the pulls of its neighbors below
+and above in quadrature (0 beyond `PULL_XMAX` = 2.5 widths; equal shares where an intensity is
+missing). The calibration reads it (`read_pair_uncertainties`), carries it in each line's
+variance as a fixed part - in the fit's weights and in the class fit (`_pair_var`), where it
+takes no share of a, b, s or k - and adds it to `u_stat_cm1` (`unc_own_corr`), which the
+classification, LOPT and IDEN2 take; `kappa_candidates.py` applies it as well. `--no-pair`
+leaves it out. 1660 of the 6669 lines have a term, 795 above 0.01 cm^-1, the largest 0.47. On the
+lines below 1.2 widths it brings the rms z (Set 3) from 0.97-1.42 to 0.79-1.17, the other lines'
+being about 0.92. The registry `inflated_unc_lines.txt` still only widens.
+
 **Weak lines: the intensity term (2026-11-19).** A weak line is set on less accurately than a
 strong one, and the class model did not know it. On the calibration's own residuals (the run
 of 2026-10-15), each divided by its line's uncertainty and by √(1 − h), the rms fell from 1.23

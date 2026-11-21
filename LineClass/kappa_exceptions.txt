@@ -45,3 +45,5 @@ wn_key	low_id	upp_id	class	unresolved	date	reason
 35972.56871372538	059003.000127	059003.000218	cg		11/20/2026	"char d, measured near the center of gravity of 1154-1057 (D = -0.468, kappa_line 0.07(26)): z +3.1 at plain_1974_wide, -0.3 at cg; inflation 0.5 withdrawn"
 42064.87120604494	059003.000197	059003.000325	plain_1974		11/20/2026	"|D| = 0.402, just above the 0.4 split, measured as a narrow pattern: blend component (BF 0.91) with LOPT O-C +0.186 (z +3.6) at plain_1974_wide, about -0.05 at plain_1974"
 32742.560067303923	059003.000150	059003.000247	cg		11/20/2026	"merged 11/20/2026 from 32742.9015 and 32742.2186 (I 8 each), the two edges of one pattern; their average is the center of gravity (-0.016)"
+11747.5942	059003.000044	059003.000112	plain_1974		11/21/2026	"main line of the companion 11747.7366: kept in its class (it sits on the main maximum of a resolved pattern, not at the head)"
+22685.2332	059003.000182	059003.000245	head		11/21/2026	"on the head maximum of the resolved pattern (broadened maxima at -0.746, -0.142, +0.339, +0.715 from the cg); kept at the head when its companion 22685.9497 was withdrawn"

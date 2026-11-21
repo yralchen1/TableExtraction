@@ -846,6 +846,11 @@ def main(argv=None):
                     help='leave the intensity term (a weak line is less '
                          'accurate; hfs_kappa.intensity_factor) out of the '
                          'uncertainty model, the model before 2026-11-19')
+    ap.add_argument('--no-pair', action='store_true',
+                    help='leave the close-pair term (the pull of a partly '
+                         'resolved neighbor; hfs_kappa.pair_uncertainties) '
+                         'out of the uncertainty model, the model before '
+                         '2026-11-21')
     args = ap.parse_args(argv)
     table_path = classifications_path(args.classifications)
     cfg_path = config_for(table_path, args.config)
@@ -885,8 +890,19 @@ def main(argv=None):
     listed = read_line_list()
     chars = list_characters(listed)
     snr_of = hfs_kappa.read_snr() if use_intensity else {}
+    # the close-pair term of every line of the list (2026-11-21): a fixed
+    # part of its variance, in the fit's weights and the class fit alike,
+    # and in the u_stat_cm1 written for it
+    pair_of = {} if args.no_pair else hfs_kappa.read_pair_uncertainties()
     lines = hfs_kappa.read_lines(table_path, raw=True, model=model,
-                                 chars=chars, snr=snr_of)
+                                 chars=chars, snr=snr_of, pair=pair_of)
+    if pair_of:
+        big = sorted(v for v in pair_of.values() if v > 0.0)
+        print('close-pair term: %d of %d line(s) of the list have one, %d '
+              'above 0.01 cm^-1, largest %.3f; %d of the fit\'s %d line(s)'
+              % (len(big), len(pair_of), sum(1 for v in big if v > 0.01),
+                 big[-1] if big else 0.0,
+                 sum(1 for ln in lines if ln.pair > 0.01), len(lines)))
     if use_intensity:
         no_snr = sum(1 for ln in lines if ln.snr is None)
         print('intensity term: SNR from %s for %d of %d line(s)'
@@ -1501,6 +1517,23 @@ def main(argv=None):
                 for x in grid))
     else:
         say('no intensity term in the model (--no-intensity).')
+    if pair_of:
+        say('the close-pair term (hfs_kappa.pair_uncertainties, 2026-11-21): '
+            'a line closer than %g effective' % hfs_kappa.PULL_XMAX)
+        say('widths to a neighbor is measured toward it by sep * share * '
+            '%.2f * exp(-x/%.2f), x = sep/FWHM, share the' % (
+                hfs_kappa.PULL_G0, hfs_kappa.PULL_X0))
+        say('neighbor\'s part of the summed intensity; that amount is in '
+            'its variance, a fixed part, and in u_stat_cm1.')
+        fit_pair = sorted((ln.pair for ln in lines if ln.pair > 0.0),
+                          reverse=True)
+        say('  lines of the fit with a term: %d; above 0.01 cm^-1: %d; above '
+            '0.05: %d; largest %.3f' % (
+                len(fit_pair), sum(1 for v in fit_pair if v > 0.01),
+                sum(1 for v in fit_pair if v > 0.05),
+                fit_pair[0] if fit_pair else 0.0))
+    else:
+        say('no close-pair term in the model (--no-pair).')
 
     say()
     say('The lines that carry it')
@@ -1636,6 +1669,9 @@ def main(argv=None):
         else:
             model_u = max(hfs_kappa.two_term(u.a, u.b, wn_value)
                           * math.sqrt(factor), hfs_kappa.FLOOR, floor)
+        # the pull of a partly resolved neighbor (2026-11-21)
+        model_u = math.hypot(model_u, pair_of.get(
+            round(key_value, hfs_kappa.KEY_DECIMALS), 0.0))
         # the registry only widens (2026-11-19)
         held = fixed_unc.lookup(key_value)
         return model_u if held is None else max(held, model_u)

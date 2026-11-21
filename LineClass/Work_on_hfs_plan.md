@@ -141,6 +141,20 @@ The last work, 2026-10-15 to 10-17:
   the rest, and a new finding: close pairs of lines are measured too close
   together (its item 9).
 
+* **2026-11-21, the close-pair term** (user: option (a), an uncertainty):
+  lines closer than about two widths are measured toward each other by
+  sep * share * 0.98 exp(-x/0.37) (617 pairs; `Contradictions_for_paper.md`
+  item 9; README "Close pairs"); `hfs_kappa.pair_uncertainties`, in the
+  calibration's weights and class fit and in u_stat_cm1, and in
+  kappa_candidates. Rounds 11 and 12; round 12 a fixed point (assignments
+  unchanged, levels moved at most 0.4 D1, 000497 -0.056; kappa_candidates 0
+  audit failures). The four further level shifts reviewed (000305 inherited
+  from its 4f²6s lower levels' hyperfine shifts, 000450 a head reading of
+  52321.75, 000506 few lines, 000310 not shifted); 7 of the 10 reviewed
+  levels are Wyart's unpublished ones. Companion candidates assessed: 11747.74
+  likely, 13595.34 possible, 22686.17 not (and 22685.95's existing row
+  doubtful); not acted on.
+
 **Next, in order.**
 
 1. Bring 000684's A into its lines (above): new hfs columns in iter_hfs's table
@@ -270,10 +284,10 @@ The last work, 2026-10-15 to 10-17:
    5.6 sigma with the scale against 2.3 without, so its xfail is removed.
 4. Step 9: the publication tables. The calculated-A question of item 3c is
    settled (the 4f²5d scale, 2026-11-21); the list of contradictions is
-   drafted in `Contradictions_for_paper.md` for the user's review. Open: what
-   to do about the pull between close lines (its item 9), and the user's
-   review of the four further level shifts it names (000305, 000506, 000450,
-   000310).
+   drafted in `Contradictions_for_paper.md` for the user's review; the pull
+   between close lines is an uncertainty term since 2026-11-21. Open: the
+   user's decision on the companion candidates 11747.74 and 13595.34 and on
+   the existing companion row of 22685.95.
 5. Step 10: the final line list; the user is to explain the approach.
 6. After the conference: a model of kappa as a function of |D| (or a class of
    its own for the wide plain 1974 patterns), so that the calibration need not
