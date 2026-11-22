@@ -135,6 +135,12 @@ DISMISSED = {
           'be a line of an unidentified transition (user, 2026-10-09)',
     1988: '30879.549155 (-0.4296 from 30879.98 *r, 000150-000229): taken to '
           'be a line of an unidentified transition (user, 2026-10-09)',
+    1700: '29150.548750 (-0.5788 from 29151.13 *r, 000151-000220): the head '
+          'of 000187-000444 (predicted 29150.567(50)); a line of the list '
+          'since 2026-11-21 (user; Contradictions_for_paper.md item 2a)',
+    1817: '29754.780463 (+1.1881 from 29753.59 *v, 000182-000274): matches '
+          'no maximum of the pattern; a line of an unidentified transition '
+          '(user, 2026-11-21; Contradictions_for_paper.md item 2b)',
 }
 
 FIELDS = ['wn_line', 'char', 'wn_component', 'dwn', 'n_components',

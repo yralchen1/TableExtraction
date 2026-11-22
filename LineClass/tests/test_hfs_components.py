@@ -35,7 +35,8 @@ def written():
 # --- the extraction ---------------------------------------------------------
 def test_counts(extracted):
     """498 rows carry Intens = 0, all of them Sugar's own; 2 of them are
-    dismissed as misidentified (DISMISSED, 2026-10-09), so 496 are written.
+    dismissed as misidentified (DISMISSED, 2026-10-09), and 2 more on
+    2026-11-21 (29151.13's and 29753.59's), so 494 are written.
 
     Rows 80 and 2389 were the curation's own zeroed rows until 2026-10-09,
     when they were given back their intensities and entered in
@@ -43,8 +44,9 @@ def test_counts(extracted):
     """
     _, report = extracted
     assert report['zero_intensity'] == 498
-    assert report['sugar_components'] == 496
-    assert sorted(c['xl_row'] for c in report['dismissed']) == [1987, 1988]
+    assert report['sugar_components'] == 494
+    assert sorted(c['xl_row'] for c in report['dismissed']) == [1700, 1817,
+                                                                 1987, 1988]
     assert report['curated_kept'] == 0
     assert report['curated_dropped'] == []
 
@@ -63,7 +65,7 @@ def test_the_side_is_right_in_every_case(extracted):
     """
     records, report = extracted
     assert report['side_violations'] == []
-    assert len(records) == 496
+    assert len(records) == 494
 
 
 def test_pairing_does_not_depend_on_the_rule(extracted):
@@ -95,11 +97,11 @@ def test_written_file_matches_the_workbook(extracted, written):
 
 # --- the file itself --------------------------------------------------------
 def test_flag_populations(written):
-    """189 components on `*r` lines and 307 on `*v`, over 245 lines: the two
+    """188 components on `*r` lines and 306 on `*v`, over 243 lines: the two
     of 30879.98 *r are dismissed (2026-10-09)."""
-    assert sum(1 for r in written if r['char'] == '*r') == 189
-    assert sum(1 for r in written if r['char'] == '*v') == 307
-    assert len({r['wn_line'] for r in written}) == 245
+    assert sum(1 for r in written if r['char'] == '*r') == 188
+    assert sum(1 for r in written if r['char'] == '*v') == 306
+    assert len({r['wn_line'] for r in written}) == 243
     assert not [r for r in written if r['wn_line'].startswith('30879.97')]
 
 
@@ -283,7 +285,9 @@ def test_the_global_fit_is_reported_with_its_singular_direction():
     patterns, _ = hfs_patterns.read_patterns()
     _, _, _, _, diag = hfs_patterns.fit_levels(patterns)
     assert diag['rank'] < diag['unknowns']
-    assert diag['rms'] == pytest.approx(0.031, abs=0.004)
+    # 0.031 until 2026-11-21, when the two single components that fit no
+    # rung of their pattern (29151.13, 29753.59) were dismissed
+    assert diag['rms'] == pytest.approx(0.023, abs=0.004)
 
 
 def test_a_uniform_shift_of_every_A_barely_moves_the_prediction():

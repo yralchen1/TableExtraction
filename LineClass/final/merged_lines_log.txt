@@ -158,3 +158,32 @@ B. COMPANIONS (hfs_satellites.txt, 11/20/2026)
    (+0.421).  Its position stays out of the A fit, as decided on 10/9/2026
    (hfs_components.DISMISSED).  As the head, the main line's residual goes
    from +0.096 to about +0.073.
+
+C. PRINTED COMPONENTS MADE LINES (Pr3_lines.xlsx, 11/21/2026)
+=============================================================
+
+Sugar printed these with Intens = 0 as the hyperfine components of a flagged
+line; they fit no rung or maximum of that line's pattern
+(Contradictions_for_paper.md item 2, cases a and b).  hfs_components.DISMISSED
+drops them from hfs_components.csv and the A fit, and each is a line of
+Pr3_lines.xlsx (appended rows, like 30879.5492 and 30879.1586 on 10/9/2026).
+Sugar printed no intensity: Icor and Iorig are the main line's times the
+rung-1 to head strength ratio of the main line's own pattern (the user's
+rule).
+
+9. 29150.5488 (Iorig 1.57, Icor 2470, estimated), printed -0.579 from
+   29151.1276 (*r, I 2, 000151-000220).  That pattern is 0.19 cm-1 wide in
+   all (D = -0.077(48)), so the component is not its own.  000187-000444
+   (J 1.5-0.5, Icalc 3552, on no line) has its head at 29150.567(50): cg
+   29151.207, D = -0.640(47); the component, calibrated, is at 29150.559.
+   Ratio 0.7864.  A ledger row accepts 000187-000444 on it, for the user's
+   review in IDEN2, and kappa_exceptions holds it at the head (class head;
+   at the wide class's kappa 0.875 its O-C was -0.083).  The main line takes
+   class cg (its *r shading is this head on its red side).
+
+10. 29754.7805 (Iorig 1.64, Icor 3519, estimated), printed +1.188 from
+    29753.5924 (*v, I 3, 000182-000274).  The pattern's broadened maxima lie
+    at -0.06, +0.58, +1.09 to +1.10 and +1.49 from the line; the second,
+    nearly as strong as the head, was not printed, and the line is 14 times
+    stronger than the transition's Icalc (466).  No transition between known
+    levels lies within 1.5 cm-1.  An unidentified line.  Ratio 0.5455.

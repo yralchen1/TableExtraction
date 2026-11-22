@@ -5,6 +5,12 @@ of the calculated A constants applied; Set 3 in `final/`). Nothing listed here
 is acted on in the line or level lists unless an item says so. The user
 reviews this draft; it is not yet text for the paper.
 
+**The user's review (2026-11-21).** Items 1 and 2 to be acted on: D
+uncertainties added to item 1, whose two lines leave the hyperfine fits;
+item 2's seven cases analyzed (below), with proposals awaiting decision.
+Items 3-6, 8 and 9 need no action beyond the discussion in the paper. Item 7:
+the treatment of the doublet near 15505 cm⁻¹ is accepted as correct.
+
 Terms used throughout:
 
 - **A**: the magnetic-dipole hyperfine constant of a level, cm⁻¹. ¹⁴¹Pr has
@@ -31,24 +37,39 @@ Sugar's flag `*r` says the pattern is shaded to the red (longer wavelengths),
 `*v` to the violet. A pattern shaded to the red has its head at the violet
 end and trails off to the red, so with the adopted A constants a `*r` line
 should have D > 0 (head above the cg in wavenumber) and a `*v` line D < 0.
-Two flags disagree with the sign of D:
+Two flags disagree with the sign of D. The uncertainty of D, u_D, is
+I·sqrt((J_upp u_A,upp)² + (J_low u_A,low)²) from the two levels' A
+uncertainties (as the model scales them):
 
-| Line (cm⁻¹) | Flag | D (cm⁻¹) |
-|---|---|---|
-| 36667.3188 | `*r` | −0.0019 |
-| 29151.1276 | `*r` | −0.0768 |
+| Line (cm⁻¹) | Flag | Transition | D (cm⁻¹) | u_D (cm⁻¹) | D/u_D | Line width (FWHM) |
+|---|---|---|---|---|---|---|
+| 36667.3188 | `*r` | 000130-000224 | −0.0019 | 0.027 | −0.1 | 0.56 |
+| 29151.1276 | `*r` | 000151-000220 | −0.0768 | 0.048 | −1.6 | 0.38 |
 
-36667.32's pattern is negligibly small (|D| = 0.002 cm⁻¹, far below the line
-width), so its flag cannot come from this transition's structure; a blend or a
-misreading of the shading is the likelier cause. 29151.13 is also the worst
-case of item 2 (component scale s = −15).
+Neither sign is established: 36667.32's D is zero within 0.03 cm⁻¹, and
+29151.13's is 1.6 u_D from zero. Both patterns are also far narrower than
+the line width, so neither transition can produce a visible shading; the
+flag must come from something else on the line. For 29151.13 that is found
+(item 2, case a): the head of another transition, 000187-000444, lies 0.57
+cm⁻¹ to the red, where Sugar printed his one component. For 36667.32 nothing
+is known.
+
+**To be acted on (user, 2026-11-21): both lines are taken out of the
+hyperfine fits.** Their flag is no evidence of where on the pattern they
+were read. Proposed means: a `kappa_exceptions.txt` row of class `cg` for
+each (a line narrower than its width is read at its cg), which also removes
+it from every kappa fit. 29151.13's printed component is already left out
+of the A fit (`hfs_A_fit.SET_ASIDE`, 2026-10-07); 36667.32 has none.
 
 ## 2. Printed hyperfine components that disagree with the head position
 
 Sugar printed component positions for 228 flagged lines. For each, the
 pattern's cg found from the printed components is compared with the cg found
-from the head and D. The median difference is 0.009 cm⁻¹; 7 lines disagree
-beyond 3σ (there were 20 in October 2026, before Step 4's A constants):
+from the head and D (`make_set3.component_check`). It assumes that the
+tabulated line is the head of the transition with the largest share and that
+the k-th printed component is the k-th rung. The median difference is 0.009
+cm⁻¹; 7 lines disagree beyond 3σ (there were 20 in October 2026, before Step
+4's A constants):
 
 | Line | Flag | n comp. | D | s | difference (cm⁻¹) | z |
 |---|---|---|---|---|---|---|
@@ -61,10 +82,105 @@ beyond 3σ (there were 20 in October 2026, before Step 4's A constants):
 | 31945.1479 | `*v` | 3 | −0.6336 | 1.07 | +0.045 | −3.0 |
 
 s is the scale the printed spacings ask for relative to the calculated pattern
-(s = 1: agreement). To be written for each: the suspected level(s), whether
-the A constant or the assignment is in doubt, and how the contradiction could
-be resolved. The two single-component cases with |s| far from 1 (29151.13,
-29753.59) are most simply printed components of some other transition.
+(s = 1: agreement); z uses only the reading precision of a component (0.03
+cm⁻¹), not the uncertainty of the A constants.
+
+**Analyzed 2026-11-21** (round 15; `Devel/review_2026-11-21/contra_12.py`,
+`blend_profile.py`, `alt_search.py`). Each line was modeled as Sugar saw it:
+every transition accepted on it, at its own Ritz cg (Set 3's energies) and
+weighted by its calculated intensity, each component given a Gaussian width,
+summed; the maxima of that profile, relative to the measured line, were
+compared with the printed positions. Widths of 0.20 and 0.28 cm⁻¹ were used
+(Sugar resolved these components, so his effective width was below the
+model's 0.37-0.47 cm⁻¹, which merges them); the conclusions hold for both.
+For the single components, every transition of `Icalc.xlsx` between known
+levels within 2.5 cm⁻¹ was searched.
+
+None of the seven asks for a different A constant. Two of them (cases a, b)
+are not components of the assigned transition; three are blends, where the
+check's premises fail (c, d, e); in two the reading of the line itself, or of
+a merged pair of rungs, is the cause (f, g).
+
+a. **29151.1276 (000151-000220): the component is the head of another
+   transition.** The assigned pattern is 0.19 cm⁻¹ wide in all, so a
+   component 0.58 below the line cannot belong to it. 000187-000444
+   (J 1.5-0.5, calculated intensity 3552, assigned to no line) has its cg at
+   29151.207 and D = −0.640(47) cm⁻¹, so its head lies at 29150.567(50);
+   the printed component, calibrated, is at 29150.559. In the summed profile
+   it makes a separate maximum at −0.571 (height 0.11 of the line's). It
+   would also explain the `*r` flag of item 1: the red side of the feature
+   carries a head. 000444 is well established (10 accepted lines, observed
+   to calculated intensity 0.9-2.4, all within 0.06 cm⁻¹ but one blend), and
+   000187-000444 is among its strongest unobserved transitions.
+   Already left out of the A fit since 2026-10-07.
+b. **29753.5924 (000182-000274): no explanation found.** The assigned
+   pattern's profile has maxima at −0.06 (head), +0.58 (0.70-0.75 of the
+   head), +1.09 to +1.10 (0.53-0.59) and +1.49; the printed +1.188 is 0.09
+   above the third, and the second, nearly as strong as the head, is not
+   printed. The line is also 14 times stronger than the transition's
+   calculated intensity (6451 against 466). No other transition between
+   known levels lies within 2.5 cm⁻¹ of the line or 1.5 of the component.
+   The reading of 10/7 (the component is rung 2, rung 1 unlisted) is
+   possible but not convincing. Already left out of the A fit.
+c. **32105.4086, a blend (000139-000219 with 0.70 of the intensity,
+   000142-000432 with 0.30).** Their heads lie 0.44 and 0.25 cm⁻¹ below the
+   line. The summed profile has its strongest maximum at −0.40 to −0.43 and
+   further maxima at +0.04, +0.45, +0.81 to +0.82 and +1.12 to +1.13: the
+   tabulated line is the +0.04 maximum, not a head, and the printed +0.442,
+   +0.792, +1.102 match the next three maxima within 0.003-0.03. The A fit
+   skips blends. The line is inflated to 0.35 cm⁻¹ already.
+d. **32294.9185, a blend (000149-000238, 000165-000258, about equal).** The
+   check took 000165-000258 (share 0.508 against 0.491). The printed −0.250
+   is rung 1 of 000149-000238 read from the line (−0.2505, s = 0.999); in the
+   summed profile it is the strongest maximum (−0.23 to −0.25), where the
+   head of 000165-000258 (−0.241) and that rung meet. Skipped by the A fit.
+e. **28477.5676, a blend (000189-000284 with 0.81, 000148-000211 with
+   0.19).** The profile's maxima at +0.37, +0.72 to +0.73, +1.05, +1.34 to
+   +1.36, +1.57 to +1.60, measured from its head maximum (−0.03 to −0.04),
+   reproduce the printed +0.332, +0.695, +1.053, +1.321, +1.595 within
+   0.01-0.03. Skipped by the A fit.
+f. **33185.8488 (000150-000250): merged rungs.** Rung 1 (−0.270) is closer to
+   the head than any width allows to resolve, and rungs 2-5 cluster at
+   −0.49 to −0.67. The profile's first maximum below the head lies at −0.29
+   to −0.37 depending on the width, against the printed −0.378: the
+   component is rungs 1 and 2 read together, not rung 1. Read as rung 1, it
+   would make A(000250) = +0.042(8) against the calculated +0.024(3); the
+   table keeps the calculated value, so no adopted constant rests on it.
+g. **31945.1479 (000133-000206): the line, not the components.** From the
+   Ritz head (0.072 above the measured line) the rungs fall at +0.454,
+   +0.784, +1.063, against the printed +0.455, +0.753, +1.051 (within 0.03).
+   The components agree with the adopted A constants; it is the line, the
+   head, that lies 0.075 cm⁻¹ below its Ritz value (LOPT O−C −0.076). Since
+   the A fit measures every component from the line, this pattern pulls
+   A(000206) down: left out, A(000206) (combined with its composition prior)
+   goes from +0.0287(13) to +0.0306(14), and A(000133) from +0.0800 to
+   +0.0794(12).
+
+**Decided (user, 2026-11-21).**
+- 36667.32 and 29151.13 (item 1): `kappa_exceptions.txt` class `cg`.
+- 33185.85: its component enters the A fit as rungs 1 and 2 read as one,
+  their strength-weighted mean (`hfs_A_fit.MERGED_RUNGS`; −0.358 predicted
+  against the printed −0.378). No adopted constant changes.
+- 31945.15: first left out of the A fit, then put back. Left out, A(000206)
+  rose to +0.0306(14), and the calibration's spread of kappa for 1974 rose
+  from 0.079 to 0.090 (with that constant alone reverted, 0.079): the
+  positions of 000206's plain lines favor about +0.0287, the value the fit
+  gives with 31945.15 in. Its single-pattern values: 29212.40 +0.0299 to
+  +0.0304, 29918.67 +0.0311, 31945.15 +0.0257. The reading of case g (the
+  line read low) assumed A(000206) = +0.0287 for the Ritz head, so it does not
+  decide between them. A(000206) stays +0.0287(13).
+- 29150.559 (case a): a line of `Pr3_lines.xlsx` (Icor 2470, Iorig 1.57, the
+  rung-1 rule: 0.7864 × the main line's), assigned to 000187-000444 by the
+  ledger for the user's review in IDEN2, held at the head (`kappa_exceptions`
+  `head`; at the wide class's kappa 0.875 its O−C was −0.083). In iter_hfs's
+  LOPT: grade 3A, Iobs/Icalc 0.70; 000444 and 000187 move by less than 0.005.
+  29151.13 then fits at O−C +0.029 (was +0.099).
+- 29754.785 (case b): an unidentified line of `Pr3_lines.xlsx` (Icor 3519,
+  Iorig 1.64; 0.5455 × the main line's).
+- Both printed components are dropped from `hfs_components.csv`
+  (`hfs_components.DISMISSED`); `final/merged_lines_log.txt` section C.
+- The blends (c, d, e): no action. `make_set3.component_check` could model
+  them as above, so that the report lists only real disagreements.
 
 ## 3. 000229 and the printed components of 30879.98
 

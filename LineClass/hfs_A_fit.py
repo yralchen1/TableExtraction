@@ -185,6 +185,43 @@ SET_ASIDE = {
                '2026-10-07)',
 }
 
+#: printed components that are two or more rungs read as one, by the line's
+#: wavenumber to 0.001 cm^-1: {wn: {k: (rungs, reason)}}, the k-th printed
+#: component (in order of distance from the line) being the strength-weighted
+#: mean of the listed rungs (their strengths depend on J alone, so the
+#: equation stays linear in A).  Widths of 0.20-0.47 cm^-1 merge them.
+MERGED_RUNGS = {
+    33185.849: {1: ((1, 2), 'rung 1 (-0.270) is too close to the head to be '
+                            'resolved and merges with rung 2 (-0.495); the '
+                            'broadened maximum lies at -0.29 to -0.37 against '
+                            'the printed -0.378 (Contradictions_for_paper.md '
+                            'item 2f; user, 2026-11-21)')},
+}
+
+
+def rung_strength(k, J1, J2, spin=hfs_patterns.I_SPIN):
+    """The relative strength of rung k (F1 = I + J1 - k -> F2 = I + J2 - k),
+    in the units of hfs_patterns.components."""
+    f1, f2 = spin + J1 - k, spin + J2 - k
+    for _p, s, a, b in hfs_patterns.components(J1, 0.0, J2, 0.0, spin):
+        if abs(a - f1) < 1e-9 and abs(b - f2) < 1e-9:
+            return s
+    return 0.0
+
+
+def rung_coefficients(p, k, merged=None):
+    """(c_low, c_upp): the k-th printed component of pattern `p` as
+    c_low * A_low + c_upp * A_upp - rung k (hfs_patterns.rung), or the
+    strength-weighted mean of the rungs MERGED_RUNGS names for it."""
+    f1, f2 = hfs_patterns.I_SPIN + p.J1, hfs_patterns.I_SPIN + p.J2
+    merged = MERGED_RUNGS if merged is None else merged
+    rungs = merged.get(round(p.wn, 3), {}).get(k, ((k,), ''))[0]
+    w = [rung_strength(j, p.J1, p.J2) for j in rungs] if len(rungs) > 1 \
+        else [1.0]
+    c1 = sum(x * 0.5 * j * (2 * f1 + 1 - j) for x, j in zip(w, rungs)) / sum(w)
+    c2 = -sum(x * 0.5 * j * (2 * f2 + 1 - j) for x, j in zip(w, rungs)) / sum(w)
+    return c1, c2
+
 #: levels the fit determines but whose value is not adopted, with the reason.
 HOLD = {
     '059003.000448': 'one component position, checked by nothing else; its '
@@ -359,12 +396,12 @@ def _equations(patterns, anchors, ids):
     ix = {x: i for i, x in enumerate(ids)}
     rows, y, w = [], [], []
     for p in patterns:
-        f1, f2 = hfs_patterns.I_SPIN + p.J1, hfs_patterns.I_SPIN + p.J2
         s = sigma_of(p.wn)
         for k, d in enumerate(p.dwn, 1):
             row = np.zeros(len(ids))
-            row[ix[p.low_id]] += 0.5 * k * (2 * f1 + 1 - k)
-            row[ix[p.upp_id]] -= 0.5 * k * (2 * f2 + 1 - k)
+            c1, c2 = rung_coefficients(p, k)
+            row[ix[p.low_id]] += c1
+            row[ix[p.upp_id]] += c2
             rows.append(row)
             y.append(d)
             w.append(1.0 / s)
@@ -417,7 +454,8 @@ def single_pattern_values(patterns, result, lid):
         def r(a):
             A1 = a if p.low_id == lid else result.A[p.low_id]
             A2 = a if p.upp_id == lid else result.A[p.upp_id]
-            return np.array([hfs_patterns.rung(k, p.J1, A1, p.J2, A2) - d
+            return np.array([sum(c * a for c, a in
+                                 zip(rung_coefficients(p, k), (A1, A2))) - d
                              for k, d in enumerate(p.dwn, 1)])
         r0, g = r(0.0), r(1.0) - r(0.0)
         out.append((p.wn, -float(g @ r0) / float(g @ g),

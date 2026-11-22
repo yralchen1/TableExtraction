@@ -894,3 +894,7 @@ wn_key,low_id,upp_id,decision,date,reason
 78332.3261,059003.000145,059003.000364,accept,11/20/2026,kept IDEN2 assignment
 59273.8323,059003.000098,059003.000294,accept,11/20/2026,"IDEN2: reasonable obs-Ritz, perfect Iobs/Icalc"
 33445.1883,059003.000304,059003.000670,reject,11/20/2026,kept IDEN2 rejection
+29150.5488,059003.000187,059003.000444,accept,11/21/2026,"Sugar printed component of 29151.13 *r made a line: head of 000187-000444 (predicted 29150.567(50)); for the user's review in IDEN2 (Contradictions_for_paper.md item 2a)"
+56429.3005,059003.000072,059003.000439,accept,11/21/2026,kept IDEN2 assignment
+40490.5295,059003.000173,059003.000289,accept,11/21/2026,kept IDEN2 assignment
+10095.6695,059003.000552,059003.000390,accept,11/21/2026,kept IDEN2 assignment

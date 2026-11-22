@@ -341,3 +341,31 @@ def test_a_rerun_that_changes_nothing_keeps_the_date():
                                         F.combined_source, 2, 4, '2026-11-21')
     assert '2026-11-21' in F._keep_date(r, '+0.0500', '0.0040',
                                         F.combined_source, 3, 4, '2026-11-21')
+
+
+def test_a_merged_component_is_the_strength_weighted_mean_of_its_rungs(
+        monkeypatch):
+    """MERGED_RUNGS (2026-11-21): a printed component that is rungs 1 and 2
+    read as one enters the fit as their strength-weighted mean, and the fit
+    gives the constants back when the component sits there."""
+    J1, J2, A1, A2 = 3.5, 3.5, -0.0206, 0.0243
+    w1, w2 = (hfs_A_fit.rung_strength(k, J1, J2) for k in (1, 2))
+    r1, r2 = (hfs_patterns.rung(k, J1, A1, J2, A2) for k in (1, 2))
+    mean = (w1 * r1 + w2 * r2) / (w1 + w2)
+    p = hfs_patterns.Pattern(31234.5, '*r', 'L', 'U', J1, J2, A1, A2, 0.0,
+                             0.0, '', '', [mean])
+    monkeypatch.setattr(hfs_A_fit, 'MERGED_RUNGS',
+                        {31234.5: {1: ((1, 2), 'test')}})
+    c1, c2 = hfs_A_fit.rung_coefficients(p, 1)
+    assert c1 * A1 + c2 * A2 == pytest.approx(mean, abs=1e-12)
+    res = hfs_A_fit.fit([p], {'L': (A1, 0.001)})
+    assert res.A['U'] == pytest.approx(A2, abs=1e-9)
+    # a pattern not listed keeps the plain rung
+    q = p._replace(wn=31000.0)
+    c1, c2 = hfs_A_fit.rung_coefficients(q, 1)
+    assert c1 * A1 + c2 * A2 == pytest.approx(r1, abs=1e-12)
+
+
+def test_the_merged_and_set_aside_patterns_are_distinct():
+    for wn in hfs_A_fit.MERGED_RUNGS:
+        assert wn not in hfs_A_fit.SET_ASIDE
