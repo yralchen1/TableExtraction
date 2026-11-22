@@ -1,27 +1,27 @@
 check_sync.py - are the files describing the same identification?
 working set: F:\UMD\AI\as-ai\LineClass\iter_hfs
 file                             last written
-line_classifications.csv         2026-11-22 11:22
-line_classifications.xlsx        2026-11-22 11:22
-LOPT_input_lines.txt             2026-11-22 11:22
-LOPT_output_lines.txt            2026-11-22 11:22
-LOPT_output_levels.txt           2026-11-22 11:22
+line_classifications.csv         2026-11-22 11:49
+line_classifications.xlsx        2026-11-22 11:49
+LOPT_input_lines.txt             2026-11-22 11:49
+LOPT_output_lines.txt            2026-11-22 11:49
+LOPT_output_levels.txt           2026-11-22 11:49
 line_decisions.csv               2026-11-21 21:30
 revised_level_energies.csv       2026-10-14 16:06
-unstable_candidates.csv          2026-11-22 11:22
+unstable_candidates.csv          2026-11-22 11:49
 level_positions.csv              2026-11-21 19:25
 Pr3_lines.xlsx                   2026-11-21 21:18
 lineclass_config.toml            2026-10-08 18:17
-IDEN2/enlev.dat                  2026-11-22 11:22
-IDEN2/trans.dat                  2026-11-22 11:22
-IDEN2/dlv.dat                    2026-11-22 11:22
+IDEN2/enlev.dat                  2026-11-22 11:49
+IDEN2/trans.dat                  2026-11-22 11:49
+IDEN2/dlv.dat                    2026-11-22 11:49
 
 Freshness
 ---------
   warn  level_positions.csv is older than what it is built from:
-         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 16.0 h)
-         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 16.0 h)
-         line_classifications.xlsx (line_classifications.xlsx newer by 16.0 h)
+         LOPT_output_lines.txt (LOPT_output_lines.txt newer by 16.4 h)
+         LOPT_output_levels.txt (LOPT_output_levels.txt newer by 16.4 h)
+         line_classifications.xlsx (line_classifications.xlsx newer by 16.4 h)
 
 Classification
 --------------

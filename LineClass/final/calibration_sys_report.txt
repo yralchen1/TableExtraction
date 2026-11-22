@@ -1,4 +1,4 @@
-lopt_perturb.py --source calibration, 2026-11-22 06:23
+lopt_perturb.py --source calibration, 2026-11-22 06:50
 set: F:\UMD\AI\as-ai\LineClass\final (7797 records)
 corrections F:\UMD\AI\as-ai\LineClass\wavelength_calibration_corrections.csv; covariance F:\UMD\AI\as-ai\LineClass\wavelength_calibration_cov.csv
 groups 150; patterns run 150 of 150, the largest carrying 25.2% of the variance
