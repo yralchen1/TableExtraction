@@ -1,0 +1,64 @@
+% =====================================================================
+%  Two-panel figure for Supplementary Note S1.3
+%  (uncertainties of the calculated transition rates).
+%
+%  Requires: pgfplots + \usepgfplotslibrary{groupplots} and the data file
+%  fig_tp_leftpanel.dat in the same directory (both already set up in
+%  supplementary.tex). \input this file inside a figure environment.
+%
+%  Left panel : log10(f_P00 / f_DREAM) vs S_P00 for the 185 transitions
+%               common to P00 and DREAM, with the five section boundaries
+%               (S = 0.1, 0.81, 2.28, 4.9 a.u.) shown as dotted lines.
+%  Right panel: per-section rms of log10(f_P00 / f_DREAM) vs (ln<S>)^{1/3},
+%               the fitted straight line, and the 0.05 floor used in u(S).
+% =====================================================================
+\begin{tikzpicture}
+\begin{groupplot}[
+    group style={group size=2 by 1, horizontal sep=1.7cm},
+    width=6.2cm, height=5.9cm,
+    tick align=outside,
+    tick label style={font=\footnotesize},
+    label style={font=\small},
+    legend style={font=\footnotesize, draw=none, fill=none},
+]
+% ------------------------------ LEFT PANEL ------------------------------
+\nextgroupplot[
+    xmode=log,
+    xlabel={$S_{\mathrm{P00}}$ (a.u.)},
+    ylabel={$\log_{10}(f_{\mathrm{P00}}/f_{\mathrm{DREAM}})$},
+    xmin=0.006, xmax=70, ymin=-1.3, ymax=1.2,
+    ymajorgrids, grid style={gray!20},
+]
+\addplot[only marks, mark=*, mark size=0.9pt, color=blue!55!black, opacity=0.75]
+    table[x=S, y=dlgf] {fig_tp_leftpanel.dat};
+\addplot[black, dashed, line width=0.5pt] coordinates {(0.006,0) (70,0)};
+% section boundaries S = 0.1, 0.81, 2.28, 4.9 a.u.
+\draw[gray, densely dotted] (axis cs:0.1, -1.3)  -- (axis cs:0.1, 1.2);
+\draw[gray, densely dotted] (axis cs:0.81,-1.3)  -- (axis cs:0.81,1.2);
+\draw[gray, densely dotted] (axis cs:2.28,-1.3)  -- (axis cs:2.28,1.2);
+\draw[gray, densely dotted] (axis cs:4.9, -1.3)  -- (axis cs:4.9, 1.2);
+% ------------------------------ RIGHT PANEL -----------------------------
+\nextgroupplot[
+    xlabel={$(\ln\langle S\rangle)^{1/3}$},
+    ylabel={rms$\,[\log_{10}(f_{\mathrm{P00}}/F_{\mathrm{DREAM}})]$},
+    xmin=-1.7, xmax=1.6, ymin=0, ymax=1.0,
+    ymajorgrids, grid style={gray!20},
+    legend pos=north east,
+]
+% linear fit: rms = -0.312925 (ln<S>)^{1/3} + 0.454808
+\addplot[red, line width=1pt, domain=-1.65:1.55] {-0.312925054856973*x + 0.454808404431693};
+\addlegendentry{linear fit}
+% floor value 0.05 (in log10 S) used in u(S)
+\addplot[black, dashed, line width=0.5pt, domain=-1.65:1.55] {0.05};
+\addlegendentry{floor $=0.05$}
+% five per-section rms points
+\addplot[only marks, mark=square*, mark size=2pt, color=blue!55!black] coordinates {
+    ( 1.3749445390308193, 0.050077477002810282)
+    ( 1.0836407228996769, 0.069208070997677076)
+    ( 0.66052253734860689, 0.26659558829203356)
+    (-1.0039511592184323, 0.78413270900177245)
+    (-1.4458935997216575, 0.89459900325234076)
+};
+\addlegendentry{section rms}
+\end{groupplot}
+\end{tikzpicture}

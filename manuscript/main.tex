@@ -1,0 +1,169 @@
+\documentclass[10pt]{article}
+
+% --- PACKAGES ---
+\usepackage[utf8]{inputenc} % Input encoding
+\usepackage[T1]{fontenc}    % Font encoding
+\usepackage{amsmath}        % Math environments and symbols
+\usepackage{amssymb}        % More math symbols
+\usepackage{graphicx}       % Include graphics
+\usepackage{xurl}
+\usepackage{hyperref}       % Create hyperlinks in the document (citations, refs, urls)
+
+\usepackage{lineno}
+\linenumbers
+
+\usepackage{enumitem}       % Customize lists (like roman numerals)
+\usepackage{geometry}       % Adjust page margins if needed
+\usepackage{authblk}        % For author/affiliation handling
+\usepackage{pgfplots}       % For plotting
+\usepackage{multirow}       % Required for multirow cells
+\usepackage{tikz}           % For arrow tips on axes
+\usepackage{array}          % Required for 'm' column type and other advanced features
+\usepackage{nicefrac}
+\usepackage[backend=biber, style=numeric]{biblatex}
+\setcounter{biburllcpenalty}{100}
+\setcounter{biburlucpenalty}{100}
+\setcounter{biburlnumpenalty}{100}
+\usepackage{orcidlink}
+\usepgfplotslibrary{groupplots} % For arranging multiple plots
+\pgfplotsset{compat=1.18}       % Use a recent compatibility version for pgfplots
+
+\newcommand{\DB}[1]{{\color{blue}{{#1}}}}   % Dima
+\newcommand{\MP}[1]{{\color{red}{{#1}}}}    % Manas
+\newcommand{\YR}[1]{{\color{teal}{{#1}}}}   % Yuri
+\newcommand{\AK}[1]{{\color{brown}{{#1}}}}  % Alexander
+\setcounter{section}{0}
+
+\addbibresource{references.bib}
+
+% Main title of the paper
+\title{Data extraction from published articles on atomic spectroscopy with large language models -- A proof of concept based on the Pr$^{2+}$ spectrum}
+
+\author[1]{Manas Pandey \orcidlink{0009-0000-4409-940X}}
+\author[2,3,4]{Alexander Kramida\orcidlink{0000-0002-0788-8087}}
+\author[5,6,7,8,*]{Dmitry Budker \orcidlink{0000-0002-7356-4814}}
+\author[2,3,4]{Yuri~Ralchenko\orcidlink{0000-0003-0083-9554}}
+\author[2,3,4]{Rodrigo Ibacache}
+
+\affil[1]{Indian Institute of Technology, Kanpur, Uttar Pradesh 208016, India}
+\affil[2]{Department of Astronomy, University of Maryland, College Park, MD 20742, USA}
+\affil[3]{X-Ray Astrophysics Laboratory, NASA/GSFC, Greenbelt, MD 20771, USA}
+\affil[4]{Center for Research and Exploration in Space Science and Technology, NASA/GSFC, Greenbelt, MD 20771, USA}
+\affil[5]{Johannes Gutenberg-Universit{\"a}t Mainz, Mainz 55122, Germany}
+\affil[6]{Helmholtz Institute Mainz, Mainz 55099, Germany}
+\affil[7]{GSI Helmholtzzentrum f{\"u}r Schwerionenforschung GmbH, Darmstadt 64291, Germany}
+\affil[8]{Department of Physics, University of California, Berkeley, CA 94720-7300, USA}
+% Corresponding author
+\affil[*]{Corresponding author: budker@uni-mainz.de} 
+
+
+\begin{document}
+
+\maketitle
+
+% Abstract
+\begin{abstract}
+Here goes the abstract.
+\end{abstract}
+
+\medskip
+\textbf{Dedication:} Dedicated to the memory of Jean-Fran{\c c}ois Wyart, a titan in atomic spectroscopy
+
+% Main text
+\section{Introduction}
+
+Complete lists of observed and predicted spectral lines of all atoms and ions with detailed energy level assignments and critically evaluated wavelengths and transition probabilities are required for interpretation and modeling of astrophysical spectra, as well as for fusion energy and many other research areas.~\cite{Kramida2024}
+
+Until now, such critically evaluated data were produced and disseminated by a single organization, the Atomic Spectroscopy Group of the National Institute of Standards and Technology (NIST), recently dismantled. This group had maintained and developed the NIST Atomic Spectra Database (ASD)~\cite{NIST_ASD} specifically to collect and distribute critically evaluated atomic data. This unique database is a quintessence of human knowledge on atomic spectroscopy accumulated in the $>200$ years of history of this discipline.
+
+Precise and systematic atomic spectroscopy remains a vital branch of fundamental science, consistently pushing the boundaries of discovery. From its pivotal role in shaping quantum mechanics over a century ago to its modern-day contributions, atomic spectroscopy drives breakthroughs in atomic clocks, tests of fundamental symmetries, beyond-standard-model physics searches, and dark matter identification.
+
+Currently, only a small fraction (about 4~\%) of all atomic spectra of interest to applied sciences have publicly available digitized lists of spectral lines in online databases such as NIST ASD. Expanding these databases is greatly impeded by the fact that most of the published line lists are in the form of poorly readable PDF files. For example, no complete digitized line lists are available at present for any of the lanthanide elements that are now a hot topic in astrophysics in relation to studies of kilonova events. For the first three spectra of these elements (from neutral to doubly ionized atoms), there are 544 published articles (see the bibliographic databases associated with NIST ASD~\cite{NIST_ASD}). Of these, 331 were published before the year 2000, and thus have PDF files of poor quality. The total size of these old PDF files is about 1.2~Gb; their manual digitization would take about 100 years. A critical analysis of the digitized data would take another $\sim 500$ years of labor that would require expert knowledge of both experimental and theoretical atomic physics.
+
+The primary purpose of the present work is to explore new ways of increasing the efficiency of this process, starting with digitization of large line lists and ending with a set of critically evaluated energy levels and spectral lines. It turned out that the present-state large language models (LLM) such as Gemini~3~\cite{Gemini3} are capable of automating this work to a great extent. Thus, our focus was on harnessing these capabilities.
+
+For this purpose, we chose two articles on doubly ionized praseodymium (Pr$^{2+}$; the name of the spectrum is Pr~III) containing more than 6000 observed and precisely measured lines of this spectrum.~\cite{Sugar1969,Sugar1974} In these articles, Jack Sugar had performed a preliminary analysis of Pr~III and established a list of 400 energy levels explaining about 3400 observed lines. Later, Jean-Fran{\c c}ois Wyart had found 193 additional levels and classified several hundreds of previously unidentified lines in Sugar's line lists. His work was never published in full. Only a few tens of his newly classified lines were presented in 1974~\cite{Wyart1974}. However, he shared his energy level data with the team of Universit\'e de Mons-Hainaut, Belgium, and published together with them a work on theoretical interpretation of this spectrum~\cite{Palmeri2000}. Later, the radiative transition probabilities calculated in the latter work were included in the Belgian team's DREAM database.~\cite{Biemont2005, DREAM} The 400 energy levels found by Sugar~\cite{Sugar1969,Sugar1974} were included with a small revision in the critical compilation of Martin \textit{et al.}~\cite{Martin1978}, and this is all Pr~III data currently included in NIST ASD~\cite{NIST_ASD} in addition to a short list of 372 strongest lines given without classification.
+
+To accomplish this task, we created a set of Python codes that use calls to online LLM engines. With a carefully designed prompt, Gemini 3 performed an almost perfect optical character recognition (OCR). Subsequent post-processing codes have done cross-column checking for internal consistency, automatically correcting all misprints and OCR errors, as well as cross-table verification of the line classifications against the available list of energy levels, also auto-correcting most of the errors. Only a few errors could not be auto-fixed and had to be corrected by a human expert. With the help of this AI-assisted tool, producing a fully proof-read and consistent line list of Pr~III took only a few days compared to several months that would be required with manual labor.
+
+The secondary purpose of the present work is to find the lines explaining Wyart's new energy levels, to construct a complete list of observed and classified lines of Pr~III and, based on this line list, to derive an improved set of energy levels of this spectrum. To this end, we have created a set of Python codes that automatically detect all possible electronic transitions that can be assigned to each observed spectral line, weed out these preliminary assignments to discard those that are highly improbable, and produce a set of improved energy levels consistent with the complete set of confidently classified observed spectral lines. These codes take into account the available transition probability data~\cite{DREAM}, so the final result is a complete set of critically evaluated data: 593 energy levels, 7118 transitions assigned to 4619 observed lines, and 5683 transition probabilities corresponding to these transitions. Only 1625 observed lines out of a total of 6244 remain unclassified. The creation and testing of these complex codes was assisted by AI agents, and thus took only a month. Running them took only 10 seconds, and the results took just a few hours to finalize. This should be compared to about a year of intense manual work involving high expertise in atomic spectroscopy and programming.
+
+\section{Methodology}
+
+\subsection{Overview of the Automated Extraction Pipeline}
+The digitization of dense, historical spectral line tables in atomic spectroscopy has historically been a severely constrained problem. Traditional optical character recognition (OCR) algorithms drastically underperform on archival spectroscopic literature, frequently failing to resolve complex multi-column layouts, specialized physical notations, merged cells, and typographical degradation. To overcome this critical bottleneck, our methodology leverages the breakthrough capabilities of multimodal large language models (LLMs). By applying spatial and contextual reasoning directly to tabular image data, LLMs provide a paradigm shift in data extraction, succeeding where classical OCR approaches fail.
+
+However, to address the inherent stochasticity and hallucination risks of LLM, we developed a computational pipeline that strategically decouples this powerful LLM-driven data extraction from a rigorous, physics-aware validation phase. Although LLM is essential for enabling the initial digitization, the core of our methodology relies entirely on deterministic physical constraints and cross-referencing with established atomic databases. Consequently, the robustness and absolute accuracy of the final dataset are strictly model-agnostic. To validate this approach, we applied the pipeline to the spectrum of doubly ionized praseodymium ($\text{Pr}^{2+}$) as a comprehensive proof of concept.
+
+%\subsection{Input data preparation}
+%\subsubsection{Energy levels list}
+Sugar's energy level list was adopted by Martin et al. with only one correction: the $J$ value of the level at 24309.20~cm$^{-1}$ was revised from Sugar's $J=5/2$ to $J=3/2$. The levels listed in Martin et al. had been adopted in NIST ASD~\cite{NIST_ASD}, and we used this list in the OCR verification procedure.
+
+The complete list of J.-F. Wyart's energy levels of Pr~III was privately communicated to us by P. Palmeri.~\cite{Wyart_unpub}
+
+%\subsubsection{Observed line list}
+Archival publications detailing the $\text{Pr}^{2+}$ spectrum (in PDF format) are first collated to establish the foundational observed line list. These documents are subsequently converted into high-resolution images to enable spatial processing.
+
+%\subsection{Multimodal LLM-Driven Data Ingestion and Parsing}
+The high-resolution document images are processed by a multimodal LLM (in this implementation, Google Gemini models). Unlike traditional OCR tools that rely on rigid, error-prone spatial heuristics, the multimodal LLM acts as an advanced, context-aware feature extractor capable of interpreting dense scientific tables as cohesive visual documents.
+
+The model is queried using strict, year-specific prompt templates to identify spectral parameters (e.g. wavelength, intensity, line character, wavenumber) and classification metadata (e.g. lower and upper energy levels, parities, and total angular momentum quantum numbers, $J$). To mitigate the formatting variability characteristic of LLM outputs, the raw textual response is processed through a multi-tier fallback parsing algorithm. This parser systematically resolves common JSON serialization artifacts, producing a standardized intermediate data structure ready for deterministic physical validation.
+%\subsection{Physics-Informed Validation and Heuristic Auto-Correction}
+
+The raw extracted rows undergo a multi-stage validation algorithm designed to identify, flag, and correct transcription errors introduced during the LLM-based extraction phase. This step ensures data fidelity through three primary physical constraints common to atomic spectroscopy:
+\begin{enumerate}
+    \item \textbf{Atomic Reference Cross-Validation:} The extracted lower and upper energy states are independently queried against established reference data %\MP{(e.g., the NIST Atomic Spectra Database or comprehensive literature evaluations for $\text{Pr}^{2+}$)}.
+    \AK{(in this case, the NIST Atomic Spectra Database~\cite{NIST_ASD})}.
+    To correct for common typographical errors induced by visual similarities in the source documents, the algorithm uses a heuristic search. If an exact match for the integer energy, parity, and $J$-value is not found, the algorithm systematically tests for single-digit typographical errors, adjacent digit transpositions, parity misinterpretations (e.g., the degree symbol `$^\circ$' denoting odd parity being misread as the digit `0'), and historical revisions to $J$-values.
+    \item \textbf{Quantum Mechanical Selection Rules:} For all classified transitions, the pipeline strictly enforces the electric dipole (E1) selection rules. The algorithm verifies that a transition exhibits a parity change between the upper and lower energy states and that the total angular momentum adheres to the constraint $\Delta J \leq 1$ (with $J=0 \not\leftrightarrow J=0$). Violations of these fundamental physical rules result in the rejection or flagging of the classification.
+    \item \textbf{Dispersion Relation Consistency:} The physical consistency between the measured air wavelength ($\lambda_{\text{air}}$) and vacuum wavenumber ($\sigma_{\text{vac}}$) is explicitly verified. The conversion is calculated using Edl\'en's 1966~\cite{Edlen_1966} formulation for the refractive index of standard air ($n$):
+    \begin{equation}
+        (n - 1) \times 10^8 = 8342.13 + \frac{2406030}{130 - \sigma^2} + \frac{15997}{38.9 - \sigma^2}
+    \end{equation}
+    where $\sigma$ is expressed in $\mu\text{m}^{-1}$. 
+    The algorithm computes the expected wavenumber from the observed wavelength and compares it to the extracted wavenumber. Discrepancies exceeding a predefined experimental tolerance trigger the heuristic typo-correction module, isolating and rectifying specific digit errors in either value. \AK{We note that Edl\'en's formula given above was used here because it was the most likely formula to have been used by Sugar in 1974. Modern atomic spectroscopy tables such as those of NIST ASD~\cite{NIST_ASD} use the five-parameter formula for the refractive index of standard air published by Peck and Reeder~\cite{Peck_JOSA_62_958_1972}. For the wavelength range of Sugar~\cite{Sugar1974}, the difference between these two formulas is negligibly small compared to the measurement uncertainties.}
+\end{enumerate}
+%\subsection{Spatial Misalignment Correction via the Ritz Principle}
+A predominant failure mode in the LLM extraction of densely packed spectroscopic tables is spatial misalignment, where classification metadata is erroneously shifted to an adjacent row's experimental data. We implemented a deterministic correction mechanism that uses the Ritz combination principle to rescue misaligned classifications. For rows exhibiting a valid reference classification but a significant wavenumber discrepancy, the algorithm computes the Ritz wavenumber from the NIST energy levels:
+\begin{equation}
+    \sigma_{\text{Ritz}} = E_{\text{upper}} - E_{\text{lower}}.
+\end{equation}
+A local spatial search window (e.g., $\pm 10$ rows) is then scanned to identify an unclassified row whose observed wavenumber minimizes the residual $|\sigma_{\text{obs}} - \sigma_{\text{Ritz}}|$ within the experimental uncertainty. The classification is subsequently relocated to the physically corresponding row, algorithmically resolving structural artifacts introduced by the LLM.
+
+\section{From extraction to a complete, refined line list}
+\label{sec:lineclass}
+
+The extraction pipeline described above yields a faithful digital copy of Sugar's line lists~\cite{Sugar1969,Sugar1974}, but these lists are inherently incomplete: many observed lines were left unclassified, and the large set of new and revised energy levels later found by J.-F.~Wyart~\cite{Wyart_unpub} was never published together with the observed lines that define it. The second stage of this work closes that gap. Starting from the digitized lines, a complete list of known energy levels, and the calculated transition probabilities of the DREAM database~\cite{DREAM}, we built a fully deterministic pipeline that assigns every observed line to all physically allowed transitions between known levels, discards improbable assignments on statistical grounds, and refines the level energies to be consistent with the retained classifications.
+
+Crucially, this second stage uses no LLM (although the code base for it was written with extensive use of LLM). It enumerates all electric-dipole transitions permitted by the selection rules within the range of observed wavenumbers, matches them to the observed lines within a tolerance set by each line's estimated uncertainty, grades every match on both wavenumber and intensity agreement, resolves cases in which one transition competes for several observed lines, and then iteratively ``weeds'' out spurious assignments using a self-calibrating, per-level intensity model before performing an approximate energy-level optimization. Because these decisions rest entirely on physical constraints and measured quantities, the reliability of the final catalog is model-agnostic. The preparation of the input data---compilation of the energy-level list, assignment of wavenumber uncertainties, assignment of uncertainties to the calculated transition rates, and reduction of the observed intensities to a common linear scale---and the full algorithm are described in Supplementary Notes~1 and~2.
+
+Applied to Pr~III, the pipeline produced a critically evaluated catalog of 593 energy levels and 7118 transitions assigned to 4619 of the 6244 observed lines, of which about 2000 are newly classified; 5683 of these transitions carry a transition probability. Only 1625 observed lines remain unclassified. The final level energies are obtained with the least-squares optimization program LOPT, fed by the accepted assignments and their branching fractions. The statistical validation of these results---residual distributions, grade statistics, and the significance of the energy revisions---is presented in Supplementary Note~3, and the two resulting data tables are described in Supplementary Note~4.
+
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=0.8\linewidth]{figX_summary.pdf}
+%   \caption{Summary of the Pr~III classification results (e.g.\ grade
+%   distribution or wavenumber-residual histogram). See Supplementary Note~3.}
+%   \label{fig:lineclass_summary}
+% \end{figure}
+
+
+\section*{Data availability}
+The two principal datasets generated in this work---the list of 593 critically evaluated Pr~III energy levels and the complete list of $\sim$9000 observed lines with their classifications---are provided as machine-readable Supplementary Data files and are deposited in the [Zenodo/figshare] repository under DOI [to be assigned]. The digitized Sugar line lists~\cite{Sugar1969,Sugar1974} and the compiled energy-level list underlying the analysis are included in the same deposit. \MP{[Update with the final repository name and DOI before submission.]}
+
+\section*{Code availability}
+The line-classification and level-refinement pipeline (\texttt{classify\_lines.py}), together with the LLM-assisted extraction codes, is available at [repository URL/DOI]. \MP{[Add the public repository, or state ``available from the corresponding author on reasonable request.'']}
+
+
+\section{Acknowledgments}
+The work of A.K., Yu.R., and R.I. was supported by NASA under award number 80GSFC24M0006. The authors appreciate the help of Dr. Patrick Palmeri of Mons University, Belgium, in constructing the full list of J.-F. Wyart's new and revised energy levels.
+
+\section*{Author Contributions}
+All authors contributed to conceptualizing the project and writing, editing, and proofreading the manuscript. M.P. and A.K. performed LLM engineering and Python coding. A.K. and Y.R. prepared the validation sets.
+
+\label{sec:references}
+\begingroup
+\setlength{\emergencystretch}{3em}
+\printbibliography
+\endgroup
+\end{document}
