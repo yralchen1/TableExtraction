@@ -1,16 +1,16 @@
-lopt_perturb.py --source calibration, 2026-11-21 13:58
-set: F:\UMD\AI\as-ai\LineClass\final (7799 records)
+lopt_perturb.py --source calibration, 2026-11-22 06:23
+set: F:\UMD\AI\as-ai\LineClass\final (7797 records)
 corrections F:\UMD\AI\as-ai\LineClass\wavelength_calibration_corrections.csv; covariance F:\UMD\AI\as-ai\LineClass\wavelength_calibration_cov.csv
 groups 150; patterns run 150 of 150, the largest carrying 25.2% of the variance
-corrections against covariance: largest relative difference of a group's u 1.19%
+corrections against covariance: largest relative difference of a group's u 1.04%
 records not moved: 0 not in the table, 60 without a group, 0 in a group the covariance does not hold
 base run against the set's own LOPT levels: largest |diff| 0.00e+00 cm^-1
-linearity: the pattern p001 at half size differs by 4.03e-07 cm^-1 at most (its largest level shift 0.0268)
-152 runs, 16 at a time, 26 s
+linearity: the pattern p001 at half size differs by 2.01e-07 cm^-1 at most (its largest level shift 0.0267)
+152 runs, 16 at a time, 27 s
 
-u_cal over 652 levels (ground excluded): median 0.0243, 90% 0.0339, max 0.0844 cm^-1; / D2stat median 1.07, 90% 1.84
-  E      0-50000 : 160 levels, median u_cal 0.0076, median D2stat 0.0086
+u_cal over 652 levels (ground excluded): median 0.0242, 90% 0.0338, max 0.0844 cm^-1; / D2stat median 1.07, 90% 1.84
+  E      0-50000 : 160 levels, median u_cal 0.0075, median D2stat 0.0085
   E  50000-100000: 175 levels, median u_cal 0.0179, median D2stat 0.0150
   E 100000-      : 317 levels, median u_cal 0.0308, median D2stat 0.0260
-the largest pattern's share of u_cal^2: median 0.49
+the largest pattern's share of u_cal^2: median 0.50
 written: F:\UMD\AI\as-ai\LineClass\final\calibration_sys_levels.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_modes.csv, F:\UMD\AI\as-ai\LineClass\final\calibration_sys_report.txt
