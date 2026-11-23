@@ -355,7 +355,7 @@ The `LineClass` module provides a fully-automated, deterministic pipeline for cl
 |------|-------------|
 | `Pr3_lev_Wyart_1999.xlsm` | Energy levels (Wyart 1999) |
 | `Icalc.xlsx` | Theoretical transition intensities and uncertainties |
-| `Pr3_lines.xlsx` | Observed spectral lines with existing Sugar classifications |
+| `Pr3_lines.xlsx` | Observed spectral lines with existing Sugar classifications; its column `Notes2` holds the revision codes of paper 2 (legend in `LineClass/README.md`, section *Revision codes of paper 2*) |
 
 ### 6-Step Workflow
 

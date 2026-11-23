@@ -118,6 +118,41 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
+### Revision codes of paper 2 (column `Notes2`)
+
+The Pr III re-analysis (paper 2: A. Kramida, to be published) is a revision
+of this work. Where it changes a line, the column `Notes2` says so. The
+column is in `Pr3_lines.xlsx` (column R), in the 1974 extraction workbook
+`Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm` (column CE),
+in the 1969 workbook `Pr3_Sugar69_extracted_gemini-3-flash-preview_v1.xlsm`
+(column BG), and in the line list of the supplement
+(`manuscript/Pr3_lines_paper1.txt`, Supplementary Data 3). The level list of
+the supplement (`manuscript/Pr3_levels_paper1.txt`, Supplementary Data 2) has
+its own codes for levels.
+
+| Code | Meaning |
+|------|---------|
+| A2 | A line Sugar printed as a line that is missing from this work's line list; added in paper 2 |
+| R2 | Revised in paper 2: Sugar's intensity, character or classification |
+| L2 | A component Sugar printed as hyperfine structure (intensity 0), made a line of its own in paper 2 |
+| M2 | Merged with another line in paper 2 |
+| C2 | Identified as a hyperfine-structure companion in paper 2 |
+| R2 (levels) | Energy or designation revised in paper 2 |
+| D2 (levels) | Level discarded in paper 2 |
+
+Several codes are joined with a comma (`R2,C2`). The files of this work carry
+the codes only; paper 2's files carry each code with a short explanation.
+The codes were set by comparing the files of the two papers and are frozen
+when this work is submitted. A different uncertainty inflation is not a
+revision. Changes to the identifications themselves (classifications accepted
+in one paper and not in the other) are not coded here.
+
+`Notes2` is unrelated to `notes2` of `line_classifications.csv`, which is the
+weeding decision trace.
+
+`Pr3_lines.xlsx` also has the column `Iorig` (column Q): Sugar's printed
+intensity, as interpreted in this work.
+
 ### Column mapping (as read by the code)
 
 **Energy levels** — `read_energy_levels()`, sheet `Wyart2000` (header row skipped):

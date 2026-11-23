@@ -85,8 +85,12 @@ used, `xlsx_cells.py`, is in the same folder.
 
 ### 3.2 Still to do
 
-1. Check Wyart's level file for changes made during the paper-2 work.
-2. The legend of the codes in the README and the supplement.
+1. Check Wyart's level file for changes made during the paper-2 work. Done
+   2026-11-22: unchanged in paper 2 (its only edit, 2026-04-08, is 000622's
+   E_adopt 141328.8 -> 141328.85, remark a of Supplementary Data 2).
+2. The legend of the codes in the README and the supplement. Done 2026-11-23:
+   `LineClass/README.md` (section *Revision codes of paper 2*), Note 17 of
+   Supplementary Data 3 and Note 12 of Supplementary Data 2.
 
 ## 4. Work for paper 1, in order
 
