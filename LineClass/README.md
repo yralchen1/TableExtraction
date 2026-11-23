@@ -125,10 +125,10 @@ of this work. Where it changes a line, the column `Notes2` says so. The
 column is in `Pr3_lines.xlsx` (column R), in the 1974 extraction workbook
 `Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm` (column CE),
 in the 1969 workbook `Pr3_Sugar69_extracted_gemini-3-flash-preview_v1.xlsm`
-(column BG), and in the line list of the supplement
-(`manuscript/Pr3_lines_paper1.txt`, Supplementary Data 3). The level list of
-the supplement (`manuscript/Pr3_levels_paper1.txt`, Supplementary Data 2) has
-its own codes for levels.
+(column BG), and in the line list of the article's supplement
+(Supplementary Data 3, deposited with the article, not in this repository).
+The level list of the supplement (Supplementary Data 2) has its own codes for
+levels.
 
 | Code | Meaning |
 |------|---------|

@@ -24,7 +24,7 @@ belongs to paper 2 and is not described here.
 | Code and data in the state paper 1 describes | Shared repository `yralchen1/TableExtraction`, branch `paper1`, tag `paper1-dream-final`, commit 5f415ef (2026-08-12); local clone `F:\UMD\AI\PrIII-paper1` |
 | Table extraction (stages 1-2) | `TableExtraction/` |
 | Line list and identification (stage 3) | `LineClass/` as of 5f415ef |
-| Draft manuscript | `manuscript/` in this clone (moved from `F:\UMD\AI\Budker_Pr3_Overleaf\Jul13_2026` on 2026-11-22): `main.tex` (about 2700 words), `supplementary.tex` (about 3900 words, sections S1.1-S2.6) and the figure data. Drafted in Overleaf with the Nature template. Older copies stay in `Budker_Pr3_Overleaf` and `Budker_Pr3_Overleaf_v0` |
+| Draft manuscript | `manuscript/` in this clone, local only: excluded from the repository, which holds only the codes and their data (2026-11-23). Moved from `F:\UMD\AI\Budker_Pr3_Overleaf\Jul13_2026` on 2026-11-22. Contents: `main.tex` (about 2700 words), `supplementary.tex` (about 3900 words, sections S1.1-S2.6) and the figure data. Drafted in Overleaf with the Nature template. Older copies stay in `Budker_Pr3_Overleaf` and `Budker_Pr3_Overleaf_v0` |
 | Draft title | "Data extraction from published articles on atomic spectroscopy with large language models - A proof of concept based on the Pr2+ spectrum" |
 | API keys of the extraction | `.env` in this clone's root (git-ignored; moved from the paper-2 folder on 2026-11-22). The extraction is not expected to be rerun; only the `LineClass` codes may need new runs |
 

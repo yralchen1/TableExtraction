@@ -88,3 +88,5 @@ implementation_plan.md
 # Claude agent files
 CLAUDE.md
 .claude/
+# The article draft and its supplements stay local; the repository holds only the codes
+manuscript/
