@@ -37,7 +37,9 @@ The results at 5f415ef agree with the numbers in slide 9 of the talk (checked
   new identifications.
 - All 593 of Wyart's levels supported by observed lines; 59 levels have no DREAM
   transition in range; of the 214 tested levels about 33 are likely spurious;
-  50 marked questionable.
+  50 marked questionable. These validation numbers came from an earlier
+  classification run; rerun on the committed classifications (2026-11-23):
+  221 tested, about 28 [17-40] spurious, 52 questionable (section 4, item 3).
 - Finding: chance coincidences are frequent; even a level with 10-12
   supporting lines can be spurious with up to about 5% probability.
 
@@ -99,11 +101,91 @@ used, `xlsx_cells.py`, is in the same folder.
    paper-2 repository).
 2. **Rerun the paper-1 identification only if needed**: under the revision
    approach paper 1's data are unchanged, so its results stand as they are.
+3. **Validation rerun (2026-11-23).** The validation outputs at 5f415ef
+   (`decoy_mc_*`, `chance_mc_*`, `level_shift_report.*`) had been made from an
+   earlier classification run (5155 accepted transitions) than the committed
+   `line_classifications.csv` (5288), which the paper-1 code reproduces; 263
+   levels differed in support. The suite was rerun on the committed
+   classifications, and Supplementary Data 2 (Nold, Nnew, Pspur, Q) and the Q
+   notes of Supplementary Data 3 were rebuilt from it.
 4. **Bring the draft up to date with the final numbers.** Paper 1 publishes its
    identifications as a data product: it will be the only source of Wyart's
    original level list and of the lines he likely based it on. Paper 2 revises
    and extends both; the wording that says so should be agreed, so that the two
-   papers do not contradict each other.
+   papers do not contradict each other. Work list from the review of the draft
+   (2026-11-23):
+
+   **main.tex**
+   - Abstract (still a placeholder).
+   - The numbers in the Introduction and section 3 (7118 transitions on 4619
+     lines, 1625 of 6244 unclassified, ~2000 new) replaced by the current ones:
+     6668 lines (7169 with Sugar's intensity-0 entries), 4553 classified (652
+     multiply), 5288 accepted transitions (3454 Sugar's + 1834 new, on 1588
+     lines), 38 of Sugar's 3492 classifications rejected, 2115 unclassified,
+     4341 accepted transitions with a calculated rate. Reconcile 6668 with the
+     6673 (7171) of slide 9.
+   - Methodology: "all misprints" auto-corrected is too strong; mention Sugar's
+     misprints (notes E1-E24 of Data 3) and the number of extraction errors
+     fixed by hand (the workbooks' Error column). The Edlén paragraph: the
+     published wavelengths are recomputed from the adopted wavenumbers with
+     Peck-Reeder.
+   - A results and discussion section (validation results, questionable
+     levels, the problems that led to paper 2; see below) and conclusions; the
+     summary figure of section 3 is commented out.
+   - Data availability: "~9000 lines" -> 7169 lines in 7942 rows; the
+     supplements are Data 1/2 in the text and Data 2/3 in the files; P1-6.
+   - Code availability: `yralchen1/TableExtraction`, branch `paper1`, tag
+     `paper1-dream-final`.
+   - `Pandey2025` is in the bibliography but not cited.
+
+   **supplementary.tex**
+   - S1.1: the input energies are Wyart's (E_W99); 37 ASD levels take his
+     energy (Ref W99,M78); remarks a-d of Data 2; P26 compositions.
+   - S1.3 and Fig. S1: all 71 transitions near -0.87 dex are 4f-5d (4f3 -
+     4f2.5d, 4f.5d2 - 4f2.5d), a nearly constant factor 7.4, most likely the
+     revised core polarization of the 4f-5d integral in DREAM (Biémont 2001);
+     the 101 near zero are 5d-5f and 6s-6p. Binning by S turns this scale change
+     into an uncertainty growing toward small S, helped by plotting against
+     P00's own S. u(S) of Eq. S1 probably overstates DREAM's uncertainties of
+     the 4f-5d lines. Typo F_DREAM (line 223 and the right panel's y label).
+   - S1.4 and Fig. S2: the text says "red dotted", the fits are solid; the fits
+     of regions 4/5 and 5/6 overlap (4449-4455 and 6055-6073 Å); the jumps at
+     the seams (5.5 ln units across 2103-2108 Å, 1 at 4450 Å) need an
+     explanation; below 1000 Å the correction is an extrapolation without data.
+   - Note 2: the flow figure is an empty box; the note on the disabled scoring
+     rules; S2.6: the internal optimization had not converged for chains of
+     new levels (up to 0.77 cm-1 from LOPT, median 0.009), and the ΔE of the
+     validation uses it.
+   - Note 3 (validation, empty): tested levels (n_new > n_old) and why ΔE
+     discriminates; old-level calibration; decoys (copies displaced by
+     6.9-11.3 cm-1, sign alternating with parity) and the shifted-wavenumber
+     cross-check; the N-T criterion grids; pattern scores C and V with the
+     coverage gaps and the noise cut; per-level p_spur and the likelihood of S;
+     the masking check; the Q list with reasons; the limits. Text largely in
+     the validation section of `LineClass/README.md`. Figures: |ΔE| vs support
+     for old, tested and decoy levels; the distributions of V; p_spur
+     histogram.
+   - Note 4: the dictionaries describe `line_classifications.csv`; replace by
+     summaries of the Data 2 and Data 3 headers and the Notes2 legend.
+
+   **The problems that led to paper 2 (discussion)**
+   1. DREAM's coverage and associations: 59 levels without a DREAM transition
+      in range (16 Q levels without a pattern test); P26 gives a different
+      configuration or leading term for 55 levels (PFlag), 3 pairs
+      interchanged.
+   2. Hyperfine structure: many lines measured at the pattern's head, not its
+      center of gravity; the 0.08-0.5 cm-1 uncertainties absorb it, but the
+      level energies are biased.
+   3. Chance coincidences: 89% of decoys collect at least one accepted line;
+      a level with 10-12 lines can be spurious at ~5%. The statistics flag
+      doubtful levels but cannot decide single ones (the rerun of 2026-11-23
+      changed 36 of the Q marks); that needs expert review.
+   4. Also: the internal optimizer (replaced by LOPT); Sugar's misprints,
+      merged pairs and hfs components (Notes2 codes); Sugar's classifications
+      accepted in one paper and not the other (176/14); lines Sugar omitted as
+      blends with Pr II or Pr IV. Paper 2's outcomes cited as "to be
+      published" (653 levels, 28 questionable, 2 discarded, 21 revised, 153 of
+      Wyart's 192 confirmed).
 5. **Supplementary data files**: the digitized line lists with their
    corrections, Wyart's level list, and the classification table.
 6. **Co-author review and submission.**
