@@ -168,6 +168,21 @@ used, `xlsx_cells.py`, is in the same folder.
    - Note 4: the dictionaries describe `line_classifications.csv`; replace by
      summaries of the Data 2 and Data 3 headers and the Notes2 legend.
 
+   **Review points on the edited text** (versions in `manuscript/mainNN.tex`,
+   `mainNN.pdf`, `ChangesNN.md`; local only)
+   - main02, abstract: "correcting most errors automatically" follows the
+     Introduction's "only a few errors ... corrected by a human expert"; check it
+     against the count from the workbooks' Error column.
+   - main02, abstract: DREAM, paper 2 and the dedication are left out for the
+     150-word limit.
+   - main03, level sources: Data 2 has 059003.000430 (4f3 2F2* 5/2, 30602.83)
+     in NIST ASD from Li et al. 2016 (Ref W99,L16), not from Martin et al. So
+     NIST ASD has 401 of Wyart's levels (398 + 2 revised + 1), and the
+     Introduction's "193 additional levels" would be 192 (the validation's
+     `is_new_level` count). Wyart's own list marks 189 as new (WNote N 187 +
+     N? 2).
+   - Supplementary S1.1 still needs the same level-source wording.
+
    **The problems that led to paper 2 (discussion)**
    1. DREAM's coverage and associations: 59 levels without a DREAM transition
       in range (16 Q levels without a pattern test); P26 gives a different
