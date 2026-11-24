@@ -106,8 +106,8 @@ used, `xlsx_cells.py`, is in the same folder.
    earlier classification run (5155 accepted transitions) than the committed
    `line_classifications.csv` (5288), which the paper-1 code reproduces; 263
    levels differed in support. The suite was rerun on the committed
-   classifications, and Supplementary Data 2 (Nold, Nnew, Pspur, Q) and the Q
-   notes of Supplementary Data 3 were rebuilt from it.
+   classifications, and Supplementary Data 1 (Nold, Nnew, Pspur, Q) and the Q
+   notes of Supplementary Data 2 were rebuilt from it.
 4. **Bring the draft up to date with the final numbers.** Paper 1 publishes its
    identifications as a data product: it will be the only source of Wyart's
    original level list and of the lines he likely based it on. Paper 2 revises
@@ -116,47 +116,56 @@ used, `xlsx_cells.py`, is in the same folder.
    (2026-11-23):
 
    **main.tex**
-   - Abstract (still a placeholder).
-   - The numbers in the Introduction and section 3 (7118 transitions on 4619
+   - Done (main02): abstract.
+   - Done (main03): the numbers in the Introduction and section 3 (7118 transitions on 4619
      lines, 1625 of 6244 unclassified, ~2000 new) replaced by the current ones:
      6668 lines (7169 with Sugar's intensity-0 entries), 4553 classified (652
      multiply), 5288 accepted transitions (3454 Sugar's + 1834 new, on 1588
      lines), 38 of Sugar's 3492 classifications rejected, 2115 unclassified,
      4341 accepted transitions with a calculated rate. Reconcile 6668 with the
      6673 (7171) of slide 9.
-   - Methodology: "all misprints" auto-corrected is too strong; mention Sugar's
+   - Done (main05) except the hand-fix count: Methodology: "all misprints" auto-corrected is too strong; mention Sugar's
      misprints (notes E1-E24 of Data 3) and the number of extraction errors
      fixed by hand (the workbooks' Error column). The Edlén paragraph: the
      published wavelengths are recomputed from the adopted wavenumbers with
      Peck-Reeder.
-   - A results and discussion section (validation results, questionable
-     levels, the problems that led to paper 2; see below) and conclusions; the
-     summary figure of section 3 is commented out.
-   - Data availability: "~9000 lines" -> 7169 lines in 7942 rows; the
+   - Done (main05): sections 4-6 (validation, remaining problems,
+     conclusions). Still open: the summary figure of section 3 (commented out);
+     a main-text figure for section 4 (e.g., |ΔE| against support for the
+     reference, tested and decoy levels).
+   - Done (main03) for the line count: Data availability: "~9000 lines" -> 7169 lines in 7942 rows; the
      supplements are Data 1/2 in the text and Data 2/3 in the files; P1-6.
-   - Code availability: `yralchen1/TableExtraction`, branch `paper1`, tag
-     `paper1-dream-final`.
-   - `Pandey2025` is in the bibliography but not cited.
+   - Done (main05): Code availability: `yralchen1/TableExtraction`, branch `paper1`.
+   - Done (main05): `Pandey2025` cited in the Introduction.
 
    **supplementary.tex**
-   - S1.1: the input energies are Wyart's (E_W99); 37 ASD levels take his
+   - Done (suppl02): S1.1: the input energies are Wyart's (E_W99); 37 ASD levels take his
      energy (Ref W99,M78); remarks a-d of Data 2; P26 compositions.
-   - S1.3 and Fig. S1: all 71 transitions near -0.87 dex are 4f-5d (4f3 -
+   - Done (suppl04: the user chose a sentence in S1.3 saying u(S) is conservative for weak
+     transitions; no rerun): S1.3 and Fig. S1: all 71 transitions near -0.87 dex are 4f-5d (4f3 -
      4f2.5d, 4f.5d2 - 4f2.5d), a nearly constant factor 7.4, most likely the
      revised core polarization of the 4f-5d integral in DREAM (Biémont 2001);
      the 101 near zero are 5d-5f and 6s-6p. Binning by S turns this scale change
      into an uncertainty growing toward small S, helped by plotting against
      P00's own S. u(S) of Eq. S1 probably overstates DREAM's uncertainties of
      the 4f-5d lines. Typo F_DREAM (line 223 and the right panel's y label).
-   - S1.4 and Fig. S2: the text says "red dotted", the fits are solid; the fits
+     In the two weakest sections (S <= 0.81) about 50 of the 86 points belong
+     to this group; the rms of 0.78-0.90 dex there is mostly P00's 4f-5d scale
+     error, which Eq. S1 then attributes to every weak DREAM transition (and,
+     through the |log ratio| term, a factor 7.4 to each common 4f-5d line).
+     Changing u(S) would mean rerunning the classification (P1-5: stays); the
+     option is a sentence in S1.3 saying that u(S) is conservative for weak
+     transitions and why.
+   - Done (suppl03: plate boundaries and plate-holder deformations, the user's
+     explanation, in S1.4 and the Fig. S2 caption): S1.4 and Fig. S2: the text says "red dotted", the fits are solid; the fits
      of regions 4/5 and 5/6 overlap (4449-4455 and 6055-6073 Å); the jumps at
      the seams (5.5 ln units across 2103-2108 Å, 1 at 4450 Å) need an
      explanation; below 1000 Å the correction is an extrapolation without data.
-   - Note 2: the flow figure is an empty box; the note on the disabled scoring
+   - Done (suppl02): Note 2: the flow figure is an empty box; the note on the disabled scoring
      rules; S2.6: the internal optimization had not converged for chains of
      new levels (up to 0.77 cm-1 from LOPT, median 0.009), and the ΔE of the
      validation uses it.
-   - Note 3 (validation, empty): tested levels (n_new > n_old) and why ΔE
+   - Done (suppl02, with Fig. S4 and Table S2): Note 3 (validation, empty): tested levels (n_new > n_old) and why ΔE
      discriminates; old-level calibration; decoys (copies displaced by
      6.9-11.3 cm-1, sign alternating with parity) and the shifted-wavenumber
      cross-check; the N-T criterion grids; pattern scores C and V with the
@@ -165,23 +174,58 @@ used, `xlsx_cells.py`, is in the same folder.
      the validation section of `LineClass/README.md`. Figures: |ΔE| vs support
      for old, tested and decoy levels; the distributions of V; p_spur
      histogram.
-   - Note 4: the dictionaries describe `line_classifications.csv`; replace by
+   - Done (suppl02): Note 4: the dictionaries describe `line_classifications.csv`; replace by
      summaries of the Data 2 and Data 3 headers and the Notes2 legend.
 
    **Review points on the edited text** (versions in `manuscript/mainNN.tex`,
-   `mainNN.pdf`, `ChangesNN.md`; local only)
-   - main02, abstract: "correcting most errors automatically" follows the
-     Introduction's "only a few errors ... corrected by a human expert"; check it
-     against the count from the workbooks' Error column.
+   `mainNN.pdf`, `ChangesNN.md`, `supplementaryNN.*`, `Changes_supplNN.md`;
+   local only)
    - main02, abstract: DREAM, paper 2 and the dedication are left out for the
      150-word limit.
-   - main03, level sources: Data 2 has 059003.000430 (4f3 2F2* 5/2, 30602.83)
-     in NIST ASD from Li et al. 2016 (Ref W99,L16), not from Martin et al. So
-     NIST ASD has 401 of Wyart's levels (398 + 2 revised + 1), and the
-     Introduction's "193 additional levels" would be 192 (the validation's
-     `is_new_level` count). Wyart's own list marks 189 as new (WNote N 187 +
-     N? 2).
-   - Supplementary S1.1 still needs the same level-source wording.
+   - Settled 2026-11-23: 000430 is not in NIST ASD (193 new levels); the
+     E_ASD cell was cleared by the user in both papers' workbooks; README
+     says 193 + 28 tested. The report's `is_new_level` for 000430 will read 1
+     after the next validation run (no rerun needed: the inputs of the codes
+     are unchanged).
+   - Settled: hand-fix count = 25 Error marks - 9 "Err in Sugar" = 16 (main06).
+     One of the 16, 32382.67, is annotated "typo in Sugar wn" (Data 3 note
+     E18); counted as a pipeline error under the rule as given.
+   - Settled: the instability evidence dropped (main06); the earlier runs
+     were code adjustments, not instability.
+   - Repository: `yralchen1/TableExtraction` will be public at submission; a
+     new tag is needed then (the Code availability statement names the
+     branch until then).
+   - main05, section 4: "up to about 10%" is the decoys' worst case for n >= 8
+     and |dE| <= p90 (8.75 expected false passes per run against 84 passing).
+   - Settled 2026-11-24: the wording about paper 2 stays as it is (the user
+     saw no problem). Kramida_PrIII titled "Revised and extended analysis of
+     Pr III" (provisional; journal to be chosen).
+   - suppl02, S1.1: the 37 ASD levels with Wyart's energies (Ref W99,M78)
+     are not described separately; S1.1 says only that the classification
+     starts from Wyart's energies.
+   - suppl02, S3.4: the shifted-wavenumber runs give fewer false passes than
+     the decoys (1.7-3.7 times in Table S2; "2 to 3" corrected in suppl03); the
+     text explains it by the larger shifts of the chance levels.
+   - suppl02, Fig. S4: the reference levels' V histogram includes only the
+     347 levels with observable predictions; decoys 1389 trials.
+   - suppl02, S1.2 not reviewed against Supplementary Data 3 (counts of the
+     exceptions, the *r/*v uncertainties).
+   - Settled 2026-11-24: there is no Supplementary Data 1 besides the files;
+     the levels are Supplementary Data 1 and the lines Supplementary Data 2
+     (main07, suppl03, both builders, the READMEs).
+   - New 2026-11-24: the 30 P00 gA values of Icalc.xlsx have Icalc = #N/A, so
+     classify_lines.py read no calculated intensity for them (grade G); all 30
+     are Sugar's classifications (1445-10720 Å) and are accepted by default.
+     S1.3 says the 30 values were added, S1.4 that a few P00 values enter the
+     Boltzmann plot. The lines file now gives these gA with ref_gA = P00 and
+     blank I_calc. Checked: the 30 lines involve 40 levels, none questionable
+     and none tested (all reference levels). The user leans to leaving the code,
+     text and MRT as they are (2026-11-24). The source workbook
+     Pr3_tp_Dream.xlsm left the repo at 69a5b7d (2026-03-14), replaced by
+     Icalc.xlsx, the file the code reads (LineClass/, path from the script's
+     folder); a March copy survives in an old as-ai worktree.
+   - suppl03: the support is n_s throughout Note 3; Table S2 uses N_min,
+     N_pass, N_false; Bayes' theorem cited to Sivia & Skilling (2006).
 
    **The problems that led to paper 2 (discussion)**
    1. DREAM's coverage and associations: 59 levels without a DREAM transition

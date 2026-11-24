@@ -118,6 +118,10 @@ All paths are resolved relative to the script's own directory (`SCRIPT_DIR`).
 | `Pr3_lines.xlsx`                    | `LineClass/` (`LINES_FILE`)           | `Sheet1`    | Observed spectral lines with existing (Sugar 1969/1974) classifications.  |
 | `intensity_correction_functions.txt`| `LineClass/` (`CALIB_FILE`, optional) | text        | Validation only: piecewise polynomials `P(λ_vac)` per wavelength region (`λ_start λ_end c0;c1;…;cn`, ascending powers, λ in Å). Sugar's plate intensity converts to the linear scale as `I_linear = 1000·I_Sugar·exp(P(λ))` (the factor 1000 makes the linearized intensities in `Pr3_lines.xlsx` integers, the smallest being 21); used by `level_shifts.py` to drop predictions below Sugar's noise level, which is `1000·exp(P(λ))` on the linear scale. |
 
+`Icalc.xlsx` holds the DREAM transition probabilities (column `ref` = `DREAM`) and, where DREAM has none, 30 values of Palmeri et al. (2000, ApJS 129, 367; `ref` = `Palmeri2000`), with the uncertainties described in the Supplementary Information of paper 1 (S1.3) and the calculated intensities on the linear scale of `Pr3_lines.xlsx`.
+
+**Known issue.** In the 30 `Palmeri2000` rows of `Icalc.xlsx` the column `Icalc` is `#N/A`, so the pipeline reads no calculated intensity for these transitions and grades them `G`, as if no transition probability existed. All 30 are classifications of Sugar (1445–10720 Å) and are accepted by the default for published classifications; the 40 levels they involve are all reference levels of the validation, none of them tested or questionable. The error therefore does not affect the results of paper 1. Their gA values are given, with `ref_gA` = `P00`, in the line list published with paper 1 (Supplementary Data 2). Anyone reusing the code with their own `Icalc.xlsx` should make sure that every row with a transition probability also has a calculated intensity.
+
 ### Revision codes of paper 2 (column `Notes2`)
 
 The Pr III re-analysis (paper 2: A. Kramida, to be published) is a revision
@@ -126,8 +130,8 @@ column is in `Pr3_lines.xlsx` (column R), in the 1974 extraction workbook
 `Pr_3_Sugar74_Table1_extracted_v3_gemini-3-flash-preview.xlsm` (column CE),
 in the 1969 workbook `Pr3_Sugar69_extracted_gemini-3-flash-preview_v1.xlsm`
 (column BG), and in the line list of the article's supplement
-(Supplementary Data 3, deposited with the article, not in this repository).
-The level list of the supplement (Supplementary Data 2) has its own codes for
+(Supplementary Data 2, deposited with the article, not in this repository).
+The level list of the supplement (Supplementary Data 1) has its own codes for
 levels.
 
 | Code | Meaning |
@@ -393,7 +397,7 @@ With the current inputs the pipeline accepts 5288 identifications: 3454 previous
 
 ### Which levels are tested
 
-A level is **tested** ("new\*") if, in the real run, it is supported by more new than old identifications (`n_new > n_old`): 221 of the 593 levels. This set comprises the 192 levels absent from the ASD compilation (blank `E_ASD` in the levels file) plus 29 levels that are formally in ASD but whose energies rest mainly on the new identifications. The remaining **372 old levels**, anchored by their previously published identifications, serve as the reference of genuine behavior.
+A level is **tested** ("new\*") if, in the real run, it is supported by more new than old identifications (`n_new > n_old`): 221 of the 593 levels. This set comprises the 193 levels absent from the ASD compilation (blank `E_ASD` in the levels file) plus 28 levels that are formally in ASD but whose energies rest mainly on the new identifications. The remaining **372 old levels**, anchored by their previously published identifications, serve as the reference of genuine behavior.
 
 ### The quantities used to judge a level
 
@@ -415,14 +419,14 @@ Findings worth stating: mere support proves nothing — 93% of decoys collect at
 
 ### The shared utilities and the shifted-wavenumber cross-check (`chance_mc.py`)
 
-`chance_mc.py` now serves mainly as a library for the other two scripts: `read_input_levels()` (input energies and ASD status of every level), `per_level_table()` (per-level support counts, final energies and ΔE from a run output), and `save_table()` (Excel-friendly output writing, see below). Run directly, it performs an independent cross-check: all observed wavenumbers are shifted by a constant (again 6.9–11.3 cm⁻¹, beyond the widest matching window), so that no line can coincide with any true transition and, once more, everything accepted is a false match. Because the shift destroys the true matches, the whole line list is left free for false matching, which was expected to make these rates upper bounds. With the current classifications they are not: the shifted-wavenumber runs give 2-3 times fewer false passes than the decoys (e.g., 4.9 against 13.3 per run for n ≥ 7 and |ΔE| ≤ p90), because levels built from shifted lines move further (median |ΔE| about 0.65 against 0.31 cm⁻¹ for the decoys) and fail the energy cut more often. The decoys, which compete under real-run conditions, remain the primary calibration. `level_shifts.py` includes the cross-check section when `chance_mc_levels.csv` is present and skips it otherwise.
+`chance_mc.py` now serves mainly as a library for the other two scripts: `read_input_levels()` (input energies and ASD status of every level), `per_level_table()` (per-level support counts, final energies and ΔE from a run output), and `save_table()` (Excel-friendly output writing, see below). Run directly, it performs an independent cross-check: all observed wavenumbers are shifted by a constant (again 6.9–11.3 cm⁻¹, beyond the widest matching window), so that no line can coincide with any true transition and, once more, everything accepted is a false match. Because the shift destroys the true matches, the whole line list is left free for false matching, which was expected to make these rates upper bounds. With the current classifications they are not: the shifted-wavenumber runs give 1.7-3.7 times fewer false passes than the decoys (e.g., 4.9 against 13.3 per run for n ≥ 7 and |ΔE| ≤ p90), because levels built from shifted lines move further (median |ΔE| about 0.65 against 0.31 cm⁻¹ for the decoys) and fail the energy cut more often. The decoys, which compete under real-run conditions, remain the primary calibration. `level_shifts.py` includes the cross-check section when `chance_mc_levels.csv` is present and skips it otherwise.
 
 ### The validation report (`level_shifts.py`)
 
 Running `python level_shifts.py` produces the full analysis:
 
 1. **Old-level calibration** — the |ΔE| percentiles quoted above, and the per-support behavior of d.
-2. **Criterion grids** — for every combination of `N` (minimum number of supporting lines) and `T` (largest allowed |ΔE|), the number of tested levels passing the cut `n ≥ N and |ΔE| ≤ T` against the expected number of false passes (decoy calibration, and the shifted-wavenumber upper bound).
+2. **Criterion grids** — for every combination of `N` (minimum number of supporting lines) and `T` (largest allowed |ΔE|), the number of tested levels passing the cut `n ≥ N and |ΔE| ≤ T` against the expected number of false passes (decoy calibration, and the shifted-wavenumber cross-check).
 3. **Intensity-pattern check** — the modern form of the classical "square-array" argument: a real level must reproduce the *pattern* of theoretically predicted intensities. For every level, all predicted transitions to/from it (from `Icalc.xlsx`, both partners known, Ritz wavenumber inside the observed range) are sorted by predicted intensity, and three scores are computed. Two classes of predictions are first excluded, because a transition that could not have been seen must not count as missing: (a) predictions whose Ritz wavelength falls inside one of **Sugar's coverage gaps** (`COVERAGE_GAPS_A`: 1522.49–1529.85 and 2103.46–2107.92 Å vacuum — intervals with no exposures, whose edges coincide with the seams of the intensity-calibration regions); (b) when the intensity-calibration file `intensity_correction_functions.txt` is present (piecewise polynomials `P(λ)` in vacuum wavelength converting Sugar's plate intensity to the uniform linear scale via `I_linear = 1000·I_Sugar·exp(P(λ))`), predictions whose Sugar-scale intensity `I_pred/(1000·exp(P(λ)))` falls below the noise level (Sugar intensity 1). With the current inputs 56 predictions are excluded in the gaps and 11905 below the noise level, of 18331 loaded — most theoretically predicted transitions of these high levels are simply too faint for Sugar's plates. Accepted lines whose predictions are below the noise level stay in the support count n (the decoys are treated identically, so the calibration stays fair); the report column `n_acc_below_noise` makes them visible.
    - `top10_found` — how many of the 10 strongest predictions are among the accepted lines (`n_top10` = how many were available);
    - `pattern_C` — intensity-weighted completeness: the sum of predicted intensities over the accepted transitions divided by the sum over all predicted observable ones;
