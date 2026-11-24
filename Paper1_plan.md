@@ -199,7 +199,7 @@ used, `xlsx_cells.py`, is in the same folder.
      and |dE| <= p90 (8.75 expected false passes per run against 84 passing).
    - Settled 2026-11-24: the wording about paper 2 stays as it is (the user
      saw no problem). Kramida_PrIII titled "Revised and extended analysis of
-     Pr III" (provisional; journal to be chosen).
+     Pr III" (provisional; paper 2 goes to ApJS, settled 2026-11-24).
    - suppl02, S1.1: the 37 ASD levels with Wyart's energies (Ref W99,M78)
      are not described separately; S1.1 says only that the classification
      starts from Wyart's energies.
@@ -208,8 +208,7 @@ used, `xlsx_cells.py`, is in the same folder.
      text explains it by the larger shifts of the chance levels.
    - suppl02, Fig. S4: the reference levels' V histogram includes only the
      347 levels with observable predictions; decoys 1389 trials.
-   - suppl02, S1.2 not reviewed against Supplementary Data 3 (counts of the
-     exceptions, the *r/*v uncertainties).
+   - Settled 2026-11-24: the user reviewed S1.2 and found no problems.
    - Settled 2026-11-24: there is no Supplementary Data 1 besides the files;
      the levels are Supplementary Data 1 and the lines Supplementary Data 2
      (main07, suppl03, both builders, the READMEs).
@@ -226,6 +225,14 @@ used, `xlsx_cells.py`, is in the same folder.
      folder); a March copy survives in an old as-ai worktree.
    - suppl03: the support is n_s throughout Note 3; Table S2 uses N_min,
      N_pass, N_false; Bayes' theorem cited to Sivia & Skilling (2006).
+   - 2026-11-24: main09 (= the user's Overleaf change): the Data availability
+     sentence on the digitized Sugar lists and the level list "in the same
+     deposit" is commented out; the data files are not duplicated. The user
+     uploaded the .tex, .bib and both MRT files to Overleaf and asked the
+     co-authors to review them (waiting). Overleaf is now the master copy.
+   - Open (repository): deleting the shared repo's branches mar10-2 and mar10
+     (needs Yuri Ralchenko's approval), and whether to merge paper1 into the
+     shared repo's main.
 
    **The problems that led to paper 2 (discussion)**
    1. DREAM's coverage and associations: 59 levels without a DREAM transition
